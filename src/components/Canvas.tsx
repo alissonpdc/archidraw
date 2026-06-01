@@ -27,7 +27,7 @@ export const Canvas: React.FC = () => {
 
   const [canvasSize, setCanvasSize] = useState({
     width: window.innerWidth,
-    height: window.innerHeight - 50,
+    height: window.innerHeight - 60,
   });
 
   // Initialize canvas and renderer
