@@ -1,0 +1,20 @@
+
+> archidraw@0.1.0 test
+> vitest
+
+
+ DEV  v1.6.1 /home/devcontainer/GitHub/archidraw
+
+ ✓ src/__tests__/shape.test.ts  (3 tests) 3ms
+ ✓ src/__tests__/shapeRenderer.test.ts  (3 tests) 9ms
+ ✓ src/__tests__/canvasStore.test.ts  (6 tests) 8ms
+ ✓ src/__tests__/shapeFactory.test.ts  (3 tests) 3ms
+
+ Test Files  4 passed (4)
+      Tests  15 passed (15)
+   Start at  00:40:15
+   Duration  3.56s (transform 152ms, setup 0ms, collect 325ms, tests 23ms, environment 12.28s, prepare 639ms)
+
+
+ PASS  Waiting for file changes...
+       press h to show help, press q to quit
