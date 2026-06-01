@@ -36,20 +36,10 @@ export function maintainAspectRatio(
   height: number,
   type: ShapeType
 ): { width: number; height: number } {
-  // Circle: always square
-  if (type === 'circle') {
-    const size = Math.min(Math.abs(width), Math.abs(height));
-    return { width: size, height: size };
-  }
+  // Shapes that require square aspect ratio
+  const SQUARE_SHAPES = new Set(['circle', 'rectangle', 'triangle', 'diamond']);
 
-  // Rectangle: square
-  if (type === 'rectangle') {
-    const size = Math.min(Math.abs(width), Math.abs(height));
-    return { width: size, height: size };
-  }
-
-  // Triangle, Diamond: square aspect
-  if (type === 'triangle' || type === 'diamond') {
+  if (SQUARE_SHAPES.has(type)) {
     const size = Math.min(Math.abs(width), Math.abs(height));
     return { width: size, height: size };
   }
