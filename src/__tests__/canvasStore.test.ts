@@ -85,6 +85,15 @@ describe('Canvas Store', () => {
     expect(canvasStore.getState().shapes).toHaveLength(0);
   });
 
+  it('should set viewport', () => {
+    const store = canvasStore.getState();
+    store.setViewport({ scale: 2, offsetX: 100, offsetY: 200 });
+    const state = canvasStore.getState();
+    expect(state.viewport.scale).toBe(2);
+    expect(state.viewport.offsetX).toBe(100);
+    expect(state.viewport.offsetY).toBe(200);
+  });
+
   it('should set shapes (for import)', () => {
     const newShapes: Shape[] = [
       {
