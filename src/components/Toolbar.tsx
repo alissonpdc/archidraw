@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { canvasStore } from '../store/canvasStore';
 import { ShapeType } from '../types/shape';
 import { exportToJSON, downloadFile } from '../utils/export';
+import { importFromJSON, readFileAsText } from '../utils/import';
 
 interface Tool {
   type: ShapeType;
@@ -23,6 +24,8 @@ export const Toolbar: React.FC = () => {
   const currentTool = canvasStore((state) => state.currentTool);
   const setCurrentTool = canvasStore((state) => state.setCurrentTool);
   const shapes = canvasStore((state) => state.shapes);
+  const setShapes = canvasStore((state) => state.setShapes);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
     const json = exportToJSON(shapes);
@@ -32,6 +35,32 @@ export const Toolbar: React.FC = () => {
     const day = String(today.getDate()).padStart(2, '0');
     const filename = `archidraw-${year}-${month}-${day}.archidraw`;
     downloadFile(json, filename);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const fileContent = await readFileAsText(file);
+      const importedShapes = importFromJSON(fileContent);
+      setShapes(importedShapes);
+      alert('Project imported successfully!');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Import failed: ${errorMessage}`);
+    } finally {
+      // Reset file input value so the same file can be imported twice
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   return (
@@ -66,6 +95,29 @@ export const Toolbar: React.FC = () => {
         </button>
       ))}
       <button
+        onClick={handleImportClick}
+        title="Import from .archidraw JSON"
+        style={{
+          padding: '6px 12px',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          backgroundColor: '#6c757d',
+          color: 'white',
+          border: 'none',
+          fontWeight: 'bold',
+          marginLeft: 'auto',
+        }}
+      >
+        Import
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".archidraw"
+        onChange={handleFileSelected}
+        style={{ display: 'none' }}
+      />
+      <button
         onClick={handleExport}
         title="Export to .archidraw JSON"
         style={{
@@ -76,7 +128,6 @@ export const Toolbar: React.FC = () => {
           color: 'white',
           border: 'none',
           fontWeight: 'bold',
-          marginLeft: 'auto',
         }}
       >
         Export
