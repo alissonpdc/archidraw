@@ -145,14 +145,60 @@ test.describe("biblioteca de componentes", () => {
     const ec2 = page.locator('.library-panel [data-component-id="ec2"]');
     await expect(ec2.locator("img.library-card-img")).toBeVisible();
 
+    // nome do serviço vem como tooltip, sem texto no tile
+    await expect(ec2).toHaveAttribute("data-tip", "EC2");
+    await expect(ec2.locator(".library-card-name")).toHaveCount(0);
+
     // Client não tem asset oficial → glifo vetorial inline
     const client = page.locator(
       '.library-panel [data-component-id="client"]',
     );
-    await expect(client.locator(".library-card-icon svg")).toBeVisible();
+    await expect(client.locator("svg")).toBeVisible();
 
     await ec2.click();
     const state = await editorState();
     expect(state.elements[0].componentId).toBe("ec2");
+  });
+
+  test("grupo AWS expande e contrai", async ({ page }) => {
+    await open(page);
+    await page.keyboard.press("b");
+
+    const header = page.locator(".library-section-header");
+    await expect(header).toHaveText(/AWS/);
+    const grid = page.locator('.library-panel [data-component-id="ec2"]');
+    await expect(grid).toBeVisible();
+
+    await header.click();
+    await expect(grid).toHaveCount(0);
+
+    await header.click();
+    await expect(grid).toBeVisible();
+  });
+
+  test("recentes aparece antes do grupo AWS e é limitado a 15 itens", async ({
+    page,
+  }) => {
+    await open(page);
+    await page.keyboard.press("b");
+
+    // insere dois componentes para povoar recentes
+    await page.locator('.library-panel [data-component-id="s3"]').click();
+    await page.locator('.library-panel [data-component-id="rds"]').click();
+
+    const recents = page.locator('[data-testid="library-recents"]');
+    await expect(recents).toBeVisible();
+    await expect(recents.locator(".library-tile")).toHaveCount(2);
+
+    // recentes vem antes da seção AWS
+    await expect(
+      page.locator(".library-body > *").first(),
+    ).toHaveAttribute("data-testid", "library-recents");
+
+    // S3 foi o mais recente → primeiro tile dos recentes
+    await expect(recents.locator(".library-tile").first()).toHaveAttribute(
+      "data-component-id",
+      "rds",
+    );
   });
 });

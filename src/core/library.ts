@@ -313,7 +313,8 @@ export function searchLibrary(query: string): LibraryItem[] {
 // ---- recents ------------------------------------------------------------
 
 const RECENTS_KEY = "archidraw:recentComponents";
-const RECENTS_MAX = 8;
+/** 3 rows of the 5-column recents grid */
+const RECENTS_MAX = 15;
 
 export function getRecentComponents(): string[] {
   try {

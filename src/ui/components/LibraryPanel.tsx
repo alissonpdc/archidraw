@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import {
   LIBRARY,
-  LIBRARY_CATEGORIES,
   getRecentComponents,
   pushRecentComponent,
   searchLibrary,
@@ -15,7 +21,48 @@ import {
 
 export const COMPONENT_DND_TYPE = "application/x-archidraw-component";
 
-function ItemIcon({ item, size = 26 }: { item: LibraryItem; size?: number }) {
+/** recents cap: 3 rows of the 5-column tile grid */
+const RECENTS_LIMIT = 15;
+
+interface TipState {
+  text: string;
+  x: number;
+  y: number;
+}
+
+/** fixed-position tooltip in a portal — panel overflow never clips it */
+function TileTooltip({ tip }: { tip: TipState | null }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!tip || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(8, tip.x - r.width / 2),
+      window.innerWidth - r.width - 8,
+    );
+    setPos({ left, top: tip.y });
+  }, [tip]);
+
+  if (!tip) return null;
+  return createPortal(
+    <div
+      ref={ref}
+      className="panel-tooltip"
+      style={{
+        left: pos?.left ?? tip.x,
+        top: pos?.top ?? tip.y,
+        visibility: pos ? "visible" : "hidden",
+      }}
+    >
+      {tip.text}
+    </div>,
+    document.body,
+  );
+}
+
+function ItemIcon({ item, size = 28 }: { item: LibraryItem; size?: number }) {
   if (hasComponentAsset(item.id)) {
     return (
       <img
@@ -47,7 +94,8 @@ function ItemIcon({ item, size = 26 }: { item: LibraryItem; size?: number }) {
   );
 }
 
-function Card({
+/** borderless icon-only tile; service name shown as tooltip */
+function Tile({
   item,
   onInsert,
 }: {
@@ -56,10 +104,10 @@ function Card({
 }) {
   return (
     <button
-      className="library-card"
+      className="library-card library-tile"
       draggable
       aria-label={`Inserir ${item.name}`}
-      title={item.name}
+      data-tip={item.name}
       data-component-id={item.id}
       onDragStart={(e) => {
         e.dataTransfer.setData(COMPONENT_DND_TYPE, item.id);
@@ -67,10 +115,7 @@ function Card({
       }}
       onClick={() => onInsert(item)}
     >
-      <span className="library-card-icon">
-        <ItemIcon item={item} />
-      </span>
-      <span className="library-card-name">{item.name}</span>
+      <ItemIcon item={item} />
     </button>
   );
 }
@@ -78,6 +123,8 @@ function Card({
 export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("");
   const [recents, setRecents] = useState<string[]>(getRecentComponents);
+  const [awsOpen, setAwsOpen] = useState(true);
+  const [tip, setTip] = useState<TipState | null>(null);
 
   const close = () => {
     setQuery("");
@@ -93,23 +140,22 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose]);
 
+  const searching = query.trim() !== "";
   const results = useMemo(() => searchLibrary(query), [query]);
-  const grouped = useMemo(() => {
-    if (query.trim() !== "") return null;
-    return LIBRARY_CATEGORIES.map((cat) => ({
-      category: cat,
-      items: results.filter((i) => i.category === cat),
-    })).filter((g) => g.items.length > 0);
-  }, [results, query]);
+  const awsItems = useMemo(
+    () => [...LIBRARY].sort((a, b) => a.name.localeCompare(b.name)),
+    [],
+  );
 
   const recentItems = useMemo(
     () =>
-      recents.length > 0 && query.trim() === ""
+      !searching && recents.length > 0
         ? recents
             .map((id) => LIBRARY.find((i) => i.id === id))
             .filter((i): i is LibraryItem => !!i)
+            .slice(0, RECENTS_LIMIT)
         : [],
-    [recents, query],
+    [recents, searching],
   );
 
   const insert = (item: LibraryItem) => {
@@ -118,14 +164,33 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
     setRecents(getRecentComponents());
   };
 
+  // event-delegated tooltips (same pattern as PropertiesPanel)
+  const showTip = (e: React.MouseEvent) => {
+    const el = (e.target as HTMLElement).closest("[data-tip]");
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setTip({
+      text: el.getAttribute("data-tip") || "",
+      x: r.left + r.width / 2,
+      y: r.top,
+    });
+  };
+
   return (
-    <aside className="library-panel" aria-label="Biblioteca de componentes">
+    <aside
+      className="library-panel"
+      aria-label="Biblioteca de componentes"
+      onMouseOver={showTip}
+      onMouseLeave={() => setTip(null)}
+      onScroll={() => setTip(null)}
+    >
+      <TileTooltip tip={tip} />
       <div className="library-header">
         <span className="panel-subtitle">Biblioteca</span>
         <button
           className="tool-btn library-close"
           aria-label="Fechar biblioteca"
-          onClick={onClose}
+          onClick={close}
         >
           ×
         </button>
@@ -141,46 +206,65 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            const first = results[0];
-            if (first) insert(first);
+            if (results[0]) insert(results[0]);
           }
         }}
       />
       <div className="library-body">
         {recentItems.length > 0 && (
-          <section className="library-section">
+          <section className="library-section" data-testid="library-recents">
             <div className="panel-subtitle">Recentes</div>
             <div className="library-grid">
               {recentItems.map((item) => (
-                <Card key={item.id} item={item} onInsert={insert} />
+                <Tile key={`r-${item.id}`} item={item} onInsert={insert} />
               ))}
             </div>
           </section>
         )}
-        {grouped
-          ? grouped.map(({ category, items }) => (
-              <section key={category} className="library-section">
-                <div className="panel-subtitle">{category}</div>
-                <div className="library-grid">
-                  {items.map((item) => (
-                    <Card key={item.id} item={item} onInsert={insert} />
-                  ))}
-                </div>
-              </section>
-            ))
-          : results.length > 0
-            ? (
-              <section className="library-section">
-                <div className="library-list">
-                  {results.map((item) => (
-                    <Card key={item.id} item={item} onInsert={insert} />
-                  ))}
-                </div>
-              </section>
-            )
-            : (
-              <div className="library-empty">Nenhum componente encontrado</div>
+        {searching ? (
+          results.length > 0 ? (
+            <section className="library-section">
+              <div className="library-grid">
+                {results.map((item) => (
+                  <Tile key={item.id} item={item} onInsert={insert} />
+                ))}
+              </div>
+            </section>
+          ) : (
+            <div className="library-empty">Nenhum componente encontrado</div>
+          )
+        ) : (
+          <section className="library-section">
+            <button
+              className="library-section-header"
+              aria-expanded={awsOpen}
+              onClick={() => setAwsOpen((v) => !v)}
+            >
+              <svg
+                className={`library-chevron ${awsOpen ? "open" : ""}`}
+                width="10"
+                height="10"
+                viewBox="0 0 10 10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 1.5 L7 5 L3 8.5" />
+              </svg>
+              AWS
+            </button>
+            {awsOpen && (
+              <div className="library-grid">
+                {awsItems.map((item) => (
+                  <Tile key={item.id} item={item} onInsert={insert} />
+                ))}
+              </div>
             )}
+          </section>
+        )}
       </div>
     </aside>
   );

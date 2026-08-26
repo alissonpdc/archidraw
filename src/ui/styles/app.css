@@ -998,7 +998,7 @@ button {
 .library-panel {
   position: absolute;
   top: var(--space-3);
-  left: var(--space-4);
+  right: var(--space-4);
   width: 228px;
   display: flex;
   flex-direction: column;
@@ -1009,11 +1009,6 @@ button {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   max-height: calc(100% - 120px);
-}
-
-/* keep both panels visible when they coexist */
-.app[data-library-open="true"] .properties-panel {
-  left: calc(var(--space-4) + 244px);
 }
 
 .library-header {
@@ -1061,49 +1056,60 @@ button {
 
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-1);
+  grid-template-columns: repeat(5, 36px);
+  justify-content: space-between;
+  row-gap: var(--space-1);
 }
 
-.library-list {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-1);
-}
-
-.library-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: var(--space-2) 2px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+/* borderless icon-only tile (name shown as tooltip) */
+.library-tile {
+  width: 36px;
+  height: 36px;
+  min-width: 0;
+  padding: 0;
+  border: none;
   background: transparent;
-  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: grab;
-  text-align: center;
 }
 
-.library-card:hover {
-  background: var(--bg-surface-hover);
-  border-color: var(--accent);
-}
-
-.library-card:active {
+.library-tile:active {
   cursor: grabbing;
 }
 
-.library-card-icon {
-  color: var(--accent);
-  display: flex;
+.library-tile:hover {
+  background: var(--bg-surface-hover);
 }
 
-.library-card-name {
-  font-size: 10px;
-  line-height: 1.15;
+.library-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.library-section-header:hover {
+  background: var(--bg-surface-hover);
+}
+
+.library-chevron {
+  transition: transform var(--transition-fast);
   color: var(--text-muted);
-  word-break: break-word;
+}
+
+.library-chevron.open {
+  transform: rotate(90deg);
 }
 
 .library-empty {
