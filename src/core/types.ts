@@ -66,6 +66,12 @@ export interface RectangleElement extends BaseElement {
 }
 
 export type LineType = "straight" | "curved" | "auto";
+export type AnchorSide = "top" | "right" | "bottom" | "left" | "center";
+
+export interface ArrowBinding {
+  elementId: string;
+  anchor: AnchorSide;
+}
 
 /** x,y = start; x+width,y+height = end (axis-aligned box used as bounds) */
 export interface ArrowElement extends BaseElement {
@@ -74,6 +80,8 @@ export interface ArrowElement extends BaseElement {
   lineType?: LineType;
   /** control point for curved lines (relative to element center, scene units) */
   controlPoint?: Point;
+  startBinding?: ArrowBinding;
+  endBinding?: ArrowBinding;
 }
 
 export interface TextElement extends BaseElement {

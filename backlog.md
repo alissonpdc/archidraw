@@ -56,7 +56,7 @@
   - [x] Automática (linha dobrável para conectar elementos)
 
 ### Conexão entre elementos
-- [ ] Permitir linhas/setas 'grudarem' nos elementos, acompanhando sua movimentação
+- [x] Permitir linhas/setas 'grudarem' nos elementos, acompanhando sua movimentação
 
 ## Interface
 

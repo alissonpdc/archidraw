@@ -3,6 +3,8 @@ import { hitTest, elementsInBounds } from "./hitTest";
 import { parse, serialize } from "./storage";
 import { render, type RenderColors } from "./renderer";
 import type {
+  AnchorSide,
+  ArrowBinding,
   ArrowElement,
   Bounds,
   Camera,
@@ -94,6 +96,39 @@ function resizeHandleAt(
 }
 
 const ARROW_HANDLES: HandleId[] = ["nw", "se"];
+
+const BIND_TOLERANCE = 20; // scene units
+
+function anchorPoint(el: Element, anchor: AnchorSide): Point {
+  const b = elementBounds(el);
+  switch (anchor) {
+    case "top": return { x: (b.x1 + b.x2) / 2, y: b.y1 };
+    case "bottom": return { x: (b.x1 + b.x2) / 2, y: b.y2 };
+    case "left": return { x: b.x1, y: (b.y1 + b.y2) / 2 };
+    case "right": return { x: b.x2, y: (b.y1 + b.y2) / 2 };
+    case "center": return { x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 };
+  }
+}
+
+function findNearestBinding(
+  point: Point,
+  elements: Element[],
+  excludeId: string,
+): ArrowBinding | null {
+  let best: { dist: number; binding: ArrowBinding } | null = null;
+  for (const el of elements) {
+    if (el.id === excludeId || el.type === "arrow") continue;
+    const anchors: AnchorSide[] = ["top", "right", "bottom", "left"];
+    for (const anchor of anchors) {
+      const ap = anchorPoint(el, anchor);
+      const dist = Math.hypot(point.x - ap.x, point.y - ap.y);
+      if (dist <= BIND_TOLERANCE && (!best || dist < best.dist)) {
+        best = { dist, binding: { elementId: el.id, anchor } };
+      }
+    }
+  }
+  return best?.binding ?? null;
+}
 
 type Interaction =
   | { kind: "none" }
@@ -226,9 +261,23 @@ export class Editor {
   deleteSelected() {
     if (this.selectedIds.size === 0) return;
     this.commitHistory();
+    const deletedIds = this.selectedIds;
     this.doc = {
       ...this.doc,
-      elements: this.doc.elements.filter((el) => !this.selectedIds.has(el.id)),
+      elements: this.doc.elements
+        .filter((el) => !deletedIds.has(el.id))
+        .map((el) => {
+          if (el.type !== "arrow") return el;
+          const arrow = el;
+          const startBinding = arrow.startBinding && deletedIds.has(arrow.startBinding.elementId)
+            ? undefined : arrow.startBinding;
+          const endBinding = arrow.endBinding && deletedIds.has(arrow.endBinding.elementId)
+            ? undefined : arrow.endBinding;
+          if (startBinding !== arrow.startBinding || endBinding !== arrow.endBinding) {
+            return { ...arrow, startBinding, endBinding };
+          }
+          return el;
+        }),
     };
     this.selectedIds.clear();
     this.emit();
@@ -1019,9 +1068,36 @@ export class Editor {
         );
         this.interaction.moved =
           Math.abs(dx) > 1e-6 || Math.abs(dy) > 1e-6;
+        // update arrow bindings when bound elements move
+        const movedIds = new Set(moved.keys());
+        const updatedElements = this.doc.elements.map((el) => {
+          if (el.type !== "arrow") return el;
+          const arrow = el;
+          let changed = false;
+          let newX = arrow.x, newY = arrow.y, newW = arrow.width, newH = arrow.height;
+          if (arrow.startBinding && movedIds.has(arrow.startBinding.elementId)) {
+            const bound = moved.get(arrow.startBinding.elementId);
+            if (bound) {
+              const ap = anchorPoint(bound, arrow.startBinding.anchor);
+              newX = ap.x;
+              newY = ap.y;
+              changed = true;
+            }
+          }
+          if (arrow.endBinding && movedIds.has(arrow.endBinding.elementId)) {
+            const bound = moved.get(arrow.endBinding.elementId);
+            if (bound) {
+              const ap = anchorPoint(bound, arrow.endBinding.anchor);
+              newW = ap.x - newX;
+              newH = ap.y - newY;
+              changed = true;
+            }
+          }
+          return changed ? { ...arrow, x: newX, y: newY, width: newW, height: newH } : el;
+        });
         this.doc = {
           ...this.doc,
-          elements: this.doc.elements.map((el) => moved.get(el.id) ?? el),
+          elements: updatedElements.map((el) => moved.get(el.id) ?? el),
         };
         break;
       }
@@ -1080,6 +1156,22 @@ export class Editor {
         this.tool = "selection";
         this.selectedIds.clear();
       } else {
+        // detect bindings for arrows
+        if (this.draft.type === "arrow") {
+          const [startPt, endPt] = [
+            { x: this.draft.x, y: this.draft.y },
+            { x: this.draft.x + this.draft.width, y: this.draft.y + this.draft.height },
+          ];
+          const startBinding = findNearestBinding(startPt, this.doc.elements, this.draft.id);
+          const endBinding = findNearestBinding(endPt, this.doc.elements, this.draft.id);
+          if (startBinding || endBinding) {
+            this.draft = {
+              ...this.draft,
+              startBinding: startBinding ?? undefined,
+              endBinding: endBinding ?? undefined,
+            } as Element;
+          }
+        }
         this.doc = { ...this.doc, elements: [...this.doc.elements, this.draft] };
         this.selectedIds = new Set([this.draft.id]);
       }
