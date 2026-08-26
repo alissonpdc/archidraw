@@ -23,9 +23,10 @@ const BASE_COLORS: { name: string; color: string }[] = [
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
 const FONT_SIZES = [16, 20, 28, 36];
 const FONT_FAMILIES = [
-  { label: "Sans", value: '"Segoe UI", system-ui, sans-serif' },
-  { label: "Mono", value: '"SF Mono", "Cascadia Code", Consolas, monospace' },
-  { label: "Serif", value: 'Georgia, "Times New Roman", serif' },
+  { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', iconPath: "M4 4h12v2H4zm0 4h12v2H4zm0 4h8v2H4z" },
+  { label: "Mono", value: '"SF Mono", "Cascadia Code", Consolas, monospace', iconPath: "M4 4l4 8-4 8M12 4l4 8-4 8" },
+  { label: "Serif", value: 'Georgia, "Times New Roman", serif', iconPath: "M3 4h1v12H3zm2 6h6v2H5zm6-6h1v12h-1zM9 4v12" },
+  { label: "Display", value: '"Trebuchet MS", "Lucida Sans", sans-serif', iconPath: "M2 4h16v3H2zM5 7v9M15 7v9M7 16h6" },
 ];
 const CAPTION_POSITIONS = [
   { label: "Baixo", value: "bottom" as const },
@@ -328,7 +329,6 @@ export function PropertiesPanel() {
   };
 
   const hasText = selected.some((el) => el.type === "text");
-  const hasLabel = selected.some((el) => el.type !== "text");
   const hasShape = selected.some(
     (el) =>
       el.type === "rectangle" || el.type === "arrow" || el.type === "component",
@@ -343,10 +343,10 @@ export function PropertiesPanel() {
     selected.every((el) => el.roughness === v);
   const allLineType = (v: string) =>
     selected.every((el) => (el.type === "arrow" ? (el.lineType ?? "straight") : v) === v);
-  const allFont = (v: number) =>
-    selected
-      .filter((el) => el.type === "text")
-      .every((el) => el.type === "text" && el.fontSize === v);
+  const allFont = (v: number) => {
+    const textEls = selected.filter((el) => el.type === "text");
+    return textEls.length > 0 && textEls.every((el) => el.type === "text" && el.fontSize === v);
+  };
 
   const opacityValue = (() => {
     const first = Math.round(selected[0].opacity * 100);
@@ -373,13 +373,6 @@ export function PropertiesPanel() {
     selected.every((el) => (el.textVAlign ?? "middle") === v);
   const allCaptionPos = (v: string) =>
     selected.every((el) => (el.captionPosition ?? "bottom") === v);
-
-  const lineSpacingValue = (() => {
-    const first = selected[0].lineSpacing ?? 1.25;
-    return selected.every((el) => (el.lineSpacing ?? 1.25) === first)
-      ? first
-      : null;
-  })();
 
   const textColorValue = (() => {
     const first = selected[0].textColor ?? "";
@@ -646,16 +639,18 @@ export function PropertiesPanel() {
             {FONT_FAMILIES.map((f) => (
               <button
                 key={f.value}
-                className={`size-btn text-btn ${
+                className={`size-btn ${
                   selected.every((el) => (el.fontFamily || FONT_FAMILIES[0].value) === f.value)
                     ? "active"
                     : ""
                 }`}
                 aria-label={`Fonte ${f.label}`}
-                style={{ fontFamily: f.value, fontSize: "11px" }}
+                data-tip={f.label}
                 onClick={() => apply({ fontFamily: f.value })}
               >
-                {f.label}
+                <svg width="16" height="16" viewBox="0 0 20 20">
+                  <path d={f.iconPath} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </button>
             ))}
           </Group>
@@ -697,19 +692,7 @@ export function PropertiesPanel() {
             />
           </Group>
 
-          <Group title="Espaçamento entre linhas">
-            <MiniSlider
-              value={Math.round((lineSpacingValue ?? 1.25) * 100)}
-              min={80}
-              max={250}
-              step={5}
-              ariaLabel="Espaçamento entre linhas"
-              suffix="%"
-              onChange={(v) => apply({ lineSpacing: v / 100 })}
-            />
-          </Group>
-
-          {(hasText || hasLabel) && (
+          {(hasText || hasRectangle || hasArrow) && (
             <Group title="Alinhamento horizontal">
               {(["left", "center", "right"] as const).map((a) => (
                 <button

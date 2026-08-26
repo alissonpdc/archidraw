@@ -347,18 +347,15 @@ export function componentIconLayout(el: ComponentElement) {
 
   if (captionPos === "left" || captionPos === "right") {
     // horizontal layout: label | icon or icon | label
-    const iconSize = Math.max(s * 0.7, 8);
-    const totalW = iconSize + gap + s * 0.5;
-    let iconX: number;
-    if (captionPos === "left") {
-      iconX = cx + totalW / 2 - iconSize;
-    } else {
-      iconX = cx - totalW / 2;
-    }
+    const iconSize = Math.max(s * 0.6, 8);
+    const halfGap = gap / 2;
+    const iconX = captionPos === "left"
+      ? cx + halfGap
+      : cx - halfGap - iconSize;
     const iconY = cy - iconSize / 2;
     const labelCx = captionPos === "left"
-      ? cx - totalW / 2 + s * 0.25
-      : cx + totalW / 2 - s * 0.25 + iconSize + gap;
+      ? cx - halfGap - s * 0.2
+      : cx + halfGap + s * 0.2;
     return {
       hasLabel,
       iconX,
@@ -519,6 +516,8 @@ function drawElement(
         if (align === "center") ux = el.x + (el.width - lw) / 2;
         else if (align === "right") ux = el.x + el.width - lw;
         ctx.beginPath();
+        ctx.strokeStyle = resolveTextColor(el, colors);
+        ctx.lineWidth = Math.max(1, el.fontSize * 0.06);
         ctx.moveTo(ux, el.y + i * el.fontSize * lh + el.fontSize + 2);
         ctx.lineTo(ux + lw, el.y + i * el.fontSize * lh + el.fontSize + 2);
         ctx.stroke();
