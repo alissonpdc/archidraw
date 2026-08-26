@@ -2,6 +2,7 @@ import type { Camera, ComponentElement, Document, Element, Point } from "./types
 import { arrowPoints, elementBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage } from "./componentAssets";
+import { resolveFont, resolveTextColor, lineHeight } from "./textStyle";
 
 export interface RenderColors {
   selection: string;
@@ -326,30 +327,76 @@ export function componentIconLayout(el: ComponentElement) {
   const hasLabel = !!el.label && el.label.trim() !== "";
   const cx = el.x + el.width / 2;
   const cy = el.y + el.height / 2;
-  // the icon fills the element bounds so selection/hit-test match what is
-  // visible; when there is a label, the icon+label block fills it instead
-  const labelH = COMPONENT_LABEL_FONT * 1.25;
-  const iconSize = hasLabel ? Math.max(s - ICON_LABEL_GAP - labelH, 8) : s;
+  const gap = el.captionGap ?? ICON_LABEL_GAP;
+  const captionPos = el.captionPosition ?? "bottom";
+  const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
+  const labelH = labelFont * 1.25;
+
   if (!hasLabel) {
     return {
       hasLabel,
-      iconX: cx - iconSize / 2,
-      iconY: cy - iconSize / 2,
-      iconSize,
+      iconX: cx - s / 2,
+      iconY: cy - s / 2,
+      iconSize: s,
       labelCx: cx,
       labelCy: cy,
-      labelFont: COMPONENT_LABEL_FONT,
+      labelFont,
+      captionPosition: captionPos,
     };
   }
-  const iconY = cy - (iconSize + ICON_LABEL_GAP + labelH) / 2;
+
+  if (captionPos === "left" || captionPos === "right") {
+    // horizontal layout: label | icon or icon | label
+    const iconSize = Math.max(s * 0.7, 8);
+    const totalW = iconSize + gap + s * 0.5;
+    let iconX: number;
+    if (captionPos === "left") {
+      iconX = cx + totalW / 2 - iconSize;
+    } else {
+      iconX = cx - totalW / 2;
+    }
+    const iconY = cy - iconSize / 2;
+    const labelCx = captionPos === "left"
+      ? cx - totalW / 2 + s * 0.25
+      : cx + totalW / 2 - s * 0.25 + iconSize + gap;
+    return {
+      hasLabel,
+      iconX,
+      iconY,
+      iconSize,
+      labelCx,
+      labelCy: cy,
+      labelFont,
+      captionPosition: captionPos,
+    };
+  }
+
+  // vertical layout (top or bottom)
+  const iconSize = hasLabel ? Math.max(s - gap - labelH, 8) : s;
+  if (captionPos === "top") {
+    const topY = cy - (iconSize + gap + labelH) / 2;
+    return {
+      hasLabel,
+      iconX: cx - iconSize / 2,
+      iconY: topY + labelH + gap,
+      iconSize,
+      labelCx: cx,
+      labelCy: topY + labelH / 2,
+      labelFont,
+      captionPosition: captionPos,
+    };
+  }
+  // bottom (default)
+  const iconY = cy - (iconSize + gap + labelH) / 2;
   return {
     hasLabel,
     iconX: cx - iconSize / 2,
     iconY,
     iconSize,
     labelCx: cx,
-    labelCy: iconY + iconSize + ICON_LABEL_GAP + labelH / 2,
-    labelFont: COMPONENT_LABEL_FONT,
+    labelCy: iconY + iconSize + gap + labelH / 2,
+    labelFont,
+    captionPosition: captionPos,
   };
 }
 
@@ -437,12 +484,28 @@ function drawElement(
     ctx.stroke();
     drawArrowHead(ctx, b, a, Math.max(12, el.strokeWidth * 4));
   } else if (el.type === "text") {
-    ctx.fillStyle = resolveStroke(el, colors);
-    ctx.font = `${el.fontSize}px "Segoe UI", system-ui, sans-serif`;
+    ctx.fillStyle = resolveTextColor(el, colors);
+    ctx.font = resolveFont(el);
     ctx.textBaseline = "top";
+    const lh = lineHeight(el);
     const lines = el.text.split("\n");
+    const align = el.textAlign ?? "left";
+    ctx.textAlign = align;
     lines.forEach((line, i) => {
-      ctx.fillText(line, el.x, el.y + i * el.fontSize * 1.25);
+      let lx = el.x;
+      if (align === "center") lx = el.x + el.width / 2;
+      else if (align === "right") lx = el.x + el.width;
+      ctx.fillText(line, lx, el.y + i * el.fontSize * lh);
+      if (el.underline) {
+        const lw = ctx.measureText(line).width;
+        let ux = el.x;
+        if (align === "center") ux = el.x + (el.width - lw) / 2;
+        else if (align === "right") ux = el.x + el.width - lw;
+        ctx.beginPath();
+        ctx.moveTo(ux, el.y + i * el.fontSize * lh + el.fontSize + 2);
+        ctx.lineTo(ux + lw, el.y + i * el.fontSize * lh + el.fontSize + 2);
+        ctx.stroke();
+      }
     });
   }
   ctx.restore();
@@ -493,18 +556,34 @@ function drawLabel(
   if (el.type === "text" || !el.label) return;
   if (hiddenId && el.id === hiddenId) return;
   ctx.save();
-  ctx.fillStyle = resolveStroke(el, colors);
+  ctx.fillStyle = resolveTextColor(el, colors);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   if (el.type === "component") {
     const layout = componentIconLayout(el);
-    ctx.font = `${layout.labelFont}px "Segoe UI", system-ui, sans-serif`;
+    ctx.font = resolveFont(el, layout.labelFont);
     ctx.fillText(el.label, layout.labelCx, layout.labelCy);
   } else {
-    const cy =
-      el.type === "arrow" ? el.y + el.height / 2 - 14 : el.y + el.height / 2;
-    ctx.font = `14px "Segoe UI", system-ui, sans-serif`;
-    ctx.fillText(el.label, el.x + el.width / 2, cy);
+    const textAlign = el.textAlign ?? "center";
+    const textVAlign = el.textVAlign ?? "middle";
+    ctx.textAlign = textAlign;
+    let cx: number;
+    let cy: number;
+    if (el.type === "arrow") {
+      cx = textAlign === "left" ? el.x : textAlign === "right" ? el.x + el.width : el.x + el.width / 2;
+      cy = el.y + el.height / 2;
+    } else {
+      const pad = el.textPadding ?? 8;
+      if (textAlign === "left") cx = el.x + pad;
+      else if (textAlign === "right") cx = el.x + el.width - pad;
+      else cx = el.x + el.width / 2;
+      if (textVAlign === "top") cy = el.y + pad;
+      else if (textVAlign === "bottom") cy = el.y + el.height - pad;
+      else cy = el.y + el.height / 2;
+    }
+    const fontSize = el.fontSize ?? 14;
+    ctx.font = resolveFont(el, fontSize);
+    ctx.fillText(el.label, cx, cy);
   }
   ctx.restore();
 }

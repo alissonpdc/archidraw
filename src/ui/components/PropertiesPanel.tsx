@@ -22,6 +22,22 @@ const BASE_COLORS: { name: string; color: string }[] = [
 
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
 const FONT_SIZES = [16, 20, 28, 36];
+const FONT_FAMILIES = [
+  { label: "Sans", value: '"Segoe UI", system-ui, sans-serif' },
+  { label: "Mono", value: '"SF Mono", "Cascadia Code", Consolas, monospace' },
+  { label: "Serif", value: 'Georgia, "Times New Roman", serif' },
+];
+const CAPTION_POSITIONS = [
+  { label: "Baixo", value: "bottom" as const },
+  { label: "Cima", value: "top" as const },
+  { label: "Esquerda", value: "left" as const },
+  { label: "Direita", value: "right" as const },
+];
+const TEXT_VALIGNS = [
+  { label: "Cima", value: "top" as const },
+  { label: "Meio", value: "middle" as const },
+  { label: "Baixo", value: "bottom" as const },
+];
 
 type Patch = Partial<{
   strokeColor: string;
@@ -32,6 +48,17 @@ type Patch = Partial<{
   strokeStyle: "solid" | "dashed" | "dotted" | "dashdot";
   roughness: 0 | 1 | 2 | 3;
   borderRadius: number;
+  fontFamily: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  textColor: string;
+  lineSpacing: number;
+  textAlign: "left" | "center" | "right";
+  textVAlign: "top" | "middle" | "bottom";
+  textPadding: number;
+  captionPosition: "top" | "bottom" | "left" | "right";
+  captionGap: number;
 }>;
 
 // ---- color helpers -----------------------------------------------------
@@ -273,14 +300,13 @@ function MiniSlider({
 export function PropertiesPanel() {
   const snap = useEditor();
   const [tip, setTip] = useState<TipState | null>(null);
+  const [activeTab, setActiveTab] = useState<"style" | "text">("style");
   const selected = snap.doc.elements.filter((el) =>
     snap.selectedIds.has(el.id),
   );
 
   if (selected.length === 0) return null;
 
-  // event-delegated tooltips: [data-tip] inside the panel renders in a
-  // fixed-position portal layer, so overflow never clips them
   const showTip = (e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest("[data-tip]");
     if (!el) return;
@@ -301,10 +327,13 @@ export function PropertiesPanel() {
   };
 
   const hasText = selected.some((el) => el.type === "text");
+  const hasLabel = selected.some((el) => el.type !== "text");
   const hasShape = selected.some(
     (el) =>
       el.type === "rectangle" || el.type === "arrow" || el.type === "component",
   );
+  const hasComponent = selected.some((el) => el.type === "component");
+  const hasRectangle = selected.some((el) => el.type === "rectangle");
   const allStroke = (v: number) => selected.every((el) => el.strokeWidth === v);
   const allStyle = (v: string) =>
     selected.every((el) => el.strokeStyle === v);
@@ -330,6 +359,31 @@ export function PropertiesPanel() {
   const isCustomRadius =
     radiusValue !== null && radiusValue > 0 && radiusValue < 100;
 
+  // text tab helpers
+  const allBold = selected.every((el) => !!el.bold);
+  const allItalic = selected.every((el) => !!el.italic);
+  const allUnderline = selected.every((el) => !!el.underline);
+  const allTextAlign = (v: string) =>
+    selected.every((el) => (el.textAlign ?? "center") === v);
+  const allTextVAlign = (v: string) =>
+    selected.every((el) => (el.textVAlign ?? "middle") === v);
+  const allCaptionPos = (v: string) =>
+    selected.every((el) => (el.captionPosition ?? "bottom") === v);
+
+  const lineSpacingValue = (() => {
+    const first = selected[0].lineSpacing ?? 1.25;
+    return selected.every((el) => (el.lineSpacing ?? 1.25) === first)
+      ? first
+      : null;
+  })();
+
+  const textColorValue = (() => {
+    const first = selected[0].textColor ?? "";
+    return selected.every((el) => (el.textColor ?? "") === first)
+      ? first
+      : null;
+  })();
+
   return (
     <div
       className="properties-panel"
@@ -338,202 +392,386 @@ export function PropertiesPanel() {
       onScroll={() => setTip(null)}
     >
       <PanelTooltip tip={tip} />
-      <Group title="Traço">
-        <PaletteGrid
-          current={selected[0].strokeColor}
-          onPick={(strokeColor) => apply({ strokeColor })}
-          label="Cor de traço"
-        />
-      </Group>
+      {/* Tab bar */}
+      <div className="panel-tabs">
+        <button
+          className={`panel-tab ${activeTab === "style" ? "active" : ""}`}
+          onClick={() => setActiveTab("style")}
+        >
+          Estilo
+        </button>
+        <button
+          className={`panel-tab ${activeTab === "text" ? "active" : ""}`}
+          onClick={() => setActiveTab("text")}
+        >
+          Texto
+        </button>
+      </div>
 
-      <Group title="Preenchimento">
-        <PaletteGrid
-          current={selected[0].backgroundColor}
-          onPick={(backgroundColor) => apply({ backgroundColor })}
-          label="Preenchimento"
-        />
-      </Group>
-
-      <Group title="Opacidade">
-        <MiniSlider
-          value={opacityValue ?? 100}
-          min={0}
-          max={100}
-          step={5}
-          ariaLabel="Opacidade"
-          onChange={(v) => apply({ opacity: v / 100 })}
-        />
-      </Group>
-
-      {hasShape && (
+      {activeTab === "style" && (
         <>
-          <Group title="Tipo de linha">
-            {(["solid", "dashed", "dotted", "dashdot"] as const).map((s) => (
+          <Group title="Traço">
+            <PaletteGrid
+              current={selected[0].strokeColor}
+              onPick={(strokeColor) => apply({ strokeColor })}
+              label="Cor de traço"
+            />
+          </Group>
+
+          <Group title="Preenchimento">
+            <PaletteGrid
+              current={selected[0].backgroundColor}
+              onPick={(backgroundColor) => apply({ backgroundColor })}
+              label="Preenchimento"
+            />
+          </Group>
+
+          <Group title="Opacidade">
+            <MiniSlider
+              value={opacityValue ?? 100}
+              min={0}
+              max={100}
+              step={5}
+              ariaLabel="Opacidade"
+              onChange={(v) => apply({ opacity: v / 100 })}
+            />
+          </Group>
+
+          {hasShape && (
+            <>
+              <Group title="Tipo de linha">
+                {(["solid", "dashed", "dotted", "dashdot"] as const).map((s) => (
+                  <button
+                    key={s}
+                    className={`size-btn line-style-btn ${allStyle(s) ? "active" : ""}`}
+                    aria-label={`Linha ${s}`}
+                    onClick={() => apply({ strokeStyle: s })}
+                  >
+                    <svg width="20" height="10" viewBox="0 0 20 10">
+                      <line
+                        x1="1" y1="5" x2="19" y2="5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        {...(s === "solid"
+                          ? {}
+                          : s === "dashed"
+                            ? { strokeDasharray: "4 3" }
+                            : s === "dashdot"
+                              ? { strokeDasharray: "5 2.5 0.5 2.5" }
+                              : { strokeDasharray: "0.1 4" })}
+                      />
+                    </svg>
+                  </button>
+                ))}
+              </Group>
+
+              <Group title="Estilo do traço">
+                {(
+                  [
+                    {
+                      v: 0,
+                      label: "Arquiteto",
+                      paths: ["M2 7 L18 7"],
+                    },
+                    {
+                      v: 1,
+                      label: "Rascunho",
+                      paths: [
+                        "M2.5 7 C6 5.8 12 8.4 17.5 6.8",
+                        "M3 7.6 C7 8.6 13 6.2 17 8",
+                      ],
+                    },
+                    {
+                      v: 2,
+                      label: "Rabisco",
+                      paths: [
+                        "M2 8 C6 4 12 10 18 6",
+                        "M2.5 6.5 C7 9.5 12 4.5 17.5 8",
+                        "M3 7 C8 6 11 8.5 16.5 6.8",
+                      ],
+                    },
+                    {
+                      v: 3,
+                      label: "Caos",
+                      paths: [
+                        "M2 9 C5 2 14 11 18 5",
+                        "M2.5 5 C7 10.5 13 3.5 17.5 9",
+                        "M3 7.5 C6 3.5 12 10.5 17 6.5",
+                        "M2 6.5 C8 9.5 11 4.5 18 7.5",
+                        "M3.5 8 C7 5.5 13 8 16.5 5.5",
+                      ],
+                    },
+                  ] as const
+                ).map(({ v, label, paths }) => (
+                  <button
+                    key={v}
+                    className={`size-btn ${allRoughness(v) ? "active" : ""}`}
+                    aria-label={`Seriedade ${label}`}
+                    data-tip={label}
+                    onClick={() => apply({ roughness: v as 0 | 1 | 2 | 3 })}
+                  >
+                    <svg width="20" height="14" viewBox="0 0 20 14">
+                      {paths.map((d, i) => (
+                        <path
+                          key={i}
+                          d={d}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          opacity={i === 0 ? 1 : 0.35}
+                        />
+                      ))}
+                    </svg>
+                  </button>
+                ))}
+              </Group>
+            </>
+          )}
+
+          <Group title="Espessura">
+            {STROKE_WIDTHS.map((w) => (
               <button
-                key={s}
-                className={`size-btn line-style-btn ${allStyle(s) ? "active" : ""}`}
-                aria-label={`Linha ${s}`}
-                onClick={() => apply({ strokeStyle: s })}
+                key={w}
+                className={`size-btn ${allStroke(w) ? "active" : ""}`}
+                aria-label={`Espessura ${w}`}
+                onClick={() => apply({ strokeWidth: w })}
               >
-                <svg width="20" height="10" viewBox="0 0 20 10">
-                  <line
-                    x1="1" y1="5" x2="19" y2="5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    {...(s === "solid"
-                      ? {}
-                      : s === "dashed"
-                        ? { strokeDasharray: "4 3" }
-                        : s === "dashdot"
-                          ? { strokeDasharray: "5 2.5 0.5 2.5" }
-                          : { strokeDasharray: "0.1 4" })}
-                  />
-                </svg>
+                <span className="thickness-preview" style={{ height: w + 1 }} />
               </button>
             ))}
           </Group>
 
-          <Group title="Estilo do traço">
-            {(
-              [
-                {
-                  v: 0,
-                  label: "Arquiteto",
-                  paths: ["M2 7 L18 7"],
-                },
-                {
-                  v: 1,
-                  label: "Rascunho",
-                  paths: [
-                    "M2.5 7 C6 5.8 12 8.4 17.5 6.8",
-                    "M3 7.6 C7 8.6 13 6.2 17 8",
-                  ],
-                },
-                {
-                  v: 2,
-                  label: "Rabisco",
-                  paths: [
-                    "M2 8 C6 4 12 10 18 6",
-                    "M2.5 6.5 C7 9.5 12 4.5 17.5 8",
-                    "M3 7 C8 6 11 8.5 16.5 6.8",
-                  ],
-                },
-                {
-                  v: 3,
-                  label: "Caos",
-                  paths: [
-                    "M2 9 C5 2 14 11 18 5",
-                    "M2.5 5 C7 10.5 13 3.5 17.5 9",
-                    "M3 7.5 C6 3.5 12 10.5 17 6.5",
-                    "M2 6.5 C8 9.5 11 4.5 18 7.5",
-                    "M3.5 8 C7 5.5 13 8 16.5 5.5",
-                  ],
-                },
-              ] as const
-            ).map(({ v, label, paths }) => (
-              <button
-                key={v}
-                className={`size-btn ${allRoughness(v) ? "active" : ""}`}
-                aria-label={`Seriedade ${label}`}
-                data-tip={label}
-                onClick={() => apply({ roughness: v as 0 | 1 | 2 | 3 })}
-              >
-                <svg width="20" height="14" viewBox="0 0 20 14">
-                  {paths.map((d, i) => (
-                    <path
-                      key={i}
-                      d={d}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      opacity={i === 0 ? 1 : 0.35}
-                    />
-                  ))}
-                </svg>
-              </button>
-            ))}
-          </Group>
+          {hasShape && (
+            <Group title="Bordas">
+              <div className="v-stack">
+                <div className="border-presets">
+                <button
+                  className={`size-btn border-preset-btn tip-up ${
+                    radiusValue === 0 ? "active" : ""
+                  }`}
+                  aria-label="Bordas quadradas"
+                  data-tip="Quadrada"
+                  onClick={() => apply({ borderRadius: 0 })}
+                >
+                  <span className="corner-preview square" />
+                </button>
+                <button
+                  className={`size-btn border-preset-btn tip-up ${
+                    radiusValue === 100 ? "active" : ""
+                  }`}
+                  aria-label="Bordas arredondadas"
+                  data-tip="Arredondada"
+                  onClick={() => apply({ borderRadius: 100 })}
+                >
+                  <span className="corner-preview round" />
+                </button>
+                <button
+                  className={`size-btn border-preset-btn tip-up ${isCustomRadius ? "active" : ""}`}
+                  aria-label="Bordas personalizadas"
+                  data-tip="Personalizada"
+                  onClick={() =>
+                    apply({ borderRadius: isCustomRadius ? (radiusValue ?? 50) : 25 })
+                  }
+                >
+                  <span className="corner-preview custom" />
+                </button>
+                </div>
+                {isCustomRadius && (
+                  <MiniSlider
+                    value={radiusValue ?? 25}
+                    min={1}
+                    max={99}
+                    step={1}
+                    ariaLabel="Arredondamento personalizado"
+                    onChange={(v) => apply({ borderRadius: v })}
+                  />
+                )}
+              </div>
+            </Group>
+          )}
         </>
       )}
 
-      <Group title="Espessura">
-        {STROKE_WIDTHS.map((w) => (
-          <button
-            key={w}
-            className={`size-btn ${allStroke(w) ? "active" : ""}`}
-            aria-label={`Espessura ${w}`}
-            onClick={() => apply({ strokeWidth: w })}
-          >
-            <span className="thickness-preview" style={{ height: w + 1 }} />
-          </button>
-        ))}
-      </Group>
+      {activeTab === "text" && (
+        <>
+          <Group title="Tamanho">
+            {FONT_SIZES.map((f) => (
+              <button
+                key={f}
+                className={`size-btn text-btn ${allFont(f) ? "active" : ""}`}
+                aria-label={`Fonte ${f}px`}
+                style={{ fontSize: Math.max(10, f / 2 - 2) }}
+                onClick={() => apply({ fontSize: f })}
+              >
+                Aa
+              </button>
+            ))}
+          </Group>
 
-      {hasShape && (
-        <Group title="Bordas">
-          <div className="v-stack">
-            <div className="border-presets">
-            <button
-              className={`size-btn border-preset-btn tip-up ${
-                radiusValue === 0 ? "active" : ""
-              }`}
-              aria-label="Bordas quadradas"
-              data-tip="Quadrada"
-              onClick={() => apply({ borderRadius: 0 })}
-            >
-              <span className="corner-preview square" />
-            </button>
-            <button
-              className={`size-btn border-preset-btn tip-up ${
-                radiusValue === 100 ? "active" : ""
-              }`}
-              aria-label="Bordas arredondadas"
-              data-tip="Arredondada"
-              onClick={() => apply({ borderRadius: 100 })}
-            >
-              <span className="corner-preview round" />
-            </button>
-            <button
-              className={`size-btn border-preset-btn tip-up ${isCustomRadius ? "active" : ""}`}
-              aria-label="Bordas personalizadas"
-              data-tip="Personalizada"
-              onClick={() =>
-                apply({ borderRadius: isCustomRadius ? (radiusValue ?? 50) : 25 })
-              }
-            >
-              <span className="corner-preview custom" />
-            </button>
+          <Group title="Família">
+            {FONT_FAMILIES.map((f) => (
+              <button
+                key={f.value}
+                className={`size-btn text-btn ${
+                  selected.every((el) => (el.fontFamily || FONT_FAMILIES[0].value) === f.value)
+                    ? "active"
+                    : ""
+                }`}
+                aria-label={`Fonte ${f.label}`}
+                style={{ fontFamily: f.value, fontSize: "11px" }}
+                onClick={() => apply({ fontFamily: f.value })}
+              >
+                {f.label}
+              </button>
+            ))}
+          </Group>
+
+          <Group title="Estilo">
+            <div className="text-style-row">
+              <button
+                className={`size-btn text-btn ${allBold ? "active" : ""}`}
+                aria-label="Negrito"
+                data-tip="Negrito"
+                onClick={() => apply({ bold: !allBold })}
+              >
+                <b>B</b>
+              </button>
+              <button
+                className={`size-btn text-btn ${allItalic ? "active" : ""}`}
+                aria-label="Itálico"
+                data-tip="Itálico"
+                onClick={() => apply({ italic: !allItalic })}
+              >
+                <i>I</i>
+              </button>
+              <button
+                className={`size-btn text-btn ${allUnderline ? "active" : ""}`}
+                aria-label="Sublinhado"
+                data-tip="Sublinhado"
+                onClick={() => apply({ underline: !allUnderline })}
+              >
+                <u>U</u>
+              </button>
             </div>
-            {isCustomRadius && (
-              <MiniSlider
-                value={radiusValue ?? 25}
-                min={1}
-                max={99}
-                step={1}
-                ariaLabel="Arredondamento personalizado"
-                onChange={(v) => apply({ borderRadius: v })}
-              />
-            )}
-          </div>
-        </Group>
-      )}
+          </Group>
 
-      {hasText && (
-        <Group title="Fonte">
-          {FONT_SIZES.map((f) => (
-            <button
-              key={f}
-              className={`size-btn text-btn ${allFont(f) ? "active" : ""}`}
-              aria-label={`Fonte ${f}px`}
-              style={{ fontSize: Math.max(10, f / 2 - 2) }}
-              onClick={() => apply({ fontSize: f })}
-            >
-              Aa
-            </button>
-          ))}
-        </Group>
+          <Group title="Cor do texto">
+            <PaletteGrid
+              current={textColorValue || selected[0].strokeColor}
+              onPick={(textColor) => apply({ textColor })}
+              label="Cor do texto"
+            />
+          </Group>
+
+          <Group title="Espaçamento entre linhas">
+            <MiniSlider
+              value={Math.round((lineSpacingValue ?? 1.25) * 100)}
+              min={80}
+              max={250}
+              step={5}
+              ariaLabel="Espaçamento entre linhas"
+              suffix="%"
+              onChange={(v) => apply({ lineSpacing: v / 100 })}
+            />
+          </Group>
+
+          {(hasText || hasLabel) && (
+            <Group title="Alinhamento horizontal">
+              {(["left", "center", "right"] as const).map((a) => (
+                <button
+                  key={a}
+                  className={`size-btn ${allTextAlign(a) ? "active" : ""}`}
+                  aria-label={`Alinhamento ${a}`}
+                  data-tip={a === "left" ? "Esquerda" : a === "center" ? "Centro" : "Direita"}
+                  onClick={() => apply({ textAlign: a })}
+                >
+                  <svg width="16" height="12" viewBox="0 0 16 12">
+                    {a === "left" && (
+                      <>
+                        <line x1="0" y1="1" x2="16" y2="1" stroke="currentColor" strokeWidth="2" />
+                        <line x1="0" y1="5" x2="12" y2="5" stroke="currentColor" strokeWidth="2" />
+                        <line x1="0" y1="9" x2="14" y2="9" stroke="currentColor" strokeWidth="2" />
+                      </>
+                    )}
+                    {a === "center" && (
+                      <>
+                        <line x1="0" y1="1" x2="16" y2="1" stroke="currentColor" strokeWidth="2" />
+                        <line x1="2" y1="5" x2="14" y2="5" stroke="currentColor" strokeWidth="2" />
+                        <line x1="1" y1="9" x2="15" y2="9" stroke="currentColor" strokeWidth="2" />
+                      </>
+                    )}
+                    {a === "right" && (
+                      <>
+                        <line x1="0" y1="1" x2="16" y2="1" stroke="currentColor" strokeWidth="2" />
+                        <line x1="4" y1="5" x2="16" y2="5" stroke="currentColor" strokeWidth="2" />
+                        <line x1="2" y1="9" x2="16" y2="9" stroke="currentColor" strokeWidth="2" />
+                      </>
+                    )}
+                  </svg>
+                </button>
+              ))}
+            </Group>
+          )}
+
+          {hasComponent && (
+            <Group title="Posição da legenda">
+              {CAPTION_POSITIONS.map((cp) => (
+                <button
+                  key={cp.value}
+                  className={`size-btn ${allCaptionPos(cp.value) ? "active" : ""}`}
+                  aria-label={`Legenda ${cp.label}`}
+                  data-tip={cp.label}
+                  onClick={() => apply({ captionPosition: cp.value })}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                    {cp.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
+                    {cp.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
+                    {cp.value === "left" && <rect x="2" y="7" width="6" height="2" rx="1" fill="currentColor" />}
+                    {cp.value === "right" && <rect x="8" y="7" width="6" height="2" rx="1" fill="currentColor" />}
+                  </svg>
+                </button>
+              ))}
+            </Group>
+          )}
+
+          {hasRectangle && (
+            <>
+              <Group title="Posição vertical">
+                {TEXT_VALIGNS.map((va) => (
+                  <button
+                    key={va.value}
+                    className={`size-btn ${allTextVAlign(va.value) ? "active" : ""}`}
+                    aria-label={`Vertical ${va.label}`}
+                    data-tip={va.label}
+                    onClick={() => apply({ textVAlign: va.value })}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16">
+                      <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                      {va.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
+                      {va.value === "middle" && <rect x="4" y="7" width="8" height="2" rx="1" fill="currentColor" />}
+                      {va.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
+                    </svg>
+                  </button>
+                ))}
+              </Group>
+
+              <Group title="Afastamento">
+                <MiniSlider
+                  value={selected[0].textPadding ?? 8}
+                  min={0}
+                  max={40}
+                  step={1}
+                  ariaLabel="Afastamento do texto"
+                  suffix="px"
+                  onChange={(v) => apply({ textPadding: v })}
+                />
+              </Group>
+            </>
+          )}
+        </>
       )}
     </div>
   );

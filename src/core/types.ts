@@ -18,6 +18,10 @@ export interface Bounds {
   y2: number;
 }
 
+export type TextAlign = "left" | "center" | "right";
+export type TextVAlign = "top" | "middle" | "bottom";
+export type CaptionPosition = "top" | "bottom" | "left" | "right";
+
 export interface BaseElement {
   id: string;
   type: ElementType;
@@ -34,6 +38,26 @@ export interface BaseElement {
   roughness: Roughness;
   /** corner rounding of rectangles, % of the smaller side (0–100) */
   borderRadius: number;
+
+  // --- text styling (labels & text elements) ---
+  fontFamily?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  /** overrides strokeColor when rendering text; "" → use strokeColor */
+  textColor?: string;
+  lineSpacing?: number;
+  /** font size for labels; TextElement uses its own required fontSize */
+  fontSize?: number;
+  textAlign?: TextAlign;
+  /** vertical alignment inside the element: top / middle / bottom */
+  textVAlign?: TextVAlign;
+  /** padding from element borders when text is inside (rect/component) */
+  textPadding?: number;
+  /** component caption position relative to the icon */
+  captionPosition?: CaptionPosition;
+  /** gap between icon and caption (px) */
+  captionGap?: number;
 }
 
 export interface RectangleElement extends BaseElement {

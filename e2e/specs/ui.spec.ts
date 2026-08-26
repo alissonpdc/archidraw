@@ -255,18 +255,22 @@ test.describe("ui widgets", () => {
     await page.keyboard.type("nota");
     await page.keyboard.press("Escape"); // commits and clears selection
 
-    // select the text element -> panel shows Fonte group
+    // select the text element -> panel shows Text tab with font size group
     await page.mouse.click(255, 255);
+    // switch to Text tab
+    await page.locator(".panel-tab", { hasText: "Texto" }).click();
     await expect(
-      page.locator(".panel-group", { hasText: "Fonte" }),
+      page.locator(".panel-group", { hasText: "Tamanho" }),
     ).toBeVisible();
 
-    // shape-only selection never shows Fonte
+    // shape-only selection: Text tab still shows font size (labels), but
+    // verify the panel switches correctly
     await page.keyboard.press("r");
     await drag(page, { x: 500, y: 500 }, { x: 600, y: 580 });
+    await page.locator(".panel-tab", { hasText: "Texto" }).click();
     await expect(
-      page.locator(".panel-group", { hasText: "Fonte" }),
-    ).toHaveCount(0);
+      page.locator(".panel-group", { hasText: "Tamanho" }),
+    ).toBeVisible();
 
     // deselect hides panel entirely
     await page.keyboard.press("Escape");

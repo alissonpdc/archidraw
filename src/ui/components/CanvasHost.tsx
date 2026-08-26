@@ -5,6 +5,7 @@ import { useGridMode } from "../viewPrefs";
 import type { Point } from "../../core/types";
 import { pushRecentComponent } from "../../core/library";
 import { COMPONENT_DND_TYPE } from "./LibraryPanel";
+import { resolveTextColor } from "../../core/textStyle";
 
 function readThemeColors(): RenderColors & { elementStroke: string } {
   const style = getComputedStyle(document.documentElement);
@@ -191,53 +192,80 @@ export function CanvasHost() {
           </div>
         </div>
       )}
-      {isEditingText && editingEl.type === "text" && (
-        <textarea
-          ref={textareaRef}
-          className="text-overlay"
-          style={{
-            left: editingEl.x * cam.zoom + cam.scrollX,
-            top: editingEl.y * cam.zoom + cam.scrollY,
-            fontSize: editingEl.fontSize * cam.zoom,
-            color: editingEl.strokeColor,
-          }}
-          value={editingEl.text}
-          onChange={(e) => editor.updateText(editingEl.id, e.target.value)}
-          onBlur={() => {
-            editor.finishTextEdit();
-            editor.clearSelection();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) {
-              e.preventDefault();
-              (e.target as HTMLTextAreaElement).blur();
-            }
-          }}
-        />
-      )}
-      {isEditingLabel && editingEl && labelPos && (
-        <textarea
-          ref={textareaRef}
-          className="text-overlay label-overlay"
-          style={{
-            left: labelPos.x,
-            top: labelPos.y,
-            fontSize: labelFontSize,
-            color: editingEl.strokeColor,
-          }}
-          value={editingEl.label ?? ""}
-          onChange={(e) => editor.updateLabel(editingEl.id, e.target.value)}
-          onBlur={() => {
-            editor.finishTextEdit();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) {
-              e.preventDefault();
-              (e.target as HTMLTextAreaElement).blur();
-            }
-          }}
-        />
-      )}
+      {isEditingText && editingEl.type === "text" && (() => {
+        const themeColors: RenderColors = {
+          selection: "#6965db",
+          elementStroke: colors.elementStroke,
+          gridDot: colors.gridDot,
+          gridLine: colors.gridLine,
+        };
+        return (
+          <textarea
+            ref={textareaRef}
+            className="text-overlay"
+            style={{
+              left: editingEl.x * cam.zoom + cam.scrollX,
+              top: editingEl.y * cam.zoom + cam.scrollY,
+              fontSize: editingEl.fontSize * cam.zoom,
+              fontFamily: editingEl.fontFamily || '"Segoe UI", system-ui, sans-serif',
+              fontWeight: editingEl.bold ? "bold" : "normal",
+              fontStyle: editingEl.italic ? "italic" : "normal",
+              textDecoration: editingEl.underline ? "underline" : "none",
+              lineHeight: String(editingEl.lineSpacing ?? 1.25),
+              color: resolveTextColor(editingEl, themeColors),
+              textAlign: editingEl.textAlign ?? "left",
+            }}
+            value={editingEl.text}
+            onChange={(e) => editor.updateText(editingEl.id, e.target.value)}
+            onBlur={() => {
+              editor.finishTextEdit();
+              editor.clearSelection();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) {
+                e.preventDefault();
+                (e.target as HTMLTextAreaElement).blur();
+              }
+            }}
+          />
+        );
+      })()}
+      {isEditingLabel && editingEl && labelPos && (() => {
+        const themeColors: RenderColors = {
+          selection: "#6965db",
+          elementStroke: colors.elementStroke,
+          gridDot: colors.gridDot,
+          gridLine: colors.gridLine,
+        };
+        return (
+          <textarea
+            ref={textareaRef}
+            className="text-overlay label-overlay"
+            style={{
+              left: labelPos.x,
+              top: labelPos.y,
+              fontSize: labelFontSize,
+              fontFamily: editingEl.fontFamily || '"Segoe UI", system-ui, sans-serif',
+              fontWeight: editingEl.bold ? "bold" : "normal",
+              fontStyle: editingEl.italic ? "italic" : "normal",
+              textDecoration: editingEl.underline ? "underline" : "none",
+              lineHeight: String(editingEl.lineSpacing ?? 1.25),
+              color: resolveTextColor(editingEl, themeColors),
+            }}
+            value={editingEl.label ?? ""}
+            onChange={(e) => editor.updateLabel(editingEl.id, e.target.value)}
+            onBlur={() => {
+              editor.finishTextEdit();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) {
+                e.preventDefault();
+                (e.target as HTMLTextAreaElement).blur();
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

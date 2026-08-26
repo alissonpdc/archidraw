@@ -545,6 +545,17 @@ export class Editor {
       strokeStyle?: StrokeStyle;
       roughness?: Roughness;
       borderRadius?: number;
+      fontFamily?: string;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      textColor?: string;
+      lineSpacing?: number;
+      textAlign?: import("./types").TextAlign;
+      textVAlign?: import("./types").TextVAlign;
+      textPadding?: number;
+      captionPosition?: import("./types").CaptionPosition;
+      captionGap?: number;
     },
   ) {
     this.doc = {
