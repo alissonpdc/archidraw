@@ -566,6 +566,12 @@ function drawSelectionBox(
     const th = fontSize * 1.25;
     if (el.type === "component") {
       const layout = componentIconLayout(el);
+      // the whole icon+label group is centered on the element, so when the
+      // label is large it overflows on BOTH sides (icon top + label bottom)
+      x1 = Math.min(x1, layout.iconX);
+      y1 = Math.min(y1, layout.iconY);
+      x2 = Math.max(x2, layout.iconX + layout.iconSize);
+      y2 = Math.max(y2, layout.iconY + layout.iconSize);
       const lx = layout.labelCx - tw / 2;
       const ly = layout.labelCy - th / 2;
       x1 = Math.min(x1, lx);
