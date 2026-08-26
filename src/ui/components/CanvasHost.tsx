@@ -59,10 +59,15 @@ export function CanvasHost() {
     return () => cancelAnimationFrame(raf);
   }, [colors, gridMode]);
 
-  // focus text overlay when editing starts (synchronous, avoids typing races)
+  // focus text overlay when editing starts (synchronous, avoids typing races);
+  // selects existing text so double-click enters edit mode with text selected
   useEffect(() => {
     if (snap.editingTextId) {
-      textareaRef.current?.focus();
+      const ta = textareaRef.current;
+      if (ta) {
+        ta.focus();
+        ta.select();
+      }
     }
   }, [snap.editingTextId]);
 
