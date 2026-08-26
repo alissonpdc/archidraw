@@ -107,8 +107,9 @@ export function AppMenu() {
               <MenuItem
                 label="Exportar PNG"
                 onClick={() => {
-                  const ok = exportPNG(snap.doc, filename);
-                  toast(ok ? "PNG exportado" : "Canvas vazio — nada a exportar");
+                  exportPNG(snap.doc, filename).then((ok) =>
+                    toast(ok ? "PNG exportado" : "Canvas vazio — nada a exportar"),
+                  );
                   close();
                 }}
               />

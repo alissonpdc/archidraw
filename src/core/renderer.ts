@@ -1,6 +1,7 @@
 import type { Camera, ComponentElement, Document, Element, Point } from "./types";
 import { arrowPoints, elementBounds } from "./utils";
 import { getLibraryItem } from "./library";
+import { getComponentImage } from "./componentAssets";
 
 export interface RenderColors {
   selection: string;
@@ -335,6 +336,14 @@ export function componentIconLayout(el: ComponentElement) {
 
 function drawComponentIcon(ctx: CanvasRenderingContext2D, el: ComponentElement) {
   const { iconX, iconY, iconSize } = componentIconLayout(el);
+
+  // official bundled icon (AWS Architecture Icons) when available
+  const img = getComponentImage(el.componentId);
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
+    return;
+  }
+
   const paths = iconPaths(el.componentId);
   if (paths.length === 0) return;
   const scale = iconSize / 24;

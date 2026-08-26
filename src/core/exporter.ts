@@ -1,8 +1,8 @@
-import { render } from "./renderer";
-import { componentIconLayout } from "./renderer";
+import { render, componentIconLayout } from "./renderer";
 import type { Bounds, Document, Element } from "./types";
 import { arrowPoints, elementBounds } from "./utils";
 import { getLibraryItem } from "./library";
+import { componentAssetDataUri, waitForComponentImages } from "./componentAssets";
 
 const EXPORT_PADDING = 20;
 const PNG_SCALE = 2;
@@ -45,9 +45,16 @@ export function slugify(name: string): string {
 
 // ---- PNG ---------------------------------------------------------------
 
-export function exportPNG(doc: Document, filename: string): boolean {
+export async function exportPNG(doc: Document, filename: string): Promise<boolean> {
   const bounds = contentBounds(doc.elements);
   if (!bounds) return false;
+
+  // official icons load asynchronously — make sure they're decoded
+  await waitForComponentImages(
+    doc.elements
+      .filter((el) => el.type === "component")
+      .map((el) => (el as { componentId: string }).componentId),
+  );
 
   const w = bounds.x2 - bounds.x1 + EXPORT_PADDING * 2;
   const h = bounds.y2 - bounds.y1 + EXPORT_PADDING * 2;
@@ -142,16 +149,23 @@ export function exportSVG(doc: Document, filename: string): boolean {
       parts.push(
         `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="${fill}" ${stroke}${dash}${opacity}/>`
       );
-      // icon paths (24x24 viewBox) scaled into the icon area
-      const item = getLibraryItem(el.componentId);
-      if (item && item.icon.length > 0) {
-        const layout = componentIconLayout(el);
-        const scale = layout.iconSize / 24;
+      const layout = componentIconLayout(el);
+      const dataUri = componentAssetDataUri(el.componentId);
+      if (dataUri) {
         parts.push(
-          `<g transform="translate(${layout.iconX} ${layout.iconY}) scale(${scale})" fill="none" stroke="${el.strokeColor}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${opacity}>${item.icon
-            .map((d) => `<path d="${d}"/>`)
-            .join("")}</g>`
+          `<image x="${layout.iconX}" y="${layout.iconY}" width="${layout.iconSize}" height="${layout.iconSize}" href="${dataUri}"${opacity}/>`
         );
+      } else {
+        // fallback: hand-drawn glyph paths (24x24 viewBox)
+        const item = getLibraryItem(el.componentId);
+        if (item && item.icon.length > 0) {
+          const scale = layout.iconSize / 24;
+          parts.push(
+            `<g transform="translate(${layout.iconX} ${layout.iconY}) scale(${scale})" fill="none" stroke="${el.strokeColor}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${opacity}>${item.icon
+              .map((d) => `<path d="${d}"/>`)
+              .join("")}</g>`
+          );
+        }
       }
     } else if (el.type === "arrow") {
       const [a, b] = arrowPoints(el);

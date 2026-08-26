@@ -8,10 +8,26 @@ import {
 } from "../../core/library";
 import type { LibraryItem } from "../../core/library";
 import { editor } from "../hooks/useEditor";
+import {
+  componentAssetDataUri,
+  hasComponentAsset,
+} from "../../core/componentAssets";
 
 export const COMPONENT_DND_TYPE = "application/x-archidraw-component";
 
 function ItemIcon({ item, size = 26 }: { item: LibraryItem; size?: number }) {
+  if (hasComponentAsset(item.id)) {
+    return (
+      <img
+        className="library-card-img"
+        src={componentAssetDataUri(item.id) ?? undefined}
+        width={size}
+        height={size}
+        alt=""
+        draggable={false}
+      />
+    );
+  }
   return (
     <svg
       width={size}

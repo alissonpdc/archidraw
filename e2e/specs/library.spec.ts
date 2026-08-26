@@ -133,4 +133,26 @@ test.describe("biblioteca de componentes", () => {
     await page.getByRole("button", { name: "Biblioteca de componentes" }).click();
     await expect(page.locator(".library-panel")).toHaveCount(0);
   });
+
+  test("serviços AWS usam o ícone oficial e genéricos caem no glifo vetorial", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+    await page.keyboard.press("b");
+
+    // EC2 tem asset oficial embutido
+    const ec2 = page.locator('.library-panel [data-component-id="ec2"]');
+    await expect(ec2.locator("img.library-card-img")).toBeVisible();
+
+    // Client não tem asset oficial → glifo vetorial inline
+    const client = page.locator(
+      '.library-panel [data-component-id="client"]',
+    );
+    await expect(client.locator(".library-card-icon svg")).toBeVisible();
+
+    await ec2.click();
+    const state = await editorState();
+    expect(state.elements[0].componentId).toBe("ec2");
+  });
 });

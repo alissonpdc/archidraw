@@ -1112,3 +1112,8 @@ button {
   padding: var(--space-3) var(--space-1);
   text-align: center;
 }
+
+.library-card-img {
+  display: block;
+  pointer-events: none;
+}
