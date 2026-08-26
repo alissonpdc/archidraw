@@ -23,10 +23,10 @@ const BASE_COLORS: { name: string; color: string }[] = [
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
 const FONT_SIZES = [16, 20, 28, 36];
 const FONT_FAMILIES = [
-  { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', iconPath: "M4 4h12v2H4zm0 4h12v2H4zm0 4h8v2H4z" },
-  { label: "Mono", value: '"SF Mono", "Cascadia Code", Consolas, monospace', iconPath: "M4 4l4 8-4 8M12 4l4 8-4 8" },
-  { label: "Serif", value: 'Georgia, "Times New Roman", serif', iconPath: "M3 4h1v12H3zm2 6h6v2H5zm6-6h1v12h-1zM9 4v12" },
-  { label: "Display", value: '"Trebuchet MS", "Lucida Sans", sans-serif', iconPath: "M2 4h16v3H2zM5 7v9M15 7v9M7 16h6" },
+  { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', iconPath: "M4 5h12M4 10h10M4 15h7" },
+  { label: "Mono", value: '"SF Mono", "Cascadia Code", Consolas, monospace', iconPath: "M5 5L9 10L5 15M11 5L15 10L11 15" },
+  { label: "Serif", value: 'Georgia, "Times New Roman", serif', iconPath: "M4 5h1v10H4zM7 5h6v2H7zM7 13h6v2H7zM13 5h1v10h-1z" },
+  { label: "Consolas", value: 'Consolas, "SF Mono", monospace', iconPath: "M3 5l5 5-5 5M9 15h8" },
 ];
 const CAPTION_POSITIONS = [
   { label: "Baixo", value: "bottom" as const },

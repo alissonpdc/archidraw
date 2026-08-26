@@ -694,10 +694,6 @@ export class Editor {
       elements: this.doc.elements.map((el) => {
         if (!ids.includes(el.id)) return el;
         const next = { ...el, ...patch } as Element;
-        // fontSize only applies to text elements
-        if (patch.fontSize !== undefined && el.type !== "text") {
-          delete (next as Partial<TextElement>).fontSize;
-        }
         return next;
       }),
     };

@@ -515,12 +515,14 @@ function drawElement(
         let ux = el.x;
         if (align === "center") ux = el.x + (el.width - lw) / 2;
         else if (align === "right") ux = el.x + el.width - lw;
-        ctx.beginPath();
+        ctx.save();
         ctx.strokeStyle = resolveTextColor(el, colors);
-        ctx.lineWidth = Math.max(1, el.fontSize * 0.06);
-        ctx.moveTo(ux, el.y + i * el.fontSize * lh + el.fontSize + 2);
-        ctx.lineTo(ux + lw, el.y + i * el.fontSize * lh + el.fontSize + 2);
+        ctx.lineWidth = Math.max(1.5, el.fontSize * 0.08);
+        ctx.beginPath();
+        ctx.moveTo(ux, el.y + i * el.fontSize * lh + el.fontSize + 3);
+        ctx.lineTo(ux + lw, el.y + i * el.fontSize * lh + el.fontSize + 3);
         ctx.stroke();
+        ctx.restore();
       }
     });
   }
