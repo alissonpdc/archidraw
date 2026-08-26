@@ -694,6 +694,13 @@ export class Editor {
       elements: this.doc.elements.map((el) => {
         if (!ids.includes(el.id)) return el;
         const next = { ...el, ...patch } as Element;
+        // recalculate text dimensions when fontSize changes
+        if (next.type === "text" && patch.fontSize !== undefined) {
+          const te = next as TextElement;
+          const { width, height } = measureText(te.text || " ", te.fontSize);
+          te.width = Math.max(width, 8);
+          te.height = height;
+        }
         return next;
       }),
     };

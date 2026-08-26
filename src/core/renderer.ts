@@ -579,10 +579,23 @@ function drawLabel(
   ctx.fillStyle = resolveTextColor(el, colors);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  const underlineOn = !!el.underline;
   if (el.type === "component") {
     const layout = componentIconLayout(el);
     ctx.font = resolveFont(el, layout.labelFont);
     ctx.fillText(el.label, layout.labelCx, layout.labelCy);
+    if (underlineOn) {
+      const lw = ctx.measureText(el.label).width;
+      if (lw > 0) {
+        ctx.strokeStyle = resolveTextColor(el, colors);
+        ctx.lineWidth = Math.max(1.5, layout.labelFont * 0.07);
+        ctx.beginPath();
+        const uy = layout.labelCy + layout.labelFont * 0.55;
+        ctx.moveTo(layout.labelCx - lw / 2, uy);
+        ctx.lineTo(layout.labelCx + lw / 2, uy);
+        ctx.stroke();
+      }
+    }
   } else {
     const textAlign = el.textAlign ?? "center";
     const textVAlign = el.textVAlign ?? "middle";
@@ -604,6 +617,22 @@ function drawLabel(
     const fontSize = el.fontSize ?? 14;
     ctx.font = resolveFont(el, fontSize);
     ctx.fillText(el.label, cx, cy);
+    if (underlineOn) {
+      const lw = ctx.measureText(el.label).width;
+      if (lw > 0) {
+        ctx.strokeStyle = resolveTextColor(el, colors);
+        ctx.lineWidth = Math.max(1.5, fontSize * 0.07);
+        ctx.beginPath();
+        const uy = cy + fontSize * 0.55;
+        let ux = cx;
+        if (textAlign === "left") ux = cx;
+        else if (textAlign === "right") ux = cx - lw;
+        else ux = cx - lw / 2;
+        ctx.moveTo(ux, uy);
+        ctx.lineTo(ux + lw, uy);
+        ctx.stroke();
+      }
+    }
   }
   ctx.restore();
 }
