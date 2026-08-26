@@ -331,6 +331,19 @@ export class Editor {
     this.emit();
   }
 
+  /** move uma aba para a posição toIndex (ordem persiste no workspace) */
+  reorderTab(id: string, toIndex: number) {
+    const from = this.tabs.findIndex((t) => t.id === id);
+    if (from === -1) return;
+    const to = Math.max(0, Math.min(toIndex, this.tabs.length - 1));
+    if (to === from) return;
+    const next = [...this.tabs];
+    const [tab] = next.splice(from, 1);
+    next.splice(to, 0, tab);
+    this.tabs = next;
+    this.emit();
+  }
+
   /** number of elements in a tab (used by UI before confirming close) */
   tabElementCount(id: string): number {
     return this.tabs.find((t) => t.id === id)?.doc.elements.length ?? 0;

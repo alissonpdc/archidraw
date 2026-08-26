@@ -56,54 +56,53 @@ button {
   cursor: grab;
 }
 
-/* ---- segmented tab bar (bottom center) ---- */
+/* ---- tab strip (bottom center): limites só em cima/embaixo, sem caixa ---- */
 .tabbar {
   position: absolute;
   bottom: var(--space-4);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: center;
-  gap: var(--space-1);
+  align-items: stretch;
+  height: 34px;
   max-width: calc(100% - 420px);
-  padding: 3px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .tabbar-seg-wrap {
   display: flex;
-  align-items: center;
-  gap: var(--space-1);
+  align-items: stretch;
   min-width: 0;
 }
 
-.tabbar-seg-wrap:first-child .tabbar-dot {
-  display: none;
-}
-
+/* middle dot entre abas inativas (oculto junto à aba ativa) */
 .tabbar-dot {
   flex-shrink: 0;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  opacity: 0.55;
+  align-self: center;
+  color: var(--text-muted);
+  opacity: 0.6;
+  font-size: 15px;
+  line-height: 1;
+  user-select: none;
 }
 
 .tabbar-seg {
   display: flex;
   align-items: center;
   gap: 3px;
-  padding: var(--space-1) var(--space-2);
-  border: none;
-  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  border-radius: 0;
   background: transparent;
   color: var(--text-muted);
   font-size: var(--font-size-md);
   min-width: 0;
+  cursor: grab;
+}
+
+.tabbar-seg.dragging {
+  opacity: 0.45;
+  cursor: grabbing;
 }
 
 /* × na aba ativa: no fluxo, logo à direita do nome (nome trunca se precisar) */
@@ -134,14 +133,14 @@ button {
   font-weight: 600;
 }
 
-/* × só existe na aba ativa */
+/* aba ativa: pinta o espaço inteiro (altura/largura totais, sem box próprio) */
 .tabbar-seg.active {
-  background: var(--accent);
-  color: var(--on-accent);
-  box-shadow: 0 1px 4px rgba(105, 101, 219, 0.45);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text-primary);
 }
 
 .tabbar-add {
+  align-self: center;
   width: 26px;
   height: 26px;
   color: var(--text-muted);
@@ -185,16 +184,7 @@ button {
   color: var(--text-primary);
 }
 
-/* × da aba ativa: cor do texto levemente esmaecida, sólida no hover */
-.tabbar-seg.active .tab-close {
-  color: var(--on-accent);
-  opacity: 0.75;
-}
-
-.tabbar-seg.active .tab-close:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.2);
-}
+/* × da aba ativa acompanha o texto do strip */
 
 /* ---- confirmação de fechamento de aba ---- */
 .tab-confirm-backdrop {

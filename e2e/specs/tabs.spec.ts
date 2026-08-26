@@ -63,11 +63,16 @@ test.describe("tabs", () => {
     const segs = page.locator(".tabbar-seg");
     await expect(segs).toHaveCount(2);
     await expect(segs.first()).toHaveText("Diagrama 1");
-    await expect(page.locator(".tabbar-dot")).toHaveCount(1);
+    // sem separador junto à aba ativa (a cor já separa)
+    await expect(page.locator(".tabbar-dot")).toHaveCount(0);
 
     await segs.first().click();
     const s = await editorState();
     expect(s.activeTabId).toBe(s.tabs[0].id);
+
+    // com a 1ª aba ativa, o dot entre as duas inativas seguintes aparece
+    await page.click('[data-testid="tab-add"]'); // Diagrama 3 ativa
+    await expect(page.locator(".tabbar-dot")).toHaveCount(1);
   });
 
   test("rename via double-click on segment", async ({ page, editorState }) => {
@@ -205,5 +210,29 @@ test.describe("tabs", () => {
     await page.evaluate((id) => window.__editor__.switchTab(id), s.tabs[0].id);
     const tab1 = await editorState();
     expect(tab1.elementCount).toBe(1);
+  });
+
+  test("dragging a segment reorders tabs", async ({ page, editorState }) => {
+    await page.click('[data-testid="tab-add"]');
+    await page.click('[data-testid="tab-add"]'); // 3 abas
+
+    const seg2 = page.locator('[data-testid="tab-seg-Diagrama 2"]');
+    const seg1 = page.locator('[data-testid="tab-seg-Diagrama 1"]');
+    const target = await seg1.boundingBox();
+    const from = (await seg2.boundingBox())!;
+    expect(target).not.toBeNull();
+
+    // arrasta "Diagrama 2" para antes de "Diagrama 1"
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(target!.x + 5, target!.y + target!.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    const s = await editorState();
+    expect(s.tabs.map((t) => t.name)).toEqual([
+      "Diagrama 2",
+      "Diagrama 1",
+      "Diagrama 3",
+    ]);
   });
 });
