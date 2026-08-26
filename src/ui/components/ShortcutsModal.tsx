@@ -12,27 +12,28 @@ const GROUPS: ShortcutGroup[] = [
       { keys: "R", desc: "Retângulo" },
       { keys: "A", desc: "Seta" },
       { keys: "T", desc: "Texto" },
-      { keys: "B", desc: "Biblioteca de componentes" },
+      { keys: "B", desc: "Biblioteca" },
     ],
   },
   {
     title: "Canvas",
     items: [
-      { keys: "Espaço + arrastar", desc: "Pan no canvas" },
+      { keys: "Espaço+arrastar", desc: "Pan" },
       { keys: `${MOD}+Scroll`, desc: "Zoom" },
-      { keys: "Shift+1", desc: "Enquadrar conteúdo" },
-      { keys: "Duplo clique", desc: "Editar label · criar texto" },
+      { keys: "Shift+1", desc: "Enquadrar" },
+      { keys: "Duplo clique", desc: "Editar label" },
     ],
   },
   {
     title: "Edição",
     items: [
-      { keys: `${MOD}+Z / ${MOD}+Shift+Z / ${MOD}+Y`, desc: "Desfazer / Refazer" },
-      { keys: `${MOD}+C / X / V`, desc: "Copiar / Recortar / Colar" },
-      { keys: `${MOD}+D`, desc: "Duplicar seleção" },
+      { keys: `${MOD}+Z`, desc: "Desfazer" },
+      { keys: `${MOD}+Shift+Z`, desc: "Refazer" },
+      { keys: `${MOD}+C / X / V`, desc: "Copiar/Recortar/Colar" },
+      { keys: `${MOD}+D`, desc: "Duplicar" },
       { keys: `${MOD}+A`, desc: "Selecionar tudo" },
-      { keys: "Delete", desc: "Apagar seleção" },
-      { keys: "Esc", desc: "Desselecionar / cancelar edição" },
+      { keys: "Delete", desc: "Apagar" },
+      { keys: "Esc", desc: "Desselecionar" },
     ],
   },
 ];
@@ -52,7 +53,7 @@ export function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () =
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="shortcuts-modal"
+        className="shortcuts-modal shortcuts-modal-wide"
         role="dialog"
         aria-label="Atalhos de teclado"
         onClick={(e) => e.stopPropagation()}
@@ -63,7 +64,7 @@ export function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () =
             ×
           </button>
         </div>
-        <div className="shortcuts-grid">
+        <div className="shortcuts-grid shortcuts-grid-2col">
           {GROUPS.map((group) => (
             <div key={group.title} className="shortcuts-section">
               <div className="menu-section-title">{group.title}</div>

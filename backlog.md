@@ -60,6 +60,6 @@
 
 ## Interface
 
-- [ ] Ajustar visão de 'Atalhos' para melhor aproveitamento do frame (hoje muito vertical)
+- [x] Ajustar visão de 'Atalhos' para melhor aproveitamento do frame (hoje muito vertical)
 
 ## (próximos grupos de features)
