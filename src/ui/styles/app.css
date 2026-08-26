@@ -462,6 +462,13 @@ button {
   gap: var(--space-1);
 }
 
+/* ---- layer buttons ---- */
+.layer-btns {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .panel-group {
   display: flex;
   flex-direction: column;

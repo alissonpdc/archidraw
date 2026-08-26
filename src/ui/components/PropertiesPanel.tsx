@@ -300,7 +300,7 @@ function MiniSlider({
 export function PropertiesPanel() {
   const snap = useEditor();
   const [tip, setTip] = useState<TipState | null>(null);
-  const [activeTab, setActiveTab] = useState<"style" | "text">("style");
+  const [activeTab, setActiveTab] = useState<"style" | "text" | "layers">("style");
   const selected = snap.doc.elements.filter((el) =>
     snap.selectedIds.has(el.id),
   );
@@ -405,6 +405,12 @@ export function PropertiesPanel() {
           onClick={() => setActiveTab("text")}
         >
           Texto
+        </button>
+        <button
+          className={`panel-tab ${activeTab === "layers" ? "active" : ""}`}
+          onClick={() => setActiveTab("layers")}
+        >
+          Camadas
         </button>
       </div>
 
@@ -770,6 +776,118 @@ export function PropertiesPanel() {
                 />
               </Group>
             </>
+          )}
+        </>
+      )}
+
+      {activeTab === "layers" && (
+        <>
+          <Group title="Ordem">
+            <div className="layer-btns">
+              <button
+                className="size-btn"
+                data-tip="Trazer para frente"
+                aria-label="Trazer para frente"
+                onClick={() => editor.bringToFront()}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="1" y="5" width="7" height="7" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                  <rect x="5" y="1" width="7" height="7" rx="1" fill="currentColor" opacity="0.3" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </button>
+              <button
+                className="size-btn"
+                data-tip="Avançar uma camada"
+                aria-label="Avançar uma camada"
+                onClick={() => editor.bringForward()}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="1" y="6" width="6" height="6" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                  <rect x="5" y="2" width="6" height="6" rx="1" fill="currentColor" opacity="0.3" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M8 10 L10 8 L12 10" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </button>
+              <button
+                className="size-btn"
+                data-tip="Recuar uma camada"
+                aria-label="Recuar uma camada"
+                onClick={() => editor.sendBackward()}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="5" y="1" width="6" height="6" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                  <rect x="1" y="6" width="6" height="6" rx="1" fill="currentColor" opacity="0.3" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M8 6 L10 8 L12 6" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </button>
+              <button
+                className="size-btn"
+                data-tip="Enviar para trás"
+                aria-label="Enviar para trás"
+                onClick={() => editor.sendToBack()}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="5" y="1" width="7" height="7" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                  <rect x="1" y="5" width="7" height="7" rx="1" fill="currentColor" opacity="0.3" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </button>
+            </div>
+          </Group>
+
+          {selected.length >= 2 && (
+            <Group title="Alinhar">
+              <div className="layer-btns">
+                <button className="size-btn" data-tip="Alinhar esquerda" aria-label="Alinhar esquerda"
+                  onClick={() => editor.alignSelected("left")}>
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <line x1="2" y1="1" x2="2" y2="15" stroke="currentColor" strokeWidth="2"/>
+                    <rect x="2" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                    <rect x="2" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                  </svg>
+                </button>
+                <button className="size-btn" data-tip="Centralizar horizontal" aria-label="Centralizar horizontal"
+                  onClick={() => editor.alignSelected("center")}>
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <line x1="8" y1="1" x2="8" y2="15" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
+                    <rect x="2" y="2" width="12" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                    <rect x="3" y="9" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                  </svg>
+                </button>
+                <button className="size-btn" data-tip="Alinhar direita" aria-label="Alinhar direita"
+                  onClick={() => editor.alignSelected("right")}>
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <line x1="14" y1="1" x2="14" y2="15" stroke="currentColor" strokeWidth="2"/>
+                    <rect x="4" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                    <rect x="7" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                  </svg>
+                </button>
+              </div>
+              <div className="layer-btns">
+                <button className="size-btn" data-tip="Alinhar topo" aria-label="Alinhar topo"
+                  onClick={() => editor.alignSelected("top")}>
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <line x1="1" y1="2" x2="15" y2="2" stroke="currentColor" strokeWidth="2"/>
+                    <rect x="2" y="2" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+                    <rect x="9" y="2" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
+                  </svg>
+                </button>
+                <button className="size-btn" data-tip="Centralizar vertical" aria-label="Centralizar vertical"
+                  onClick={() => editor.alignSelected("middle")}>
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
+                    <rect x="2" y="2" width="4" height="12" rx="1" fill="currentColor" opacity="0.3"/>
+                    <rect x="9" y="3" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+                  </svg>
+                </button>
+                <button className="size-btn" data-tip="Alinhar fundo" aria-label="Alinhar fundo"
+                  onClick={() => editor.alignSelected("bottom")}>
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <line x1="1" y1="14" x2="15" y2="14" stroke="currentColor" strokeWidth="2"/>
+                    <rect x="2" y="4" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+                    <rect x="9" y="7" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
+                  </svg>
+                </button>
+              </div>
+            </Group>
           )}
         </>
       )}

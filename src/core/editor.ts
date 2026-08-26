@@ -246,6 +246,85 @@ export class Editor {
     this.emit();
   }
 
+  // ---- layer reorder ---------------------------------------------------
+  private reorderElements(ids: string[], direction: "front" | "back" | "forward" | "backward") {
+    if (ids.length === 0) return;
+    this.commitHistory();
+    const elems = [...this.doc.elements];
+    const idSet = new Set(ids);
+
+    if (direction === "front") {
+      const toMove = elems.filter((el) => idSet.has(el.id));
+      const rest = elems.filter((el) => !idSet.has(el.id));
+      this.doc = { ...this.doc, elements: [...rest, ...toMove] };
+    } else if (direction === "back") {
+      const toMove = elems.filter((el) => idSet.has(el.id));
+      const rest = elems.filter((el) => !idSet.has(el.id));
+      this.doc = { ...this.doc, elements: [...toMove, ...rest] };
+    } else if (direction === "forward") {
+      for (let i = elems.length - 2; i >= 0; i--) {
+        if (idSet.has(elems[i].id) && !idSet.has(elems[i + 1].id)) {
+          [elems[i], elems[i + 1]] = [elems[i + 1], elems[i]];
+        }
+      }
+      this.doc = { ...this.doc, elements: elems };
+    } else if (direction === "backward") {
+      for (let i = 1; i < elems.length; i++) {
+        if (idSet.has(elems[i].id) && !idSet.has(elems[i - 1].id)) {
+          [elems[i], elems[i - 1]] = [elems[i - 1], elems[i]];
+        }
+      }
+      this.doc = { ...this.doc, elements: elems };
+    }
+    this.emit();
+  }
+
+  bringToFront() { this.reorderElements([...this.selectedIds], "front"); }
+  sendToBack() { this.reorderElements([...this.selectedIds], "back"); }
+  bringForward() { this.reorderElements([...this.selectedIds], "forward"); }
+  sendBackward() { this.reorderElements([...this.selectedIds], "backward"); }
+
+  // ---- multi-select alignment -----------------------------------------
+  alignSelected(direction: "left" | "center" | "right" | "top" | "middle" | "bottom") {
+    if (this.selectedIds.size < 2) return;
+    this.commitHistory();
+    const selected = this.doc.elements.filter((el) => this.selectedIds.has(el.id));
+    const bounds = selected.map((el) => elementBounds(el));
+
+    let anchor: number;
+    if (direction === "left") anchor = Math.min(...bounds.map((b) => b.x1));
+    else if (direction === "right") anchor = Math.max(...bounds.map((b) => b.x2));
+    else if (direction === "center") {
+      const minX = Math.min(...bounds.map((b) => b.x1));
+      const maxX = Math.max(...bounds.map((b) => b.x2));
+      anchor = (minX + maxX) / 2;
+    } else if (direction === "top") anchor = Math.min(...bounds.map((b) => b.y1));
+    else if (direction === "bottom") anchor = Math.max(...bounds.map((b) => b.y2));
+    else {
+      const minY = Math.min(...bounds.map((b) => b.y1));
+      const maxY = Math.max(...bounds.map((b) => b.y2));
+      anchor = (minY + maxY) / 2;
+    }
+
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) => {
+        if (!this.selectedIds.has(el.id)) return el;
+        const b = elementBounds(el);
+        const w = b.x2 - b.x1;
+        const h = b.y2 - b.y1;
+        if (direction === "left" || direction === "right" || direction === "center") {
+          const newX = direction === "left" ? anchor : direction === "right" ? anchor - w : anchor - w / 2;
+          return { ...el, x: newX, width: el.width } as Element;
+        } else {
+          const newY = direction === "top" ? anchor : direction === "bottom" ? anchor - h : anchor - h / 2;
+          return { ...el, y: newY, height: el.height } as Element;
+        }
+      }),
+    };
+    this.emit();
+  }
+
   selectAll() {
     this.tool = "selection";
     this.selectedIds = new Set(this.doc.elements.map((el) => el.id));

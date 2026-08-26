@@ -37,14 +37,14 @@
 ## Camadas e Alinhamento
 
 ### Terceira aba 'Layers'
-- [ ] Controle de layer do elemento em relação aos demais:
-  - [ ] Front (trazer para frente)
-  - [ ] Back (enviar para trás)
-  - [ ] Forward (avançar uma camada)
-  - [ ] Backward (recuar uma camada)
-- [ ] Com múltiplos itens selecionados, opções de alinhamento:
-  - [ ] Verticais
-  - [ ] Horizontais
+- [x] Controle de layer do elemento em relação aos demais:
+  - [x] Front (trazer para frente)
+  - [x] Back (enviar para trás)
+  - [x] Forward (avançar uma camada)
+  - [x] Backward (recuar uma camada)
+- [x] Com múltiplos itens selecionados, opções de alinhamento:
+  - [x] Verticais
+  - [x] Horizontais
 
 ## Setas e Linhas
 
