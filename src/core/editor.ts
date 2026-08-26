@@ -261,7 +261,9 @@ export class Editor {
     if (!item) return;
     const screen = screenPoint ?? this.screenCenter();
     const scene = screenToScene(screen, this.camera);
-    const size = 100;
+    // ícone preenche o bounds do elemento, então o tamanho de inserção
+    // é o tamanho visual do ícone
+    const size = 64;
     this.commitHistory();
     const el: ComponentElement = {
       id: newId(),

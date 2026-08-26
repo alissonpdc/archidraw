@@ -324,9 +324,12 @@ const COMPONENT_LABEL_FONT = 12;
 export function componentIconLayout(el: ComponentElement) {
   const s = Math.min(Math.abs(el.width), Math.abs(el.height));
   const hasLabel = !!el.label && el.label.trim() !== "";
-  const iconSize = s * 0.52;
   const cx = el.x + el.width / 2;
   const cy = el.y + el.height / 2;
+  // the icon fills the element bounds so selection/hit-test match what is
+  // visible; when there is a label, the icon+label block fills it instead
+  const labelH = COMPONENT_LABEL_FONT * 1.25;
+  const iconSize = hasLabel ? Math.max(s - ICON_LABEL_GAP - labelH, 8) : s;
   if (!hasLabel) {
     return {
       hasLabel,
@@ -338,11 +341,7 @@ export function componentIconLayout(el: ComponentElement) {
       labelFont: COMPONENT_LABEL_FONT,
     };
   }
-  // label sits at a FIXED distance below the icon; the icon+label
-  // block is centered as a whole inside the element
-  const labelH = COMPONENT_LABEL_FONT * 1.25;
-  const totalH = iconSize + ICON_LABEL_GAP + labelH;
-  const iconY = cy - totalH / 2;
+  const iconY = cy - (iconSize + ICON_LABEL_GAP + labelH) / 2;
   return {
     hasLabel,
     iconX: cx - iconSize / 2,
