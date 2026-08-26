@@ -120,15 +120,20 @@ export function exportSVG(doc: Document, filename: string): boolean {
 
   const parts: string[] = [];
   for (const el of doc.elements) {
-    const stroke = `stroke="${el.strokeColor}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round"`;
+    const stroke =
+      el.strokeWidth > 0
+        ? `stroke="${el.strokeColor}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round"`
+        : "none";
     const dash =
-      el.strokeStyle === "dashed"
-        ? ` stroke-dasharray="${el.strokeWidth * 5} ${el.strokeWidth * 4}"`
-        : el.strokeStyle === "dotted"
-          ? ` stroke-dasharray="0.1 ${el.strokeWidth * 2.6}"`
-          : el.strokeStyle === "dashdot"
-            ? ` stroke-dasharray="${el.strokeWidth * 5} ${el.strokeWidth * 3} ${el.strokeWidth} ${el.strokeWidth * 3}"`
-            : "";
+      el.strokeWidth === 0
+        ? ""
+        : el.strokeStyle === "dashed"
+          ? ` stroke-dasharray="${el.strokeWidth * 5} ${el.strokeWidth * 4}"`
+          : el.strokeStyle === "dotted"
+            ? ` stroke-dasharray="0.1 ${el.strokeWidth * 2.6}"`
+            : el.strokeStyle === "dashdot"
+              ? ` stroke-dasharray="${el.strokeWidth * 5} ${el.strokeWidth * 3} ${el.strokeWidth} ${el.strokeWidth * 3}"`
+              : "";
     const opacity = el.opacity < 1 ? ` opacity="${el.opacity}"` : "";
     const fill = el.backgroundColor === "transparent" ? "none" : el.backgroundColor;
     if (el.type === "rectangle") {

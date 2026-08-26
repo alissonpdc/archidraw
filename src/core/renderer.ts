@@ -378,27 +378,30 @@ function drawElement(
       ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
       ctx.fill();
     }
-    ctx.beginPath();
-    if (el.roughness === 0) {
-      ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-    } else {
-      sketchStroke(
-        ctx,
-        [
-          roundedRectLoop(
-            el.x,
-            el.y,
-            el.width,
-            el.height,
-            cornerRadius(el),
-          ),
-        ],
-        el.roughness,
-        seedAt({ x: Math.min(el.x, el.x + el.width), y: Math.min(el.y, el.y + el.height) }),
-      );
+    // strokeWidth 0 = borderless (library components)
+    if (el.strokeWidth > 0) {
+      ctx.beginPath();
+      if (el.roughness === 0) {
+        ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+      } else {
+        sketchStroke(
+          ctx,
+          [
+            roundedRectLoop(
+              el.x,
+              el.y,
+              el.width,
+              el.height,
+              cornerRadius(el),
+            ),
+          ],
+          el.roughness,
+          seedAt({ x: Math.min(el.x, el.x + el.width), y: Math.min(el.y, el.y + el.height) }),
+        );
+      }
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
     }
-    applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke();
 
     if (el.type === "component") drawComponentIcon(ctx, el);
   } else if (el.type === "arrow") {

@@ -274,7 +274,8 @@ export class Editor {
       label: item.name,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
-      strokeWidth: 2,
+      // sem contorno por padrão: apenas ícone + nome
+      strokeWidth: 0,
       opacity: 1,
       strokeStyle: "solid",
       roughness: 0,

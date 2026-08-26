@@ -43,6 +43,13 @@ test.describe("biblioteca de componentes", () => {
     expect(state.elements[0].type).toBe("component");
     expect(state.elements[0].componentId).toBe("sqs");
 
+    // sem contorno por padrão: apenas ícone + nome
+    const strokeWidth = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      return ed.getSnapshot().doc.elements[0].strokeWidth;
+    });
+    expect(strokeWidth).toBe(0);
+
     // painel permanece aberto para inserir mais componentes
     await expect(panel).toBeVisible();
   });
