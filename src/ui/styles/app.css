@@ -1008,7 +1008,9 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  max-height: calc(100% - 120px);
+  /* usable screen height: vertical scroll only beyond this */
+  max-height: calc(100% - 96px);
+  overflow: hidden;
 }
 
 .library-header {
@@ -1041,11 +1043,19 @@ button {
 
 .library-body {
   overflow-y: auto;
+  overflow-x: hidden; /* never a horizontal scrollbar */
   scrollbar-width: thin;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   padding: 0 2px var(--space-1);
+}
+
+/* category subsection inside a provider group (AWS) */
+.library-subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .library-section {

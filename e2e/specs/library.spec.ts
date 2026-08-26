@@ -1,21 +1,40 @@
-import { test, expect, open } from "../fixtures";
+import { type Page, test, expect, open } from "../fixtures";
+
+/** abre o painel da biblioteca; grupos iniciam contraídos */
+async function openLibrary(page: Page) {
+  await open(page);
+  await page.keyboard.press("b");
+  await expect(page.locator(".library-panel")).toBeVisible();
+}
+
+/** abre o painel e expande o grupo AWS */
+async function openLibraryWithAws(page: Page) {
+  await openLibrary(page);
+  await page.locator(".library-section-header").click();
+}
 
 test.describe("biblioteca de componentes", () => {
-  test("abre pelo atalho B e insere componente clicando", async ({
+  test("abre pelo atalho B com grupos contraídos", async ({ page }) => {
+    await openLibrary(page);
+
+    // AWS inicia contraído
+    const header = page.locator(".library-section-header");
+    await expect(header).toHaveText(/AWS/);
+    await expect(header).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      page.locator('.library-panel [data-component-id="ec2"]'),
+    ).toHaveCount(0);
+  });
+
+  test("insere componente clicando após expandir AWS", async ({
     page,
     editorState,
   }) => {
-    await open(page);
-    await expect(page.locator(".library-panel")).toHaveCount(0);
-
-    await page.keyboard.press("b");
+    await openLibraryWithAws(page);
     const panel = page.locator(".library-panel");
-    await expect(panel).toBeVisible();
 
-    // card do SQS visível na categoria padrão
     const sqs = panel.locator('[data-component-id="sqs"]');
     await expect(sqs).toBeVisible();
-
     await sqs.click();
 
     const state = await editorState();
@@ -28,9 +47,20 @@ test.describe("biblioteca de componentes", () => {
     await expect(panel).toBeVisible();
   });
 
+  test("AWS expandido mostra categorias (Compute, Network…)", async ({
+    page,
+  }) => {
+    await openLibraryWithAws(page);
+
+    for (const cat of ["Compute", "Network", "Database", "Storage"]) {
+      await expect(
+        page.locator(".library-subgroup").filter({ hasText: cat }),
+      ).toBeVisible();
+    }
+  });
+
   test("busca filtra por nome e keyword", async ({ page }) => {
-    await open(page);
-    await page.keyboard.press("b");
+    await openLibrary(page);
 
     const search = page.locator(".library-search");
     await search.fill("fila");
@@ -46,8 +76,7 @@ test.describe("biblioteca de componentes", () => {
     page,
     editorState,
   }) => {
-    await open(page);
-    await page.keyboard.press("b");
+    await openLibrary(page);
 
     await page.locator(".library-search").fill("lambda");
     await page.keyboard.press("Enter");
@@ -61,8 +90,7 @@ test.describe("biblioteca de componentes", () => {
     page,
     editorState,
   }) => {
-    await open(page);
-    await page.keyboard.press("b");
+    await openLibraryWithAws(page);
     await page
       .locator('.library-panel [data-component-id="api-gateway"]')
       .click();
@@ -76,8 +104,7 @@ test.describe("biblioteca de componentes", () => {
     page,
     editorState,
   }) => {
-    await open(page);
-    await page.keyboard.press("b");
+    await openLibraryWithAws(page);
     await page.locator('.library-panel [data-component-id="s3"]').click();
 
     // centro do elemento em coords de tela
@@ -99,8 +126,7 @@ test.describe("biblioteca de componentes", () => {
   });
 
   test("componente persiste após reload", async ({ page, editorState }) => {
-    await open(page);
-    await page.keyboard.press("b");
+    await openLibraryWithAws(page);
     await page.locator('.library-panel [data-component-id="rds"]').click();
     // aguarda autosave debounced
     await page.waitForTimeout(700);
@@ -114,9 +140,7 @@ test.describe("biblioteca de componentes", () => {
   });
 
   test("fecha com Esc e botão fechar", async ({ page }) => {
-    await open(page);
-    await page.keyboard.press("b");
-    await expect(page.locator(".library-panel")).toBeVisible();
+    await openLibrary(page);
 
     await page.keyboard.press("Escape");
     await expect(page.locator(".library-panel")).toHaveCount(0);
@@ -138,8 +162,7 @@ test.describe("biblioteca de componentes", () => {
     page,
     editorState,
   }) => {
-    await open(page);
-    await page.keyboard.press("b");
+    await openLibraryWithAws(page);
 
     // EC2 tem asset oficial embutido
     const ec2 = page.locator('.library-panel [data-component-id="ec2"]');
@@ -161,26 +184,25 @@ test.describe("biblioteca de componentes", () => {
   });
 
   test("grupo AWS expande e contrai", async ({ page }) => {
-    await open(page);
-    await page.keyboard.press("b");
+    await openLibrary(page);
 
     const header = page.locator(".library-section-header");
-    await expect(header).toHaveText(/AWS/);
-    const grid = page.locator('.library-panel [data-component-id="ec2"]');
-    await expect(grid).toBeVisible();
+    await expect(header).toHaveAttribute("aria-expanded", "false");
+    const tile = page.locator('.library-panel [data-component-id="ec2"]');
+    await expect(tile).toHaveCount(0);
 
     await header.click();
-    await expect(grid).toHaveCount(0);
+    await expect(header).toHaveAttribute("aria-expanded", "true");
+    await expect(tile).toBeVisible();
 
     await header.click();
-    await expect(grid).toBeVisible();
+    await expect(tile).toHaveCount(0);
   });
 
   test("recentes aparece antes do grupo AWS e é limitado a 15 itens", async ({
     page,
   }) => {
-    await open(page);
-    await page.keyboard.press("b");
+    await openLibraryWithAws(page);
 
     // insere dois componentes para povoar recentes
     await page.locator('.library-panel [data-component-id="s3"]').click();
@@ -195,7 +217,7 @@ test.describe("biblioteca de componentes", () => {
       page.locator(".library-body > *").first(),
     ).toHaveAttribute("data-testid", "library-recents");
 
-    // S3 foi o mais recente → primeiro tile dos recentes
+    // RDS foi o mais recente → primeiro tile dos recentes
     await expect(recents.locator(".library-tile").first()).toHaveAttribute(
       "data-component-id",
       "rds",

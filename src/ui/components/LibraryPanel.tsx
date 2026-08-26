@@ -8,6 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import {
   LIBRARY,
+  LIBRARY_CATEGORIES,
   getRecentComponents,
   pushRecentComponent,
   searchLibrary,
@@ -123,7 +124,7 @@ function Tile({
 export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("");
   const [recents, setRecents] = useState<string[]>(getRecentComponents);
-  const [awsOpen, setAwsOpen] = useState(true);
+  const [awsOpen, setAwsOpen] = useState(false);
   const [tip, setTip] = useState<TipState | null>(null);
 
   const close = () => {
@@ -256,13 +257,21 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
               </svg>
               AWS
             </button>
-            {awsOpen && (
-              <div className="library-grid">
-                {awsItems.map((item) => (
-                  <Tile key={item.id} item={item} onInsert={insert} />
-                ))}
-              </div>
-            )}
+            {awsOpen &&
+              LIBRARY_CATEGORIES.map((cat) => {
+                const items = awsItems.filter((i) => i.category === cat);
+                if (items.length === 0) return null;
+                return (
+                  <div key={cat} className="library-subgroup">
+                    <div className="panel-subtitle">{cat}</div>
+                    <div className="library-grid">
+                      {items.map((item) => (
+                        <Tile key={item.id} item={item} onInsert={insert} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
           </section>
         )}
       </div>
