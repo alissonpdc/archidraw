@@ -1,0 +1,87 @@
+export type ElementType = "rectangle" | "arrow" | "text" | "component";
+
+/** line pattern: continuous, dashed, dotted or dash-dot */
+export type StrokeStyle = "solid" | "dashed" | "dotted" | "dashdot";
+
+/** how "hand-drawn" the stroke looks: 0 = limpo, 1 = rascunho, 2 = rabisco, 3 = caos */
+export type Roughness = 0 | 1 | 2 | 3;
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface Bounds {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+export interface BaseElement {
+  id: string;
+  type: ElementType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  strokeColor: string;
+  backgroundColor: string;
+  strokeWidth: number;
+  opacity: number;
+  strokeStyle: StrokeStyle;
+  /** 0 = limpo, 1 = rascunho, 2 = rabisco, 3 = caos */
+  roughness: Roughness;
+  /** corner rounding of rectangles, % of the smaller side (0–100) */
+  borderRadius: number;
+}
+
+export interface RectangleElement extends BaseElement {
+  type: "rectangle";
+  label?: string;
+}
+
+/** x,y = start; x+width,y+height = end (axis-aligned box used as bounds) */
+export interface ArrowElement extends BaseElement {
+  type: "arrow";
+  label?: string;
+}
+
+export interface TextElement extends BaseElement {
+  type: "text";
+  text: string;
+  fontSize: number;
+}
+
+/** software component from the library (AWS services etc.) */
+export interface ComponentElement extends BaseElement {
+  type: "component";
+  /** id in the component catalog (core/library.ts) */
+  componentId: string;
+  label?: string;
+}
+
+export type Element =
+  | RectangleElement
+  | ArrowElement
+  | TextElement
+  | ComponentElement;
+
+export interface Document {
+  schemaVersion: 1;
+  elements: Element[];
+}
+
+export type Tool = "selection" | "hand" | "rectangle" | "arrow" | "text";
+
+export interface Camera {
+  /** scene -> screen offset */
+  scrollX: number;
+  scrollY: number;
+  zoom: number;
+}
+
+export const DEFAULT_CAMERA: Camera = { scrollX: 0, scrollY: 0, zoom: 1 };
+
+export const DEFAULT_STROKE = "#1e1e1e";
+export const DEFAULT_BG = "transparent";

@@ -1,271 +1,159 @@
-# archidraw — Product Requirements Document
+# PRD — ArchiDraw
 
-**Version:** 1.0  
-**Date:** 2026-05-31  
-**Author:** Alisson Cruz  
-
----
-
-## 1. Visão & Propósito
-
-**archidraw** é um canvas web self-hosted para arquitetos e engenheiros de software desenharem soluções, arquiteturas e system designs. Ele une a leveza e velocidade do Excalidraw com recursos profissionais presentes em ferramentas como draw.io — sem a UX pesada dessas alternativas.
-
-### Problema
-
-Ferramentas existentes forçam uma escolha falsa:
-- **Excalidraw:** rápida e leve, mas sem recursos profissionais (snapping, aligned distribution, icon libraries)
-- **draw.io / Lucidchart:** completas, mas lentas e UI densa
-
-### Solução
-
-archidraw combina os dois. É uma SPA self-hosted rodando no browser do usuário, com dados persistidos localmente (IndexedDB) — sem backend, sem cloud, sem necessidade de criar contas.
-
-### Usuário-alvo
-
-- Engenheiro ou arquiteto individual
-- Rodando em instância própria (localhost ou VPS privado)
-- Sem necessidade de colaboração em tempo real
-- Criando diagramas de arquitetura, system designs, fluxos de integração
-
-### Modelo de Deployment
-
-- SPA pura (HTML + JS + CSS)
-- Roda em qualquer servidor estático ou `localhost`
-- Dados no IndexedDB do browser (sem sincronização de rede)
-- Exportação: formatos nativos (`.archidraw`) + SVG/PNG para compartilhamento
+**Produto:** ArchiDraw
+**Tipo:** Webapp de desenho em canvas (estilo Excalidraw/draw.io), self-hosted via container Docker local
+**Foco:** Engenheiros e arquitetos de software para criação de arquiteturas e system design
+**Versão do documento:** 0.3
+**Data:** 2026-08-24
+**Status:** Rascunho
 
 ---
 
-## 2. Features (MoSCoW)
+## 1. Visão
 
-### Must Have — v1 (MVP)
+O ArchiDraw é um canvas visual para desenhar arquiteturas de software, diagramas C4 e fluxos de system design, executado como **container Docker local** para uso pessoal. Diferente de ferramentas genéricas de desenho, ele entende **o domínio de engenharia de software**: componentes (APIs, filas, bancos, caches, CDNs), notação padronizada e metadados técnicos.
 
-#### 1. Objetos & Formas
+> **Proposta central:** "Desenhe arquitetura na velocidade do pensamento" — com inteligência de domínio (templates, componentes prontos, numeração de eventos) que ferramentas genéricas não oferecem.
 
-**1.1 Formas básicas** — [docs/feature/1.1-basic-shapes.md](docs/feature/1.1-basic-shapes.md)  
-Criar formas (retângulo, círculo, losango, triângulo, linha, seta, texto) via toolbar ou atalho de teclado; cada forma aparece no canvas com posição/tamanho definido pelo arrastar do usuário.
+**Modelo de execução:**
+- Aplicação self-hosted em **container Docker local** (uso individual, sem contas de usuário)
+- **Sem colaboração em tempo real** — uma pessoa, uma instância
+- Persistência **automática via localStorage** do navegador
 
-**1.2 Seleção de objetos** — [docs/feature/1.2-object-selection.md](docs/feature/1.2-object-selection.md)  
-Selecionar um objeto via clique; múltiplos via Shift+clique ou drag-box; visual feedback com highlight.
+## 2. Problema
 
-**1.3 Movimentação de objetos** — [docs/feature/1.3-object-movement.md](docs/feature/1.3-object-movement.md)  
-Arrastar objetos selecionados para novas posições; multi-drag para mover todos os selecionados juntos.
+- Ferramentas genéricas (Excalidraw, draw.io) exigem trabalho manual excessivo: buscar ícones, alinhar, manter consistência visual.
+- Falta de notação padrão leva a diagramas ambíguos.
+- Diagramas de system design precisam comunicar **cronologia de eventos**, o que as ferramentas atuais não suportam nativamente.
+- Serviços em nuvem exigem login/sync; para uso pessoal, um container local é mais simples, privado e sem custo recorrente.
 
-**1.4 Redimensionamento com handles** — [docs/feature/1.4-object-resizing.md](docs/feature/1.4-object-resizing.md)  
-8 handles (corners + midpoints); Shift+drag mantém aspecto; feedback visual de dimensões.
+## 3. Persona
 
----
+| Persona | Descrição | Necessidades principais |
+|---|---|---|
+| **Engenheiro/Arquiteto (você)** | Uso pessoal: propostas técnicas, RFCs/ADRs, preparação para entrevistas de system design, documentação | Rapidez, atalhos de teclado, biblioteca AWS, detalhamento sob demanda, exportação limpa |
 
-#### 2. Estilos
+## 4. Features
 
-**2.1 Modo hardline e sketchline** — [docs/feature/2.1-hardline-sketchline.md](docs/feature/2.1-hardline-sketchline.md)  
-Toggle global por diagrama (não por objeto); hardline = traços retos; sketchline = traços hand-drawn.
+### 4.1 MVP (v0.1)
 
-**2.2 Cores customizáveis (stroke e fill)** — [docs/feature/2.2-colors.md](docs/feature/2.2-colors.md)  
-Color picker para stroke e fill; paleta comum + hex input; aplica à seleção ativa.
+#### Canvas & Desenho
+- [ ] **Canvas infinito** com pan (espaço + drag / scroll) e zoom (scroll/pinch, fit-to-screen, zoom to selection)
+- [ ] **Formas básicas:** retângulo, elipse, losango, linha/seta (reta, ortogonal/elbow, curva)
+- [ ] **Texto livre** e texto dentro de formas
+- [ ] **Edição inline** (duplo clique para editar)
+- [ ] **Estilização:** cor de preenchimento, stroke, espessura, estilo de linha (contínua, tracejada), opacidade
+- [ ] **Snap e guias inteligentes** (alinhamento, distribuição, snap em grade opcional)
+- [ ] **Undo/Redo**
+- [ ] **Seleção múltipla** (marquee, shift+click), agrupar/desagrupar
+- [ ] **Ordem de camadas** (trazer para frente/enviar para trás)
+- [ ] **Copiar/colar/duplicar**
 
----
+#### Abas de Canvas
+- [ ] **Múltiplas abas de canvas** por workspace (estilo abas de navegador/editor)
+- [ ] **Nomeação de abas** (renomear via duplo clique ou menu de contexto)
+- [ ] Criar, fechar e alternar entre abas; cada aba é um diagrama independente com estado próprio
 
-#### 3. Gerenciamento de Camadas (Z-Order)
+#### Elementos de Arquitetura (diferencial de domínio)
+- [ ] **Biblioteca de componentes de software:** API Gateway, Load Balancer, Service, Database (SQL/NoSQL), Cache, Message Queue/Broker, Storage/Bucket, CDN, Auth Service, Client/Browser/Mobile, Lambda/FaaS, Container/Docker, Kubernetes cluster, etc.
+- [ ] **Ícones AWS** (biblioteca oficial — único provedor cloud suportado)
+- [ ] **Conexões semânticas:** setas com labels de protocolo (HTTP/gRPC/WebSocket/TCP/AMQP), direção (sync/async), estilo por tipo
+- [ ] **Grupos semânticos:** boundary/context boxes (ex.: "VPC", "Cluster K8s", "Bounded Context") com label e cor
+- [ ] **Animação de setas tracejadas** (marching ants / dash animation) indicando fluxo/direção — ativável por seta
 
-**3.1 Painel de camadas** — [docs/feature/3.1-layers-panel.md](docs/feature/3.1-layers-panel.md)  
-Painel lateral mostrando lista de objetos em ordem z-index; clique para selecionar; drag-drop para reordenar.
+#### Detalhamento sob demanda (hover info box)
+- [ ] **Infos complementares em setas e elementos:** campo de texto estendido (descrição técnica, observações, payload exemplo, latência esperada etc.)
+- [ ] Box de detalhes **oculto por padrão**, exibido ao posicionar o mouse sobre o elemento (tooltip rico/popup)
+- [ ] Indicador visual discreto quando elemento possui detalhes (ex.: pequeno ícone "i")
 
-**3.2 Trazer à frente / Enviar atrás** — [docs/feature/3.2-bring-forward-send-back.md](docs/feature/3.2-bring-forward-send-back.md)  
-Botões/hotkeys para mover seleção ao topo ou fundo da hierarquia visual.
+#### Numeração automática de setas
+- [ ] **Numeração incremental automática** em setas (badge "1", "2", "3"...) para identificar a cronologia dos eventos do fluxo
+- [ ] Ativação por seleção de setas; reordenação manual da sequência (via painel de fluxo)
+- [ ] Renumerar automaticamente ao remover/inserir seta na sequência
 
----
+#### UX Básica
+- [ ] **Toolbar** lateral superior (estilo Excalidraw): seleção, mão, formas, seta, texto, biblioteca
+- [ ] **Painel de propriedades** contextual à esquerda
+- [ ] **Atalhos de teclado** completos (V=seleção, H=mão, R=retângulo, A=seta, T=texto, Cmd+Z/Y, Cmd+D, Delete, etc.)
+- [ ] **Menu de contexto** (botão direito): duplicar, trazer para frente, travar, etc.
+- [ ] **Persistência automática via localStorage** — todo estado (abas, diagramas, viewport) salvo automaticamente, sem botão "salvar"
+- [ ] **Exportação:**
+  - Imagem: **PNG** e **SVG**
+  - **JSON padrão**: formato serializável e estável, importável em qualquer outra instância do ArchiDraw (*.archidraw)
+- [ ] **Importação de JSON** (restaurar diagrama exportado de outra instância)
+- [ ] **Compatibilidade Excalidraw:**
+  - Import: carregar arquivos `.excalidraw` (formas, setas, textos, bindings → schema nativo)
+  - Export: gerar `.excalidraw` (*best-effort*; campos de domínio como numeração e hover info não são representados e são descartados)
 
-#### 4. Conexões & Animação
+### 4.2 v0.2 — Produtividade
 
-**4.1 Magnetic snapping para setas** — [docs/feature/4.1-magnetic-snapping.md](docs/feature/4.1-magnetic-snapping.md)  
-Setas detectam pontos de conexão em formas (topo/base/esquerda/direita); ao arrastar endpoint próximo, "gruda" automaticamente com visual feedback.
+- [ ] **Auto-layout automático** de grafos (dagre/ELK) para topologias e fluxos
+- [ ] **Templates prontos:** monólito → microsserviços, event-driven, serverless, arquitetura de entrevista de system design
+- [ ] **Duplicar aba** (variação de um diagrama existente)
+- [ ] **Painel de fluxo** lateral listando as setas numeradas em ordem cronológica, com navegação (clicar → destaca no canvas)
 
-**4.2 Animated arrows** — [docs/feature/4.2-animated-arrows.md](docs/feature/4.2-animated-arrows.md)  
-Animação contínua nas setas; toggle on/off global; controle de velocidade (lenta/normal/rápida).
+### 4.3 v0.3 — Refinamento
 
----
+- [ ] **Notação C4 estruturada** (context, container, component) com templates
+- [ ] **Diagram-as-code:** gerar diagrama a partir de DSL textual (tipo Structurizr/D2/Mermaid subset) e vice-versa
+- [ ] **Biblioteca customizada** (importar ícones SVG próprios)
+- [ ] **Backup/exportação de workspace completo** (todas as abas em um único JSON)
+- [ ] **Exportação adicional:** PDF
 
-#### 5. Alinhamento & Distribuição
+### 4.4 Futuro (backlog exploratório)
 
-**5.1 Alinhamento de objetos** — [docs/feature/5.1-alignment.md](docs/feature/5.1-alignment.md)  
-6 operações (esquerda, centro horizontal, direita, topo, meio vertical, base); aplica a seleção múltipla.
+- Geração de rascunho de arquitetura a partir de descrição textual
+- Geração de diagrama a partir de IaC (Terraform plan) ou OpenAPI specs
+- Modo apresentação (frames dentro do canvas)
+- Sync opcional com arquivo/repositório (diagrama vivo versionado em git)
 
-**5.2 Distribuição uniforme** — [docs/feature/5.2-distribution.md](docs/feature/5.2-distribution.md)  
-Distribuição horizontal e vertical com espaçamento equidistante; requer 3+ objetos selecionados.
+## 5. Requisitos Não-Funcionais
 
----
+| Categoria | Requisito |
+|---|---|
+| **Execução** | Empacotado como imagem Docker única (frontend + API leve se necessário); subir com `docker run` / docker-compose |
+| **Performance** | Canvas fluido a 60fps com ≥ 500 elementos; renderização virtualizada (só viewport) |
+| **Offline** | Funciona 100% local, sem chamadas externas |
+| **Privacidade** | Dados nunca saem da máquina local; persistência apenas em localStorage do navegador |
+| **Portabilidade** | Export/import JSON entre instâncias deve ser estável (schema versionado) |
+| **Acessibilidade** | Contraste WCAG AA, navegação por teclado nos controles |
+| **i18n** | Strings externalizadas desde o início (pt-BR/en) |
 
-#### 6. Agrupamento
+## 6. Stack Técnica (proposta)
 
-**6.1 Agrupar / Desagrupar** — [docs/feature/6.1-grouping.md](docs/feature/6.1-grouping.md)  
-Ctrl+G agrupa seleção em uma unidade (move/redimensiona coletivamente); Ctrl+Shift+G desagrupa; grupos podem conter grupos (hierarquia).
+| Camada | Escolha proposta | Justificativa |
+|---|---|---|
+| Framework | React + TypeScript + Vite | Ecossistema, tipagem, DX |
+| Canvas | Custom sobre HTML5 Canvas (inspirado na arquitetura do Excalidraw) ou Konva.js | Performance em canvas infinito; animação de dash nativa no Canvas 2D (`setLineDash` + `lineDashOffset`) |
+| Estado | Zustand + Immer (mutações/history) | Simples, performático |
+| Persistência | localStorage (com debounce de autosave); IndexedDB como fallback futuro se volume exigir | Requisito definido: localStorage automático |
+| Auto-layout (v0.2) | dagre ou ELK.js | Layout de grafos |
+| Entrega | Dockerfile multi-stage (build estático servido por nginx) | Container local simples |
+| Testes | Vitest + Testing Library; Playwright (E2E) | Padrão do ecossistema |
 
----
+## 7. Riscos & Mitigações
 
-#### 7. Canvas & Navegação — [docs/feature/7-canvas-navigation.md](docs/feature/7-canvas-navigation.md)
+| Risco | Mitigação |
+|---|---|
+| Complexidade do canvas custom (gestos, hit-testing, performance) | Começar com escopo mínimo de formas; considerar Konva se velocidade exigir; testes E2E cedo |
+| localStorage limitado (~5MB) para muitos diagramas grandes | Comprimir payloads; monitorar uso; migrar para IndexedDB mantendo mesma interface se necessário |
+| Perda de dados se usuário limpar dados do navegador | Export JSON como mecanismo oficial de backup; workspace completo exportável em v0.3 |
+| Escopo inflando antes do MVP | Congelar MVP nas features da seção 4.1 |
 
-**7.1 Pan (arrastar o canvas)**  
-Right-click + drag (ou spacebar + drag) move a visualização; cursor muda para indicar pan mode.
+## 8. Decisões Técnicas
 
-**7.2 Zoom in/out**  
-Scroll wheel para zoom; botões +/- na toolbar; preset "fit-to-screen"; valor de zoom visível.
-
-**7.3 Minimap**  
-Painel reduzido (corner inferior direito) mostrando todo o canvas com viewport atual; clique salta para região.
-
-**7.4 Trackpad-friendly**  
-Pinch zoom (dois dedos) e pan com dois dedos funcionam nativamente.
-
----
-
-#### 8. Histórico
-
-**8.1 Undo / Redo** — [docs/feature/8.1-undo-redo.md](docs/feature/8.1-undo-redo.md)  
-Ctrl+Z/Ctrl+Y com stack de até 50 ações; todas as operações (criar, mover, deletar, cores, etc.) são reversíveis.
-
-#### 9. Projetos & Organização — [docs/feature/9-projects-organization.md](docs/feature/9-projects-organization.md)
-
-**9.1 Folders para agrupar projetos**  
-Estrutura de pastas simples (sem limite de profundidade); criar/renomear/deletar folders; persistir em IndexedDB.
-
-**9.2 Abas dentro de um projeto**  
-Cada projeto pode ter N abas; trocar aba não perde estado; cada aba tem seu próprio set de objetos.
-
-**9.3 Gerenciador de projetos**  
-Lista com folders e projetos; ações: criar novo, renomear, deletar, abrir.
-
----
-
-#### 10. Persistência & Export/Import — [docs/feature/10-persistence-export.md](docs/feature/10-persistence-export.md)
-
-**10.1 Auto-save**  
-Salva automaticamente a cada 5 segundos de inatividade; indicador visual.
-
-**10.2 Export `.archidraw`**  
-Download de arquivo JSON com todas as propriedades (objetos, estilos, abas); 100% re-importável sem perda.
-
-**10.3 Import `.archidraw`**  
-Drag-drop ou input file para importar `.archidraw`; carrega projeto completo com estado restaurado.
-
-**10.4 Export SVG**  
-Gera SVG limpo (vetor padrão); resolve posicionamento, cores, textos.
-
-**10.5 Export PNG**  
-Gera PNG com opções de DPI (1x, 2x, 4x); ideal para documentação.
-
-**10.6 Import SVG**  
-Parsa SVG e converte em objetos editáveis (best-effort).
-
----
-
-#### 11. Layout da Interface (UX) — [docs/feature/11-ui-layout.md](docs/feature/11-ui-layout.md)
-
-**11.1 Toolbar superior**  
-Barra horizontal no topo com botões para cada forma (retângulo, círculo, seta, texto, etc.); indicador visual da ferramenta ativa; atalhos visíveis em tooltip.
-
-**11.2 Painel lateral esquerdo**  
-Painel recolhível com abas: (1) estilos (hardline/sketchline, cores), (2) alinhamento/distribuição, (3) propriedades do objeto selecionado.
-
-**11.3 Barra inferior**  
-Controles de zoom (-, valor em %, +), fit-to-screen, minimap embarcado, indicador de status.
-
-**11.4 Painel de camadas**  
-Painel recolhível mostrando árvore de objetos e grupos; drag-drop para reordenar z-order.
-
-**11.5 Canvas central**  
-Espaço de trabalho responsivo com pan/zoom; feedback visual de seleção e hover.
-
----
-
-### Should Have — Após v1
-
-#### Icon Libraries
-- **Built-in packs:** AWS, GCP, Kubernetes, C4 Model (diálogo de seleção, carrega sob demanda)
-- **Pack customizado:** usuário importa ZIP contendo SVGs, app registra como "biblioteca local"
-- Drag-drop de ícones para o canvas
-- Ícones escaláveis (parte do sistema de redimensionamento)
-
-#### UX & Acessibilidade
-- **Atalhos de teclado:** documenta principais shortcuts (Ctrl+G, Ctrl+Z, Del para deletar, etc.)
-- **Tema dark/light:** toggle nas settings, applica a toda a UI
-- **Responsive:** UI funcional em 1024x768+, canvas adapta
-
-### Could Have — v2
-
-#### Recursos Avançados
-- **Grid no canvas:** pontos ou linhas, snap-to-grid opcional
-- **Smart guides / alinhamento magnético:** guias visuais ao arrastar próximo a outros objetos (tipo Figma)
-- **Export PDF:** formato imprimível
-- **Busca/filtro:** localizar projetos por nome na lista
-
-### Won't Have — Fora de Escopo
-
-- Colaboração em tempo real (múltiplos cursores, edição simultânea)
-- Backend ou cloud storage
-- Histórico de versões ou backups automáticos
-- Comentários ou anotações
-- Mobile/tablet (assume desktop)
-- Integração com ferramentas externas (Jira, Slack, etc.)
+| # | Decisão | Escolha | Racional |
+|---|---|---|---|
+| 1 | Canvas engine | **Custom (HTML5 Canvas puro)**, inspirado na arquitetura do Excalidraw | Features de domínio (hover box, numeração, animação de dash) brigariam com a abstração do Konva; escopo mínimo no início (retângulo + seta + texto antes de qualquer feature de domínio) |
+| 2 | Formato do documento | **Schema próprio versionado** (`schemaVersion`) com compatibilidade Excalidraw: import completo, export best-effort (campos de domínio descartados) | Suporte nativo a numbering/hover info/abas; round-trip tests obrigatórios para o JSON nativo |
+| 3 | Dark mode | **Sim, no MVP**, via design tokens (CSS variables) desde o 1º componente | Custo ~zero se tokens forem definidos cedo |
+| 4 | Estrutura do repositório | **App único (Vite)** com `src/core` isolado — modelo, geometria, serialização e history sem dependência de React | Extração para package/monorepo depois é mecânica se as fronteiras forem respeitadas; extraímos quando o diagram-as-code (v0.3) pedir |
+| 5 | Render loop das setas animadas | **rAF condicional**: loop roda apenas quando há setas animadas visíveis no viewport; caso contrário, render sob demanda (dirty flag) | Evita repaint constante a 60fps em tela parada (economia de CPU/bateria) |
 
 ---
 
-## 3. Requisitos Não-Funcionais
+## Changelog do documento
 
-- **Performance:** canvas responsivo com até ~1.000 elementos simultâneos, renderização > 30 FPS
-- **Canvas size:** coordenadas de 32-bit, espaço virtual ilimitado (scroll infinito em qualquer direção)
-- **Portabilidade:** SPA pura, roda em qualquer servidor estático (Nginx, Apache, Python SimpleHTTPServer) ou `localhost` sem configuração de backend
-- **Storage:** projetos persistidos via IndexedDB; limite apenas do browser/disco do dispositivo
-- **Export fidelidade:** `.archidraw` é 100% re-importável sem perda; SVG/PNG são formatos "flat" (saída final, sem edição)
-- **Compatibilidade:** Chrome e Firefox modernos (últimas 2 versões a partir de 2026-05-31)
-- **Bundle size:** JS principal < 500 KB gzipped (icon packs carregam lazy)
-- **Latência de interação:** feedback visual < 100ms em operações de UI (pan, zoom, seleção)
-
----
-
-## 4. Critérios de Sucesso (Validação)
-
-Um engenheiro consegue, **sem tutorial ou documentação:**
-
-1. **Criar um diagrama:** desenhar uma arquitetura com 10+ componentes conectados por setas animadas em < 5 minutos
-2. **Exportar & re-importar:** salvar como `.archidraw`, fechar o browser, re-abrir o arquivo, continuar editando sem perda de dados
-3. **Organizar projetos:** criar 3 projetos em folders separados, navegar entre eles fluidamente
-4. **Alinhar componentes:** aplicar alinhamento uniforme (espaçamento) em um grupo de 5 elementos em 2 cliques
-
----
-
-## 5. Out of Scope (Decidido não fazer na v1+)
-
-- Elementos 3D ou isométricos
-- Integração com code (import from git, sync schemas, etc.)
-- Templates pré-feitos de arquiteturas comuns
-- Validação de diagramas (ex: ciclos de dependência, cycles detection)
-- Ferramentas de análise (ex: estatísticas da arquitetura)
-- Inteligência artificial / sugestões automáticas
-
----
-
-## 6. Notas Técnicas
-
-### Stack & Padrões
-
-- **React 18+** com TypeScript
-- **Canvas2D** (HTML5 `<canvas>`) para renderização do diagrama
-- **IndexedDB** para persistência (schema versionado para migrations futuras)
-- **zustand** ou **Redux Toolkit** para state management (a decidir na implementação)
-- **SVG.js** ou similar para geração/parse de SVG
-
-### Arquitetura Proposta
-
-- **Editor Core:** gerencia canvas, objetos, seleção, rendering
-- **State:** serialização/desserialização de projetos
-- **UI Layer:** React components para painéis, menus, toolbars
-- **Export/Import:** conversão para/de formatos (JSON `.archidraw`, SVG, PNG)
-
----
-
-## Histórico de Alterações
-
-| Versão | Data | Mudanças |
-|--------|------|----------|
-| 1.0 | 2026-05-31 | Initial PRD (lean, MoSCoW) |
+- **0.3 (2026-08-24):** Decisões técnicas fechadas (seção 8) — canvas custom, schema próprio + compatibilidade Excalidraw (import/export), dark mode via tokens no MVP, app único com core isolado, rAF condicional para setas animadas. Adicionada compatibilidade Excalidraw ao MVP.
+- **0.2 (2026-08-24):** Ajustes de escopo — self-hosted Docker local, sem multiplayer; abas de canvas nomeáveis; hover info box em elementos/setas; numeração incremental automática de setas; animação de setas tracejadas; ícones somente AWS; export PNG/SVG/JSON portável; persistência automática via localStorage; removidas validações de arquitetura e métricas de sucesso.
+- **0.1 (2026-08-24):** Versão inicial.

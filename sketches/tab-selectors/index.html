@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sketch — 5 seletores de aba</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #1e1e1e;
+    background: #fafafa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header { padding: 24px 32px; }
+  header h1 { font-size: 18px; margin-bottom: 4px; }
+  header p { color: #6b6b76; font-size: 13px; }
+
+  .row {
+    flex: 1;
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+    justify-content: center;
+    padding: 0 24px 16px;
+    overflow-x: auto;
+  }
+
+  /* cada variante fica sobre um "canvas" simulado */
+  .variant {
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    background: var(--canvas);
+    border: 1px solid #e4e4e4;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .variant-label {
+    padding: 10px 14px;
+    background: #fff;
+    border-bottom: 1px solid #e4e4e4;
+  }
+  .variant-label b { display: block; font-size: 13px; }
+  .variant-label span { color: #6b6b76; font-size: 11px; }
+
+  .canvas {
+    flex: 1;
+    position: relative;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(0,0,0,.12) 1px, transparent 1.5px);
+    background-size: 22px 22px;
+    min-height: 260px;
+  }
+
+  /* o seletor ancorado no fundo do canvas */
+  .bottom {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+  }
+
+  button { font-family: inherit; cursor: pointer; }
+
+  /* ============ V1 — pill switcher (atual) ============ */
+  .v1 .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    background: #fff;
+    border: 1px solid #e4e4e4;
+    border-radius: 999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .v1 .nav {
+    width: 26px; height: 26px;
+    border: none; background: transparent;
+    border-radius: 999px; color: #6b6b76;
+    display: grid; place-items: center;
+    font-size: 13px;
+  }
+  .v1 .nav:hover { background: #f1f0ff; color: #1e1e1e; }
+  .v1 .cur {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 28px; padding: 0 10px 0 12px;
+    border: none; background: transparent; border-radius: 999px;
+    font-size: 13px; font-weight: 600; color: #1e1e1e;
+  }
+  .v1 .cur:hover { background: #f1f0ff; }
+  .v1 .count {
+    min-width: 18px; height: 18px; padding: 0 5px;
+    display: inline-grid; place-items: center;
+    background: #f1f0ff; color: #6b6b76;
+    border-radius: 999px; font-size: 11px; font-weight: 600;
+  }
+  /* dropdown aberto (estado demonstrativo) */
+  .v1 .pop {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%; transform: translateX(-50%);
+    width: 180px; padding: 4px;
+    background: #fff; border: 1px solid #e4e4e4;
+    border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.12);
+  }
+  .v1 .pop-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 8px 5px 22px; position: relative;
+    border-radius: 6px; font-size: 13px; color: #6b6b76;
+  }
+  .v1 .pop-row.on { color: #1e1e1e; font-weight: 600; }
+  .v1 .pop-row.on::before {
+    content: ""; position: absolute; left: 9px;
+    width: 6px; height: 6px; border-radius: 50%; background: #6965db;
+  }
+  .v1 .pop-row:hover:not(.on) { background: #f1f0ff; color: #1e1e1e; }
+  .v1 .x {
+    opacity: 0; border: none; background: transparent;
+    color: #6b6b76; font-size: 11px; line-height: 1;
+  }
+  .v1 .pop-row:hover .x { opacity: 1; }
+
+  /* ============ V2 — abas Chrome de verdade ============ */
+  .v2 .chrome { display: inline-flex; align-items: flex-end; gap: 3px; padding: 0 4px; }
+  .v2 .tab {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    max-width: 92px;
+    background: #ececf1;
+    border: none;
+    border-radius: 9px 9px 0 0;
+    font-size: 12px; color: #55555f;
+  }
+  .v2 .tab span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v2 .tab.on {
+    background: var(--canvas); color: #1e1e1e; font-weight: 600;
+  }
+  /* curvas invertidas */
+  .v2 .tab::before, .v2 .tab::after {
+    content: ""; position: absolute; bottom: 0;
+    width: 9px; height: 9px;
+    background: radial-gradient(circle at 0 0, transparent 9px, var(--tc) 9.5px);
+  }
+  .v2 .tab::before { left: -9px; transform: scaleX(-1); }
+  .v2 .tab::after { right: -9px; }
+  .v2 .tab.on::before, .v2 .tab.on::after {
+    background: radial-gradient(circle at 0 0, transparent 9px, var(--canvas) 9.5px);
+  }
+  .v2 .plus {
+    width: 24px; height: 24px; margin-left: 4px;
+    border: none; background: transparent; border-radius: 50%;
+    color: #6b6b76; font-size: 15px; line-height: 1;
+  }
+  .v2 .plus:hover { background: rgba(0,0,0,.07); }
+
+  /* ============ V3 — dots + nome (Figma pages) ============ */
+  .v3 .figpill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px;
+    background: #fff;
+    border: 1px solid #e4e4e4;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    font-size: 12.5px;
+  }
+  .v3 .dots { display: inline-flex; gap: 5px; }
+  .v3 .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #d5d5dd; border: none; padding: 0;
+    transition: transform .12s ease;
+  }
+  .v3 .dot:hover { transform: scale(1.35); }
+  .v3 .dot.on { background: #6965db; transform: scale(1.15); }
+  .v3 .name { font-weight: 600; }
+  .v3 .sep { width: 1px; height: 14px; background: #e4e4e4; }
+  .v3 .mini {
+    border: none; background: transparent; color: #6b6b76;
+    width: 18px; height: 18px; border-radius: 5px; font-size: 13px; line-height: 1;
+  }
+  .v3 .mini:hover { background: #f1f0ff; color: #1e1e1e; }
+
+  /* ============ V4 — breadcrumb / stepper ============ */
+  .v4 .crumb {
+    display: inline-flex; align-items: center;
+    background: #fff; border: 1px solid #e4e4e4;
+    border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    padding: 3px; font-size: 12.5px;
+  }
+  .v4 .cr {
+    border: none; background: transparent;
+    padding: 5px 10px; border-radius: 6px;
+    color: #6b6b76; white-space: nowrap;
+    max-width: 74px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v4 .cr:hover { background: #f1f0ff; color: #1e1e1e; }
+  .v4 .cr.on {
+    background: #6965db; color: #fff; font-weight: 600;
+    box-shadow: 0 1px 4px rgba(105,101,219,.45);
+  }
+  .v4 .arr { color: #c9c9d2; font-size: 11px; padding: 0 1px; user-select: none; }
+
+  /* ============ V5 — rail lateral minimalista ============ */
+  .v5 .rail-wrap { position: absolute; inset: 0 0 0 auto; width: 44px; }
+  .v5 .rail {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+    padding: 10px 5px;
+    background: #fff; border: 1px solid #e4e4e4; border-radius: 999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .v5 .r {
+    width: 30px; height: 30px; border: none; border-radius: 8px;
+    background: transparent; color: #6b6b76;
+    font-size: 11px; font-weight: 700;
+    display: grid; place-items: center;
+    transition: all .12s ease;
+  }
+  .v5 .r:hover { background: #f1f0ff; }
+  .v5 .r.on {
+    background: #6965db; color: #fff;
+    box-shadow: 0 1px 4px rgba(105,101,219,.45);
+    transform: scale(1.05);
+  }
+  .v5 .rlbl {
+    position: absolute; right: calc(100% + 8px); top: 50%;
+    transform: translateY(-50%);
+    background: #1e1e1e; color: #fff; font-size: 11px;
+    padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .12s ease;
+  }
+  .v5 .r:hover ~ nothing {}
+  .v5 .rwrap { position: relative; display: contents; }
+  .v5 .rw { position: relative; display: grid; place-items: center; }
+  .v5 .rw .rlbl { right: calc(100% + 6px); }
+  .v5 .rw:hover .rlbl { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>5 modelos de seletor de abas</h1>
+  <p>Passe o mouse, clique — estados interativos onde faz sentido. Escolha um e eu implemento.</p>
+</header>
+
+<div class="row">
+
+  <!-- V1 -->
+  <div class="variant v1" style="--canvas:#ffffff">
+    <div class="variant-label"><b>V1 · Pill switcher</b><span>atual — compacto, dropdown com lista</span></div>
+    <div class="canvas" style="--tc:#ececf1">
+      <div class="bottom pill">
+        <button class="nav">‹</button>
+        <button class="cur">Diagrama 1 <span class="count">3</span></button>
+        <button class="nav">›</button>
+        <button class="nav">+</button>
+        <div class="pop">
+          <div class="pop-row on">Diagrama 1 <button class="x">✕</button></div>
+          <div class="pop-row">Arquitetura <button class="x">✕</button></div>
+          <div class="pop-row">API Gateway <button class="x">✕</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- V2 -->
+  <div class="variant v2" style="--canvas:#ffffff">
+    <div class="variant-label"><b>V2 · Chrome real</b><span>abas trapezoidais com curvas, todas visíveis</span></div>
+    <div class="canvas" style="--tc:#ececf1">
+      <div class="bottom chrome">
+        <div class="tab"><span>Diagrama…</span></div>
+        <div class="tab on"><span>Arquitetura</span></div>
+        <div class="tab"><span>API Gatew…</span></div>
+        <button class="plus">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- V3 -->
+  <div class="variant v3" style="--canvas:#ffffff">
+    <div class="variant-label"><b>V3 · Dots Figma</b><span>pontos por aba + nome atual, mini setas</span></div>
+    <div class="canvas">
+      <div class="bottom figpill">
+        <span class="dots">
+          <button class="dot on" title="Diagrama 1"></button>
+          <button class="dot" title="Arquitetura"></button>
+          <button class="dot" title="API Gateway"></button>
+        </span>
+        <span class="name">Diagrama 1</span>
+        <span class="sep"></span>
+        <button class="mini">‹</button>
+        <button class="mini">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- V4 -->
+  <div class="variant v4" style="--canvas:#ffffff">
+    <div class="variant-label"><b>V4 · Stepper segmentado</b><span>todas as abas lado a lado, ativa em destaque sólido</span></div>
+    <div class="canvas">
+      <div class="bottom crumb">
+        <button class="cr">Diagrama…</button>
+        <span class="arr">›</span>
+        <button class="cr on">Arquitetura</button>
+        <span class="arr">›</span>
+        <button class="cr">API…</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- V5 -->
+  <div class="variant v5" style="--canvas:#ffffff">
+    <div class="variant-label"><b>V5 · Rail vertical</b><span>lateral direita, tooltips com o nome</span></div>
+    <div class="canvas">
+      <div class="rail">
+        <span class="rw"><button class="r on">D</button><span class="rlbl">Diagrama 1</span></span>
+        <span class="rw"><button class="r">A</button><span class="rlbl">Arquitetura</span></span>
+        <span class="rw"><button class="r">A</button><span class="rlbl">API Gateway</span></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // interatividade básica: trocar aba ativa ao clicar
+  document.querySelectorAll(".variant").forEach(v => {
+    const sel = c => v.querySelectorAll(c);
+    const groups = [".pop-row", ".tab", ".dot", ".cr", ".r"];
+    groups.forEach(cls => {
+      sel(cls).forEach(el => el.addEventListener("click", () => {
+        if (!el.classList.contains("x")) {
+          sel(cls).forEach(e => e.classList.remove("on"));
+          el.classList.add("on");
+        }
+      }));
+    });
+  });
+</script>
+</body>
+</html>
