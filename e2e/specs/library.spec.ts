@@ -123,6 +123,26 @@ test.describe("biblioteca de componentes", () => {
     await page.mouse.dblclick(center.x, center.y);
 
     await expect(page.locator(".text-overlay.label-overlay")).toBeVisible();
+    // edição in-place: overlay na posição do label (abaixo do ícone) e
+    // sem contorno de edição
+    const overlayInfo = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const overlay = document.querySelector(
+        ".text-overlay.label-overlay",
+      ) as HTMLElement;
+      const cam = ed.getSnapshot().camera;
+      return {
+        outlineStyle: getComputedStyle(overlay).outlineStyle,
+        top: parseFloat(overlay.style.top),
+        expectedTop:
+          (el.y + el.height / 2) * cam.zoom + cam.scrollY,
+      };
+    });
+    expect(overlayInfo.outlineStyle).toBe("none");
+    // label fica abaixo do centro do elemento (não no meio)
+    expect(overlayInfo.top).toBeGreaterThan(overlayInfo.expectedTop);
+
     await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.type("Bucket de uploads");
     await page.keyboard.press("Enter");

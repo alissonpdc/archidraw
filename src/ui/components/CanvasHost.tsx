@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
-import type { RenderColors } from "../../core/renderer";
+import { type RenderColors, componentIconLayout } from "../../core/renderer";
 import { useGridMode } from "../viewPrefs";
 import type { Point } from "../../core/types";
 import { pushRecentComponent } from "../../core/library";
@@ -91,13 +91,24 @@ export function CanvasHost() {
   const grabCursor =
     snap.tool === "hand" || (editor.isSpacePressed() && snap.tool !== "text");
 
-  // label overlay sits at the element center
+  // label overlay sits at the rendered label position (below the icon
+  // for components), so editing is truly in-place
   let labelPos: Point | null = null;
+  let labelFontSize = 14;
   if (isEditingLabel && editingEl) {
-    labelPos = {
-      x: (editingEl.x + editingEl.width / 2) * cam.zoom + cam.scrollX,
-      y: (editingEl.y + editingEl.height / 2) * cam.zoom + cam.scrollY,
-    };
+    if (editingEl.type === "component") {
+      const layout = componentIconLayout(editingEl);
+      labelPos = {
+        x: layout.labelCx * cam.zoom + cam.scrollX,
+        y: layout.labelCy * cam.zoom + cam.scrollY,
+      };
+      labelFontSize = layout.labelFont * cam.zoom;
+    } else {
+      labelPos = {
+        x: (editingEl.x + editingEl.width / 2) * cam.zoom + cam.scrollX,
+        y: (editingEl.y + editingEl.height / 2) * cam.zoom + cam.scrollY,
+      };
+    }
   }
 
   return (
@@ -206,7 +217,7 @@ export function CanvasHost() {
           style={{
             left: labelPos.x,
             top: labelPos.y,
-            fontSize: 14 * cam.zoom,
+            fontSize: labelFontSize,
             color: editingEl.strokeColor,
           }}
           value={editingEl.label ?? ""}

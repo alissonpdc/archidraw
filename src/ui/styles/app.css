@@ -773,6 +773,8 @@ button {
   transform: translate(-50%, -50%);
   text-align: center;
   white-space: pre-wrap;
+  /* edição in-place: sem contorno/caixa */
+  outline: none;
 }
 
 /* ---- status bar ---- */
@@ -995,9 +997,10 @@ button {
 }
 
 /* ---- component library panel ---- */
+/* below the app menu (hamburger), same side */
 .library-panel {
   position: absolute;
-  top: var(--space-3);
+  top: calc(var(--space-3) + 48px);
   right: var(--space-4);
   width: 228px;
   display: flex;
@@ -1009,7 +1012,7 @@ button {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   /* usable screen height: vertical scroll only beyond this */
-  max-height: calc(100% - 96px);
+  max-height: calc(100% - 108px);
   overflow: hidden;
 }
 

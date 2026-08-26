@@ -316,21 +316,41 @@ function applyDash(
   }
 }
 
+/** fixed icon→label distance and font size (do NOT scale with resize) */
+const ICON_LABEL_GAP = 6;
+const COMPONENT_LABEL_FONT = 12;
+
 /** icon geometry shared between canvas rendering and label placement */
 export function componentIconLayout(el: ComponentElement) {
   const s = Math.min(Math.abs(el.width), Math.abs(el.height));
   const hasLabel = !!el.label && el.label.trim() !== "";
   const iconSize = s * 0.52;
   const cx = el.x + el.width / 2;
-  const iconCy = hasLabel ? el.y + el.height / 2 - s * 0.1 : el.y + el.height / 2;
+  const cy = el.y + el.height / 2;
+  if (!hasLabel) {
+    return {
+      hasLabel,
+      iconX: cx - iconSize / 2,
+      iconY: cy - iconSize / 2,
+      iconSize,
+      labelCx: cx,
+      labelCy: cy,
+      labelFont: COMPONENT_LABEL_FONT,
+    };
+  }
+  // label sits at a FIXED distance below the icon; the icon+label
+  // block is centered as a whole inside the element
+  const labelH = COMPONENT_LABEL_FONT * 1.25;
+  const totalH = iconSize + ICON_LABEL_GAP + labelH;
+  const iconY = cy - totalH / 2;
   return {
     hasLabel,
     iconX: cx - iconSize / 2,
-    iconY: iconCy - iconSize / 2,
+    iconY,
     iconSize,
     labelCx: cx,
-    labelCy: el.y + el.height / 2 + s * 0.31,
-    labelFont: Math.max(9, Math.min(14, s * 0.13)),
+    labelCy: iconY + iconSize + ICON_LABEL_GAP + labelH / 2,
+    labelFont: COMPONENT_LABEL_FONT,
   };
 }
 
@@ -585,15 +605,22 @@ export function render(
 
   for (const el of state.doc.elements) {
     if (state.hiddenTextId && el.id === state.hiddenTextId) continue;
+    const isEditingThisLabel =
+      !!state.hiddenLabelId && el.id === state.hiddenLabelId;
     drawElement(ctx, el, colors);
     drawLabel(ctx, el, colors, state.hiddenLabelId);
-    if (state.selectedIds.has(el.id)) drawSelectionBox(ctx, el, cam.zoom, colors.selection);
+    if (state.selectedIds.has(el.id) && !isEditingThisLabel)
+      drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }
 
   // resize handles for single selection of a shape/arrow
   if (!state.draft && state.selectedIds.size === 1) {
     const sel = state.doc.elements.find((el) => state.selectedIds.has(el.id));
-    if (sel && (sel.type === "rectangle" || sel.type === "arrow" || sel.type === "component")) {
+    if (
+      sel &&
+      (sel.type === "rectangle" || sel.type === "arrow" || sel.type === "component") &&
+      !(state.hiddenLabelId && sel.id === state.hiddenLabelId)
+    ) {
       drawHandles(ctx, sel, cam.zoom, colors.selection);
     }
   }
