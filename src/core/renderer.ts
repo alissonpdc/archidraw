@@ -552,17 +552,55 @@ function drawSelectionBox(
     ctx.restore();
     return;
   }
-  const b = elementBounds(el);
+  // compute bounds that encompass both the element and its label
+  const eb = elementBounds(el);
+  let x1 = eb.x1;
+  let y1 = eb.y1;
+  let x2 = eb.x2;
+  let y2 = eb.y2;
+
+  if ("label" in el && el.label) {
+    const fontSize = el.fontSize ?? (el.type === "component" ? 12 : 14);
+    ctx.font = resolveFont(el, fontSize);
+    const tw = ctx.measureText(el.label).width;
+    const th = fontSize * 1.25;
+    if (el.type === "component") {
+      const layout = componentIconLayout(el);
+      const lx = layout.labelCx - tw / 2;
+      const ly = layout.labelCy - th / 2;
+      x1 = Math.min(x1, lx);
+      y1 = Math.min(y1, ly);
+      x2 = Math.max(x2, lx + tw);
+      y2 = Math.max(y2, ly + th);
+    } else {
+      const textAlign = el.textAlign ?? "center";
+      const textVAlign = el.textVAlign ?? "middle";
+      const pad = el.textPadding ?? 8;
+      let lx: number;
+      let ly: number;
+      if (textAlign === "left") lx = el.x + pad;
+      else if (textAlign === "right") lx = el.x + el.width - pad - tw;
+      else lx = el.x + (el.width - tw) / 2;
+      if (textVAlign === "top") ly = el.y + pad;
+      else if (textVAlign === "bottom") ly = el.y + el.height - pad - th;
+      else ly = el.y + (el.height - th) / 2;
+      x1 = Math.min(x1, lx);
+      y1 = Math.min(y1, ly);
+      x2 = Math.max(x2, lx + tw);
+      y2 = Math.max(y2, ly + th);
+    }
+  }
+
   const pad = 3 / zoom;
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = Math.max(0.75, 1 / zoom);
   ctx.setLineDash([3 / zoom, 4 / zoom]);
   ctx.strokeRect(
-    b.x1 - pad,
-    b.y1 - pad,
-    b.x2 - b.x1 + pad * 2,
-    b.y2 - b.y1 + pad * 2,
+    x1 - pad,
+    y1 - pad,
+    x2 - x1 + pad * 2,
+    y2 - y1 + pad * 2,
   );
   ctx.restore();
 }
