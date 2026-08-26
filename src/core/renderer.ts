@@ -332,12 +332,15 @@ export function componentIconLayout(el: ComponentElement) {
   const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
   const labelH = labelFont * 1.25;
 
+  // icon size is ALWAYS fixed proportion of element, never affected by fontSize
+  const iconSizeFixed = hasLabel ? Math.max(s * 0.65, 8) : s;
+
   if (!hasLabel) {
     return {
       hasLabel,
-      iconX: cx - s / 2,
-      iconY: cy - s / 2,
-      iconSize: s,
+      iconX: cx - iconSizeFixed / 2,
+      iconY: cy - iconSizeFixed / 2,
+      iconSize: iconSizeFixed,
       labelCx: cx,
       labelCy: cy,
       labelFont,
@@ -346,21 +349,20 @@ export function componentIconLayout(el: ComponentElement) {
   }
 
   if (captionPos === "left" || captionPos === "right") {
-    // horizontal layout: label | icon or icon | label
-    const iconSize = Math.max(s * 0.6, 8);
-    const halfGap = gap / 2;
+    // horizontal layout: icon and label side by side, spacing accounts for font size
+    const spacing = gap + labelFont * 0.4;
     const iconX = captionPos === "left"
-      ? cx + halfGap
-      : cx - halfGap - iconSize;
-    const iconY = cy - iconSize / 2;
+      ? cx + spacing / 2
+      : cx - spacing / 2 - iconSizeFixed;
+    const iconY = cy - iconSizeFixed / 2;
     const labelCx = captionPos === "left"
-      ? cx - halfGap - s * 0.2
-      : cx + halfGap + s * 0.2;
+      ? cx - spacing / 2
+      : cx + spacing / 2;
     return {
       hasLabel,
       iconX,
       iconY,
-      iconSize,
+      iconSize: iconSizeFixed,
       labelCx,
       labelCy: cy,
       labelFont,
@@ -368,30 +370,29 @@ export function componentIconLayout(el: ComponentElement) {
     };
   }
 
-  // vertical layout (top or bottom)
-  const iconSize = hasLabel ? Math.max(s - gap - labelH, 8) : s;
+  // vertical layout (top or bottom): icon takes fixed space, label gets remaining
+  const totalContentH = iconSizeFixed + gap + labelH;
+  const topOffset = cy - totalContentH / 2;
   if (captionPos === "top") {
-    const topY = cy - (iconSize + gap + labelH) / 2;
     return {
       hasLabel,
-      iconX: cx - iconSize / 2,
-      iconY: topY + labelH + gap,
-      iconSize,
+      iconX: cx - iconSizeFixed / 2,
+      iconY: topOffset + labelH + gap,
+      iconSize: iconSizeFixed,
       labelCx: cx,
-      labelCy: topY + labelH / 2,
+      labelCy: topOffset + labelH / 2,
       labelFont,
       captionPosition: captionPos,
     };
   }
   // bottom (default)
-  const iconY = cy - (iconSize + gap + labelH) / 2;
   return {
     hasLabel,
-    iconX: cx - iconSize / 2,
-    iconY,
-    iconSize,
+    iconX: cx - iconSizeFixed / 2,
+    iconY: topOffset,
+    iconSize: iconSizeFixed,
     labelCx: cx,
-    labelCy: iconY + iconSize + gap + labelH / 2,
+    labelCy: topOffset + iconSizeFixed + gap + labelH / 2,
     labelFont,
     captionPosition: captionPos,
   };
@@ -505,24 +506,25 @@ function drawElement(
     const lines = el.text.split("\n");
     const align = el.textAlign ?? "left";
     ctx.textAlign = align;
+    const underlineOn = !!el.underline;
     lines.forEach((line, i) => {
       let lx = el.x;
       if (align === "center") lx = el.x + el.width / 2;
       else if (align === "right") lx = el.x + el.width;
       ctx.fillText(line, lx, el.y + i * el.fontSize * lh);
-      if (el.underline) {
+      if (underlineOn && line.length > 0) {
         const lw = ctx.measureText(line).width;
-        let ux = el.x;
-        if (align === "center") ux = el.x + (el.width - lw) / 2;
-        else if (align === "right") ux = el.x + el.width - lw;
-        ctx.save();
-        ctx.strokeStyle = resolveTextColor(el, colors);
-        ctx.lineWidth = Math.max(1.5, el.fontSize * 0.08);
-        ctx.beginPath();
-        ctx.moveTo(ux, el.y + i * el.fontSize * lh + el.fontSize + 3);
-        ctx.lineTo(ux + lw, el.y + i * el.fontSize * lh + el.fontSize + 3);
-        ctx.stroke();
-        ctx.restore();
+        if (lw > 0) {
+          let ux = el.x;
+          if (align === "center") ux = el.x + (el.width - lw) / 2;
+          else if (align === "right") ux = el.x + el.width - lw;
+          ctx.strokeStyle = resolveTextColor(el, colors);
+          ctx.lineWidth = Math.max(2, el.fontSize * 0.07);
+          ctx.beginPath();
+          ctx.moveTo(ux, el.y + (i + 1) * el.fontSize * lh + 2);
+          ctx.lineTo(ux + lw, el.y + (i + 1) * el.fontSize * lh + 2);
+          ctx.stroke();
+        }
       }
     });
   }
