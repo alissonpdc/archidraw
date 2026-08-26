@@ -65,10 +65,15 @@ export interface RectangleElement extends BaseElement {
   label?: string;
 }
 
+export type LineType = "straight" | "curved" | "auto";
+
 /** x,y = start; x+width,y+height = end (axis-aligned box used as bounds) */
 export interface ArrowElement extends BaseElement {
   type: "arrow";
   label?: string;
+  lineType?: LineType;
+  /** control point for curved lines (relative to element center, scene units) */
+  controlPoint?: Point;
 }
 
 export interface TextElement extends BaseElement {

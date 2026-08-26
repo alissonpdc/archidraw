@@ -175,10 +175,23 @@ export function exportSVG(doc: Document, filename: string): boolean {
     } else if (el.type === "arrow") {
       const [a, b] = arrowPoints(el);
       const endY = b.y === a.y ? b.y + 1 : b.y;
-      parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${endY}" fill="none" ${stroke}${dash}${opacity}/>`);
-      parts.push(
-        `<path d="${arrowHeadPoints({ x: b.x, y: endY }, a)}" fill="none" ${stroke}${opacity}/>`
-      );
+      const tip = { x: b.x, y: endY };
+      const lineType = el.lineType ?? "straight";
+      if (lineType === "curved") {
+        const cp = el.controlPoint ?? {
+          x: (a.x + tip.x) / 2,
+          y: (a.y + tip.y) / 2 - Math.abs(tip.x - a.x) * 0.3,
+        };
+        parts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
+        parts.push(`<path d="${arrowHeadPoints(tip, cp)}" fill="none" ${stroke}${opacity}/>`);
+      } else if (lineType === "auto") {
+        const mid = { x: tip.x, y: a.y };
+        parts.push(`<path d="M ${a.x} ${a.y} L ${mid.x} ${mid.y} L ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
+        parts.push(`<path d="${arrowHeadPoints(tip, mid)}" fill="none" ${stroke}${opacity}/>`);
+      } else {
+        parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
+        parts.push(`<path d="${arrowHeadPoints(tip, a)}" fill="none" ${stroke}${opacity}/>`);
+      }
     } else if (el.type === "text") {
       const lines = el.text.split("\n");
       lines.forEach((line, i) => {

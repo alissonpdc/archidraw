@@ -49,11 +49,11 @@
 ## Setas e Linhas
 
 ### Tipos de traçado
-- [ ] Remover opção 'bordas' para setas/linhas
-- [ ] Seletor de tipo de linha:
-  - [ ] Linha reta
-  - [ ] Linha curva (com ponto de controle para ajustar a curvatura)
-  - [ ] Automática (linha dobrável para conectar elementos)
+- [x] Remover opção 'bordas' para setas/linhas
+- [x] Seletor de tipo de linha:
+  - [x] Linha reta
+  - [x] Linha curva (com ponto de controle para ajustar a curvatura)
+  - [x] Automática (linha dobrável para conectar elementos)
 
 ### Conexão entre elementos
 - [ ] Permitir linhas/setas 'grudarem' nos elementos, acompanhando sua movimentação

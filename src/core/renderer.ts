@@ -472,17 +472,34 @@ function drawElement(
     if (el.type === "component") drawComponentIcon(ctx, el);
   } else if (el.type === "arrow") {
     const [a, b] = arrowPoints(el);
-    const minLen = 1;
+    const lineType = el.lineType ?? "straight";
+    const endY = b.y === a.y ? b.y + 1 : b.y;
+    const tip = { x: b.x, y: endY };
+
     ctx.beginPath();
-    sketchStroke(
-      ctx,
-      [[a, { x: b.x, y: b.y === a.y ? b.y + minLen : b.y }]],
-      el.roughness,
-      seedAt(a),
-    );
-    applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke();
-    drawArrowHead(ctx, b, a, Math.max(12, el.strokeWidth * 4));
+    if (lineType === "straight") {
+      sketchStroke(ctx, [[a, tip]], el.roughness, seedAt(a));
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+      drawArrowHead(ctx, tip, a, Math.max(12, el.strokeWidth * 4));
+    } else if (lineType === "curved") {
+      const cp = el.controlPoint ?? {
+        x: (a.x + tip.x) / 2,
+        y: (a.y + tip.y) / 2 - Math.abs(tip.x - a.x) * 0.3,
+      };
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+      drawArrowHead(ctx, tip, cp, Math.max(12, el.strokeWidth * 4));
+    } else {
+      // auto: L-shaped routing (horizontal then vertical)
+      const mid = { x: tip.x, y: a.y };
+      sketchStroke(ctx, [[a, mid, tip]], el.roughness, seedAt(a));
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+      drawArrowHead(ctx, tip, mid, Math.max(12, el.strokeWidth * 4));
+    }
   } else if (el.type === "text") {
     ctx.fillStyle = resolveTextColor(el, colors);
     ctx.font = resolveFont(el);

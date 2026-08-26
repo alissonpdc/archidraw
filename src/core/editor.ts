@@ -9,6 +9,7 @@ import type {
   ComponentElement,
   Document,
   Element,
+  LineType,
   Point,
   RectangleElement,
   Roughness,
@@ -635,6 +636,8 @@ export class Editor {
       textPadding?: number;
       captionPosition?: import("./types").CaptionPosition;
       captionGap?: number;
+      lineType?: LineType;
+      controlPoint?: Point;
     },
   ) {
     this.doc = {

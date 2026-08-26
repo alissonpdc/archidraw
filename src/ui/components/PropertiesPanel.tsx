@@ -59,6 +59,7 @@ type Patch = Partial<{
   textPadding: number;
   captionPosition: "top" | "bottom" | "left" | "right";
   captionGap: number;
+  lineType: "straight" | "curved" | "auto";
 }>;
 
 // ---- color helpers -----------------------------------------------------
@@ -334,11 +335,14 @@ export function PropertiesPanel() {
   );
   const hasComponent = selected.some((el) => el.type === "component");
   const hasRectangle = selected.some((el) => el.type === "rectangle");
+  const hasArrow = selected.some((el) => el.type === "arrow");
   const allStroke = (v: number) => selected.every((el) => el.strokeWidth === v);
   const allStyle = (v: string) =>
     selected.every((el) => el.strokeStyle === v);
   const allRoughness = (v: number) =>
     selected.every((el) => el.roughness === v);
+  const allLineType = (v: string) =>
+    selected.every((el) => (el.type === "arrow" ? (el.lineType ?? "straight") : v) === v);
   const allFont = (v: number) =>
     selected
       .filter((el) => el.type === "text")
@@ -536,6 +540,28 @@ export function PropertiesPanel() {
             </>
           )}
 
+          {hasArrow && (
+            <Group title="Tipo de traçado">
+              {([
+                { v: "straight", label: "Reta", icon: "M2 12 L18 4" },
+                { v: "curved", label: "Curva", icon: "M2 12 Q10 0 18 4" },
+                { v: "auto", label: "Automática", icon: "M2 12 L10 12 L18 4" },
+              ] as const).map(({ v, label, icon }) => (
+                <button
+                  key={v}
+                  className={`size-btn ${allLineType(v) ? "active" : ""}`}
+                  aria-label={`Linha ${label}`}
+                  data-tip={label}
+                  onClick={() => apply({ lineType: v })}
+                >
+                  <svg width="20" height="14" viewBox="0 0 20 14">
+                    <path d={icon} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ))}
+            </Group>
+          )}
+
           <Group title="Espessura">
             {STROKE_WIDTHS.map((w) => (
               <button
@@ -549,7 +575,7 @@ export function PropertiesPanel() {
             ))}
           </Group>
 
-          {hasShape && (
+          {hasShape && !hasArrow && (
             <Group title="Bordas">
               <div className="v-stack">
                 <div className="border-presets">
