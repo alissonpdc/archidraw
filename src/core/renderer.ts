@@ -645,16 +645,32 @@ function drawLabel(
   if (el.type === "component") {
     const layout = componentIconLayout(el);
     ctx.font = resolveFont(el, layout.labelFont);
-    ctx.fillText(el.label, layout.labelCx, layout.labelCy);
+    const fs = layout.labelFont;
+    const lh = lineHeight(el);
+    const lines = el.label.split("\n");
+    const step = fs * lh;
+    const vShift = ((lines.length - 1) * step) / 2;
+    ctx.fillText(lines[0], layout.labelCx, layout.labelCy - vShift);
+    for (let i = 1; i < lines.length; i++) {
+      ctx.fillText(lines[i], layout.labelCx, layout.labelCy + i * step - vShift);
+    }
     if (underlineOn) {
-      const lw = ctx.measureText(el.label).width;
-      if (lw > 0) {
+      let maxLw = 0;
+      let bestY = layout.labelCy;
+      lines.forEach((line, i) => {
+        const lw = ctx.measureText(line).width;
+        if (lw > maxLw) {
+          maxLw = lw;
+          bestY = layout.labelCy + i * step - vShift;
+        }
+      });
+      if (maxLw > 0) {
         ctx.strokeStyle = resolveTextColor(el, colors);
-        ctx.lineWidth = Math.max(1.5, layout.labelFont * 0.07);
+        ctx.lineWidth = Math.max(1.5, fs * 0.07);
         ctx.beginPath();
-        const uy = layout.labelCy + layout.labelFont * 0.55;
-        ctx.moveTo(layout.labelCx - lw / 2, uy);
-        ctx.lineTo(layout.labelCx + lw / 2, uy);
+        const uy = bestY + fs * 0.55;
+        ctx.moveTo(layout.labelCx - maxLw / 2, uy);
+        ctx.lineTo(layout.labelCx + maxLw / 2, uy);
         ctx.stroke();
       }
     }
@@ -678,23 +694,33 @@ function drawLabel(
     }
     const fontSize = el.fontSize ?? 14;
     ctx.font = resolveFont(el, fontSize);
-    ctx.fillText(el.label, cx, cy);
-    if (underlineOn) {
-      const lw = ctx.measureText(el.label).width;
-      if (lw > 0) {
-        ctx.strokeStyle = resolveTextColor(el, colors);
-        ctx.lineWidth = Math.max(1.5, fontSize * 0.07);
-        ctx.beginPath();
-        const uy = cy + fontSize * 0.55;
-        let ux = cx;
-        if (textAlign === "left") ux = cx;
-        else if (textAlign === "right") ux = cx - lw;
-        else ux = cx - lw / 2;
-        ctx.moveTo(ux, uy);
-        ctx.lineTo(ux + lw, uy);
-        ctx.stroke();
+    const lh = lineHeight(el);
+    const lines = el.label.split("\n");
+    const step = fontSize * lh;
+    const drawLine = (line: string, i: number) => {
+      let ly: number;
+      if (textVAlign === "top") ly = cy + i * step;
+      else if (textVAlign === "bottom") ly = cy + (i - (lines.length - 1)) * step;
+      else ly = cy + i * step - ((lines.length - 1) * step) / 2;
+      ctx.fillText(line, cx, ly);
+      if (underlineOn) {
+        const lw = ctx.measureText(line).width;
+        if (lw > 0) {
+          ctx.strokeStyle = resolveTextColor(el, colors);
+          ctx.lineWidth = Math.max(1.5, fontSize * 0.07);
+          ctx.beginPath();
+          const uy = ly + fontSize * 0.55;
+          let ux = cx;
+          if (textAlign === "left") ux = cx;
+          else if (textAlign === "right") ux = cx - lw;
+          else ux = cx - lw / 2;
+          ctx.moveTo(ux, uy);
+          ctx.lineTo(ux + lw, uy);
+          ctx.stroke();
+        }
       }
-    }
+    };
+    lines.forEach(drawLine);
   }
   ctx.restore();
 }

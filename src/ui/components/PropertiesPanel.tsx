@@ -23,10 +23,10 @@ const BASE_COLORS: { name: string; color: string }[] = [
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
 const FONT_SIZES = [16, 20, 28, 36];
 const FONT_FAMILIES = [
-  { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', iconPath: "M4 5h12M4 10h10M4 15h7" },
-  { label: "Sketch", value: '"Architects Daughter", cursive', iconPath: "M3 17L13 7l4-4M5 15l-2 4 4-2M11 9l4 4" },
-  { label: "Serif", value: 'Georgia, "Times New Roman", serif', iconPath: "M4 5h1v10H4zM7 5h6v2H7zM7 13h6v2H7zM13 5h1v10h-1z" },
-  { label: "Consolas", value: 'Consolas, "SF Mono", monospace', iconPath: "M3 5l5 5-5 5M9 15h8" },
+  { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', glyph: "Aa" },
+  { label: "Sketch", value: '"Architects Daughter", cursive', glyph: "Aa" },
+  { label: "Serif", value: 'Georgia, "Times New Roman", serif', glyph: "Aa" },
+  { label: "Consolas", value: 'Consolas, "SF Mono", monospace', glyph: "Aa" },
 ];
 const CAPTION_POSITIONS = [
   { label: "Bottom", value: "bottom" as const },
@@ -765,7 +765,16 @@ export function PropertiesPanel() {
                 onClick={() => apply({ fontFamily: f.value })}
               >
                 <svg width="16" height="16" viewBox="0 0 20 20">
-                  <path d={f.iconPath} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <text
+                    x="10"
+                    y="15"
+                    textAnchor="middle"
+                    fontSize="12"
+                    fill="currentColor"
+                    style={{ fontFamily: f.value }}
+                  >
+                    {f.glyph}
+                  </text>
                 </svg>
               </button>
             ))}
@@ -838,6 +847,27 @@ export function PropertiesPanel() {
             </Group>
           )}
 
+          {hasRectangle && (
+            <Group title="Vertical position">
+              {TEXT_VALIGNS.map((va) => (
+                <button
+                  key={va.value}
+                  className={`size-btn ${allTextVAlign(va.value) ? "active" : ""}`}
+                  aria-label={`Vertical ${va.label}`}
+                  data-tip={va.label}
+                  onClick={() => apply({ textVAlign: va.value })}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                    {va.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
+                    {va.value === "middle" && <rect x="4" y="7" width="8" height="2" rx="1" fill="currentColor" />}
+                    {va.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
+                  </svg>
+                </button>
+              ))}
+            </Group>
+          )}
+
           <Group title="Line spacing">
             <MiniSlider
               value={lineSpacingValue ?? 1.25}
@@ -904,38 +934,17 @@ export function PropertiesPanel() {
           )}
 
           {hasRectangle && (
-            <>
-              <Group title="Vertical position">
-                {TEXT_VALIGNS.map((va) => (
-                  <button
-                    key={va.value}
-                    className={`size-btn ${allTextVAlign(va.value) ? "active" : ""}`}
-                    aria-label={`Vertical ${va.label}`}
-                    data-tip={va.label}
-                    onClick={() => apply({ textVAlign: va.value })}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16">
-                      <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                      {va.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
-                      {va.value === "middle" && <rect x="4" y="7" width="8" height="2" rx="1" fill="currentColor" />}
-                      {va.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
-                    </svg>
-                  </button>
-                ))}
-              </Group>
-
-              <Group title="Offset">
-                <MiniSlider
-                  value={selected[0].textPadding ?? 8}
-                  min={0}
-                  max={40}
-                  step={1}
-                  ariaLabel="Text offset"
-                  suffix="px"
-                  onChange={(v) => apply({ textPadding: v })}
-                />
-              </Group>
-            </>
+            <Group title="Offset">
+              <MiniSlider
+                value={selected[0].textPadding ?? 8}
+                min={0}
+                max={40}
+                step={1}
+                ariaLabel="Text offset"
+                suffix="px"
+                onChange={(v) => apply({ textPadding: v })}
+              />
+            </Group>
           )}
       </div>
       <div ref={layersRef} className={`panel-tab-content${effectiveTab === "layers" ? "" : " hidden"}`}>
