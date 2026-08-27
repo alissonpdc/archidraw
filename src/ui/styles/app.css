@@ -727,7 +727,7 @@ button {
 
 .radius-bubble {
   position: absolute;
-  bottom: calc(100% + 2px);
+  top: calc(100% + 2px);
   transform: translateX(-50%);
   padding: 0 4px;
   font-size: 9px;

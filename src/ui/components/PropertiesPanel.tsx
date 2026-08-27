@@ -330,6 +330,7 @@ function MiniSlider({
   step,
   ariaLabel,
   suffix = "%",
+  displayValue,
   onChange,
 }: {
   value: number;
@@ -338,6 +339,7 @@ function MiniSlider({
   step: number;
   ariaLabel: string;
   suffix?: string;
+  displayValue?: number;
   onChange: (v: number) => void;
 }) {
   const pct = ((value - min) / (max - min)) * 100;
@@ -357,7 +359,7 @@ function MiniSlider({
         className="radius-bubble"
         style={{ left: `calc(${pct}% + ${(0.5 - pct / 100) * 12}px)` }}
       >
-        {value}
+        {displayValue ?? value}
         {suffix}
       </span>
     </div>
@@ -822,13 +824,14 @@ export function PropertiesPanel() {
 
           <Group title="Line spacing">
             <MiniSlider
-              value={Math.round((lineSpacingValue ?? 1.25) * 100)}
-              min={80}
-              max={250}
-              step={5}
+              value={lineSpacingValue ?? 1.25}
+              min={0.8}
+              max={2.5}
+              step={0.05}
               ariaLabel="Line spacing"
               suffix="%"
-              onChange={(v) => apply({ lineSpacing: v / 100 })}
+              displayValue={Math.round(((lineSpacingValue ?? 1.25) - 0.8) / 1.7 * 100)}
+              onChange={(v) => apply({ lineSpacing: v })}
             />
           </Group>
 
