@@ -6,6 +6,7 @@ import type { Point } from "../../core/types";
 import { pushRecentComponent } from "../../core/library";
 import { COMPONENT_DND_TYPE } from "./LibraryPanel";
 import { resolveTextColor } from "../../core/textStyle";
+import { measureText } from "../../core/utils";
 
 function readThemeColors(): RenderColors & { elementStroke: string } {
   const style = getComputedStyle(document.documentElement);
@@ -20,6 +21,7 @@ function readThemeColors(): RenderColors & { elementStroke: string } {
 export function CanvasHost() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fakeCaretRef = useRef<HTMLDivElement>(null);
   const snap = useEditor();
   const gridMode = useGridMode();
   const [colors, setColors] = useState(readThemeColors);
@@ -76,7 +78,6 @@ export function CanvasHost() {
       if (ta) {
         ta.focus();
         ta.select();
-        requestAnimationFrame(() => autoResize(ta));
       }
     }
   }, [snap.editingTextId]);
@@ -105,6 +106,45 @@ export function CanvasHost() {
     !!editingEl && editingEl.type !== "text" && snap.editingKind === "label";
   const grabCursor =
     snap.tool === "hand" || (editor.isSpacePressed() && snap.tool !== "text");
+
+  // fake-caret: blink + position update while editing free text
+  useEffect(() => {
+    if (!isEditingText || !editingEl || editingEl.type !== "text") return;
+    const ta = textareaRef.current;
+    const caret = fakeCaretRef.current;
+    if (!ta || !caret) return;
+
+    const update = () => {
+      const start = ta.selectionStart ?? 0;
+      const text = ta.value;
+      const before = text.substring(0, start);
+      const zoom = cam.zoom;
+      const lh = editingEl.lineSpacing ?? 1.25;
+      const lines = before.split("\n");
+      const lineIndex = lines.length - 1;
+      const lineText = lines[lineIndex];
+      const { width: cw } = measureText(lineText || " ", editingEl.fontSize);
+      const align = editingEl.textAlign ?? "left";
+      const tw = measureText(text || " ", editingEl.fontSize).width;
+      let ox = cw * zoom;
+      if (align === "center") ox += ((editingEl.width - tw) / 2) * zoom;
+      else if (align === "right") ox += (editingEl.width - tw) * zoom;
+      const oy = lineIndex * editingEl.fontSize * lh * zoom;
+      caret.style.left = (editingEl.x * cam.zoom + cam.scrollX + ox) + "px";
+      caret.style.top = (editingEl.y * cam.zoom + cam.scrollY + oy) + "px";
+      caret.style.height = (editingEl.fontSize * zoom) + "px";
+      caret.style.color = resolveTextColor(editingEl, {
+        selection: "#6965db",
+        elementStroke: colors.elementStroke,
+        gridDot: colors.gridDot,
+        gridLine: colors.gridLine,
+      });
+    };
+
+    update();
+    const id = setInterval(update, 80);
+    return () => clearInterval(id);
+  }, [isEditingText, editingEl, cam, colors]);
 
   // label overlay sits at the rendered label position (below the icon
   // for components), so editing is truly in-place
@@ -148,7 +188,10 @@ export function CanvasHost() {
         data-tool={snap.tool}
         className={`canvas ${grabCursor ? "cursor-grab" : ""}`}
         onPointerDown={(e) => {
-          if (isEditingText || isEditingLabel) return;
+          if (isEditingText || isEditingLabel) {
+            textareaRef.current?.focus();
+            return;
+          }
           // prevent the browser's focus-stealing default action when the
           // click creates a text element (otherwise it blurs the new overlay)
           if (snap.tool === "text") e.preventDefault();
@@ -201,13 +244,10 @@ export function CanvasHost() {
           </div>
         </div>
       )}
+      {isEditingText && editingEl.type === "text" && (
+        <div ref={fakeCaretRef} className="fake-caret" />
+      )}
       {isEditingText && editingEl.type === "text" && (() => {
-        const themeColors: RenderColors = {
-          selection: "#6965db",
-          elementStroke: colors.elementStroke,
-          gridDot: colors.gridDot,
-          gridLine: colors.gridLine,
-        };
         return (
           <textarea
             ref={textareaRef}
@@ -215,19 +255,19 @@ export function CanvasHost() {
             style={{
               left: editingEl.x * cam.zoom + cam.scrollX,
               top: editingEl.y * cam.zoom + cam.scrollY,
+              width: editingEl.width * cam.zoom,
+              height: editingEl.height * cam.zoom,
               fontSize: editingEl.fontSize * cam.zoom,
               fontFamily: editingEl.fontFamily || '"Segoe UI", system-ui, sans-serif',
               fontWeight: editingEl.bold ? "bold" : "normal",
               fontStyle: editingEl.italic ? "italic" : "normal",
               textDecoration: editingEl.underline ? "underline" : "none",
               lineHeight: String(editingEl.lineSpacing ?? 1.25),
-              color: resolveTextColor(editingEl, themeColors),
               textAlign: editingEl.textAlign ?? "left",
             }}
             value={editingEl.text}
             onChange={(e) => {
               editor.updateText(editingEl.id, e.target.value);
-              autoResize(e.target as HTMLTextAreaElement);
             }}
             onBlur={() => {
               editor.finishTextEdit();

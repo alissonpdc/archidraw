@@ -789,7 +789,6 @@ export function render(
   ctx.scale(cam.zoom, cam.zoom);
 
   for (const el of state.doc.elements) {
-    if (state.hiddenTextId && el.id === state.hiddenTextId) continue;
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
     drawElement(ctx, el, colors);

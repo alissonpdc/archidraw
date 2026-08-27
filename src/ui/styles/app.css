@@ -853,7 +853,7 @@ button {
   user-select: none;
 }
 
-/* ---- text overlay ---- */
+/* ---- text overlay (invisible input – canvas renders the text) ---- */
 .text-overlay {
   position: absolute;
   min-width: 1px;
@@ -866,18 +866,40 @@ button {
   resize: none;
   overflow: hidden;
   white-space: pre;
-  caret-color: currentColor;
+  color: transparent;
+  caret-color: transparent;
+  pointer-events: none;
   font-family: var(--font-ui);
-  line-height: 1.25;
   box-shadow: none;
   -webkit-appearance: none;
   appearance: none;
+}
+
+.text-overlay:focus {
+  outline: none;
+}
+
+/* ---- fake caret (blinks over the canvas-rendered text) ---- */
+.fake-caret {
+  position: absolute;
+  width: 1px;
+  background: currentColor;
+  pointer-events: none;
+  animation: caret-blink 1s step-end infinite;
+}
+
+@keyframes caret-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 .label-overlay {
   transform: translate(-50%, -50%);
   text-align: center;
   white-space: pre-wrap;
+  pointer-events: auto;
+  color: inherit;
+  caret-color: currentColor;
   /* edição in-place: sem contorno/caixa */
   outline: none;
 }
