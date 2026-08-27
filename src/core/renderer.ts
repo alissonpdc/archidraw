@@ -1,4 +1,4 @@
-import type { Camera, ComponentElement, Document, Element, Point } from "./types";
+import type { Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
 import { arrowPoints, elementBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage } from "./componentAssets";
@@ -531,28 +531,7 @@ function drawElement(
   ctx.restore();
 }
 
-function drawSelectionBox(
-  ctx: CanvasRenderingContext2D,
-  el: Element,
-  zoom: number,
-  color: string,
-) {
-  // arrows: highlight the line itself instead of a misleading bbox rectangle
-  if (el.type === "arrow") {
-    const [a, b] = arrowPoints(el);
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = 0.22;
-    ctx.lineWidth = el.strokeWidth + 4 / zoom;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-    ctx.restore();
-    return;
-  }
-  // compute bounds that encompass both the element and its label
+export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element): Bounds {
   const eb = elementBounds(el);
   let x1 = eb.x1;
   let y1 = eb.y1;
@@ -566,8 +545,6 @@ function drawSelectionBox(
     const th = fontSize * 1.25;
     if (el.type === "component") {
       const layout = componentIconLayout(el);
-      // the whole icon+label group is centered on the element, so when the
-      // label is large it overflows on BOTH sides (icon top + label bottom)
       x1 = Math.min(x1, layout.iconX);
       y1 = Math.min(y1, layout.iconY);
       x2 = Math.max(x2, layout.iconX + layout.iconSize);
@@ -597,16 +574,41 @@ function drawSelectionBox(
     }
   }
 
+  return { x1, y1, x2, y2 };
+}
+
+function drawSelectionBox(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  zoom: number,
+  color: string,
+) {
+  // arrows: highlight the line itself instead of a misleading bbox rectangle
+  if (el.type === "arrow") {
+    const [a, b] = arrowPoints(el);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.22;
+    ctx.lineWidth = el.strokeWidth + 4 / zoom;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  const b = elementVisualBounds(ctx, el);
   const pad = 3 / zoom;
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = Math.max(0.75, 1 / zoom);
   ctx.setLineDash([3 / zoom, 4 / zoom]);
   ctx.strokeRect(
-    x1 - pad,
-    y1 - pad,
-    x2 - x1 + pad * 2,
-    y2 - y1 + pad * 2,
+    b.x1 - pad,
+    b.y1 - pad,
+    b.x2 - b.x1 + pad * 2,
+    b.y2 - b.y1 + pad * 2,
   );
   ctx.restore();
 }
@@ -689,7 +691,7 @@ function drawHandles(
   zoom: number,
   color: string,
 ) {
-  const b = elementBounds(el);
+  const b = elementVisualBounds(ctx, el);
   const cx = (b.x1 + b.x2) / 2;
   const cy = (b.y1 + b.y2) / 2;
   // arrows expose only their two endpoints (start = bbox nw, end = bbox se)

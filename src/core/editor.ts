@@ -31,6 +31,7 @@ import {
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
+import { elementVisualBounds } from "./renderer";
 
 type HandleId = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
@@ -98,6 +99,16 @@ function resizeHandleAt(
 const ARROW_HANDLES: HandleId[] = ["nw", "se"];
 
 const BIND_TOLERANCE = 20; // scene units
+
+let _offCanvas: HTMLCanvasElement | null = null;
+let _offCtx: CanvasRenderingContext2D | null = null;
+function visualBounds(el: Element): Bounds {
+  if (!_offCanvas) {
+    _offCanvas = document.createElement("canvas");
+    _offCtx = _offCanvas.getContext("2d")!;
+  }
+  return elementVisualBounds(_offCtx!, el);
+}
 
 function anchorPoint(el: Element, anchor: AnchorSide): Point {
   const b = elementBounds(el);
@@ -916,7 +927,7 @@ export class Editor {
           ) {
             const handle = resizeHandleAt(
               scene,
-              elementBounds(selected),
+              visualBounds(selected),
               this.camera.zoom,
               selected.type === "arrow" ? ARROW_HANDLES : HANDLES,
             );
@@ -1204,7 +1215,7 @@ export class Editor {
     const scene = screenToScene(screenPoint, this.camera);
     const handle = resizeHandleAt(
       scene,
-      elementBounds(selected),
+      visualBounds(selected),
       this.camera.zoom,
       selected.type === "arrow" ? ARROW_HANDLES : HANDLES,
     );
