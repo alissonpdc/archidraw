@@ -60,6 +60,10 @@ type Patch = Partial<{
   textPadding: number;
   captionPosition: "top" | "bottom" | "left" | "right";
   captionGap: number;
+  captionOffsetTop: number;
+  captionOffsetBottom: number;
+  captionOffsetLeft: number;
+  captionOffsetRight: number;
   lineType: "straight" | "curved" | "auto";
 }>;
 
@@ -155,15 +159,17 @@ function PanelTooltip({ tip }: { tip: TipState | null }) {
 
 function Group({
   title,
+  vertical,
   children,
 }: {
   title: string;
+  vertical?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="panel-group">
       <div className="panel-subtitle">{title}</div>
-      <div className="panel-group-body">{children}</div>
+      <div className={`panel-group-body${vertical ? " vertical" : ""}`}>{children}</div>
     </div>
   );
 }
@@ -253,6 +259,48 @@ function PaletteGrid({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SpacingRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="spacing-row">
+      <span className="spacing-label">{label}</span>
+      <button
+        className="spacing-btn"
+        aria-label={`Diminuir ${label}`}
+        onClick={() => onChange(Math.max(0, value - 1))}
+      >
+        −
+      </button>
+      <input
+        className="spacing-input"
+        type="number"
+        min={0}
+        max={50}
+        value={value}
+        onChange={(e) => {
+          const v = parseInt(e.target.value, 10);
+          if (!isNaN(v)) onChange(Math.max(0, Math.min(50, v)));
+        }}
+      />
+      <span className="spacing-suffix">px</span>
+      <button
+        className="spacing-btn"
+        aria-label={`Aumentar ${label}`}
+        onClick={() => onChange(Math.min(50, value + 1))}
+      >
+        +
+      </button>
     </div>
   );
 }
@@ -731,25 +779,55 @@ export function PropertiesPanel() {
           )}
 
           {hasComponent && (
-            <Group title="Posição da legenda">
-              {CAPTION_POSITIONS.map((cp) => (
-                <button
-                  key={cp.value}
-                  className={`size-btn ${allCaptionPos(cp.value) ? "active" : ""}`}
-                  aria-label={`Legenda ${cp.label}`}
-                  data-tip={cp.label}
-                  onClick={() => apply({ captionPosition: cp.value })}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                    {cp.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
-                    {cp.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
-                    {cp.value === "left" && <rect x="2" y="7" width="6" height="2" rx="1" fill="currentColor" />}
-                    {cp.value === "right" && <rect x="8" y="7" width="6" height="2" rx="1" fill="currentColor" />}
-                  </svg>
-                </button>
-              ))}
-            </Group>
+            <>
+              <Group title="Posição da legenda">
+                {CAPTION_POSITIONS.map((cp) => (
+                  <button
+                    key={cp.value}
+                    className={`size-btn ${allCaptionPos(cp.value) ? "active" : ""}`}
+                    aria-label={`Legenda ${cp.label}`}
+                    data-tip={cp.label}
+                    onClick={() => apply({ captionPosition: cp.value })}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16">
+                      <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                      {cp.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
+                      {cp.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
+                      {cp.value === "left" && <rect x="2" y="7" width="6" height="2" rx="1" fill="currentColor" />}
+                      {cp.value === "right" && <rect x="8" y="7" width="6" height="2" rx="1" fill="currentColor" />}
+                    </svg>
+                  </button>
+                ))}
+              </Group>
+
+              <Group title="Afastamento do texto" vertical>
+                <SpacingRow
+                  label="Global"
+                  value={selected[0].captionGap ?? 2}
+                  onChange={(v) => apply({ captionGap: v })}
+                />
+                <SpacingRow
+                  label="Esquerda"
+                  value={selected[0].captionOffsetLeft ?? 0}
+                  onChange={(v) => apply({ captionOffsetLeft: v })}
+                />
+                <SpacingRow
+                  label="Direita"
+                  value={selected[0].captionOffsetRight ?? 0}
+                  onChange={(v) => apply({ captionOffsetRight: v })}
+                />
+                <SpacingRow
+                  label="Topo"
+                  value={selected[0].captionOffsetTop ?? 0}
+                  onChange={(v) => apply({ captionOffsetTop: v })}
+                />
+                <SpacingRow
+                  label="Baixo"
+                  value={selected[0].captionOffsetBottom ?? 0}
+                  onChange={(v) => apply({ captionOffsetBottom: v })}
+                />
+              </Group>
+            </>
           )}
 
           {hasRectangle && (

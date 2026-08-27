@@ -58,6 +58,11 @@ export interface BaseElement {
   captionPosition?: CaptionPosition;
   /** gap between icon and caption (px) */
   captionGap?: number;
+  /** extra offset added to captionGap when text is on a specific side (px) */
+  captionOffsetTop?: number;
+  captionOffsetBottom?: number;
+  captionOffsetLeft?: number;
+  captionOffsetRight?: number;
 }
 
 export interface RectangleElement extends BaseElement {

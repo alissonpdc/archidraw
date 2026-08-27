@@ -696,6 +696,10 @@ export class Editor {
       textPadding?: number;
       captionPosition?: import("./types").CaptionPosition;
       captionGap?: number;
+      captionOffsetTop?: number;
+      captionOffsetBottom?: number;
+      captionOffsetLeft?: number;
+      captionOffsetRight?: number;
       lineType?: LineType;
       controlPoint?: Point;
     },

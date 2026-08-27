@@ -485,6 +485,11 @@ button {
   min-height: 26px;
 }
 
+.panel-group-body.vertical {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .panel-subtitle {
   font-size: 9px;
   font-weight: 500;
@@ -615,6 +620,73 @@ button {
 
 .line-style-btn svg {
   display: block;
+}
+
+/* ---- spacing row (caption offset controls) ---- */
+.spacing-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.spacing-label {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.spacing-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  flex: none;
+}
+
+.spacing-btn:hover {
+  background: var(--bg-surface-hover);
+}
+
+.spacing-input {
+  width: 36px;
+  height: 20px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  padding: 0;
+  -moz-appearance: textfield;
+}
+
+.spacing-input::-webkit-inner-spin-button,
+.spacing-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.spacing-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.spacing-suffix {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  width: 14px;
+  flex: none;
 }
 
 .border-presets {

@@ -318,7 +318,7 @@ function applyDash(
 }
 
 /** fixed icon→label distance and font size (do NOT scale with resize) */
-const ICON_LABEL_GAP = 6;
+const ICON_LABEL_GAP = 2;
 const COMPONENT_LABEL_FONT = 12;
 
 /** icon geometry shared between canvas rendering and label placement */
@@ -327,8 +327,14 @@ export function componentIconLayout(el: ComponentElement) {
   const hasLabel = !!el.label && el.label.trim() !== "";
   const cx = el.x + el.width / 2;
   const cy = el.y + el.height / 2;
-  const gap = el.captionGap ?? ICON_LABEL_GAP;
+  const baseGap = el.captionGap ?? ICON_LABEL_GAP;
   const captionPos = el.captionPosition ?? "bottom";
+  const offset =
+    captionPos === "top" ? (el.captionOffsetTop ?? 0) :
+    captionPos === "bottom" ? (el.captionOffsetBottom ?? 0) :
+    captionPos === "left" ? (el.captionOffsetLeft ?? 0) :
+    (el.captionOffsetRight ?? 0);
+  const gap = baseGap + offset;
   const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
   const labelH = labelFont * 1.25;
 
