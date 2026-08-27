@@ -422,10 +422,6 @@ export function PropertiesPanel() {
   const hasComponent = selected.some((el) => el.type === "component");
   const hasRectangle = selected.some((el) => el.type === "rectangle");
   const hasArrow = selected.some((el) => el.type === "arrow");
-  const isOnlyText = selected.length > 0 && selected.every((el) => el.type === "text");
-
-  // auto-switch away from Style tab when only text is selected
-  const effectiveTab = isOnlyText && activeTab === "style" ? "text" : activeTab;
 
   const allStroke = (v: number) => selected.every((el) => el.strokeWidth === v);
   const allStyle = (v: string) =>
@@ -490,29 +486,27 @@ export function PropertiesPanel() {
       <PanelTooltip tip={tip} />
       {/* Tab bar */}
       <div className="panel-tabs">
-        {!isOnlyText && (
-          <button
-            className={`panel-tab ${effectiveTab === "style" ? "active" : ""}`}
-            onClick={() => setActiveTab("style")}
-          >
-            Style
-          </button>
-        )}
         <button
-          className={`panel-tab ${effectiveTab === "text" ? "active" : ""}`}
+          className={`panel-tab ${activeTab === "style" ? "active" : ""}`}
+          onClick={() => setActiveTab("style")}
+        >
+          Style
+        </button>
+        <button
+          className={`panel-tab ${activeTab === "text" ? "active" : ""}`}
           onClick={() => setActiveTab("text")}
         >
           Text
         </button>
         <button
-          className={`panel-tab ${effectiveTab === "layers" ? "active" : ""}`}
+          className={`panel-tab ${activeTab === "layers" ? "active" : ""}`}
           onClick={() => setActiveTab("layers")}
         >
           Layers
         </button>
       </div>
 
-      <div ref={styleRef} className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
+      <div ref={styleRef} className={`panel-tab-content${activeTab === "style" ? "" : " hidden"}`}>
         <Group title="Stroke">
           <PaletteGrid
             current={selected[0].strokeColor}
@@ -717,23 +711,12 @@ export function PropertiesPanel() {
             </Group>
           )}
       </div>
-      <div ref={textRef} className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
+      <div ref={textRef} className={`panel-tab-content${activeTab === "text" ? "" : " hidden"}`}>
         <Group title="Text color">
             <PaletteGrid
               current={textColorValue || selected[0].strokeColor}
               onPick={(textColor) => apply({ textColor })}
               label="Text color"
-            />
-          </Group>
-
-          <Group title="Opacity">
-            <MiniSlider
-              value={opacityValue ?? 100}
-              min={0}
-              max={100}
-              step={5}
-              ariaLabel="Opacity"
-              onChange={(v) => apply({ opacity: v / 100 })}
             />
           </Group>
 
@@ -947,7 +930,7 @@ export function PropertiesPanel() {
             </Group>
           )}
       </div>
-      <div ref={layersRef} className={`panel-tab-content${effectiveTab === "layers" ? "" : " hidden"}`}>
+      <div ref={layersRef} className={`panel-tab-content${activeTab === "layers" ? "" : " hidden"}`}>
         <Group title="Order">
             <div className="layer-btns">
               <button
