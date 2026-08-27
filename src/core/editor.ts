@@ -1131,13 +1131,25 @@ export class Editor {
         const id = this.interaction.original.id;
         const orig = this.interaction.original;
         if (orig.type === "text") {
-          const newWidth = Math.max(nb.x2 - nb.x1, 8);
-          const { height } = measureText(orig.text || " ", orig.fontSize);
+          const oW = o.x2 - o.x1 || 1;
+          const oH = o.y2 - o.y1 || 1;
+          const scaleX = (nb.x2 - nb.x1) / oW;
+          const scaleY = (nb.y2 - nb.y1) / oH;
+          const scale = Math.max(scaleX, scaleY);
+          const newFontSize = Math.max(1, Math.round(orig.fontSize * scale));
+          const { width, height } = measureText(orig.text || " ", newFontSize);
           this.doc = {
             ...this.doc,
             elements: this.doc.elements.map((el) =>
               el.id === id
-                ? { ...el, x: nb.x1, y: nb.y1, width: newWidth, height }
+                ? {
+                    ...el,
+                    x: nb.x1,
+                    y: nb.y1,
+                    fontSize: newFontSize,
+                    width: Math.max(width, 8),
+                    height,
+                  }
                 : el,
             ),
           };
