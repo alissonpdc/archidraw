@@ -22,6 +22,7 @@ export function CanvasHost() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fakeCaretRef = useRef<HTMLDivElement>(null);
+  const fakeSelectionRef = useRef<HTMLDivElement>(null);
   const snap = useEditor();
   const gridMode = useGridMode();
   const [colors, setColors] = useState(readThemeColors);
@@ -107,9 +108,10 @@ export function CanvasHost() {
   const grabCursor =
     snap.tool === "hand" || (editor.isSpacePressed() && snap.tool !== "text");
 
-  // fake-caret: blink + position update while editing free text or a label.
-  // The overlay textarea is invisible — the canvas renders the text with the
-  // final style at all times; we only track the caret pixel position
+  // fake-caret + fake-selection: blink/position update while editing free text
+  // or a label. The overlay textarea is invisible — the canvas renders the
+  // text with the final style at all times; we track caret & selection pixels.
+  // Line geometry mirrors the canvas renderer exactly (drawLabel / text branch)
   useEffect(() => {
     const ta = textareaRef.current;
     const caret = fakeCaretRef.current;
@@ -125,101 +127,137 @@ export function CanvasHost() {
       gridLine: colors.gridLine,
     };
 
+    let lastSelKey = "";
+
     const update = () => {
       const value = ta.value;
-      const start = ta.selectionStart ?? 0;
       const zoom = cam.zoom;
       const lh = editingEl.lineSpacing ?? 1.25;
       const lines = value.split("\n");
-      const beforeLines = value.slice(0, start).split("\n");
-      const lineIndex = Math.min(beforeLines.length - 1, lines.length - 1);
-      const fontOf = (s: string, fs: number) =>
-        measureText(s, fs, editingEl.fontFamily, editingEl.bold, editingEl.italic);
 
-      let leftScreen: number;
-      let topScreen: number;
-      let heightScreen: number;
+      // --- per-line geometry in scene units: left edge + top of em box ---
+      let fontSize: number;
+      const leftEdges: number[] = [];
+      const tops: number[] = [];
 
       if (editingEl.type === "text") {
+        // mirror the free-text drawing branch of drawElement
         const el = editingEl;
-        const fs = el.fontSize;
+        fontSize = el.fontSize;
         const align = el.textAlign ?? "left";
-        const lineW = fontOf(lines[lineIndex] || " ", fs).width;
-        const prefixW = fontOf(beforeLines[lineIndex] ?? "", fs).width;
-        // horizontal anchor follows the per-line alignment used by the canvas
-        let ox = prefixW * zoom;
-        if (align === "center") ox += ((el.width - lineW) / 2) * zoom;
-        else if (align === "right") ox += (el.width - lineW) * zoom;
         const n = lines.length;
         const textBlockH =
-          n === 1 ? fs : (n - 1) * fs * lh + fs;
+          n === 1 ? fontSize : (n - 1) * fontSize * lh + fontSize;
         const vOffset = Math.max(0, (el.height - textBlockH) / 2);
-        leftScreen = el.x * zoom + cam.scrollX + ox;
-        topScreen =
-          el.y * zoom + cam.scrollY + vOffset * zoom + lineIndex * fs * lh * zoom;
-        heightScreen = fs * zoom;
+        for (let i = 0; i < n; i++) {
+          const lw = measureText(lines[i], fontSize, el.fontFamily, el.bold, el.italic).width;
+          leftEdges.push(
+            align === "left" ? el.x :
+            align === "right" ? el.x + el.width - lw :
+            el.x + el.width / 2 - lw / 2,
+          );
+          tops.push(el.y + vOffset + i * fontSize * lh);
+        }
       } else {
+        // mirror drawLabel for shape labels
         const el = editingEl;
         let hx: number;
-        let midY: number;
+        let cy: number;
         let align: "left" | "center" | "right";
-        let fs: number;
+        let vAlignMode: "top" | "middle" | "bottom";
         if (el.type === "component") {
-          // mirror drawLabel/componentIconLayout for icon+caption elements
           const layout = componentIconLayout(el);
-          fs = layout.labelFont;
-          const step = fs * lh;
+          fontSize = layout.labelFont;
           hx = layout.labelCx;
-          midY =
-            layout.labelCy +
-            lineIndex * step -
-            ((lines.length - 1) * step) / 2;
+          cy = layout.labelCy;
           align = "center";
+          vAlignMode = "middle"; // component captions are always centered
         } else {
-          // mirror drawLabel for rect/arrow labels (centered inside bounds)
-          const textAlign = el.textAlign ?? "center";
-          const textVAlign = el.textVAlign ?? "middle";
-          fs = el.fontSize ?? 14;
-          const step = fs * lh;
-          align = textAlign;
-          let cy: number;
+          align = el.textAlign ?? "center";
+          vAlignMode = el.textVAlign ?? "middle";
+          fontSize = el.fontSize ?? 14;
           if (el.type === "arrow") {
             hx =
-              textAlign === "left"
-                ? el.x
-                : textAlign === "right"
-                  ? el.x + el.width
-                  : el.x + el.width / 2;
+              align === "left" ? el.x :
+              align === "right" ? el.x + el.width :
+              el.x + el.width / 2;
             cy = el.y + el.height / 2;
           } else {
             const pad = el.textPadding ?? 8;
-            if (textAlign === "left") hx = el.x + pad;
-            else if (textAlign === "right") hx = el.x + el.width - pad;
+            if (align === "left") hx = el.x + pad;
+            else if (align === "right") hx = el.x + el.width - pad;
             else hx = el.x + el.width / 2;
-            if (textVAlign === "top") cy = el.y + pad;
-            else if (textVAlign === "bottom") cy = el.y + el.height - pad;
+            if (vAlignMode === "top") cy = el.y + pad;
+            else if (vAlignMode === "bottom") cy = el.y + el.height - pad;
             else cy = el.y + el.height / 2;
           }
-          midY =
-            textVAlign === "top"
-              ? cy + lineIndex * step
-              : textVAlign === "bottom"
-                ? cy + (lineIndex - (lines.length - 1)) * step
-                : cy + lineIndex * step - ((lines.length - 1) * step) / 2;
         }
-        const lineW = fontOf(lines[lineIndex], fs).width;
-        const prefixW = fontOf(beforeLines[lineIndex] ?? "", fs).width;
-        const lx =
-          align === "center" ? hx - lineW / 2 : align === "right" ? hx - lineW : hx;
-        leftScreen = (lx + prefixW) * zoom + cam.scrollX;
-        topScreen = (midY - fs / 2) * zoom + cam.scrollY;
-        heightScreen = fs * zoom;
+        const step = fontSize * lh;
+        for (let i = 0; i < lines.length; i++) {
+          const lw = measureText(lines[i], fontSize, el.fontFamily, el.bold, el.italic).width;
+          leftEdges.push(
+            align === "center" ? hx - lw / 2 :
+            align === "right" ? hx - lw : hx,
+          );
+          const midY =
+            vAlignMode === "top" ? cy + i * step :
+            vAlignMode === "bottom" ? cy + (i - (lines.length - 1)) * step :
+            cy + i * step - ((lines.length - 1) * step) / 2;
+          tops.push(midY - fontSize / 2);
+        }
       }
 
-      caret.style.left = `${leftScreen}px`;
-      caret.style.top = `${topScreen}px`;
-      caret.style.height = `${heightScreen}px`;
+      const fontOf = (s: string) =>
+        measureText(s, fontSize, editingEl.fontFamily, editingEl.bold, editingEl.italic);
+
+      const offsetToPos = (off: number): { li: number; col: number } => {
+        let rem = Math.max(0, Math.min(off, value.length));
+        for (let i = 0; i < lines.length; i++) {
+          if (rem <= lines[i].length) return { li: i, col: rem };
+          rem -= lines[i].length + 1;
+        }
+        return { li: lines.length - 1, col: lines[lines.length - 1].length };
+      };
+      const xOfCol = (li: number, col: number) =>
+        leftEdges[li] + fontOf(lines[li].slice(0, col)).width;
+
+      // --- fake caret at selectionStart ---
+      const cPos = offsetToPos(ta.selectionStart ?? 0);
+      caret.style.left = `${xOfCol(cPos.li, cPos.col) * zoom + cam.scrollX}px`;
+      caret.style.top = `${tops[cPos.li] * zoom + cam.scrollY}px`;
+      caret.style.height = `${fontSize * zoom}px`;
       caret.style.color = resolveTextColor(editingEl, themeColors);
+
+      // --- fake selection rects between selectionStart..selectionEnd ---
+      const selHost = fakeSelectionRef.current;
+      if (!selHost) return;
+      const a = ta.selectionStart ?? 0;
+      const b = ta.selectionEnd ?? a;
+      const key = `${Math.min(a, b)}:${Math.max(a, b)}:${value}:${cam.zoom}`;
+      if (key !== lastSelKey) {
+        lastSelKey = key;
+        selHost.replaceChildren();
+        if (a !== b) {
+          const s = offsetToPos(Math.min(a, b));
+          const e = offsetToPos(Math.max(a, b));
+          let li = s.li;
+          let col = s.col;
+          while (li <= e.li && li < lines.length) {
+            const endCol = li === e.li ? e.col : lines[li].length;
+            if (endCol > col) {
+              const rect = document.createElement("div");
+              rect.className = "fake-selection-rect";
+              rect.style.left = `${xOfCol(li, col) * zoom + cam.scrollX}px`;
+              rect.style.top = `${tops[li] * zoom + cam.scrollY}px`;
+              rect.style.width = `${(xOfCol(li, endCol) - xOfCol(li, col)) * zoom}px`;
+              rect.style.height = `${fontSize * zoom}px`;
+              selHost.appendChild(rect);
+            }
+            li++;
+            col = 0;
+          }
+        }
+      }
     };
 
     update();
@@ -324,6 +362,9 @@ export function CanvasHost() {
             <span><kbd>?</kbd> atalhos</span>
           </div>
         </div>
+      )}
+      {((isEditingText && editingEl.type === "text") || isEditingLabel) && (
+        <div ref={fakeSelectionRef} className="fake-selection" />
       )}
       {((isEditingText && editingEl.type === "text") || isEditingLabel) && (
         <div ref={fakeCaretRef} className="fake-caret" />

@@ -148,6 +148,33 @@ test.describe("component library", () => {
 
     await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.type("Upload bucket");
+    await page.keyboard.press("ControlOrMeta+a");
+    // fake selection is WYSIWYG: exactly one rect matching the canvas label
+    // width (native ::selection is disabled on the invisible overlay)
+    await page.waitForTimeout(150);
+    const selInfo = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const rect = document.querySelector(
+        ".fake-selection-rect",
+      ) as HTMLElement | null;
+      return {
+        count: document.querySelectorAll(".fake-selection-rect").length,
+        width: rect ? parseFloat(rect.style.width) : 0,
+        expectedWidth:
+          el.label.length * (el.fontSize ?? 12) === 0
+            ? 0
+            : (() => {
+                // approximate canvas label width via measureText from the app
+                const c = document.createElement("canvas").getContext("2d")!;
+                c.font = `${el.fontSize ?? 12}px "Segoe UI", system-ui, sans-serif`;
+                return c.measureText(el.label).width * ed.getSnapshot().camera.zoom;
+              })(),
+      };
+    });
+    expect(selInfo.count).toBe(1);
+    expect(Math.abs(selInfo.width - selInfo.expectedWidth)).toBeLessThan(3);
+
     await page.keyboard.press("Enter");
 
     const state = await editorState();

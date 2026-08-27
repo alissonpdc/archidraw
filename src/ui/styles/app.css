@@ -902,6 +902,27 @@ button {
   outline: none;
 }
 
+/* native DOM selection must not paint: the textarea is invisible and its
+   layout doesn't match the canvas-rendered text. Selection is drawn by
+   .fake-selection-rect using canvas text metrics instead */
+.text-overlay::selection {
+  background: transparent;
+  color: transparent;
+}
+
+/* ---- fake selection (WYSIWYG rects over the canvas-rendered text) ---- */
+.fake-selection {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fake-selection-rect {
+  position: absolute;
+  background: var(--selection-color);
+  opacity: 0.35;
+}
+
 /* ---- fake caret (blinks over the canvas-rendered text) ---- */
 .fake-caret {
   position: absolute;
