@@ -492,15 +492,14 @@ export function PropertiesPanel() {
         </button>
       </div>
 
-      {effectiveTab === "style" && (
-        <>
-          <Group title="Stroke">
-            <PaletteGrid
-              current={selected[0].strokeColor}
-              onPick={(strokeColor) => apply({ strokeColor })}
-              label="Stroke color"
-            />
-          </Group>
+      <div className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
+        <Group title="Stroke">
+          <PaletteGrid
+            current={selected[0].strokeColor}
+            onPick={(strokeColor) => apply({ strokeColor })}
+            label="Stroke color"
+          />
+        </Group>
 
           <Group title="Fill">
             <PaletteGrid
@@ -697,12 +696,9 @@ export function PropertiesPanel() {
               </div>
             </Group>
           )}
-        </>
-      )}
-
-      {effectiveTab === "text" && (
-        <>
-          <Group title="Text color">
+      </div>
+      <div className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
+        <Group title="Text color">
             <PaletteGrid
               current={textColorValue || selected[0].strokeColor}
               onPick={(textColor) => apply({ textColor })}
@@ -921,12 +917,9 @@ export function PropertiesPanel() {
               </Group>
             </>
           )}
-        </>
-      )}
-
-      {effectiveTab === "layers" && (
-        <>
-          <Group title="Order">
+      </div>
+      <div className={`panel-tab-content${effectiveTab === "layers" ? "" : " hidden"}`}>
+        <Group title="Order">
             <div className="layer-btns">
               <button
                 className="size-btn"
@@ -1033,8 +1026,7 @@ export function PropertiesPanel() {
               </div>
             </Group>
           )}
-        </>
-      )}
+      </div>
     </div>
   );
 }

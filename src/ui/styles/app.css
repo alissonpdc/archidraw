@@ -455,6 +455,11 @@ button {
   font-weight: 600;
 }
 
+.panel-tab-content.hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* ---- text style row ---- */
 .text-style-row {
   display: flex;
