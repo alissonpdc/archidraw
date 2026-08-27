@@ -145,7 +145,9 @@ const COLIN_COS = Math.cos((1.5 * Math.PI) / 180);
  *    second pencil pass over the same shape;
  *  - a gentle one-shot bow on straight runs that end at sharp corners or
  *    loose tips;
- *  - pen-lifts (gaps / overshoots) at sharp corners and open tips.
+ *  - pen-lifts (gaps / overshoots) at sharp corners, open tips, and a few
+ *    soft spots along continuous outlines (arcs split into loose strokes
+ *    with salient crossing tips).
  * `roughness` scales the sloppiness (0 = perfectly straight).
  */
 function roughPolyline(
@@ -198,6 +200,31 @@ function roughPolyline(
     points.length > 3 &&
     points[0].x === points[last].x &&
     points[0].y === points[last].y;
+
+  // soft pen-lifts: continuous outlines (arcs / rounded corners) also split
+  // into a few disconnected strokes with salient tips, like a hand lifting
+  // the pen mid-outline. placed only at bend points (never inside straight
+  // runs) and spaced along the arclength.
+  const lift = sharp.slice();
+  {
+    let acc = 0;
+    let next = 90 + jit(70);
+    for (let v = 2; v < last - 1; v++) {
+      acc += cum[v] - cum[v - 1];
+      if (acc < next) continue;
+      if (
+        sharp[v] ||
+        colin(v) ||
+        cum[v] - cum[v - 1] < 6 ||
+        cum[v + 1] - cum[v] < 6
+      )
+        continue;
+      if (closedLoop && (v <= 2 || v >= last - 2)) continue;
+      lift[v] = true;
+      acc = 0;
+      next = 90 + jit(70);
+    }
+  }
 
   // per-pass rigid misregistration: offset + rotation + slight non-uniform
   // scale, so each pass reads as a separate hand trace of the same shape
@@ -279,12 +306,12 @@ function roughPolyline(
   let i = 1;
   while (i <= last) {
     let e = i;
-    while (e < last && !sharp[e] && colin(e)) e++;
+    while (e < last && !lift[e] && colin(e)) e++;
 
     const tipStart = i === 1 && !closedLoop;
     const tipEnd = e === last && !closedLoop;
-    const liftStart = i > 1 && sharp[i - 1];
-    const liftEnd = e < last && sharp[e];
+    const liftStart = i > 1 && lift[i - 1];
+    const liftEnd = e < last && lift[e];
 
     let sx: number;
     let sy: number;
@@ -293,9 +320,10 @@ function roughPolyline(
       sx = p.x;
       sy = p.y;
     } else if (liftStart) {
+      // salient tip: slip past the break (signed jitter → crossing strokes)
       const g = jit(slip);
-      sx = points[i - 1].x + dir[i - 1].x * g;
-      sy = points[i - 1].y + dir[i - 1].y * g;
+      sx = D[i - 1].x + dir[i - 1].x * g;
+      sy = D[i - 1].y + dir[i - 1].y * g;
     } else {
       sx = D[i - 1].x;
       sy = D[i - 1].y;
@@ -306,8 +334,8 @@ function roughPolyline(
     let ey: number;
     if (liftEnd) {
       const g = jit(slip);
-      ex = points[e].x - dir[e - 1].x * g;
-      ey = points[e].y - dir[e - 1].y * g;
+      ex = D[e].x - dir[e - 1].x * g;
+      ey = D[e].y - dir[e - 1].y * g;
     } else if (tipEnd) {
       const p = tipPt(points[e].x, points[e].y, dir[e - 1].x, dir[e - 1].y);
       ex = p.x;
@@ -317,7 +345,14 @@ function roughPolyline(
       ey = D[e].y;
     }
 
-    if (liftStart || liftEnd || tipStart || tipEnd) {
+    // one-shot bow only on straight runs bounded by sharp corners / tips
+    // (soft lifts keep the wave trace, so arcs stay arcs)
+    if (
+      tipStart ||
+      tipEnd ||
+      (liftStart && sharp[i - 1]) ||
+      (liftEnd && sharp[e])
+    ) {
       // one-shot gentle bow on the straight run
       const len = cum[e] - cum[i - 1] || 1;
       const ux = (points[e].x - points[i - 1].x) / len;
