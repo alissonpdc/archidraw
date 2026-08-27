@@ -60,6 +60,14 @@ export function CanvasHost() {
     return () => cancelAnimationFrame(raf);
   }, [colors, gridMode]);
 
+  // auto-resize textarea to fit content (no visible box, just cursor)
+  const autoResize = (ta: HTMLTextAreaElement) => {
+    ta.style.height = "auto";
+    ta.style.width = "auto";
+    ta.style.height = ta.scrollHeight + "px";
+    ta.style.width = ta.scrollWidth + 1 + "px";
+  };
+
   // focus text overlay when editing starts (synchronous, avoids typing races);
   // selects existing text so double-click enters edit mode with text selected
   useEffect(() => {
@@ -68,6 +76,7 @@ export function CanvasHost() {
       if (ta) {
         ta.focus();
         ta.select();
+        requestAnimationFrame(() => autoResize(ta));
       }
     }
   }, [snap.editingTextId]);
@@ -216,7 +225,10 @@ export function CanvasHost() {
               textAlign: editingEl.textAlign ?? "left",
             }}
             value={editingEl.text}
-            onChange={(e) => editor.updateText(editingEl.id, e.target.value)}
+            onChange={(e) => {
+              editor.updateText(editingEl.id, e.target.value);
+              autoResize(e.target as HTMLTextAreaElement);
+            }}
             onBlur={() => {
               editor.finishTextEdit();
               editor.clearSelection();
@@ -253,7 +265,10 @@ export function CanvasHost() {
               color: resolveTextColor(editingEl, themeColors),
             }}
             value={editingEl.label ?? ""}
-            onChange={(e) => editor.updateLabel(editingEl.id, e.target.value)}
+            onChange={(e) => {
+              editor.updateLabel(editingEl.id, e.target.value);
+              autoResize(e.target as HTMLTextAreaElement);
+            }}
             onBlur={() => {
               editor.finishTextEdit();
             }}

@@ -856,8 +856,8 @@ button {
 /* ---- text overlay ---- */
 .text-overlay {
   position: absolute;
-  min-width: 20px;
-  min-height: 24px;
+  min-width: 1px;
+  min-height: 1em;
   padding: 0;
   margin: 0;
   border: none;
@@ -869,6 +869,9 @@ button {
   caret-color: currentColor;
   font-family: var(--font-ui);
   line-height: 1.25;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .label-overlay {
