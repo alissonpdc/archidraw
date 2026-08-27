@@ -24,7 +24,7 @@ const STROKE_WIDTHS = [1, 2, 4, 8] as const;
 const FONT_SIZES = [16, 20, 28, 36];
 const FONT_FAMILIES = [
   { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', iconPath: "M4 5h12M4 10h10M4 15h7" },
-  { label: "Mono", value: '"SF Mono", "Cascadia Code", Consolas, monospace', iconPath: "M5 5L9 10L5 15M11 5L15 10L11 15" },
+  { label: "Sketch", value: '"Architects Daughter", cursive', iconPath: "M3 17L13 7l4-4M5 15l-2 4 4-2M11 9l4 4" },
   { label: "Serif", value: 'Georgia, "Times New Roman", serif', iconPath: "M4 5h1v10H4zM7 5h6v2H7zM7 13h6v2H7zM13 5h1v10h-1z" },
   { label: "Consolas", value: 'Consolas, "SF Mono", monospace', iconPath: "M3 5l5 5-5 5M9 15h8" },
 ];
