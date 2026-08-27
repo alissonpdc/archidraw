@@ -456,6 +456,7 @@ button {
 }
 
 .panel-tab-content.hidden {
+  position: absolute;
   visibility: hidden;
   pointer-events: none;
 }

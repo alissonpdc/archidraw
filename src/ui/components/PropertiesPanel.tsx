@@ -370,9 +370,28 @@ export function PropertiesPanel() {
   const snap = useEditor();
   const [tip, setTip] = useState<TipState | null>(null);
   const [activeTab, setActiveTab] = useState<"style" | "text" | "layers">("style");
+  const [maxTabHeight, setMaxTabHeight] = useState<number | null>(null);
+  const maxTabHeightRef = useRef<number | null>(null);
+  const styleRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const layersRef = useRef<HTMLDivElement>(null);
   const selected = snap.doc.elements.filter((el) =>
     snap.selectedIds.has(el.id),
   );
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const heights = [styleRef, textRef, layersRef]
+      .map((r) => r.current?.scrollHeight ?? 0)
+      .filter((h) => h > 0);
+    if (heights.length > 0) {
+      const max = Math.max(...heights);
+      if (max !== maxTabHeightRef.current) {
+        maxTabHeightRef.current = max;
+        setMaxTabHeight(max);
+      }
+    }
+  });
 
   if (selected.length === 0) return null;
 
@@ -463,6 +482,7 @@ export function PropertiesPanel() {
   return (
     <div
       className="properties-panel"
+      style={maxTabHeight ? { minHeight: maxTabHeight } : undefined}
       onMouseOver={showTip}
       onMouseLeave={() => setTip(null)}
       onScroll={() => setTip(null)}
@@ -492,7 +512,7 @@ export function PropertiesPanel() {
         </button>
       </div>
 
-      <div className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
+      <div ref={styleRef} className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
         <Group title="Stroke">
           <PaletteGrid
             current={selected[0].strokeColor}
@@ -697,7 +717,7 @@ export function PropertiesPanel() {
             </Group>
           )}
       </div>
-      <div className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
+      <div ref={textRef} className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
         <Group title="Text color">
             <PaletteGrid
               current={textColorValue || selected[0].strokeColor}
@@ -918,7 +938,7 @@ export function PropertiesPanel() {
             </>
           )}
       </div>
-      <div className={`panel-tab-content${effectiveTab === "layers" ? "" : " hidden"}`}>
+      <div ref={layersRef} className={`panel-tab-content${effectiveTab === "layers" ? "" : " hidden"}`}>
         <Group title="Order">
             <div className="layer-btns">
               <button
