@@ -127,7 +127,8 @@ export function CanvasHost() {
       const align = editingEl.textAlign ?? "left";
       const tw = measureText(text || " ", editingEl.fontSize, editingEl.fontFamily, editingEl.bold, editingEl.italic).width;
       const allLines = text.split("\n");
-      const textBlockH = allLines.length * editingEl.fontSize * lh;
+      const n = allLines.length;
+      const textBlockH = n === 1 ? editingEl.fontSize : (n - 1) * editingEl.fontSize * lh + editingEl.fontSize;
       const vOffset = Math.max(0, (editingEl.height - textBlockH) / 2);
       let ox = cw * zoom;
       if (align === "center") ox += ((editingEl.width - tw) / 2) * zoom;
@@ -267,7 +268,7 @@ export function CanvasHost() {
               textDecoration: editingEl.underline ? "underline" : "none",
               lineHeight: String(editingEl.lineSpacing ?? 1.25),
               textAlign: editingEl.textAlign ?? "left",
-              paddingTop: Math.max(0, (editingEl.height - (editingEl.text.split("\n").length * editingEl.fontSize * (editingEl.lineSpacing ?? 1.25))) / 2) * cam.zoom,
+              paddingTop: (() => { const n = editingEl.text.split("\n").length; const lh = editingEl.lineSpacing ?? 1.25; const tbh = n === 1 ? editingEl.fontSize : (n - 1) * editingEl.fontSize * lh + editingEl.fontSize; return Math.max(0, (editingEl.height - tbh) / 2) * cam.zoom; })(),
             }}
             value={editingEl.text}
             onChange={(e) => {

@@ -518,7 +518,8 @@ function drawElement(
     const lines = el.text.split("\n");
     const align = el.textAlign ?? "left";
     ctx.textAlign = align;
-    const textBlockH = lines.length * el.fontSize * lh;
+    const n = lines.length;
+    const textBlockH = n === 1 ? el.fontSize : (n - 1) * el.fontSize * lh + el.fontSize;
     const vOffset = Math.max(0, (el.height - textBlockH) / 2);
     const underlineOn = !!el.underline;
     lines.forEach((line, i) => {

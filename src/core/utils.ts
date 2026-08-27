@@ -106,7 +106,8 @@ export function measureText(
   lineSpacing: number = LINE_HEIGHT,
 ): { width: number; height: number } {
   const lines = text.split("\n");
-  const height = Math.max(lines.length, 1) * fontSize * lineSpacing;
+  const n = Math.max(lines.length, 1);
+  const height = n === 1 ? fontSize : (n - 1) * fontSize * lineSpacing + fontSize;
   const ctx = getMeasureCtx();
   if (ctx) {
     const family = fontFamily || DEFAULT_FONT_FAMILY;
