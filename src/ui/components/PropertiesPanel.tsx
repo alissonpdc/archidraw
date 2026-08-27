@@ -793,7 +793,7 @@ export function PropertiesPanel() {
                 className={`size-btn text-btn ${allUnderline ? "active" : ""}`}
                 aria-label="Underline"
                 data-tip="Underline"
-                onClick={() => apply(allUnderline ? { underline: false } : { underline: true, lineSpacing: 0.8 })}
+                onClick={() => apply({ underline: !allUnderline })}
               >
                 <u>U</u>
               </button>
@@ -840,14 +840,14 @@ export function PropertiesPanel() {
 
           <Group title="Line spacing">
             <MiniSlider
-              value={allUnderline ? 0.8 : (lineSpacingValue ?? 1.25)}
+              value={lineSpacingValue ?? 1.25}
               min={0.8}
               max={2.5}
               step={0.05}
               ariaLabel="Line spacing"
               suffix="%"
-              displayValue={allUnderline ? 0 : Math.round(((lineSpacingValue ?? 1.25) - 0.8) / 1.7 * 100)}
-              onChange={(v) => { if (!allUnderline) apply({ lineSpacing: v }); }}
+              displayValue={Math.round(((lineSpacingValue ?? 1.25) - 0.8) / 1.7 * 100)}
+              onChange={(v) => apply({ lineSpacing: v })}
             />
           </Group>
 

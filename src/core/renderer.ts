@@ -523,7 +523,8 @@ function drawElement(
       let lx = el.x;
       if (align === "center") lx = el.x + el.width / 2;
       else if (align === "right") lx = el.x + el.width;
-      ctx.fillText(line, lx, el.y + i * el.fontSize * lh);
+      const lineY = el.y + i * el.fontSize * lh;
+      ctx.fillText(line, lx, lineY);
       if (underlineOn && line.length > 0) {
         const lw = ctx.measureText(line).width;
         if (lw > 0) {
@@ -533,8 +534,8 @@ function drawElement(
           ctx.strokeStyle = resolveTextColor(el, colors);
           ctx.lineWidth = Math.max(2, el.fontSize * 0.07);
           ctx.beginPath();
-          ctx.moveTo(ux, el.y + (i + 1) * el.fontSize * lh + 2);
-          ctx.lineTo(ux + lw, el.y + (i + 1) * el.fontSize * lh + 2);
+          ctx.moveTo(ux, lineY + el.fontSize);
+          ctx.lineTo(ux + lw, lineY + el.fontSize);
           ctx.stroke();
         }
       }
