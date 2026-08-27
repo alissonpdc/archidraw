@@ -927,7 +927,8 @@ export class Editor {
             selected &&
             (selected.type === "rectangle" ||
               selected.type === "arrow" ||
-              selected.type === "component")
+              selected.type === "component" ||
+              selected.type === "text")
           ) {
             const handle = resizeHandleAt(
               scene,
@@ -1128,20 +1129,34 @@ export class Editor {
         if (this.interaction.handle.includes("s")) y2 = scene.y;
         const nb = normalizeBounds({ x1, y1, x2, y2 });
         const id = this.interaction.original.id;
-        this.doc = {
-          ...this.doc,
-          elements: this.doc.elements.map((el) =>
-            el.id === id
-              ? {
-                  ...el,
-                  x: nb.x1,
-                  y: nb.y1,
-                  width: nb.x2 - nb.x1,
-                  height: nb.y2 - nb.y1,
-                }
-              : el,
-          ),
-        };
+        const orig = this.interaction.original;
+        if (orig.type === "text") {
+          const newWidth = Math.max(nb.x2 - nb.x1, 8);
+          const { height } = measureText(orig.text || " ", orig.fontSize);
+          this.doc = {
+            ...this.doc,
+            elements: this.doc.elements.map((el) =>
+              el.id === id
+                ? { ...el, x: nb.x1, y: nb.y1, width: newWidth, height }
+                : el,
+            ),
+          };
+        } else {
+          this.doc = {
+            ...this.doc,
+            elements: this.doc.elements.map((el) =>
+              el.id === id
+                ? {
+                    ...el,
+                    x: nb.x1,
+                    y: nb.y1,
+                    width: nb.x2 - nb.x1,
+                    height: nb.y2 - nb.y1,
+                  }
+                : el,
+            ),
+          };
+        }
         break;
       }
       case "marquee": {
@@ -1213,7 +1228,8 @@ export class Editor {
       !selected ||
       (selected.type !== "rectangle" &&
         selected.type !== "arrow" &&
-        selected.type !== "component")
+        selected.type !== "component" &&
+        selected.type !== "text")
     )
       return null;
     const scene = screenToScene(screenPoint, this.camera);

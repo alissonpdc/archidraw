@@ -797,13 +797,14 @@ export function render(
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }
 
-  // resize handles for single selection of a shape/arrow
+  // resize handles for single selection of a shape/arrow/text
   if (!state.draft && state.selectedIds.size === 1) {
     const sel = state.doc.elements.find((el) => state.selectedIds.has(el.id));
     if (
       sel &&
-      (sel.type === "rectangle" || sel.type === "arrow" || sel.type === "component") &&
-      !(state.hiddenLabelId && sel.id === state.hiddenLabelId)
+      (sel.type === "rectangle" || sel.type === "arrow" || sel.type === "component" || sel.type === "text") &&
+      !(state.hiddenLabelId && sel.id === state.hiddenLabelId) &&
+      !(state.hiddenTextId && sel.id === state.hiddenTextId)
     ) {
       drawHandles(ctx, sel, cam.zoom, colors.selection);
     }
