@@ -653,6 +653,7 @@ function drawLabel(
   if (el.type === "text" || !el.label) return;
   if (hiddenId && el.id === hiddenId) return;
   ctx.save();
+  ctx.globalAlpha = el.opacity;
   ctx.fillStyle = resolveTextColor(el, colors);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
