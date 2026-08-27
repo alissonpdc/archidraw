@@ -123,8 +123,9 @@ test.describe("component library", () => {
     await page.mouse.dblclick(center.x, center.y);
 
     await expect(page.locator(".text-overlay.label-overlay")).toBeVisible();
-    // in-place editing: overlay at label position (below icon) and
-    // no editing outline
+    await expect(page.locator(".fake-caret")).toBeVisible();
+    // in-place editing: overlay at label position (below icon), invisible
+    // textarea with fake caret — canvas renders the label with final style
     const overlayInfo = await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
@@ -134,12 +135,14 @@ test.describe("component library", () => {
       const cam = ed.getSnapshot().camera;
       return {
         outlineStyle: getComputedStyle(overlay).outlineStyle,
+        color: getComputedStyle(overlay).color,
         top: parseFloat(overlay.style.top),
         expectedTop:
           (el.y + el.height / 2) * cam.zoom + cam.scrollY,
       };
     });
     expect(overlayInfo.outlineStyle).toBe("none");
+    expect(overlayInfo.color).toBe("rgba(0, 0, 0, 0)");
     // label fica abaixo do centro do elemento (não no meio)
     expect(overlayInfo.top).toBeGreaterThan(overlayInfo.expectedTop);
 

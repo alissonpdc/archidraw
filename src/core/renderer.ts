@@ -22,9 +22,9 @@ export interface RenderState {
   colors?: RenderColors;
   gridMode?: "none" | "dots" | "lines";
   guides?: { orientation: "h" | "v"; pos: number }[] | null;
-  /** element whose label is being edited (hidden to avoid double rendering) */
+  /** element whose label is being edited (suppresses selection box/handles) */
   hiddenLabelId?: string | null;
-  /** free text element being edited (hidden to avoid double rendering) */
+  /** free text element being edited (suppresses resize handles) */
   hiddenTextId?: string | null;
 }
 
@@ -845,14 +845,8 @@ function drawSelectionBox(
   ctx.restore();
 }
 
-function drawLabel(
-  ctx: CanvasRenderingContext2D,
-  el: Element,
-  colors: RenderColors,
-  hiddenId?: string | null,
-) {
+function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderColors) {
   if (el.type === "text" || !el.label) return;
-  if (hiddenId && el.id === hiddenId) return;
   ctx.save();
   ctx.globalAlpha = el.opacity;
   ctx.fillStyle = resolveTextColor(el, colors);
@@ -1039,7 +1033,9 @@ export function render(
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
     drawElement(ctx, el, colors);
-    drawLabel(ctx, el, colors, state.hiddenLabelId);
+    // label is ALWAYS painted (even while its text is being edited) so the
+    // invisible overlay textarea stays WYSIWYG with the final style
+    drawLabel(ctx, el, colors);
     if (state.selectedIds.has(el.id) && !isEditingThisLabel)
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }

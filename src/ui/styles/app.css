@@ -920,10 +920,11 @@ button {
   transform: translate(-50%, -50%);
   text-align: center;
   white-space: pre-wrap;
+  /* edição in-place invisível: o canvas renderiza o texto com o estilo final;
+     o textarea é só captura de input (+ caret fake posicionado por cima) */
+  color: transparent;
+  caret-color: transparent;
   pointer-events: auto;
-  color: inherit;
-  caret-color: currentColor;
-  /* edição in-place: sem contorno/caixa */
   outline: none;
 }
 
