@@ -123,9 +123,9 @@ export function CanvasHost() {
       const lines = before.split("\n");
       const lineIndex = lines.length - 1;
       const lineText = lines[lineIndex];
-      const { width: cw } = measureText(lineText || " ", editingEl.fontSize);
+      const { width: cw } = measureText(lineText || " ", editingEl.fontSize, editingEl.fontFamily, editingEl.bold, editingEl.italic);
       const align = editingEl.textAlign ?? "left";
-      const tw = measureText(text || " ", editingEl.fontSize).width;
+      const tw = measureText(text || " ", editingEl.fontSize, editingEl.fontFamily, editingEl.bold, editingEl.italic).width;
       let ox = cw * zoom;
       if (align === "center") ox += ((editingEl.width - tw) / 2) * zoom;
       else if (align === "right") ox += (editingEl.width - tw) * zoom;

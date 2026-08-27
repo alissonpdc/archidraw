@@ -83,6 +83,7 @@ export function unionBounds(elements: Element[]): Bounds | null {
 // ---- text measurement --------------------------------------------------
 
 const LINE_HEIGHT = 1.25;
+const DEFAULT_FONT_FAMILY = '"Segoe UI", system-ui, sans-serif';
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;
 
@@ -99,12 +100,18 @@ function getMeasureCtx(): CanvasRenderingContext2D | null {
 export function measureText(
   text: string,
   fontSize: number,
+  fontFamily?: string,
+  bold?: boolean,
+  italic?: boolean,
 ): { width: number; height: number } {
   const lines = text.split("\n");
   const height = Math.max(lines.length, 1) * fontSize * LINE_HEIGHT;
   const ctx = getMeasureCtx();
   if (ctx) {
-    ctx.font = `${fontSize}px "Segoe UI", system-ui, sans-serif`;
+    const family = fontFamily || DEFAULT_FONT_FAMILY;
+    const style = italic ? "italic " : "";
+    const weight = bold ? "bold " : "";
+    ctx.font = `${style}${weight}${fontSize}px ${family}`;
     const widest = Math.max(...lines.map((l) => ctx.measureText(l).width), 1);
     return { width: Math.ceil(widest), height };
   }
