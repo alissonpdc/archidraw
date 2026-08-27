@@ -134,67 +134,38 @@ function jitter(seed: number): number {
 /** dot product below this marks a sharp corner where the pen "lifts" */
 const BREAK_COS = Math.cos((35 * Math.PI) / 180);
 
-/** max spacing (scene px) between spline anchors: keeps tangent estimates local */
-const ANCHOR_SPACING = 22;
+/** dot product above this marks two segments as the same straight run */
+const COLIN_COS = Math.cos((1.5 * Math.PI) / 180);
 
 /**
- * one hand-drawn pass over a polyline. the body still wobbles smoothly, but
- * strokes are LOOSE: tips extend past (or fall short of) the real endpoints
- * and sharp corners get a pen-lift — gaps / overshoots like separate pencil
- * strokes instead of one continuous line. `roughness` scales the sloppiness
- * (0 = perfectly straight). `passIndex` drifts each pass as a whole.
+ * one hand-drawn pass over a polyline. the exact geometry is traced (arcs
+ * stay perfect curves — no wave, so no sawtooth or overshoot artifacts);
+ * looseness comes from:
+ *  - a per-pass rigid misregistration (offset + slight rotation), like a
+ *    second pencil pass over the same shape;
+ *  - a gentle one-shot bow on straight runs that end at sharp corners or
+ *    loose tips;
+ *  - pen-lifts (gaps / overshoots) at sharp corners and open tips.
+ * `roughness` scales the sloppiness (0 = perfectly straight).
  */
 function roughPolyline(
   ctx: CanvasRenderingContext2D,
   points: Point[],
   roughness: number,
   seed: number,
-  passIndex = 0,
 ) {
   if (points.length < 2) return;
   let s = seed;
   const jit = (max: number) => jitter(++s) * max;
   const o = roughness * 1.5;
-
-  // densify long runs: uniform-ish anchor spacing is what keeps Catmull-Rom
-  // tangents local — without it a straight run bracketed by short arc chords
-  // produces large overshoot bows that read as kinks on rounded corners
-  const pts: Point[] = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const ax = points[i - 1].x;
-    const ay = points[i - 1].y;
-    const bx = points[i].x;
-    const by = points[i].y;
-    const l = Math.hypot(bx - ax, by - ay);
-    const n = Math.floor(l / ANCHOR_SPACING);
-    for (let k = 1; k <= n; k++) {
-      const t = k / (n + 1);
-      pts.push({ x: ax + (bx - ax) * t, y: ay + (by - ay) * t });
-    }
-    pts.push(points[i]);
-  }
-  const last = pts.length - 1;
+  const slip = Math.max(o * 1.4, 1);
+  const last = points.length - 1;
 
   // cumulative arc length along the polyline
   const cum: number[] = [0];
-  for (let i = 1; i < pts.length; i++)
-    cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+  for (let i = 1; i < points.length; i++)
+    cum.push(cum[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y));
   const total = cum[last];
-
-  // smooth low-frequency wave (smoothstep-interpolated noise anchors):
-  // continuous wander along the whole path — no zig-zag, no overlap
-  const amp = roughness * Math.min(3, Math.max(0.5, total * 0.012));
-  const waveLen = Math.max(18, Math.min(70, total / 3));
-  const anchorCount = Math.ceil(total / waveLen) + 2;
-  const anchors: number[] = [];
-  for (let i = 0; i < anchorCount; i++) anchors.push(jit(1));
-  const noiseAt = (d: number) => {
-    const f = Math.min(d / waveLen, anchorCount - 2);
-    const i0 = Math.floor(f);
-    const t = f - i0;
-    const sm = t * t * (3 - 2 * t);
-    return anchors[i0] * (1 - sm) + anchors[i0 + 1] * sm;
-  };
 
   // unit direction of each segment (zero-length falls back to previous)
   const dir: Point[] = [];
@@ -202,132 +173,189 @@ function roughPolyline(
     const l = cum[i + 1] - cum[i];
     dir.push(
       l > 0
-        ? { x: (pts[i + 1].x - pts[i].x) / l, y: (pts[i + 1].y - pts[i].y) / l }
+        ? { x: (points[i + 1].x - points[i].x) / l, y: (points[i + 1].y - points[i].y) / l }
         : dir.length
           ? dir[dir.length - 1]
           : { x: 1, y: 0 },
     );
   }
 
-  // sharp interior corners get a pen-lift (gaps and pointed overshoots);
-  // dense arc samplings (short segments) are never broken
-  const broken = new Array<boolean>(pts.length).fill(false);
-  for (let j = 1; j < last; j++) {
+  // sharp interior corners get pen-lifts; gentle bends (arc samplings) never
+  const sharp = new Array<boolean>(points.length).fill(false);
+  for (let v = 1; v < last; v++) {
     if (
-      dir[j - 1].x * dir[j].x + dir[j - 1].y * dir[j].y < BREAK_COS &&
-      cum[j] - cum[j - 1] >= 6 &&
-      cum[j + 1] - cum[j] >= 6
+      dir[v - 1].x * dir[v].x + dir[v - 1].y * dir[v].y < BREAK_COS &&
+      cum[v] - cum[v - 1] >= 6 &&
+      cum[v + 1] - cum[v] >= 6
     )
-      broken[j] = true;
+      sharp[v] = true;
   }
+  // two joined segments colinear enough to be one straight run
+  const colin = (v: number) =>
+    dir[v - 1].x * dir[v].x + dir[v - 1].y * dir[v].y > COLIN_COS;
 
-  // max slip at loose joints/tips (signed: positive = gap, negative = overshoot)
-  const slip = Math.max(o * 1.4, 1);
-
-  // closed loops (rounded rect outlines) must NOT get loose tips: the seam
-  // falls mid-arc and protruding nubs would read as sudden kinks on curves
   const closedLoop =
-    pts.length > 3 &&
-    pts[0].x === pts[last].x &&
-    pts[0].y === pts[last].y;
+    points.length > 3 &&
+    points[0].x === points[last].x &&
+    points[0].y === points[last].y;
 
-  /**
-   * jittered anchors. displacement uses the ANGLE-BISECTOR normal of the two
-   * adjacent segments (not a per-segment normal): it rotates smoothly across
-   * straight↔arc junctions, so the wave can never sawtooth there.
-   */
-  const A: Point[] = new Array(pts.length);
-  const startExt = closedLoop ? 0 : jit(slip);
-  const sc0 = jit(closedLoop ? o * 0.3 : o) * 0.5;
-  A[0] = {
-    x: pts[0].x + dir[0].x * startExt + dir[0].y * sc0,
-    y: pts[0].y + dir[0].y * startExt - dir[0].x * sc0,
-  };
-  for (let j = 1; j < last; j++) {
-    const up = dir[j - 1];
-    const un = dir[j];
-    let bx = -up.y - un.y;
-    let by = up.x + un.x;
-    const bl = Math.hypot(bx, by) || 1;
-    bx /= bl;
-    by /= bl;
-    const damp = Math.min(1, Math.max(0.3, ((cum[j] - cum[j - 1]) + (cum[j + 1] - cum[j])) / 20));
-    const w = amp * damp * noiseAt(cum[j]);
-    A[j] = { x: pts[j].x + bx * w, y: pts[j].y + by * w };
+  // per-pass rigid misregistration: offset + rotation + slight non-uniform
+  // scale, so each pass reads as a separate hand trace of the same shape
+  let minX = points[0].x;
+  let minY = points[0].y;
+  let maxX = minX;
+  let maxY = minY;
+  for (const p of points) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
   }
-  const endExt = closedLoop ? 0 : jit(slip);
-  const ue = dir[last - 1];
-  const scN = jit(closedLoop ? o * 0.3 : o) * 0.5;
-  A[last] = {
-    x: pts[last].x + ue.x * endExt + ue.y * scN,
-    y: pts[last].y + ue.y * endExt - ue.x * scN,
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  ctx.save();
+  ctx.translate(cx + jit(roughness * 0.9), cy + jit(roughness * 0.9));
+  ctx.rotate((jit(roughness * 0.5) * Math.PI) / 180);
+  ctx.scale(1 + jit(roughness * 0.005), 1 + jit(roughness * 0.005));
+  ctx.translate(-cx, -cy);
+
+  // loose tip: slip along the direction + a little perpendicular scatter
+  const tipPt = (px: number, py: number, ux: number, uy: number): Point => {
+    const g = jit(slip);
+    const sc = jit(o * 0.5);
+    return { x: px + ux * g - uy * sc, y: py + uy * g + ux * sc };
   };
 
-  // per-pass whole-stroke drift: each pass sits slightly off the others
-  const shx = passIndex === 0 ? 0 : jitter(seed + passIndex * 57) * roughness * 0.7;
-  const shy = passIndex === 0 ? 0 : jitter(seed + passIndex * 131) * roughness * 0.7;
-
-  // draw each run between pen-lifts as a Catmull-Rom spline through its
-  // anchors: C1-continuous by construction — tangents blend naturally at
-  // straight↔arc joints instead of meeting with a hard elbow
-  let start = 0;
-  for (let j = 1; j <= last; j++) {
-    if (j < last && !broken[j]) continue;
-    const end = j;
-    const run: Point[] = [];
-    // slip past a lifted joint: advance into this run / retreat off the last
-    if (start > 0) {
-      const g = jit(slip);
-      run.push({ x: A[start].x + dir[start].x * g, y: A[start].y + dir[start].y * g });
-    } else {
-      run.push(A[0]);
+  // ---- body wave -------------------------------------------------------
+  // a smooth sinusoid of arclength, applied along the (smoothly rotating)
+  // bisector normal and tapered to zero at pen-lifts and open tips. being an
+  // analytic C1 function of s, it CANNOT produce sawtooth or kinks — but it
+  // gives arcs and continuous outlines organic hand-drawn wander.
+  const perp = (u: Point): Point => ({ x: -u.y, y: u.x });
+  const N: Point[] = [];
+  for (let j = 0; j <= last; j++) {
+    if (j === 0) N.push(perp(dir[0]));
+    else if (j === last) N.push(perp(dir[last - 1]));
+    else {
+      const bx = -dir[j - 1].y - dir[j].y;
+      const by = dir[j - 1].x + dir[j].x;
+      const bl = Math.hypot(bx, by);
+      N.push(bl > 0.05 ? { x: bx / bl, y: by / bl } : perp(dir[j]));
     }
-    for (let k = start + 1; k < end; k++) run.push(A[k]);
-    if (end < last && broken[end]) {
+  }
+  // wave must vanish at pen-lifts and open tips (break positions)
+  const breaks: number[] = [];
+  if (!closedLoop) breaks.push(0, total);
+  for (let v = 1; v < last; v++) if (sharp[v]) breaks.push(cum[v]);
+  const envAt = (s: number): number => {
+    let d = Infinity;
+    for (const b of breaks) {
+      const dd = Math.abs(s - b);
+      if (dd < d) d = dd;
+    }
+    if (d === Infinity) return 1;
+    const t = Math.min(1, d / 22);
+    return t * t * (3 - 2 * t);
+  };
+  // integer wave count: periodic on closed loops (seam matches exactly)
+  const lam = 48 + jit(24);
+  const cycles = Math.max(1, Math.round(total / lam));
+  const wamp = roughness * (0.9 + 0.5 * jit(1));
+  const phase = jit(6.283);
+  const waveAt = (s: number): number =>
+    wamp * envAt(s) * Math.sin((2 * Math.PI * cycles * s) / total + phase);
+  // wave-displaced vertices (used by continuous stretches)
+  const D: Point[] = [];
+  for (let j = 0; j <= last; j++) {
+    const w = waveAt(cum[j]);
+    D.push({ x: points[j].x + N[j].x * w, y: points[j].y + N[j].y * w });
+  }
+
+  // walk maximal runs: colinear stretch (bounded by sharp corners / tips /
+  // bends). straight stretches that END loose get a one-shot bow; continuous
+  // stretches trace the wave-displaced geometry, subdivided so the wave
+  // shows on long straight runs too.
+  let i = 1;
+  while (i <= last) {
+    let e = i;
+    while (e < last && !sharp[e] && colin(e)) e++;
+
+    const tipStart = i === 1 && !closedLoop;
+    const tipEnd = e === last && !closedLoop;
+    const liftStart = i > 1 && sharp[i - 1];
+    const liftEnd = e < last && sharp[e];
+
+    let sx: number;
+    let sy: number;
+    if (tipStart) {
+      const p = tipPt(points[i - 1].x, points[i - 1].y, dir[i - 1].x, dir[i - 1].y);
+      sx = p.x;
+      sy = p.y;
+    } else if (liftStart) {
       const g = jit(slip);
-      run.push({ x: A[end].x - dir[end - 1].x * g, y: A[end].y - dir[end - 1].y * g });
+      sx = points[i - 1].x + dir[i - 1].x * g;
+      sy = points[i - 1].y + dir[i - 1].y * g;
     } else {
-      run.push(A[end]);
+      sx = D[i - 1].x;
+      sy = D[i - 1].y;
+    }
+    if (i === 1 || liftStart) ctx.moveTo(sx, sy);
+
+    let ex: number;
+    let ey: number;
+    if (liftEnd) {
+      const g = jit(slip);
+      ex = points[e].x - dir[e - 1].x * g;
+      ey = points[e].y - dir[e - 1].y * g;
+    } else if (tipEnd) {
+      const p = tipPt(points[e].x, points[e].y, dir[e - 1].x, dir[e - 1].y);
+      ex = p.x;
+      ey = p.y;
+    } else {
+      ex = D[e].x;
+      ey = D[e].y;
     }
 
-    ctx.moveTo(run[0].x + shx, run[0].y + shy);
-    const n = run.length;
-    const at = (k: number) => run[Math.min(Math.max(k, 0), n - 1)];
-    // Fritsch–Carlson-style tangent limiter: control offsets are capped at
-    // half the segment chord, capping CR overshoot on uneven anchor spacing
-    const cap = (
-      tx: number,
-      ty: number,
-      from: Point,
-      to: Point,
-    ): [number, number] => {
-      const m = Math.hypot(tx, ty);
-      const max = Math.hypot(to.x - from.x, to.y - from.y) * 0.5;
-      if (m > max && m > 0) return [(tx * max) / m, (ty * max) / m];
-      return [tx, ty];
-    };
-    for (let k = 0; k + 1 < n; k++) {
-      const p0 = at(k - 1);
-      const p1 = at(k);
-      const p2 = at(k + 1);
-      const p3 = at(k + 2);
-      let t1x = (p2.x - p0.x) / 6;
-      let t1y = (p2.y - p0.y) / 6;
-      let t2x = (p3.x - p1.x) / 6;
-      let t2y = (p3.y - p1.y) / 6;
-      [t1x, t1y] = cap(t1x, t1y, p1, p2);
-      [t2x, t2y] = cap(t2x, t2y, p2, p1);
-      ctx.bezierCurveTo(
-        p1.x + t1x + shx,
-        p1.y + t1y + shy,
-        p2.x + t2x + shx,
-        p2.y + t2y + shy,
-        p2.x + shx,
-        p2.y + shy,
+    if (liftStart || liftEnd || tipStart || tipEnd) {
+      // one-shot gentle bow on the straight run
+      const len = cum[e] - cum[i - 1] || 1;
+      const ux = (points[e].x - points[i - 1].x) / len;
+      const uy = (points[e].y - points[i - 1].y) / len;
+      const bow = jit(roughness * 1.6) * Math.min(1, len / 60);
+      ctx.quadraticCurveTo(
+        (points[i - 1].x + points[e].x) / 2 - uy * bow,
+        (points[i - 1].y + points[e].y) / 2 + ux * bow,
+        ex,
+        ey,
       );
+    } else if (e > i) {
+      // continuous straight run: subdivide so the wave is visible on it;
+      // normals lerp between the run's end bisectors (smooth swing)
+      const sA = cum[i - 1];
+      const sB = cum[e];
+      const steps = Math.max(1, Math.ceil((sB - sA) / 14));
+      for (let k = 1; k <= steps; k++) {
+        const t = k / steps;
+        const s = sA + (sB - sA) * t;
+        const bx = points[i - 1].x + (points[e].x - points[i - 1].x) * t;
+        const by = points[i - 1].y + (points[e].y - points[i - 1].y) * t;
+        let nx = N[i - 1].x + (N[e].x - N[i - 1].x) * t;
+        let ny = N[i - 1].y + (N[e].y - N[i - 1].y) * t;
+        const nl = Math.hypot(nx, ny);
+        if (nl > 0) {
+          nx /= nl;
+          ny /= nl;
+        }
+        const w = waveAt(s);
+        ctx.lineTo(bx + nx * w, by + ny * w);
+      }
+    } else {
+      // single continuous segment (arc chord or short straight)
+      ctx.lineTo(ex, ey);
     }
-    start = end;
+    i = e + 1;
   }
+  ctx.restore();
 }
 
 /**
@@ -349,7 +377,7 @@ function sketchStroke(
         for (let i = 1; i < pts.length; i++)
           ctx.lineTo(pts[i].x, pts[i].y);
       } else {
-        roughPolyline(ctx, pts, roughness, seedBase + p * 131 + pts.length, p);
+        roughPolyline(ctx, pts, roughness, seedBase + p * 131 + pts.length);
       }
     }
   }
@@ -415,9 +443,9 @@ function roundedRectLoop(
     ];
   }
   const pts: Point[] = [];
-  // dense enough that each arc step turns ≤ ~18°, so the hand-drawn wave
-  // can't produce visible polyline kinks on curved corners
-  const seg = Math.max(4, Math.round(r / 2.5));
+  // fixed arc sampling (7.5° facets): exact-traced curves stay visually
+  // perfect while keeping the polyline representation simple
+  const seg = 12;
   // [centerX, centerY, startAngle] per corner, clockwise from top-left arc
   const arcs: [number, number, number][] = [
     [x2 - r, y1 + r, -Math.PI / 2],
