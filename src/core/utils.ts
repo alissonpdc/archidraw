@@ -103,9 +103,10 @@ export function measureText(
   fontFamily?: string,
   bold?: boolean,
   italic?: boolean,
+  lineSpacing: number = LINE_HEIGHT,
 ): { width: number; height: number } {
   const lines = text.split("\n");
-  const height = Math.max(lines.length, 1) * fontSize * LINE_HEIGHT;
+  const height = Math.max(lines.length, 1) * fontSize * lineSpacing;
   const ctx = getMeasureCtx();
   if (ctx) {
     const family = fontFamily || DEFAULT_FONT_FAMILY;

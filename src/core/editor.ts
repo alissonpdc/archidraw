@@ -710,9 +710,9 @@ export class Editor {
         if (!ids.includes(el.id)) return el;
         const next = { ...el, ...patch } as Element;
         // recalculate text dimensions when font-related props change
-        if (next.type === "text" && (patch.fontSize !== undefined || patch.fontFamily !== undefined || patch.bold !== undefined || patch.italic !== undefined)) {
+        if (next.type === "text" && (patch.fontSize !== undefined || patch.fontFamily !== undefined || patch.bold !== undefined || patch.italic !== undefined || patch.lineSpacing !== undefined)) {
           const te = next as TextElement;
-          const { width, height } = measureText(te.text || " ", te.fontSize, te.fontFamily, te.bold, te.italic);
+          const { width, height } = measureText(te.text || " ", te.fontSize, te.fontFamily, te.bold, te.italic, te.lineSpacing);
           te.width = Math.max(width, 8);
           te.height = height;
         }
@@ -736,7 +736,7 @@ export class Editor {
       ...this.doc,
       elements: this.doc.elements.map((el) => {
         if (!(el.id === id && el.type === "text")) return el;
-        const { width, height } = measureText(text || " ", el.fontSize, el.fontFamily, el.bold, el.italic);
+        const { width, height } = measureText(text || " ", el.fontSize, el.fontFamily, el.bold, el.italic, el.lineSpacing);
         return { ...el, text, width: Math.max(width, 8), height };
       }),
     };
@@ -1137,7 +1137,7 @@ export class Editor {
           const scaleY = (nb.y2 - nb.y1) / oH;
           const scale = Math.max(scaleX, scaleY);
           const newFontSize = Math.max(1, Math.round(orig.fontSize * scale));
-          const { width, height } = measureText(orig.text || " ", newFontSize, orig.fontFamily, orig.bold, orig.italic);
+          const { width, height } = measureText(orig.text || " ", newFontSize, orig.fontFamily, orig.bold, orig.italic, orig.lineSpacing);
           this.doc = {
             ...this.doc,
             elements: this.doc.elements.map((el) =>
