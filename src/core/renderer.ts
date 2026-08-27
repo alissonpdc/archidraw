@@ -557,8 +557,18 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
   if ("label" in el && el.label) {
     const fontSize = el.fontSize ?? (el.type === "component" ? 12 : 14);
     ctx.font = resolveFont(el, fontSize);
-    const tw = ctx.measureText(el.label).width;
-    const th = fontSize * 1.25;
+    const lines = el.label.split("\n");
+    const tw =
+      el.type === "component"
+        ? ctx.measureText(el.label).width
+        : Math.max(...lines.map((l) => ctx.measureText(l).width));
+    const lh = lineHeight(el);
+    const th =
+      el.type === "component"
+        ? fontSize * 1.25
+        : lines.length === 1
+          ? fontSize * 1.25
+          : (lines.length - 1) * fontSize * lh + fontSize;
     if (el.type === "component") {
       const layout = componentIconLayout(el);
       x1 = Math.min(x1, layout.iconX);
@@ -583,10 +593,15 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
       if (textVAlign === "top") ly = el.y + pad;
       else if (textVAlign === "bottom") ly = el.y + el.height - pad - th;
       else ly = el.y + (el.height - th) / 2;
-      x1 = Math.min(x1, lx);
-      y1 = Math.min(y1, ly);
-      x2 = Math.max(x2, lx + tw);
-      y2 = Math.max(y2, ly + th);
+      // clip the text rect to the element bounds: text fully contained must NOT expand them
+      const tx1 = Math.min(Math.max(lx, x1), x2);
+      const ty1 = Math.min(Math.max(ly, y1), y2);
+      const tx2 = Math.max(tx1, Math.min(lx + tw, x2));
+      const ty2 = Math.max(ty1, Math.min(ly + th, y2));
+      x1 = Math.min(x1, tx1);
+      y1 = Math.min(y1, ty1);
+      x2 = Math.max(x2, tx2);
+      y2 = Math.max(y2, ty2);
     }
   }
 
