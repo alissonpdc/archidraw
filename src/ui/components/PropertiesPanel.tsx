@@ -293,7 +293,6 @@ function SpacingRow({
           if (!isNaN(v)) onChange(Math.max(0, Math.min(50, v)));
         }}
       />
-      <span className="spacing-suffix">px</span>
       <button
         className="spacing-btn"
         aria-label={`Aumentar ${label}`}
@@ -800,7 +799,7 @@ export function PropertiesPanel() {
                 ))}
               </Group>
 
-              <Group title="Afastamento do texto" vertical>
+              <Group title="Afastamento do texto (px)" vertical>
                 <SpacingRow
                   label="Global"
                   value={selected[0].captionGap ?? 2}

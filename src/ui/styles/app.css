@@ -682,13 +682,6 @@ button {
   border-color: var(--accent);
 }
 
-.spacing-suffix {
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-  width: 14px;
-  flex: none;
-}
-
 .border-presets {
   display: flex;
   gap: var(--space-1);

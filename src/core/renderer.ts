@@ -1,5 +1,5 @@
 import type { Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
-import { arrowPoints, elementBounds } from "./utils";
+import { arrowPoints, elementBounds, measureText } from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage } from "./componentAssets";
 import { resolveFont, resolveTextColor, lineHeight } from "./textStyle";
@@ -355,15 +355,21 @@ export function componentIconLayout(el: ComponentElement) {
   }
 
   if (captionPos === "left" || captionPos === "right") {
-    // horizontal layout: icon and label side by side, spacing accounts for font size
-    const spacing = gap + labelFont * 0.4;
-    const iconX = captionPos === "left"
-      ? cx + spacing / 2
-      : cx - spacing / 2 - iconSizeFixed;
+    // horizontal layout: icon and label side by side, edge-to-edge
+    const { width: tw } = measureText(el.label!, labelFont);
     const iconY = cy - iconSizeFixed / 2;
-    const labelCx = captionPos === "left"
-      ? cx - spacing / 2
-      : cx + spacing / 2;
+    const totalW = iconSizeFixed + gap + tw;
+    let iconX: number;
+    let labelCx: number;
+    if (captionPos === "left") {
+      // label on left, icon on right
+      iconX = cx + totalW / 2 - iconSizeFixed;
+      labelCx = cx - totalW / 2 + tw / 2;
+    } else {
+      // label on right, icon on left
+      iconX = cx - totalW / 2;
+      labelCx = cx + totalW / 2 - tw / 2;
+    }
     return {
       hasLabel,
       iconX,
