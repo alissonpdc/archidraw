@@ -155,6 +155,7 @@ function roughPolyline(
   points: Point[],
   roughness: number,
   seed: number,
+  waveScale = 1,
 ) {
   if (points.length < 2) return;
   let s = seed;
@@ -288,7 +289,7 @@ function roughPolyline(
   // low frequency: several samples per period so chords can't alias
   const lam = 90 + jit(40);
   const cycles = Math.max(1, Math.round(total / lam));
-  const wamp = roughness * (0.9 + 0.5 * jit(1));
+  const wamp = waveScale * roughness * (0.9 + 0.5 * jit(1));
   const phase = jit(6.283);
   const waveAt = (s: number): number =>
     wamp * envAt(s) * Math.sin((2 * Math.PI * cycles * s) / total + phase);
@@ -402,6 +403,7 @@ function sketchStroke(
   polylines: Point[][],
   roughness: number,
   seedBase: number,
+  waveScale = 1,
 ) {
   const passes = roughness === 0 ? 1 : roughness === 3 ? 3 : 2;
   for (let p = 0; p < passes; p++) {
@@ -411,7 +413,13 @@ function sketchStroke(
         for (let i = 1; i < pts.length; i++)
           ctx.lineTo(pts[i].x, pts[i].y);
       } else {
-        roughPolyline(ctx, pts, roughness, seedBase + p * 131 + pts.length);
+        roughPolyline(
+          ctx,
+          pts,
+          roughness,
+          seedBase + p * 131 + pts.length,
+          waveScale,
+        );
       }
     }
   }
@@ -674,6 +682,7 @@ function drawElement(
           ],
           el.roughness,
           seedOf(el.id),
+          cornerRadius(el) > 0 ? 0.9 : 1,
         );
       }
       applyDash(ctx, el, el.strokeWidth);
