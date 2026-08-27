@@ -188,6 +188,7 @@ function PaletteGrid({
 }) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const [popPos, setPopPos] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (expanded === null) return;
@@ -202,8 +203,21 @@ function PaletteGrid({
     expanded !== null && expanded > 0
       ? shadesOf(BASE_COLORS[expanded - 1].color)
       : null;
-  const col = expanded !== null ? expanded % PALETTE_COLS : 0;
-  const popoverLeft = Math.max(0, col * SWATCH_STEP - 65);
+
+  const handleSwatchClick = (i: number, e: React.MouseEvent<HTMLButtonElement>) => {
+    if (expanded === i + 1) {
+      setExpanded(null);
+      setPopPos(null);
+    } else {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const popoverW = PALETTE_COLS * SWATCH_STEP + 8;
+      let x = rect.left;
+      if (x + popoverW > window.innerWidth - 8) x = window.innerWidth - popoverW - 8;
+      if (x < 8) x = 8;
+      setPopPos({ x, y: rect.bottom + 6 });
+      setExpanded(i + 1);
+    }
+  };
 
   return (
     <div className="palette-wrap" ref={wrapRef}>
@@ -216,6 +230,7 @@ function PaletteGrid({
           data-tip="Transparent"
           onClick={() => {
             setExpanded(null);
+            setPopPos(null);
             onPick("transparent");
           }}
         />
@@ -231,14 +246,14 @@ function PaletteGrid({
             style={{ background: entry.color }}
             aria-label={`${label} ${entry.name}`}
             data-tip={entry.name}
-            onClick={() => setExpanded(expanded === i + 1 ? null : i + 1)}
+            onClick={(e) => handleSwatchClick(i, e)}
           />
         ))}
       </div>
-      {expandedShades && (
+      {expandedShades && popPos && createPortal(
         <div
-          className="color-popover"
-          style={{ left: popoverLeft }}
+          className="color-popover color-popover--portal"
+          style={{ left: popPos.x, top: popPos.y }}
           role="menu"
           aria-label={`${label} shades`}
         >
@@ -253,11 +268,13 @@ function PaletteGrid({
                 onClick={() => {
                   onPick(shade);
                   setExpanded(null);
+                  setPopPos(null);
                 }}
               />
             ))}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
