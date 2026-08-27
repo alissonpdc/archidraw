@@ -226,9 +226,17 @@ function sketchStroke(
   }
 }
 
-/** deterministic seed from a scene position */
-function seedAt(p: Point): number {
-  return Math.round((p.x * 7 + p.y * 13) % 1000);
+const seedCache = new Map<string, number>();
+
+/** stable seed from element id: sketch outlines must NOT shift while dragging */
+function seedOf(id: string): number {
+  let s = seedCache.get(id);
+  if (s === undefined) {
+    s = 0;
+    for (let i = 0; i < id.length; i++) s = (s * 31 + id.charCodeAt(i)) % 100000;
+    seedCache.set(id, s);
+  }
+  return s;
 }
 
 /** corner radius in scene px for a rectangle/component (0–100% of the smaller side) */
@@ -472,7 +480,7 @@ function drawElement(
             ),
           ],
           el.roughness,
-          seedAt({ x: Math.min(el.x, el.x + el.width), y: Math.min(el.y, el.y + el.height) }),
+          seedOf(el.id),
         );
       }
       applyDash(ctx, el, el.strokeWidth);
@@ -488,7 +496,7 @@ function drawElement(
 
     ctx.beginPath();
     if (lineType === "straight") {
-      sketchStroke(ctx, [[a, tip]], el.roughness, seedAt(a));
+      sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id));
       applyDash(ctx, el, el.strokeWidth);
       ctx.stroke();
       drawArrowHead(ctx, tip, a, Math.max(12, el.strokeWidth * 4));
@@ -505,7 +513,7 @@ function drawElement(
     } else {
       // auto: L-shaped routing (horizontal then vertical)
       const mid = { x: tip.x, y: a.y };
-      sketchStroke(ctx, [[a, mid, tip]], el.roughness, seedAt(a));
+      sketchStroke(ctx, [[a, mid, tip]], el.roughness, seedOf(el.id));
       applyDash(ctx, el, el.strokeWidth);
       ctx.stroke();
       drawArrowHead(ctx, tip, mid, Math.max(12, el.strokeWidth * 4));
