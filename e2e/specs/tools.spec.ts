@@ -73,4 +73,47 @@ test.describe("tools", () => {
     const s = await editorState();
     expect(s.elementCount).toBe(0);
   });
+
+  test("text element is selectable and dimensions update with font size", async ({
+    page,
+    editorState,
+  }) => {
+    await selectTool(page, "t");
+    await page.mouse.click(300, 300);
+    await page.keyboard.type("Hello");
+    await page.keyboard.press("Escape");
+
+    const s1 = await editorState();
+    expect(s1.elementCount).toBe(1);
+
+    // click on the text element to select it (not edit it)
+    await page.mouse.click(300, 300);
+
+    const s2 = await editorState();
+    expect(s2.selectedIds).toHaveLength(1);
+
+    // read initial dimensions
+    const dims1 = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      return { width: el.width, height: el.height, fontSize: el.fontSize };
+    });
+
+    // change font size via editor API (simulates Properties panel button)
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const id = ed.getSnapshot().doc.elements[0].id;
+      ed.updateElements([id], { fontSize: 36 });
+    });
+
+    const dims2 = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      return { width: el.width, height: el.height, fontSize: el.fontSize };
+    });
+
+    expect(dims2.fontSize).toBe(36);
+    expect(dims2.height).toBeGreaterThan(dims1.height);
+    expect(dims2.width).toBeGreaterThanOrEqual(dims1.width);
+  });
 });
