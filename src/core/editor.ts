@@ -402,17 +402,20 @@ export class Editor {
     const screen = screenPoint ?? this.screenCenter();
     const scene = screenToScene(screen, this.camera);
     // ícone preenche o bounds do elemento, então o tamanho de inserção
-    // é o tamanho visual do ícone
+    // é o tamanho visual do ícone (com proporção preservada p/ importados)
     const size = 64;
+    const aspect = item.aspect && item.aspect > 0 ? item.aspect : 1;
+    const w = aspect >= 1 ? size : size * aspect;
+    const h = aspect >= 1 ? size / aspect : size;
     this.commitHistory();
     const el: ComponentElement = {
       id: newId(),
       type: "component",
       componentId: componentId,
-      x: scene.x - size / 2,
-      y: scene.y - size / 2,
-      width: size,
-      height: size,
+      x: scene.x - w / 2,
+      y: scene.y - h / 2,
+      width: w,
+      height: h,
       label: item.name,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,

@@ -1219,6 +1219,55 @@ button {
   font-size: 16px;
 }
 
+.library-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.library-import {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.library-import-input {
+  display: none;
+}
+
+.library-section-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.library-section-row .library-section-header {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-group-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-group-remove {
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.library-error {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger, #d64545);
+  padding: 2px var(--space-1);
+}
+
 .library-search {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

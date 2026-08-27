@@ -45,6 +45,20 @@ export function componentAssetDataUri(componentId: string): string | null {
   return dataUris.get(componentId) ?? null;
 }
 
+// ---- custom assets (bibliotecas importadas .excalidrawlib) ---------------
+
+/** registra um asset dinâmico (SVG string) — ex. itens importados do Excalidraw */
+export function registerCustomAsset(componentId: string, svg: string): void {
+  const uri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  dataUris.set(componentId, uri);
+  images.delete(componentId);
+}
+
+export function unregisterCustomAsset(componentId: string): void {
+  dataUris.delete(componentId);
+  images.delete(componentId);
+}
+
 /** resolves when every requested icon finished decoding (for PNG export) */
 export function waitForComponentImages(componentIds?: string[]): Promise<void> {
   const ids = componentIds ?? [...images.keys()];

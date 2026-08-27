@@ -163,7 +163,7 @@ export function exportSVG(doc: Document, filename: string): boolean {
       } else {
         // fallback: hand-drawn glyph paths (24x24 viewBox)
         const item = getLibraryItem(el.componentId);
-        if (item && item.icon.length > 0) {
+        if (item && item.icon && item.icon.length > 0) {
           const scale = layout.iconSize / 24;
           parts.push(
             `<g transform="translate(${layout.iconX} ${layout.iconY}) scale(${scale})" fill="none" stroke="${el.strokeColor}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${opacity}>${item.icon

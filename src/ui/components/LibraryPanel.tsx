@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import {
   LIBRARY,
   LIBRARY_CATEGORIES,
+  getLibraryItem,
   getRecentComponents,
   pushRecentComponent,
   searchLibrary,
@@ -19,6 +20,12 @@ import {
   componentAssetDataUri,
   hasComponentAsset,
 } from "../../core/componentAssets";
+import {
+  getImportedLibraries,
+  importExcalidrawLibFile,
+  removeImportedLibrary,
+} from "../../core/importedLibraries";
+import type { ImportedLibrary } from "../../core/importedLibraries";
 
 export const COMPONENT_DND_TYPE = "application/x-archidraw-component";
 
@@ -88,7 +95,7 @@ function ItemIcon({ item, size = 28 }: { item: LibraryItem; size?: number }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {item.icon.map((d, i) => (
+      {(item.icon ?? []).map((d, i) => (
         <path key={i} d={d} />
       ))}
     </svg>
@@ -126,6 +133,10 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [recents, setRecents] = useState<string[]>(getRecentComponents);
   const [awsOpen, setAwsOpen] = useState(false);
   const [tip, setTip] = useState<TipState | null>(null);
+  const [imported, setImported] = useState<ImportedLibrary[]>(getImportedLibraries);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set());
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const close = () => {
     setQuery("");
@@ -165,6 +176,23 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
     setRecents(getRecentComponents());
   };
 
+  const onImportFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const lib = await importExcalidrawLibFile(file);
+      setImported(getImportedLibraries());
+      setOpenGroups((prev) => new Set(prev).add(lib.id));
+      setImportError(null);
+    } catch {
+      setImportError("Invalid .excalidrawlib file");
+    }
+  };
+
+  const onRemoveImported = (libId: string) => {
+    removeImportedLibrary(libId);
+    setImported(getImportedLibraries());
+  };
+
   // event-delegated tooltips (same pattern as PropertiesPanel)
   const showTip = (e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest("[data-tip]");
@@ -188,13 +216,51 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
       <TileTooltip tip={tip} />
       <div className="library-header">
         <span className="panel-subtitle">Library</span>
-        <button
-          className="tool-btn library-close"
-          aria-label="Close library"
-          onClick={close}
-        >
-          ×
-        </button>
+        <div className="library-header-actions">
+          <button
+            className="tool-btn library-import"
+            aria-label="Import Excalidraw library"
+            title="Import .excalidrawlib"
+            data-testid="library-import"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3v12" />
+              <path d="M6.5 9.5 L12 15 L17.5 9.5" />
+              <path d="M4 20 H20" />
+            </svg>
+          </button>
+          <button
+            className="tool-btn library-close"
+            aria-label="Close library"
+            onClick={close}
+          >
+            ×
+          </button>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".excalidrawlib,.json,application/json"
+          className="library-import-input"
+          aria-hidden="true"
+          tabIndex={-1}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            void onImportFile(file);
+          }}
+        />
       </div>
       <input
         className="library-search"
@@ -235,44 +301,112 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
             <div className="library-empty">No component found</div>
           )
         ) : (
-          <section className="library-section">
-            <button
-              className="library-section-header"
-              aria-expanded={awsOpen}
-              onClick={() => setAwsOpen((v) => !v)}
-            >
-              <svg
-                className={`library-chevron ${awsOpen ? "open" : ""}`}
-                width="10"
-                height="10"
-                viewBox="0 0 10 10"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+          <>
+            {importError && (
+              <div className="library-error" role="alert">
+                {importError}
+              </div>
+            )}
+            <section className="library-section">
+              <button
+                className="library-section-header"
+                aria-expanded={awsOpen}
+                onClick={() => setAwsOpen((v) => !v)}
               >
-                <path d="M3 1.5 L7 5 L3 8.5" />
-              </svg>
-              AWS
-            </button>
-            {awsOpen &&
-              LIBRARY_CATEGORIES.map((cat) => {
-                const items = awsItems.filter((i) => i.category === cat);
-                if (items.length === 0) return null;
-                return (
-                  <div key={cat} className="library-subgroup">
-                    <div className="panel-subtitle">{cat}</div>
-                    <div className="library-grid">
-                      {items.map((item) => (
-                        <Tile key={item.id} item={item} onInsert={insert} />
-                      ))}
+                <svg
+                  className={`library-chevron ${awsOpen ? "open" : ""}`}
+                  width="10"
+                  height="10"
+                  viewBox="0 0 10 10"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 1.5 L7 5 L3 8.5" />
+                </svg>
+                AWS
+              </button>
+              {awsOpen &&
+                LIBRARY_CATEGORIES.map((cat) => {
+                  const items = awsItems.filter((i) => i.category === cat);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={cat} className="library-subgroup">
+                      <div className="panel-subtitle">{cat}</div>
+                      <div className="library-grid">
+                        {items.map((item) => (
+                          <Tile key={item.id} item={item} onInsert={insert} />
+                        ))}
+                      </div>
                     </div>
+                  );
+                })}
+            </section>
+            {imported.map((lib) => {
+              const isOpen = openGroups.has(lib.id);
+              return (
+                <section
+                  key={lib.id}
+                  className="library-section"
+                  data-testid="library-imported-group"
+                >
+                  <div className="library-section-row">
+                    <button
+                      className="library-section-header"
+                      aria-expanded={isOpen}
+                      onClick={() =>
+                        setOpenGroups((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(lib.id)) next.delete(lib.id);
+                          else next.add(lib.id);
+                          return next;
+                        })
+                      }
+                    >
+                      <svg
+                        className={`library-chevron ${isOpen ? "open" : ""}`}
+                        width="10"
+                        height="10"
+                        viewBox="0 0 10 10"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 1.5 L7 5 L3 8.5" />
+                      </svg>
+                      <span className="library-group-name">{lib.name}</span>
+                    </button>
+                    <button
+                      className="tool-btn library-group-remove"
+                      aria-label={`Remove library ${lib.name}`}
+                      data-tip={`Remove ${lib.name}`}
+                      onClick={() => onRemoveImported(lib.id)}
+                    >
+                      ×
+                    </button>
                   </div>
-                );
-              })}
-          </section>
+                  {isOpen && (
+                    <div className="library-subgroup">
+                      <div className="library-grid">
+                        {lib.items.map((it) => {
+                          const item = getLibraryItem(it.id);
+                          return item ? (
+                            <Tile key={item.id} item={item} onInsert={insert} />
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </>
         )}
       </div>
     </aside>
