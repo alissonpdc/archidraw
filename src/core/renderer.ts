@@ -682,7 +682,7 @@ function drawElement(
           ],
           el.roughness,
           seedOf(el.id),
-          cornerRadius(el) > 0 ? 0.81 : 1,
+          cornerRadius(el) > 0 ? 0.30 : 1,
         );
       }
       applyDash(ctx, el, el.strokeWidth);
