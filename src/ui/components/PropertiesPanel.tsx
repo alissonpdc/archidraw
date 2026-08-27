@@ -181,10 +181,13 @@ function PaletteGrid({
   current,
   onPick,
   label,
+  auto,
 }: {
   current: string;
   onPick: (color: string) => void;
   label: string;
+  /** when set, the first swatch is "Auto" picking "" instead of Transparent */
+  auto?: string;
 }) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -223,18 +226,35 @@ function PaletteGrid({
   return (
     <div className="palette-wrap" ref={wrapRef}>
       <div className="swatch-row swatch-row-5">
-        <button
-          className={`swatch transparent-checker ${
-            current === "transparent" ? "active" : ""
-          }`}
-          aria-label={`${label} Transparent`}
-          data-tip="Transparent"
-          onClick={() => {
-            setExpanded(null);
-            setPopPos(null);
-            onPick("transparent");
-          }}
-        />
+        {auto !== undefined ? (
+          <button
+            className={`swatch swatch-auto ${current === "" ? "active" : ""}`}
+            aria-label={`${label} Auto`}
+            data-tip="Auto"
+            onClick={() => {
+              setExpanded(null);
+              setPopPos(null);
+              onPick("");
+            }}
+          >
+            <span className="swatch-auto-glyph" style={{ color: auto }}>
+              A
+            </span>
+          </button>
+        ) : (
+          <button
+            className={`swatch transparent-checker ${
+              current === "transparent" ? "active" : ""
+            }`}
+            aria-label={`${label} Transparent`}
+            data-tip="Transparent"
+            onClick={() => {
+              setExpanded(null);
+              setPopPos(null);
+              onPick("transparent");
+            }}
+          />
+        )}
         {BASE_COLORS.map((entry, i) => (
           <button
             key={entry.name}
@@ -720,9 +740,10 @@ export function PropertiesPanel() {
       <div ref={textRef} className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
         <Group title="Text color">
             <PaletteGrid
-              current={textColorValue || selected[0].strokeColor}
+              current={textColorValue ?? "\u0000"}
               onPick={(textColor) => apply({ textColor })}
               label="Text color"
+              auto={selected[0].strokeColor}
             />
           </Group>
 
@@ -1002,7 +1023,7 @@ export function PropertiesPanel() {
           </Group>
 
           {selected.length >= 2 && (
-            <Group title="Align">
+            <Group title="Align horizontal">
               <div className="layer-btns">
                 <button className="size-btn" data-tip="Align left" aria-label="Align left"
                   onClick={() => editor.alignSelected("left")}>
@@ -1029,6 +1050,11 @@ export function PropertiesPanel() {
                   </svg>
                 </button>
               </div>
+            </Group>
+          )}
+
+          {selected.length >= 2 && (
+            <Group title="Align vertical">
               <div className="layer-btns">
                 <button className="size-btn" data-tip="Align top" aria-label="Align top"
                   onClick={() => editor.alignSelected("top")}>
