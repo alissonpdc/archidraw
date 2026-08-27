@@ -131,15 +131,22 @@ function jitter(seed: number): number {
   return (x - Math.floor(x)) * 2 - 1;
 }
 
+/** dot product below this marks a sharp corner where the pen "lifts" */
+const BREAK_COS = Math.cos((35 * Math.PI) / 180);
+
 /**
- * one hand-drawn pass over a polyline: jittered endpoints + wobbly body.
- * `roughness` scales how sloppy it looks (0 = perfectly straight).
+ * one hand-drawn pass over a polyline. the body still wobbles smoothly, but
+ * strokes are LOOSE: tips extend past (or fall short of) the real endpoints
+ * and sharp corners get a pen-lift — gaps / overshoots like separate pencil
+ * strokes instead of one continuous line. `roughness` scales the sloppiness
+ * (0 = perfectly straight). `passIndex` drifts each pass as a whole.
  */
 function roughPolyline(
   ctx: CanvasRenderingContext2D,
   points: Point[],
   roughness: number,
   seed: number,
+  passIndex = 0,
 ) {
   if (points.length < 2) return;
   let s = seed;
@@ -168,42 +175,103 @@ function roughPolyline(
     return anchors[i0] * (1 - sm) + anchors[i0 + 1] * sm;
   };
 
-  ctx.moveTo(points[0].x + jit(o), points[0].y + jit(o));
-  for (let i = 1; i < points.length; i++) {
+  // unit direction of each segment (zero-length falls back to previous)
+  const dir: Point[] = [];
+  for (let i = 0; i < last; i++) {
+    const l = cum[i + 1] - cum[i];
+    dir.push(
+      l > 0
+        ? { x: (points[i + 1].x - points[i].x) / l, y: (points[i + 1].y - points[i].y) / l }
+        : dir.length
+          ? dir[dir.length - 1]
+          : { x: 1, y: 0 },
+    );
+  }
+
+  // sharp interior corners get a pen-lift (gaps and pointed overshoots);
+  // dense arc samplings (short segments) are never broken
+  const broken = new Array<boolean>(points.length).fill(false);
+  for (let j = 1; j < last; j++) {
+    if (
+      dir[j - 1].x * dir[j].x + dir[j - 1].y * dir[j].y < BREAK_COS &&
+      cum[j] - cum[j - 1] >= 6 &&
+      cum[j + 1] - cum[j] >= 6
+    )
+      broken[j] = true;
+  }
+
+  // max slip at loose joints/tips (signed: positive = gap, negative = overshoot)
+  const slip = Math.max(o * 1.4, 1);
+
+  // shared jittered vertices: adjacent segments meet exactly unless broken
+  const v: Point[] = [];
+  // first tip: slide past (or short of) the real start, plus a little scatter
+  const startExt = jit(slip);
+  v.push({
+    x: points[0].x + dir[0].x * startExt + jit(o) * 0.5,
+    y: points[0].y + dir[0].y * startExt + jit(o) * 0.5,
+  });
+  for (let j = 1; j < last; j++) {
+    const damp = Math.min(1, Math.max(0.3, (cum[j] - cum[j - 1]) / 10));
+    const w = amp * damp * noiseAt(cum[j]);
+    v.push({ x: points[j].x - dir[j - 1].y * w, y: points[j].y + dir[j - 1].x * w });
+  }
+  // last tip: same loose treatment as the start
+  const endExt = jit(slip);
+  v.push({
+    x: points[last].x + dir[last - 1].x * endExt + jit(o) * 0.5,
+    y: points[last].y + dir[last - 1].y * endExt + jit(o) * 0.5,
+  });
+
+  // per-pass whole-stroke drift: each pass sits slightly off the others
+  const shx = passIndex === 0 ? 0 : jitter(seed + passIndex * 57) * roughness * 1.2;
+  const shy = passIndex === 0 ? 0 : jitter(seed + passIndex * 131) * roughness * 1.2;
+
+  for (let i = 1; i <= last; i++) {
     const a = points[i - 1];
     const b = points[i];
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const len = cum[i] - cum[i - 1];
-    const nx = len > 0 ? -dy / len : 0;
-    const ny = len > 0 ? dx / len : 0;
-    // dense samplings (arcs) have short segments: damp the wave there so
-    // curves stay cleaner than straight runs
-    const damp = Math.min(1, Math.max(0.3, len / 10));
-    const endJitter = i === last;
-    const ex = b.x + (endJitter ? jit(o) : nx * amp * damp * noiseAt(cum[i]));
-    const ey = b.y + (endJitter ? jit(o) : ny * amp * damp * noiseAt(cum[i]));
-    if (len < 8 || roughness === 0) {
-      ctx.lineTo(ex, ey);
+
+    // pen-lift at this segment's joints: slip along the stroke direction
+    let ws = v[i - 1];
+    let we = v[i];
+    if (i > 1 && broken[i - 1]) {
+      const g = jit(slip);
+      ws = { x: ws.x + dir[i - 1].x * g, y: ws.y + dir[i - 1].y * g };
+    }
+    if (i < last && broken[i]) {
+      const g = jit(slip);
+      we = { x: we.x - dir[i - 1].x * g, y: we.y - dir[i - 1].y * g };
+    }
+
+    if (i === 1 || broken[i - 1]) ctx.moveTo(ws.x + shx, ws.y + shy);
+
+    if (len < 8) {
+      ctx.lineTo(we.x + shx, we.y + shy);
       continue;
     }
+    const damp = Math.min(1, Math.max(0.3, len / 10));
+    const nx = -dir[i - 1].y;
+    const ny = dir[i - 1].x;
     // control points ride the same wave, keeping the wobble continuous
     const c1d = cum[i - 1] + len * 0.3;
     const c2d = cum[i - 1] + len * 0.7;
     ctx.bezierCurveTo(
-      a.x + dx * 0.3 + nx * amp * damp * noiseAt(c1d),
-      a.y + dy * 0.3 + ny * amp * damp * noiseAt(c1d),
-      a.x + dx * 0.7 + nx * amp * damp * noiseAt(c2d),
-      a.y + dy * 0.7 + ny * amp * damp * noiseAt(c2d),
-      ex,
-      ey,
+      ws.x + dx * 0.3 + nx * amp * damp * noiseAt(c1d) + shx,
+      ws.y + dy * 0.3 + ny * amp * damp * noiseAt(c1d) + shy,
+      ws.x + dx * 0.7 + nx * amp * damp * noiseAt(c2d) + shx,
+      ws.y + dy * 0.7 + ny * amp * damp * noiseAt(c2d) + shy,
+      we.x + shx,
+      we.y + shy,
     );
   }
 }
 
 /**
  * strokes hand-drawn polylines: a single straight pass when clean,
- * two independent offset passes otherwise (sloppy sketch look).
+ * independent offset passes otherwise (sloppy sketch look).
  * endpoints don't meet exactly at corners — that's the point.
  */
 function sketchStroke(
@@ -220,7 +288,7 @@ function sketchStroke(
         for (let i = 1; i < pts.length; i++)
           ctx.lineTo(pts[i].x, pts[i].y);
       } else {
-        roughPolyline(ctx, pts, roughness, seedBase + p * 131 + pts.length);
+        roughPolyline(ctx, pts, roughness, seedBase + p * 131 + pts.length, p);
       }
     }
   }
