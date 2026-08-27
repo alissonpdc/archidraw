@@ -203,24 +203,31 @@ function roughPolyline(
   // max slip at loose joints/tips (signed: positive = gap, negative = overshoot)
   const slip = Math.max(o * 1.4, 1);
 
+  // closed loops (rounded rect outlines) must NOT get loose tips: the seam
+  // falls mid-arc and protruding nubs would read as sudden kinks on curves
+  const closedLoop =
+    points.length > 3 &&
+    points[0].x === points[last].x &&
+    points[0].y === points[last].y;
+
   // shared jittered vertices: adjacent segments meet exactly unless broken
   const v: Point[] = [];
   // first tip: slide past (or short of) the real start, plus a little scatter
-  const startExt = jit(slip);
+  const startExt = closedLoop ? 0 : jit(slip);
   v.push({
-    x: points[0].x + dir[0].x * startExt + jit(o) * 0.5,
-    y: points[0].y + dir[0].y * startExt + jit(o) * 0.5,
+    x: points[0].x + dir[0].x * startExt + jit(closedLoop ? o * 0.3 : o) * 0.5,
+    y: points[0].y + dir[0].y * startExt + jit(closedLoop ? o * 0.3 : o) * 0.5,
   });
   for (let j = 1; j < last; j++) {
     const damp = Math.min(1, Math.max(0.3, (cum[j] - cum[j - 1]) / 10));
     const w = amp * damp * noiseAt(cum[j]);
     v.push({ x: points[j].x - dir[j - 1].y * w, y: points[j].y + dir[j - 1].x * w });
   }
-  // last tip: same loose treatment as the start
-  const endExt = jit(slip);
+  // last tip: same loose treatment as the start (none on closed loops)
+  const endExt = closedLoop ? 0 : jit(slip);
   v.push({
-    x: points[last].x + dir[last - 1].x * endExt + jit(o) * 0.5,
-    y: points[last].y + dir[last - 1].y * endExt + jit(o) * 0.5,
+    x: points[last].x + dir[last - 1].x * endExt + jit(closedLoop ? o * 0.3 : o) * 0.5,
+    y: points[last].y + dir[last - 1].y * endExt + jit(closedLoop ? o * 0.3 : o) * 0.5,
   });
 
   // per-pass whole-stroke drift: each pass sits slightly off the others
@@ -354,7 +361,9 @@ function roundedRectLoop(
     ];
   }
   const pts: Point[] = [];
-  const seg = Math.max(3, Math.round(r / 4));
+  // dense enough that each arc step turns ≤ ~18°, so the hand-drawn wave
+  // can't produce visible polyline kinks on curved corners
+  const seg = Math.max(4, Math.round(r / 2.5));
   // [centerX, centerY, startAngle] per corner, clockwise from top-left arc
   const arcs: [number, number, number][] = [
     [x2 - r, y1 + r, -Math.PI / 2],
