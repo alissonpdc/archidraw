@@ -1,7 +1,7 @@
 /**
- * Catálogo de componentes de arquitetura (foco AWS).
- * Ícones são paths SVG stroke-only no viewBox 24x24, desenhados
- * tanto no canvas (Path2D) quanto no DOM (inline svg) e no export SVG.
+ * Architecture component catalog (AWS-focused).
+ * Icons are SVG stroke-only paths in viewBox 24x24, drawn
+ * on canvas (Path2D), in DOM (inline svg), and in SVG export.
  */
 
 export interface LibraryItem {
@@ -9,7 +9,7 @@ export interface LibraryItem {
   name: string;
   category: string;
   keywords: string[];
-  /** subpaths (stroke-only) no viewBox 0 0 24 24 */
+  /** subpaths (stroke-only) in viewBox 0 0 24 24 */
   icon: string[];
 }
 
@@ -30,12 +30,12 @@ const circle = (cx: number, cy: number, r: number) =>
   `M${cx + r} ${cy} A${r} ${r} 0 1 1 ${cx - r} ${cy} A${r} ${r} 0 1 1 ${cx + r} ${cy}`;
 
 export const LIBRARY: LibraryItem[] = [
-  // ---- Computação -------------------------------------------------------
+  // ---- Compute -------------------------------------------------------
   {
     id: "ec2",
     name: "EC2",
     category: "Compute",
-    keywords: ["instância", "servidor", "vm", "compute"],
+    keywords: ["instance", "server", "vm", "compute"],
     icon: [
       "M7 7 H17 V17 H7 Z",
       "M10.5 10.5 H13.5 V13.5 H10.5 Z",
@@ -49,7 +49,7 @@ export const LIBRARY: LibraryItem[] = [
     id: "lambda",
     name: "Lambda",
     category: "Compute",
-    keywords: ["serverless", "faas", "função", "lambda function"],
+    keywords: ["serverless", "faas", "function", "lambda function"],
     icon: [
       "M14.5 4 C11 5.2 10.2 8 8.6 12.8 L6 20",
       "M10.3 9.3 C13 14 15.5 17.4 19 20",
@@ -70,7 +70,7 @@ export const LIBRARY: LibraryItem[] = [
     id: "eks",
     name: "EKS",
     category: "Compute",
-    keywords: ["kubernetes", "k8s", "orquestração", "cluster"],
+    keywords: ["kubernetes", "k8s", "orchestration", "cluster"],
     icon: [
       "M12 3 L19.8 7.5 V16.5 L12 21 L4.2 16.5 V7.5 Z",
       circle(12, 12, 3.4),
@@ -78,7 +78,7 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
 
-  // ---- Rede e entrega -----------------------------------------------------
+  // ---- Network & Delivery -----------------------------------------------------
   {
     id: "api-gateway",
     name: "API Gateway",
@@ -94,7 +94,7 @@ export const LIBRARY: LibraryItem[] = [
     id: "elb",
     name: "Load Balancer",
     category: "Network",
-    keywords: ["elb", "alb", "nlb", "balanceamento", "balancer"],
+    keywords: ["elb", "alb", "nlb", "load balancer", "balancer"],
     icon: [
       circle(6.5, 12, 2.6),
       "M9 10.5 L19 5.5 M9 12 H19 M9 13.5 L19 18.5",
@@ -107,14 +107,14 @@ export const LIBRARY: LibraryItem[] = [
     id: "route53",
     name: "Route 53",
     category: "Network",
-    keywords: ["dns", "rota", "domínio", "route"],
+    keywords: ["dns", "route", "domain", "route53"],
     icon: [circle(12, 12, 8), "M4 12 H20", "M12 4 C15 7 15 17 12 20 C9 17 9 7 12 4 Z"],
   },
   {
     id: "cloudfront",
     name: "CloudFront",
     category: "Network",
-    keywords: ["cdn", "edge", "cache de borda"],
+    keywords: ["cdn", "edge", "edge cache"],
     icon: [
       circle(12, 12, 5.5),
       "M3.5 10 A 9 9 0 0 1 9 3.8 M20.5 14 A 9 9 0 0 1 15 20.2",
@@ -125,19 +125,19 @@ export const LIBRARY: LibraryItem[] = [
     id: "vpc",
     name: "VPC",
     category: "Network",
-    keywords: ["rede", "network", "subrede", "subnet", "boundary"],
+    keywords: ["network", "network", "subnet", "subnet", "boundary"],
     icon: [
       "M4 8 V4 H8 M16 4 H20 V8 M20 16 V20 H16 M8 20 H4 V16",
       "M8.5 12 H15.5 M12 8.5 V15.5",
     ],
   },
 
-  // ---- Banco de dados ---------------------------------------------------
+  // ---- Database ---------------------------------------------------
   {
     id: "dynamodb",
     name: "DynamoDB",
     category: "Database",
-    keywords: ["nosql", "banco", "database", "tabela"],
+    keywords: ["nosql", "database", "database", "table"],
     icon: [
       "M5 6 A7 2.8 0 0 0 19 6 A7 2.8 0 0 0 5 6 Z",
       "M5 6 V18 M19 6 V18",
@@ -150,7 +150,7 @@ export const LIBRARY: LibraryItem[] = [
     id: "rds",
     name: "RDS",
     category: "Database",
-    keywords: ["sql", "mysql", "postgres", "aurora", "banco relacional"],
+    keywords: ["sql", "mysql", "postgres", "aurora", "relational database"],
     icon: [
       "M5 6 A7 2.8 0 0 0 19 6 A7 2.8 0 0 0 5 6 Z",
       "M5 6 V18 M19 6 V18",
@@ -169,24 +169,24 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
 
-  // ---- Armazenamento ----------------------------------------------------
+  // ---- Storage ----------------------------------------------------
   {
     id: "s3",
     name: "S3",
     category: "Storage",
-    keywords: ["bucket", "storage", "objeto", "arquivo"],
+    keywords: ["bucket", "storage", "object", "file"],
     icon: [
       "M5.5 6.5 H18.5 L16.8 18.3 A6.8 3.4 0 0 1 7.2 18.3 Z",
       "M5.5 6.5 A6.5 2.6 0 0 0 18.5 6.5",
     ],
   },
 
-  // ---- Mensageria e integração -------------------------------------------
+  // ---- Messaging & Integration -------------------------------------------
   {
     id: "sqs",
     name: "SQS",
     category: "Messaging",
-    keywords: ["fila", "queue", "mensagens", "broker"],
+    keywords: ["queue", "queue", "messages", "broker"],
     icon: [
       "M5 5 H19 V8.5 H5 Z",
       "M5 10.25 H19 V13.75 H5 Z",
@@ -197,14 +197,14 @@ export const LIBRARY: LibraryItem[] = [
     id: "sns",
     name: "SNS",
     category: "Messaging",
-    keywords: ["notificação", "pub/sub", "tópico", "push"],
+    keywords: ["notification", "pub/sub", "topic", "push"],
     icon: ["M4 12 L20 4 L12.5 20 L11 13.5 Z", "M20 4 L11 13.5"],
   },
   {
     id: "eventbridge",
     name: "EventBridge",
     category: "Messaging",
-    keywords: ["eventos", "events", "bus", "roteamento"],
+    keywords: ["events", "events", "bus", "routing"],
     icon: [
       circle(12, 12, 2.6),
       "M9.8 9.8 L6 6 M14.2 9.8 L18 6 M9.8 14.2 L6 18 M14.2 14.2 L18 18",
@@ -218,7 +218,7 @@ export const LIBRARY: LibraryItem[] = [
     id: "step-functions",
     name: "Step Functions",
     category: "Messaging",
-    keywords: ["workflow", "orquestração", "máquina de estados"],
+    keywords: ["workflow", "orchestration", "state machine"],
     icon: [
       "M6.5 8.5 L10 12 L6.5 15.5 L3 12 Z",
       "M10 12 H14",
@@ -229,19 +229,19 @@ export const LIBRARY: LibraryItem[] = [
     id: "kinesis",
     name: "Kinesis",
     category: "Messaging",
-    keywords: ["streams", "streaming", "dados em tempo real"],
+    keywords: ["streams", "streaming", "real-time data"],
     icon: [
       "M4 6 C9 6 9 10 14 10 H20 M4 12 C9 12 9 16 14 16 H20",
       "M4 16 C7 16 8 18 11 18.5",
     ],
   },
 
-  // ---- Segurança e identidade ----------------------------------------------
+  // ---- Security & Identity ----------------------------------------------
   {
     id: "cognito",
     name: "Cognito",
     category: "Security",
-    keywords: ["autenticação", "login", "usuários", "identity"],
+    keywords: ["authentication", "login", "users", "identity"],
     icon: [
       circle(8.5, 8, 2.6),
       "M4 18.5 C4 15 13 15 13 18.5",
@@ -252,7 +252,7 @@ export const LIBRARY: LibraryItem[] = [
     id: "iam",
     name: "IAM",
     category: "Security",
-    keywords: ["permissões", "roles", "políticas", "access"],
+    keywords: ["permissions", "roles", "policies", "access"],
     icon: [
       "M4.5 5 H19.5 V19 H4.5 Z",
       circle(9.5, 10, 1.7),
@@ -261,24 +261,24 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
 
-  // ---- Monitoramento ------------------------------------------------------
+  // ---- Monitoring ------------------------------------------------------
   {
     id: "cloudwatch",
     name: "CloudWatch",
     category: "Monitoring",
-    keywords: ["logs", "métricas", "alarmes", "monitoring"],
+    keywords: ["logs", "metrics", "alarms", "monitoring"],
     icon: [
       "M3.5 5.5 H20.5 V18.5 H3.5 Z",
       "M6 12 H8.5 L10.5 8.5 L13.5 15.5 L15.5 12 H18",
     ],
   },
 
-  // ---- Clientes -------------------------------------------------------------
+  // ---- Clients -------------------------------------------------------------
   {
     id: "client",
-    name: "Cliente / Browser",
+    name: "Client / Browser",
     category: "Clients",
-    keywords: ["browser", "navegador", "usuário", "web", "spa"],
+    keywords: ["browser", "browser", "user", "web", "spa"],
     icon: [
       "M3.5 5 H20.5 V19 H3.5 Z",
       "M3.5 9 H20.5",
@@ -290,7 +290,7 @@ export const LIBRARY: LibraryItem[] = [
     id: "mobile",
     name: "Mobile",
     category: "Clients",
-    keywords: ["celular", "app", "smartphone", "ios", "android"],
+    keywords: ["mobile", "app", "smartphone", "ios", "android"],
     icon: ["M8.5 3.5 H15.5 V20.5 H8.5 Z", "M11 17.8 H13"],
   },
 ];
@@ -299,7 +299,7 @@ export function getLibraryItem(id: string): LibraryItem | undefined {
   return LIBRARY.find((i) => i.id === id);
 }
 
-/** busca simples case-insensitive por nome, keywords e categoria */
+/** Simple case-insensitive search by name, keywords, and category */
 export function searchLibrary(query: string): LibraryItem[] {
   const q = query.trim().toLowerCase();
   if (!q) return LIBRARY;

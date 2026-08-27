@@ -225,7 +225,7 @@ test.describe("fit to content", () => {
     await createRect(page, 100, 100, 220, 180);
     await createRect(page, 900, 700, 1020, 780);
 
-    await page.getByRole("button", { name: "Enquadrar conteúdo" }).click();
+    await page.getByRole("button", { name: "Fit content" }).click();
 
     const fits = await page.evaluate(() => {
       const cam = window.__editor__.getSnapshot().camera;

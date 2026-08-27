@@ -175,7 +175,7 @@ let tabSeq = 0;
 
 export class Editor {
   private tabs: TabData[] = [
-    { id: `tab_${++tabSeq}`, name: "Diagrama 1", doc: { schemaVersion: 1, elements: [] }, camera: { scrollX: 0, scrollY: 0, zoom: 1 } },
+    { id: `tab_${++tabSeq}`, name: "Diagram 1", doc: { schemaVersion: 1, elements: [] }, camera: { scrollX: 0, scrollY: 0, zoom: 1 } },
   ];
   private activeTabId = this.tabs[0].id;
   private tool: Tool = "selection";
@@ -441,10 +441,10 @@ export class Editor {
   private nextTabName(): string {
     let max = 0;
     for (const t of this.tabs) {
-      const m = t.name.match(/^Diagrama (\d+)$/);
+      const m = t.name.match(/^Diagram (\d+)$/);
       if (m) max = Math.max(max, Number(m[1]));
     }
-    return `Diagrama ${max + 1}`;
+    return `Diagram ${max + 1}`;
   }
 
   addTab() {

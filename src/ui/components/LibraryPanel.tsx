@@ -107,7 +107,7 @@ function Tile({
     <button
       className="library-card library-tile"
       draggable
-      aria-label={`Inserir ${item.name}`}
+      aria-label={`Insert ${item.name}`}
       data-tip={item.name}
       data-component-id={item.id}
       onDragStart={(e) => {
@@ -180,17 +180,17 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   return (
     <aside
       className="library-panel"
-      aria-label="Biblioteca de componentes"
+      aria-label="Component Library"
       onMouseOver={showTip}
       onMouseLeave={() => setTip(null)}
       onScroll={() => setTip(null)}
     >
       <TileTooltip tip={tip} />
       <div className="library-header">
-        <span className="panel-subtitle">Biblioteca</span>
+        <span className="panel-subtitle">Library</span>
         <button
           className="tool-btn library-close"
-          aria-label="Fechar biblioteca"
+          aria-label="Close library"
           onClick={close}
         >
           ×
@@ -199,8 +199,8 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
       <input
         className="library-search"
         type="text"
-        placeholder="Buscar componente…"
-        aria-label="Buscar componente"
+        placeholder="Search component…"
+        aria-label="Search component"
         autoFocus
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -214,7 +214,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
       <div className="library-body">
         {recentItems.length > 0 && (
           <section className="library-section" data-testid="library-recents">
-            <div className="panel-subtitle">Recentes</div>
+            <div className="panel-subtitle">Recents</div>
             <div className="library-grid">
               {recentItems.map((item) => (
                 <Tile key={`r-${item.id}`} item={item} onInsert={insert} />
@@ -232,7 +232,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
               </div>
             </section>
           ) : (
-            <div className="library-empty">Nenhum componente encontrado</div>
+            <div className="library-empty">No component found</div>
           )
         ) : (
           <section className="library-section">

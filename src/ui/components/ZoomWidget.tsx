@@ -9,8 +9,8 @@ export function ZoomWidget() {
     <div className="zoom-widget">
       <button
         className="zoom-btn tip-up"
-        data-tip="Resetar zoom (100%)"
-        aria-label="Resetar zoom"
+        data-tip="Reset zoom (100%)"
+        aria-label="Reset zoom"
         onClick={() => editor.resetZoom()}
       >
         <FitIcon size={14} />
@@ -18,8 +18,8 @@ export function ZoomWidget() {
       <div className="toolbar-sep" />
       <button
         className="zoom-btn tip-up"
-        data-tip="Reduzir zoom"
-        aria-label="Reduzir zoom"
+        data-tip="Zoom out"
+        aria-label="Zoom out"
         onClick={() => editor.zoomOut()}
       >
         <MinusIcon size={14} />
@@ -29,8 +29,8 @@ export function ZoomWidget() {
       </span>
       <button
         className="zoom-btn tip-up"
-        data-tip="Aumentar zoom"
-        aria-label="Aumentar zoom"
+        data-tip="Zoom in"
+        aria-label="Zoom in"
         onClick={() => editor.zoomIn()}
       >
         <PlusIcon size={14} />
@@ -38,8 +38,8 @@ export function ZoomWidget() {
       <div className="toolbar-sep" />
       <button
         className="zoom-btn tip-up"
-        data-tip="Enquadrar conteúdo (Shift+1)"
-        aria-label="Enquadrar conteúdo"
+        data-tip="Fit content (Shift+1)"
+        aria-label="Fit content"
         onClick={() => editor.zoomToFit()}
       >
         <TargetIcon size={14} />

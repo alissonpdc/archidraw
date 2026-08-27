@@ -5,7 +5,7 @@ export function StatusBar() {
         className="status-link"
         onClick={() => window.dispatchEvent(new Event("archidraw:shortcuts"))}
       >
-        atalhos (?)
+        shortcuts (?)
       </button>
     </div>
   );

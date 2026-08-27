@@ -11,15 +11,15 @@ import { CheckIcon, MenuIcon } from "./icons";
 import { toast } from "../toasts";
 
 const THEME_OPTIONS: { id: ThemePref; label: string }[] = [
-  { id: "system", label: "Sistema" },
-  { id: "light", label: "Claro" },
-  { id: "dark", label: "Escuro" },
+  { id: "system", label: "System" },
+  { id: "light", label: "Light" },
+  { id: "dark", label: "Dark" },
 ];
 
 const GRID_OPTIONS: { id: GridMode; label: string }[] = [
-  { id: "dots", label: "Pontos" },
-  { id: "lines", label: "Linhas" },
-  { id: "none", label: "Nenhum" },
+  { id: "dots", label: "Dots" },
+  { id: "lines", label: "Lines" },
+  { id: "none", label: "None" },
 ];
 
 function MenuSection({ title, children }: { title: string; children: ReactNode }) {
@@ -71,7 +71,7 @@ export function AppMenu() {
     a.download = `${filename}.archidraw.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast("Workspace exportado em JSON");
+    toast("Workspace exported as JSON");
     close();
   };
 
@@ -79,9 +79,9 @@ export function AppMenu() {
     if (!file) return;
     const text = await file.text();
     if (editor.restoreState(text)) {
-      toast(`"${file.name}" importado`);
+      toast(`"${file.name}" imported`);
     } else {
-      toast("Arquivo inválido — import cancelado");
+      toast("Invalid file — import cancelled");
     }
     close();
   };
@@ -92,7 +92,7 @@ export function AppMenu() {
         data-testid="app-menu-button"
         className={`tool-btn menu-btn ${open ? "active" : ""}`}
         title="Menu"
-        aria-label="Menu principal"
+        aria-label="Main menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
@@ -102,29 +102,29 @@ export function AppMenu() {
         <>
           <div className="menu-backdrop" onClick={close} />
           <div className="menu-dropdown">
-            <MenuSection title="Arquivo">
-              <MenuItem label="Importar JSON…" onClick={() => fileInputRef.current?.click()} />
+            <MenuSection title="File">
+              <MenuItem label="Import JSON…" onClick={() => fileInputRef.current?.click()} />
               <MenuItem
-                label="Exportar PNG"
+                label="Export PNG"
                 onClick={() => {
                   exportPNG(snap.doc, filename).then((ok) =>
-                    toast(ok ? "PNG exportado" : "Canvas vazio — nada a exportar"),
+                    toast(ok ? "PNG exported" : "Empty canvas — nothing to export"),
                   );
                   close();
                 }}
               />
               <MenuItem
-                label="Exportar SVG"
+                label="Export SVG"
                 onClick={() => {
                   const ok = exportSVG(snap.doc, filename);
-                  toast(ok ? "SVG exportado" : "Canvas vazio — nada a exportar");
+                  toast(ok ? "SVG exported" : "Empty canvas — nothing to export");
                   close();
                 }}
               />
-              <MenuItem label="Exportar JSON" onClick={exportJSON} />
+              <MenuItem label="Export JSON" onClick={exportJSON} />
             </MenuSection>
 
-            <MenuSection title="Tema">
+            <MenuSection title="Theme">
               {THEME_OPTIONS.map((opt) => (
                 <MenuItem
                   key={opt.id}
@@ -138,7 +138,7 @@ export function AppMenu() {
               ))}
             </MenuSection>
 
-            <MenuSection title="Grade">
+            <MenuSection title="Grid">
               {GRID_OPTIONS.map((opt) => (
                 <MenuItem
                   key={opt.id}
@@ -149,9 +149,9 @@ export function AppMenu() {
               ))}
             </MenuSection>
 
-            <MenuSection title="Ajuda">
+            <MenuSection title="Help">
               <MenuItem
-                label="Atalhos de teclado (?)"
+                label="Keyboard shortcuts (?)"
                 onClick={() => {
                   window.dispatchEvent(new Event("archidraw:shortcuts"));
                   close();

@@ -4,19 +4,19 @@ test.describe("ui widgets", () => {
   test("zoom widget buttons change zoom level", async ({ page }) => {
     await open(page);
 
-    await page.getByRole("button", { name: "Aumentar zoom" }).click();
+    await page.getByRole("button", { name: "Zoom in" }).click();
     let pct = await page.locator(".zoom-level").textContent();
     expect(pct).toBe("120%");
 
-    await page.getByRole("button", { name: "Reduzir zoom" }).click();
+    await page.getByRole("button", { name: "Zoom out" }).click();
     pct = await page.locator(".zoom-level").textContent();
     expect(pct).toBe("100%");
 
     // dedicated reset button returns to 100%
-    await page.getByRole("button", { name: "Aumentar zoom" }).click();
+    await page.getByRole("button", { name: "Zoom in" }).click();
     await page
       .locator(".zoom-widget")
-      .getByRole("button", { name: "Resetar zoom" })
+      .getByRole("button", { name: "Reset zoom" })
       .click();
     pct = await page.locator(".zoom-level").textContent();
     expect(pct).toBe("100%");
@@ -29,7 +29,7 @@ test.describe("ui widgets", () => {
     );
 
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Claro" }).click();
+    await page.getByRole("button", { name: "Light" }).click();
 
     expect(
       await page.evaluate(
@@ -56,15 +56,15 @@ test.describe("ui widgets", () => {
     expect(storedBefore).toBe(null); // default "none" is not written
 
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Linhas" }).click();
+    await page.getByRole("button", { name: "Lines" }).click();
 
     expect(
       await page.evaluate(() => localStorage.getItem("archidraw:grid")),
     ).toBe("lines");
 
-    // menu stays open after toggling; checkmark moved to "Linhas" in the Grade section
-    const gridSection = page.locator(".menu-section", { hasText: "Grade" });
-    await expect(gridSection.locator(".menu-item.active")).toHaveText(/Linhas/);
+    // menu stays open after toggling; checkmark moved to "Lines" in the Grid section
+    const gridSection = page.locator(".menu-section", { hasText: "Grid" });
+    await expect(gridSection.locator(".menu-item.active")).toHaveText(/Lines/);
   });
 
   test("new elements use theme-aware stroke color", async ({ page }) => {
@@ -110,16 +110,16 @@ test.describe("ui widgets", () => {
   test("export shows a toast", async ({ page }) => {
     await open(page);
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Exportar JSON" }).click();
+    await page.getByRole("button", { name: "Export JSON" }).click();
 
-    await expect(page.locator(".toast")).toHaveText(/Workspace exportado/);
+    await expect(page.locator(".toast")).toHaveText(/Workspace exported/);
   });
 
   test("status bar shows shortcuts link", async ({ page }) => {
     await open(page);
 
     const bar = await page.locator(".status-bar").textContent();
-    expect(bar).toContain("atalhos (?)");
+    expect(bar).toContain("shortcuts (?)");
 
     await page.click(".status-bar .status-link");
     await expect(page.locator(".shortcuts-modal")).toBeVisible();
@@ -137,7 +137,7 @@ test.describe("ui widgets", () => {
     await expect(page.locator(".shortcuts-modal")).toHaveCount(0);
 
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: /Atalhos de teclado/ }).click();
+    await page.getByRole("button", { name: /Keyboard shortcuts/ }).click();
     await expect(page.locator(".shortcuts-modal")).toBeVisible();
     await page.locator(".modal-backdrop").click({ position: { x: 5, y: 5 } });
     await expect(page.locator(".shortcuts-modal")).toHaveCount(0);
@@ -154,8 +154,8 @@ test.describe("ui widgets", () => {
     await page.mouse.up();
     await page.keyboard.press("v");
 
-    await page.getByRole("button", { name: "Espessura 4" }).click();
-    await page.getByRole("slider", { name: "Opacidade" }).fill("50");
+    await page.getByRole("button", { name: "Thickness 4" }).click();
+    await page.getByRole("slider", { name: "Opacity" }).fill("50");
 
     const el = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
@@ -174,7 +174,7 @@ test.describe("ui widgets", () => {
     await page.keyboard.press("v");
 
     await page
-      .getByRole("button", { name: "Seriedade Rascunho", exact: true })
+      .getByRole("button", { name: "Roughness Draft", exact: true })
       .click();
     let roughness = await page.evaluate(
       () => (window as any).__editor__.getSnapshot().doc.elements[0].roughness,
@@ -182,14 +182,14 @@ test.describe("ui widgets", () => {
     expect(roughness).toBe(1);
 
     await page
-      .getByRole("button", { name: "Seriedade Caos", exact: true })
+      .getByRole("button", { name: "Roughness Chaos", exact: true })
       .click();
     roughness = await page.evaluate(
       () => (window as any).__editor__.getSnapshot().doc.elements[0].roughness,
     );
     expect(roughness).toBe(3);
 
-    await page.getByRole("button", { name: "Seriedade Arquiteto" }).click();
+    await page.getByRole("button", { name: "Roughness Architect" }).click();
     roughness = await page.evaluate(
       () => (window as any).__editor__.getSnapshot().doc.elements[0].roughness,
     );
@@ -203,10 +203,10 @@ test.describe("ui widgets", () => {
     await page.keyboard.press("v");
 
     // no slider until the custom preset is activated
-    await expect(page.getByRole("slider", { name: "Arredondamento personalizado" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Bordas personalizadas" }).click();
+    await expect(page.getByRole("slider", { name: "Custom rounding" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Custom borders" }).click();
 
-    const slider = page.getByRole("slider", { name: "Arredondamento personalizado" });
+    const slider = page.getByRole("slider", { name: "Custom rounding" });
     await expect(slider).toBeVisible();
     await slider.fill("40");
     const radius = await page.evaluate(
@@ -230,13 +230,13 @@ test.describe("ui widgets", () => {
 
     // clicking a color opens the floating intensity submenu
     await page
-      .getByRole("button", { name: "Cor de traço Azul" })
+      .getByRole("button", { name: "Stroke color Blue" })
       .click();
     const popover = page.locator(".color-popover");
     await expect(popover).toBeVisible();
 
     // picking an intensity applies it to the selection
-    await popover.getByRole("button", { name: /intensidade 3/ }).click();
+    await popover.getByRole("button", { name: /shade 3/ }).click();
     const color = await page.evaluate(
       () =>
         (window as any).__editor__.getSnapshot().doc.elements[0].strokeColor,
@@ -258,18 +258,18 @@ test.describe("ui widgets", () => {
     // select the text element -> panel shows Text tab with font size group
     await page.mouse.click(255, 255);
     // switch to Text tab
-    await page.locator(".panel-tab", { hasText: "Texto" }).click();
+    await page.locator(".panel-tab", { hasText: "Text" }).click();
     await expect(
-      page.locator(".panel-group", { hasText: "Tamanho" }),
+      page.locator(".panel-group", { hasText: "Size" }),
     ).toBeVisible();
 
     // shape-only selection: Text tab still shows font size (labels), but
     // verify the panel switches correctly
     await page.keyboard.press("r");
     await drag(page, { x: 500, y: 500 }, { x: 600, y: 580 });
-    await page.locator(".panel-tab", { hasText: "Texto" }).click();
+    await page.locator(".panel-tab", { hasText: "Text" }).click();
     await expect(
-      page.locator(".panel-group", { hasText: "Tamanho" }),
+      page.locator(".panel-group", { hasText: "Size" }),
     ).toBeVisible();
 
     // deselect hides panel entirely

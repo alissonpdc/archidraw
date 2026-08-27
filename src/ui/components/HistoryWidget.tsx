@@ -9,8 +9,8 @@ export function HistoryWidget() {
     <div className="zoom-widget">
       <button
         className="zoom-btn tip-up"
-        data-tip={`Desfazer (${MOD}+Z)`}
-        aria-label="Desfazer"
+        data-tip={`Undo (${MOD}+Z)`}
+        aria-label="Undo"
         disabled={!editor.canUndo()}
         onClick={() => editor.undo()}
       >
@@ -18,8 +18,8 @@ export function HistoryWidget() {
       </button>
       <button
         className="zoom-btn tip-up"
-        data-tip={`Refazer (${MOD}+Y)`}
-        aria-label="Refazer"
+        data-tip={`Redo (${MOD}+Y)`}
+        aria-label="Redo"
         disabled={!editor.canRedo()}
         onClick={() => editor.redo()}
       >

@@ -5,35 +5,35 @@ type ShortcutGroup = { title: string; items: { keys: string; desc: string }[] };
 
 const GROUPS: ShortcutGroup[] = [
   {
-    title: "Ferramentas",
+    title: "Tools",
     items: [
-      { keys: "V", desc: "Seleção" },
-      { keys: "H", desc: "Mão" },
-      { keys: "R", desc: "Retângulo" },
-      { keys: "A", desc: "Seta" },
-      { keys: "T", desc: "Texto" },
-      { keys: "B", desc: "Biblioteca" },
+      { keys: "V", desc: "Selection" },
+      { keys: "H", desc: "Hand" },
+      { keys: "R", desc: "Rectangle" },
+      { keys: "A", desc: "Arrow" },
+      { keys: "T", desc: "Text" },
+      { keys: "B", desc: "Library" },
     ],
   },
   {
     title: "Canvas",
     items: [
-      { keys: "Espaço+arrastar", desc: "Pan" },
+      { keys: "Space+drag", desc: "Pan" },
       { keys: `${MOD}+Scroll`, desc: "Zoom" },
-      { keys: "Shift+1", desc: "Enquadrar" },
-      { keys: "Duplo clique", desc: "Editar label" },
+      { keys: "Shift+1", desc: "Fit" },
+      { keys: "Double click", desc: "Edit label" },
     ],
   },
   {
-    title: "Edição",
+    title: "Editing",
     items: [
-      { keys: `${MOD}+Z`, desc: "Desfazer" },
-      { keys: `${MOD}+Shift+Z`, desc: "Refazer" },
-      { keys: `${MOD}+C / X / V`, desc: "Copiar/Recortar/Colar" },
-      { keys: `${MOD}+D`, desc: "Duplicar" },
-      { keys: `${MOD}+A`, desc: "Selecionar tudo" },
-      { keys: "Delete", desc: "Apagar" },
-      { keys: "Esc", desc: "Desselecionar" },
+      { keys: `${MOD}+Z`, desc: "Undo" },
+      { keys: `${MOD}+Shift+Z`, desc: "Redo" },
+      { keys: `${MOD}+C / X / V`, desc: "Copy/Cut/Paste" },
+      { keys: `${MOD}+D`, desc: "Duplicate" },
+      { keys: `${MOD}+A`, desc: "Select all" },
+      { keys: "Delete", desc: "Delete" },
+      { keys: "Esc", desc: "Deselect" },
     ],
   },
 ];
@@ -55,12 +55,12 @@ export function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () =
       <div
         className="shortcuts-modal shortcuts-modal-wide"
         role="dialog"
-        aria-label="Atalhos de teclado"
+        aria-label="Keyboard shortcuts"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shortcuts-header">
-          <span>Atalhos de teclado</span>
-          <button className="tool-btn" aria-label="Fechar" onClick={onClose}>
+          <span>Keyboard shortcuts</span>
+          <button className="tool-btn" aria-label="Close" onClick={onClose}>
             ×
           </button>
         </div>

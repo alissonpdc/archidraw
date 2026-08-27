@@ -11,11 +11,11 @@ import {
 } from "./icons";
 
 const TOOLS: { id: Tool; label: string; key: string; Icon: typeof SelectionIcon }[] = [
-  { id: "selection", label: "Seleção", key: "V", Icon: SelectionIcon },
-  { id: "hand", label: "Mão", key: "H", Icon: HandIcon },
-  { id: "rectangle", label: "Retângulo", key: "R", Icon: RectIcon },
-  { id: "arrow", label: "Seta", key: "A", Icon: ArrowIcon },
-  { id: "text", label: "Texto", key: "T", Icon: TextIcon },
+  { id: "selection", label: "Selection", key: "V", Icon: SelectionIcon },
+  { id: "hand", label: "Hand", key: "H", Icon: HandIcon },
+  { id: "rectangle", label: "Rectangle", key: "R", Icon: RectIcon },
+  { id: "arrow", label: "Arrow", key: "A", Icon: ArrowIcon },
+  { id: "text", label: "Text", key: "T", Icon: TextIcon },
 ];
 
 export function Toolbar({
@@ -45,8 +45,8 @@ export function Toolbar({
       <div className="toolbar-sep" />
       <button
         className={`tool-btn ${libraryOpen ? "active" : ""}`}
-        data-tip="Biblioteca de componentes (B)"
-        aria-label="Biblioteca de componentes"
+        data-tip="Component Library (B)"
+        aria-label="Component Library"
         onClick={() => onToggleLibrary?.()}
       >
         <LibraryIcon size={18} />

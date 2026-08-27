@@ -3,7 +3,7 @@ export type ElementType = "rectangle" | "arrow" | "text" | "component";
 /** line pattern: continuous, dashed, dotted or dash-dot */
 export type StrokeStyle = "solid" | "dashed" | "dotted" | "dashdot";
 
-/** how "hand-drawn" the stroke looks: 0 = limpo, 1 = rascunho, 2 = rabisco, 3 = caos */
+/** how "hand-drawn" the stroke looks: 0 = clean, 1 = draft, 2 = sketchy, 3 = chaos */
 export type Roughness = 0 | 1 | 2 | 3;
 
 export interface Point {
@@ -34,7 +34,7 @@ export interface BaseElement {
   strokeWidth: number;
   opacity: number;
   strokeStyle: StrokeStyle;
-  /** 0 = limpo, 1 = rascunho, 2 = rabisco, 3 = caos */
+  /** 0 = clean, 1 = draft, 2 = sketchy, 3 = chaos */
   roughness: Roughness;
   /** corner rounding of rectangles, % of the smaller side (0–100) */
   borderRadius: number;

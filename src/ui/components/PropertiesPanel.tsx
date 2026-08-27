@@ -7,17 +7,17 @@ import {
 import { createPortal } from "react-dom";
 import { editor, useEditor } from "../hooks/useEditor";
 
-/** 9 cores básicas compartilhadas por traço e preenchimento */
+/** 9 basic colors shared by stroke and fill */
 const BASE_COLORS: { name: string; color: string }[] = [
-  { name: "Cinza", color: "#868e96" },
-  { name: "Vermelho", color: "#e03131" },
-  { name: "Laranja", color: "#f08c00" },
-  { name: "Amarelo", color: "#f5c518" },
-  { name: "Verde", color: "#2f9e44" },
-  { name: "Ciano", color: "#0c8599" },
-  { name: "Azul", color: "#1971c2" },
-  { name: "Roxo", color: "#6741d9" },
-  { name: "Rosa", color: "#d6336c" },
+  { name: "Grey", color: "#868e96" },
+  { name: "Red", color: "#e03131" },
+  { name: "Orange", color: "#f08c00" },
+  { name: "Yellow", color: "#f5c518" },
+  { name: "Green", color: "#2f9e44" },
+  { name: "Cyan", color: "#0c8599" },
+  { name: "Blue", color: "#1971c2" },
+  { name: "Purple", color: "#6741d9" },
+  { name: "Pink", color: "#d6336c" },
 ];
 
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
@@ -29,15 +29,15 @@ const FONT_FAMILIES = [
   { label: "Consolas", value: 'Consolas, "SF Mono", monospace', iconPath: "M3 5l5 5-5 5M9 15h8" },
 ];
 const CAPTION_POSITIONS = [
-  { label: "Baixo", value: "bottom" as const },
-  { label: "Cima", value: "top" as const },
-  { label: "Esquerda", value: "left" as const },
-  { label: "Direita", value: "right" as const },
+  { label: "Bottom", value: "bottom" as const },
+  { label: "Top", value: "top" as const },
+  { label: "Left", value: "left" as const },
+  { label: "Right", value: "right" as const },
 ];
 const TEXT_VALIGNS = [
-  { label: "Cima", value: "top" as const },
-  { label: "Meio", value: "middle" as const },
-  { label: "Baixo", value: "bottom" as const },
+  { label: "Top", value: "top" as const },
+  { label: "Middle", value: "middle" as const },
+  { label: "Bottom", value: "bottom" as const },
 ];
 
 type Patch = Partial<{
@@ -104,7 +104,7 @@ function hslToHex(h: number, s: number, l: number): string {
   );
 }
 
-/** 5 intensidades da cor (claro → escuro), com a cor original no meio */
+/** 5 shades of the color (light → dark), with original color in the middle */
 function shadesOf(hex: string): string[] {
   const [h, s] = hexToHsl(hex);
   const sat = Math.max(s, 8);
@@ -212,8 +212,8 @@ function PaletteGrid({
           className={`swatch transparent-checker ${
             current === "transparent" ? "active" : ""
           }`}
-          aria-label={`${label} Transparente`}
-          data-tip="Transparente"
+          aria-label={`${label} Transparent`}
+          data-tip="Transparent"
           onClick={() => {
             setExpanded(null);
             onPick("transparent");
@@ -240,7 +240,7 @@ function PaletteGrid({
           className="color-popover"
           style={{ left: popoverLeft }}
           role="menu"
-          aria-label={`${label} intensidades`}
+          aria-label={`${label} shades`}
         >
           <div className="swatch-shade-row">
             {expandedShades.map((shade, i) => (
@@ -248,7 +248,7 @@ function PaletteGrid({
                 key={shade}
                 className={`swatch ${current === shade ? "active" : ""}`}
                 style={{ background: shade }}
-                aria-label={`${label} intensidade ${i + 1}`}
+                aria-label={`${label} shade ${i + 1}`}
                 data-tip={shade.toUpperCase()}
                 onClick={() => {
                   onPick(shade);
@@ -277,7 +277,7 @@ function SpacingRow({
       <span className="spacing-label">{label}</span>
       <button
         className="spacing-btn"
-        aria-label={`Diminuir ${label}`}
+        aria-label={`Decrease ${label}`}
         onClick={() => onChange(Math.max(0, value - 1))}
       >
         −
@@ -295,7 +295,7 @@ function SpacingRow({
       />
       <button
         className="spacing-btn"
-        aria-label={`Aumentar ${label}`}
+        aria-label={`Increase ${label}`}
         onClick={() => onChange(Math.min(50, value + 1))}
       >
         +
@@ -442,59 +442,59 @@ export function PropertiesPanel() {
           className={`panel-tab ${activeTab === "style" ? "active" : ""}`}
           onClick={() => setActiveTab("style")}
         >
-          Estilo
+          Style
         </button>
         <button
           className={`panel-tab ${activeTab === "text" ? "active" : ""}`}
           onClick={() => setActiveTab("text")}
         >
-          Texto
+          Text
         </button>
         <button
           className={`panel-tab ${activeTab === "layers" ? "active" : ""}`}
           onClick={() => setActiveTab("layers")}
         >
-          Camadas
+          Layers
         </button>
       </div>
 
       {activeTab === "style" && (
         <>
-          <Group title="Traço">
+          <Group title="Stroke">
             <PaletteGrid
               current={selected[0].strokeColor}
               onPick={(strokeColor) => apply({ strokeColor })}
-              label="Cor de traço"
+              label="Stroke color"
             />
           </Group>
 
-          <Group title="Preenchimento">
+          <Group title="Fill">
             <PaletteGrid
               current={selected[0].backgroundColor}
               onPick={(backgroundColor) => apply({ backgroundColor })}
-              label="Preenchimento"
+              label="Fill"
             />
           </Group>
 
-          <Group title="Opacidade">
+          <Group title="Opacity">
             <MiniSlider
               value={opacityValue ?? 100}
               min={0}
               max={100}
               step={5}
-              ariaLabel="Opacidade"
+              ariaLabel="Opacity"
               onChange={(v) => apply({ opacity: v / 100 })}
             />
           </Group>
 
           {hasShape && (
             <>
-              <Group title="Tipo de linha">
+              <Group title="Line type">
                 {(["solid", "dashed", "dotted", "dashdot"] as const).map((s) => (
                   <button
                     key={s}
                     className={`size-btn line-style-btn ${allStyle(s) ? "active" : ""}`}
-                    aria-label={`Linha ${s}`}
+                    aria-label={`Line ${s}`}
                     onClick={() => apply({ strokeStyle: s })}
                   >
                     <svg width="20" height="10" viewBox="0 0 20 10">
@@ -516,17 +516,17 @@ export function PropertiesPanel() {
                 ))}
               </Group>
 
-              <Group title="Estilo do traço">
+              <Group title="Stroke style">
                 {(
                   [
                     {
                       v: 0,
-                      label: "Arquiteto",
+                      label: "Architect",
                       paths: ["M2 7 L18 7"],
                     },
                     {
                       v: 1,
-                      label: "Rascunho",
+                      label: "Draft",
                       paths: [
                         "M2.5 7 C6 5.8 12 8.4 17.5 6.8",
                         "M3 7.6 C7 8.6 13 6.2 17 8",
@@ -534,7 +534,7 @@ export function PropertiesPanel() {
                     },
                     {
                       v: 2,
-                      label: "Rabisco",
+                      label: "Sketchy",
                       paths: [
                         "M2 8 C6 4 12 10 18 6",
                         "M2.5 6.5 C7 9.5 12 4.5 17.5 8",
@@ -543,7 +543,7 @@ export function PropertiesPanel() {
                     },
                     {
                       v: 3,
-                      label: "Caos",
+                      label: "Chaos",
                       paths: [
                         "M2 9 C5 2 14 11 18 5",
                         "M2.5 5 C7 10.5 13 3.5 17.5 9",
@@ -557,7 +557,7 @@ export function PropertiesPanel() {
                   <button
                     key={v}
                     className={`size-btn ${allRoughness(v) ? "active" : ""}`}
-                    aria-label={`Seriedade ${label}`}
+                    aria-label={`Roughness ${label}`}
                     data-tip={label}
                     onClick={() => apply({ roughness: v as 0 | 1 | 2 | 3 })}
                   >
@@ -581,16 +581,16 @@ export function PropertiesPanel() {
           )}
 
           {hasArrow && (
-            <Group title="Tipo de traçado">
+            <Group title="Path type">
               {([
-                { v: "straight", label: "Reta", icon: "M2 12 L18 4" },
-                { v: "curved", label: "Curva", icon: "M2 12 Q10 0 18 4" },
-                { v: "auto", label: "Automática", icon: "M2 12 L10 12 L18 4" },
+                { v: "straight", label: "Straight", icon: "M2 12 L18 4" },
+                { v: "curved", label: "Curved", icon: "M2 12 Q10 0 18 4" },
+                { v: "auto", label: "Automatic", icon: "M2 12 L10 12 L18 4" },
               ] as const).map(({ v, label, icon }) => (
                 <button
                   key={v}
                   className={`size-btn ${allLineType(v) ? "active" : ""}`}
-                  aria-label={`Linha ${label}`}
+                  aria-label={`Line ${label}`}
                   data-tip={label}
                   onClick={() => apply({ lineType: v })}
                 >
@@ -602,12 +602,12 @@ export function PropertiesPanel() {
             </Group>
           )}
 
-          <Group title="Espessura">
+          <Group title="Thickness">
             {STROKE_WIDTHS.map((w) => (
               <button
                 key={w}
                 className={`size-btn ${allStroke(w) ? "active" : ""}`}
-                aria-label={`Espessura ${w}`}
+                aria-label={`Thickness ${w}`}
                 onClick={() => apply({ strokeWidth: w })}
               >
                 <span className="thickness-preview" style={{ height: w + 1 }} />
@@ -616,15 +616,15 @@ export function PropertiesPanel() {
           </Group>
 
           {hasShape && !hasArrow && (
-            <Group title="Bordas">
+            <Group title="Borders">
               <div className="v-stack">
                 <div className="border-presets">
                 <button
                   className={`size-btn border-preset-btn tip-up ${
                     radiusValue === 0 ? "active" : ""
                   }`}
-                  aria-label="Bordas quadradas"
-                  data-tip="Quadrada"
+                  aria-label="Square borders"
+                  data-tip="Square"
                   onClick={() => apply({ borderRadius: 0 })}
                 >
                   <span className="corner-preview square" />
@@ -633,16 +633,16 @@ export function PropertiesPanel() {
                   className={`size-btn border-preset-btn tip-up ${
                     radiusValue === 100 ? "active" : ""
                   }`}
-                  aria-label="Bordas arredondadas"
-                  data-tip="Arredondada"
+                  aria-label="Rounded borders"
+                  data-tip="Rounded"
                   onClick={() => apply({ borderRadius: 100 })}
                 >
                   <span className="corner-preview round" />
                 </button>
                 <button
                   className={`size-btn border-preset-btn tip-up ${isCustomRadius ? "active" : ""}`}
-                  aria-label="Bordas personalizadas"
-                  data-tip="Personalizada"
+                  aria-label="Custom borders"
+                  data-tip="Custom"
                   onClick={() =>
                     apply({ borderRadius: isCustomRadius ? (radiusValue ?? 50) : 25 })
                   }
@@ -656,7 +656,7 @@ export function PropertiesPanel() {
                     min={1}
                     max={99}
                     step={1}
-                    ariaLabel="Arredondamento personalizado"
+                    ariaLabel="Custom rounding"
                     onChange={(v) => apply({ borderRadius: v })}
                   />
                 )}
@@ -668,12 +668,12 @@ export function PropertiesPanel() {
 
       {activeTab === "text" && (
         <>
-          <Group title="Tamanho">
+          <Group title="Size">
             {FONT_SIZES.map((f) => (
               <button
                 key={f}
                 className={`size-btn text-btn ${allFont(f) ? "active" : ""}`}
-                aria-label={`Fonte ${f}px`}
+                aria-label={`Font ${f}px`}
                 style={{ fontSize: Math.max(10, f / 2 - 2) }}
                 onClick={() => apply({ fontSize: f })}
               >
@@ -682,7 +682,7 @@ export function PropertiesPanel() {
             ))}
           </Group>
 
-          <Group title="Família">
+          <Group title="Family">
             {FONT_FAMILIES.map((f) => (
               <button
                 key={f.value}
@@ -691,7 +691,7 @@ export function PropertiesPanel() {
                     ? "active"
                     : ""
                 }`}
-                aria-label={`Fonte ${f.label}`}
+                aria-label={`Font ${f.label}`}
                 data-tip={f.label}
                 onClick={() => apply({ fontFamily: f.value })}
               >
@@ -702,28 +702,28 @@ export function PropertiesPanel() {
             ))}
           </Group>
 
-          <Group title="Estilo">
+          <Group title="Style">
             <div className="text-style-row">
               <button
                 className={`size-btn text-btn ${allBold ? "active" : ""}`}
-                aria-label="Negrito"
-                data-tip="Negrito"
+                aria-label="Bold"
+                data-tip="Bold"
                 onClick={() => apply({ bold: !allBold })}
               >
                 <b>B</b>
               </button>
               <button
                 className={`size-btn text-btn ${allItalic ? "active" : ""}`}
-                aria-label="Itálico"
-                data-tip="Itálico"
+                aria-label="Italic"
+                data-tip="Italic"
                 onClick={() => apply({ italic: !allItalic })}
               >
                 <i>I</i>
               </button>
               <button
                 className={`size-btn text-btn ${allUnderline ? "active" : ""}`}
-                aria-label="Sublinhado"
-                data-tip="Sublinhado"
+                aria-label="Underline"
+                data-tip="Underline"
                 onClick={() => apply({ underline: !allUnderline })}
               >
                 <u>U</u>
@@ -731,22 +731,22 @@ export function PropertiesPanel() {
             </div>
           </Group>
 
-          <Group title="Cor do texto">
+          <Group title="Text color">
             <PaletteGrid
               current={textColorValue || selected[0].strokeColor}
               onPick={(textColor) => apply({ textColor })}
-              label="Cor do texto"
+              label="Text color"
             />
           </Group>
 
           {(hasText || hasRectangle || hasArrow) && (
-            <Group title="Alinhamento horizontal">
+            <Group title="Horizontal alignment">
               {(["left", "center", "right"] as const).map((a) => (
                 <button
                   key={a}
                   className={`size-btn ${allTextAlign(a) ? "active" : ""}`}
-                  aria-label={`Alinhamento ${a}`}
-                  data-tip={a === "left" ? "Esquerda" : a === "center" ? "Centro" : "Direita"}
+                  aria-label={`Alignment ${a}`}
+                  data-tip={a === "left" ? "Left" : a === "center" ? "Center" : "Right"}
                   onClick={() => apply({ textAlign: a })}
                 >
                   <svg width="16" height="12" viewBox="0 0 16 12">
@@ -779,12 +779,12 @@ export function PropertiesPanel() {
 
           {hasComponent && (
             <>
-              <Group title="Posição da legenda">
+              <Group title="Caption position">
                 {CAPTION_POSITIONS.map((cp) => (
                   <button
                     key={cp.value}
                     className={`size-btn ${allCaptionPos(cp.value) ? "active" : ""}`}
-                    aria-label={`Legenda ${cp.label}`}
+                    aria-label={`Caption ${cp.label}`}
                     data-tip={cp.label}
                     onClick={() => apply({ captionPosition: cp.value })}
                   >
@@ -799,29 +799,29 @@ export function PropertiesPanel() {
                 ))}
               </Group>
 
-              <Group title="Afastamento do texto (px)" vertical>
+              <Group title="Text offset (px)" vertical>
                 <SpacingRow
                   label="Global"
                   value={selected[0].captionGap ?? 2}
                   onChange={(v) => apply({ captionGap: v })}
                 />
                 <SpacingRow
-                  label="Esquerda"
+                  label="Left"
                   value={selected[0].captionOffsetLeft ?? 0}
                   onChange={(v) => apply({ captionOffsetLeft: v })}
                 />
                 <SpacingRow
-                  label="Direita"
+                  label="Right"
                   value={selected[0].captionOffsetRight ?? 0}
                   onChange={(v) => apply({ captionOffsetRight: v })}
                 />
                 <SpacingRow
-                  label="Topo"
+                  label="Top"
                   value={selected[0].captionOffsetTop ?? 0}
                   onChange={(v) => apply({ captionOffsetTop: v })}
                 />
                 <SpacingRow
-                  label="Baixo"
+                  label="Bottom"
                   value={selected[0].captionOffsetBottom ?? 0}
                   onChange={(v) => apply({ captionOffsetBottom: v })}
                 />
@@ -831,7 +831,7 @@ export function PropertiesPanel() {
 
           {hasRectangle && (
             <>
-              <Group title="Posição vertical">
+              <Group title="Vertical position">
                 {TEXT_VALIGNS.map((va) => (
                   <button
                     key={va.value}
@@ -850,13 +850,13 @@ export function PropertiesPanel() {
                 ))}
               </Group>
 
-              <Group title="Afastamento">
+              <Group title="Offset">
                 <MiniSlider
                   value={selected[0].textPadding ?? 8}
                   min={0}
                   max={40}
                   step={1}
-                  ariaLabel="Afastamento do texto"
+                  ariaLabel="Text offset"
                   suffix="px"
                   onChange={(v) => apply({ textPadding: v })}
                 />
@@ -868,12 +868,12 @@ export function PropertiesPanel() {
 
       {activeTab === "layers" && (
         <>
-          <Group title="Ordem">
+          <Group title="Order">
             <div className="layer-btns">
               <button
                 className="size-btn"
-                data-tip="Trazer para frente"
-                aria-label="Trazer para frente"
+                data-tip="Bring to front"
+                aria-label="Bring to front"
                 onClick={() => editor.bringToFront()}
               >
                 <svg width="16" height="16" viewBox="0 0 16 16">
@@ -883,8 +883,8 @@ export function PropertiesPanel() {
               </button>
               <button
                 className="size-btn"
-                data-tip="Avançar uma camada"
-                aria-label="Avançar uma camada"
+                data-tip="Move forward"
+                aria-label="Move forward"
                 onClick={() => editor.bringForward()}
               >
                 <svg width="16" height="16" viewBox="0 0 16 16">
@@ -895,8 +895,8 @@ export function PropertiesPanel() {
               </button>
               <button
                 className="size-btn"
-                data-tip="Recuar uma camada"
-                aria-label="Recuar uma camada"
+                data-tip="Move backward"
+                aria-label="Move backward"
                 onClick={() => editor.sendBackward()}
               >
                 <svg width="16" height="16" viewBox="0 0 16 16">
@@ -907,8 +907,8 @@ export function PropertiesPanel() {
               </button>
               <button
                 className="size-btn"
-                data-tip="Enviar para trás"
-                aria-label="Enviar para trás"
+                data-tip="Send to back"
+                aria-label="Send to back"
                 onClick={() => editor.sendToBack()}
               >
                 <svg width="16" height="16" viewBox="0 0 16 16">
@@ -920,9 +920,9 @@ export function PropertiesPanel() {
           </Group>
 
           {selected.length >= 2 && (
-            <Group title="Alinhar">
+            <Group title="Align">
               <div className="layer-btns">
-                <button className="size-btn" data-tip="Alinhar esquerda" aria-label="Alinhar esquerda"
+                <button className="size-btn" data-tip="Align left" aria-label="Align left"
                   onClick={() => editor.alignSelected("left")}>
                   <svg width="16" height="16" viewBox="0 0 16 16">
                     <line x1="2" y1="1" x2="2" y2="15" stroke="currentColor" strokeWidth="2"/>
@@ -930,7 +930,7 @@ export function PropertiesPanel() {
                     <rect x="2" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
                   </svg>
                 </button>
-                <button className="size-btn" data-tip="Centralizar horizontal" aria-label="Centralizar horizontal"
+                <button className="size-btn" data-tip="Align center" aria-label="Align center"
                   onClick={() => editor.alignSelected("center")}>
                   <svg width="16" height="16" viewBox="0 0 16 16">
                     <line x1="8" y1="1" x2="8" y2="15" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
@@ -938,7 +938,7 @@ export function PropertiesPanel() {
                     <rect x="3" y="9" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
                   </svg>
                 </button>
-                <button className="size-btn" data-tip="Alinhar direita" aria-label="Alinhar direita"
+                <button className="size-btn" data-tip="Align right" aria-label="Align right"
                   onClick={() => editor.alignSelected("right")}>
                   <svg width="16" height="16" viewBox="0 0 16 16">
                     <line x1="14" y1="1" x2="14" y2="15" stroke="currentColor" strokeWidth="2"/>
@@ -948,7 +948,7 @@ export function PropertiesPanel() {
                 </button>
               </div>
               <div className="layer-btns">
-                <button className="size-btn" data-tip="Alinhar topo" aria-label="Alinhar topo"
+                <button className="size-btn" data-tip="Align top" aria-label="Align top"
                   onClick={() => editor.alignSelected("top")}>
                   <svg width="16" height="16" viewBox="0 0 16 16">
                     <line x1="1" y1="2" x2="15" y2="2" stroke="currentColor" strokeWidth="2"/>
@@ -956,7 +956,7 @@ export function PropertiesPanel() {
                     <rect x="9" y="2" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
                   </svg>
                 </button>
-                <button className="size-btn" data-tip="Centralizar vertical" aria-label="Centralizar vertical"
+                <button className="size-btn" data-tip="Align middle" aria-label="Align middle"
                   onClick={() => editor.alignSelected("middle")}>
                   <svg width="16" height="16" viewBox="0 0 16 16">
                     <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
@@ -964,7 +964,7 @@ export function PropertiesPanel() {
                     <rect x="9" y="3" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
                   </svg>
                 </button>
-                <button className="size-btn" data-tip="Alinhar fundo" aria-label="Alinhar fundo"
+                <button className="size-btn" data-tip="Align bottom" aria-label="Align bottom"
                   onClick={() => editor.alignSelected("bottom")}>
                   <svg width="16" height="16" viewBox="0 0 16 16">
                     <line x1="1" y1="14" x2="15" y2="14" stroke="currentColor" strokeWidth="2"/>

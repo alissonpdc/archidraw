@@ -74,7 +74,7 @@ function migrateV1(data: { doc?: unknown; camera?: unknown }): WorkspaceData | n
   return {
     schemaVersion: SCHEMA_VERSION,
     activeTabId: id,
-    tabs: [{ id, name: "Diagrama 1", doc: normalizeDoc(data.doc), camera: data.camera }],
+    tabs: [{ id, name: "Diagram 1", doc: normalizeDoc(data.doc), camera: data.camera }],
   };
 }
 

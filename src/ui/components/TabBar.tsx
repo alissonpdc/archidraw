@@ -18,7 +18,7 @@ export function TabBar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [confirmTab, setConfirmTab] = useState<{ id: string; name: string } | null>(null);
-  // ordem local enquanto uma aba está sendo arrastada (preview)
+  // local order while a tab is being dragged (preview)
   const [orderOverride, setOrderOverride] = useState<string[] | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -84,7 +84,7 @@ export function TabBar() {
       setDragId(d.id);
       setOrderOverride(currentOrder());
     }
-    // índice de inserção entre as outras abas pelos midpoints
+    // insertion index between other tabs via midpoints
     let target = 0;
     for (const t of tabs) {
       if (t.id === d.id) continue;
@@ -109,7 +109,7 @@ export function TabBar() {
     if (!d) return;
     if (d.moved) {
       editor.reorderTab(d.id, currentOrder().indexOf(d.id));
-      // libera o supressor de click depois que o click sintético passar
+      // release the click suppressor after the synthetic click passes
       setTimeout(() => {
         movedRef.current = false;
       }, 0);
@@ -156,8 +156,8 @@ export function TabBar() {
               onPointerMove={onSegPointerMove}
               onPointerUp={endDrag}
               onPointerCancel={endDrag}
-              // handlers no div: com pointer capture ativo, o click é
-              // retargetado para o elemento de captura, não ao botão interno
+              // handlers on div: with pointer capture active, the click is
+              // retargeted to the capture element, not the inner button
               onClick={() => {
                 if (!movedRef.current) editor.switchTab(tab.id);
               }}
@@ -169,8 +169,8 @@ export function TabBar() {
               {tab.id === snap.activeTabId && (
                 <button
                   className="tab-close"
-                  data-tip={`Fechar ${tab.name}`}
-                  aria-label={`Fechar ${tab.name}`}
+                  data-tip={`Close ${tab.name}`}
+                  aria-label={`Close ${tab.name}`}
                   data-testid={`tab-close-${tab.name}`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -186,8 +186,8 @@ export function TabBar() {
       ))}
       <button
         className="tool-btn tabbar-add tip-up"
-        data-tip="Nova aba"
-        aria-label="Nova aba"
+        data-tip="New tab"
+        aria-label="New tab"
         data-testid="tab-add"
         onClick={() => editor.addTab()}
       >
@@ -208,8 +208,8 @@ export function TabBar() {
               onClick={(e) => e.stopPropagation()}
             >
               <p className="tab-confirm-text">
-                Fechar <b>{confirmTab.name}</b>? Os elementos desta aba serão
-                perdidos.
+                Close <b>{confirmTab.name}</b>? Elements on this tab will be
+                lost.
               </p>
               <div className="tab-confirm-actions">
                 <button
@@ -217,7 +217,7 @@ export function TabBar() {
                   data-testid="tab-close-cancel"
                   onClick={() => setConfirmTab(null)}
                 >
-                  Cancelar
+                  Cancel
                 </button>
                 <button
                   className="menu-item tab-confirm-btn danger"
@@ -227,7 +227,7 @@ export function TabBar() {
                     setConfirmTab(null);
                   }}
                 >
-                  Fechar aba
+                  Close tab
                 </button>
               </div>
             </div>
