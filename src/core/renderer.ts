@@ -518,12 +518,14 @@ function drawElement(
     const lines = el.text.split("\n");
     const align = el.textAlign ?? "left";
     ctx.textAlign = align;
+    const textBlockH = lines.length * el.fontSize * lh;
+    const vOffset = Math.max(0, (el.height - textBlockH) / 2);
     const underlineOn = !!el.underline;
     lines.forEach((line, i) => {
       let lx = el.x;
       if (align === "center") lx = el.x + el.width / 2;
       else if (align === "right") lx = el.x + el.width;
-      const lineY = el.y + i * el.fontSize * lh;
+      const lineY = el.y + vOffset + i * el.fontSize * lh;
       ctx.fillText(line, lx, lineY);
       if (underlineOn && line.length > 0) {
         const lw = ctx.measureText(line).width;

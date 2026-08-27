@@ -126,10 +126,13 @@ export function CanvasHost() {
       const { width: cw } = measureText(lineText || " ", editingEl.fontSize, editingEl.fontFamily, editingEl.bold, editingEl.italic);
       const align = editingEl.textAlign ?? "left";
       const tw = measureText(text || " ", editingEl.fontSize, editingEl.fontFamily, editingEl.bold, editingEl.italic).width;
+      const allLines = text.split("\n");
+      const textBlockH = allLines.length * editingEl.fontSize * lh;
+      const vOffset = Math.max(0, (editingEl.height - textBlockH) / 2);
       let ox = cw * zoom;
       if (align === "center") ox += ((editingEl.width - tw) / 2) * zoom;
       else if (align === "right") ox += (editingEl.width - tw) * zoom;
-      const oy = lineIndex * editingEl.fontSize * lh * zoom;
+      const oy = vOffset * zoom + lineIndex * editingEl.fontSize * lh * zoom;
       caret.style.left = (editingEl.x * cam.zoom + cam.scrollX + ox) + "px";
       caret.style.top = (editingEl.y * cam.zoom + cam.scrollY + oy) + "px";
       caret.style.height = (editingEl.fontSize * zoom) + "px";
@@ -264,6 +267,7 @@ export function CanvasHost() {
               textDecoration: editingEl.underline ? "underline" : "none",
               lineHeight: String(editingEl.lineSpacing ?? 1.25),
               textAlign: editingEl.textAlign ?? "left",
+              paddingTop: Math.max(0, (editingEl.height - (editingEl.text.split("\n").length * editingEl.fontSize * (editingEl.lineSpacing ?? 1.25))) / 2) * cam.zoom,
             }}
             value={editingEl.text}
             onChange={(e) => {
