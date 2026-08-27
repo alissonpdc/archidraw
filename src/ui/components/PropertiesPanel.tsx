@@ -193,7 +193,8 @@ function PaletteGrid({
   useEffect(() => {
     if (expanded === null) return;
     const onDown = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setExpanded(null);
+      const t = e.target as HTMLElement;
+      if (!wrapRef.current?.contains(t) && !t.closest(".color-popover--portal")) setExpanded(null);
     };
     window.addEventListener("pointerdown", onDown);
     return () => window.removeEventListener("pointerdown", onDown);
