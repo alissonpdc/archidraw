@@ -793,7 +793,7 @@ export function render(
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
     drawElement(ctx, el, colors);
     drawLabel(ctx, el, colors, state.hiddenLabelId);
-    if (state.selectedIds.has(el.id) && !isEditingThisLabel)
+    if (state.selectedIds.has(el.id) && !isEditingThisLabel && el.type !== "text")
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }
 

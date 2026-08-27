@@ -401,6 +401,11 @@ export function PropertiesPanel() {
   const hasComponent = selected.some((el) => el.type === "component");
   const hasRectangle = selected.some((el) => el.type === "rectangle");
   const hasArrow = selected.some((el) => el.type === "arrow");
+  const isOnlyText = selected.length > 0 && selected.every((el) => el.type === "text");
+
+  // auto-switch away from Style tab when only text is selected
+  const effectiveTab = isOnlyText && activeTab === "style" ? "text" : activeTab;
+
   const allStroke = (v: number) => selected.every((el) => el.strokeWidth === v);
   const allStyle = (v: string) =>
     selected.every((el) => el.strokeStyle === v);
@@ -446,6 +451,13 @@ export function PropertiesPanel() {
       : null;
   })();
 
+  const lineSpacingValue = (() => {
+    const first = selected[0].lineSpacing ?? 1.25;
+    return selected.every((el) => (el.lineSpacing ?? 1.25) === first)
+      ? first
+      : null;
+  })();
+
   return (
     <div
       className="properties-panel"
@@ -456,27 +468,29 @@ export function PropertiesPanel() {
       <PanelTooltip tip={tip} />
       {/* Tab bar */}
       <div className="panel-tabs">
+        {!isOnlyText && (
+          <button
+            className={`panel-tab ${effectiveTab === "style" ? "active" : ""}`}
+            onClick={() => setActiveTab("style")}
+          >
+            Style
+          </button>
+        )}
         <button
-          className={`panel-tab ${activeTab === "style" ? "active" : ""}`}
-          onClick={() => setActiveTab("style")}
-        >
-          Style
-        </button>
-        <button
-          className={`panel-tab ${activeTab === "text" ? "active" : ""}`}
+          className={`panel-tab ${effectiveTab === "text" ? "active" : ""}`}
           onClick={() => setActiveTab("text")}
         >
           Text
         </button>
         <button
-          className={`panel-tab ${activeTab === "layers" ? "active" : ""}`}
+          className={`panel-tab ${effectiveTab === "layers" ? "active" : ""}`}
           onClick={() => setActiveTab("layers")}
         >
           Layers
         </button>
       </div>
 
-      {activeTab === "style" && (
+      {effectiveTab === "style" && (
         <>
           <Group title="Stroke">
             <PaletteGrid
@@ -684,8 +698,27 @@ export function PropertiesPanel() {
         </>
       )}
 
-      {activeTab === "text" && (
+      {effectiveTab === "text" && (
         <>
+          <Group title="Text color">
+            <PaletteGrid
+              current={textColorValue || selected[0].strokeColor}
+              onPick={(textColor) => apply({ textColor })}
+              label="Text color"
+            />
+          </Group>
+
+          <Group title="Opacity">
+            <MiniSlider
+              value={opacityValue ?? 100}
+              min={0}
+              max={100}
+              step={5}
+              ariaLabel="Opacity"
+              onChange={(v) => apply({ opacity: v / 100 })}
+            />
+          </Group>
+
           <Group title="Size">
             {FONT_SIZES.map((f) => (
               <button
@@ -749,14 +782,6 @@ export function PropertiesPanel() {
             </div>
           </Group>
 
-          <Group title="Text color">
-            <PaletteGrid
-              current={textColorValue || selected[0].strokeColor}
-              onPick={(textColor) => apply({ textColor })}
-              label="Text color"
-            />
-          </Group>
-
           {(hasText || hasRectangle || hasArrow) && (
             <Group title="Horizontal alignment">
               {(["left", "center", "right"] as const).map((a) => (
@@ -794,6 +819,18 @@ export function PropertiesPanel() {
               ))}
             </Group>
           )}
+
+          <Group title="Line spacing">
+            <MiniSlider
+              value={Math.round((lineSpacingValue ?? 1.25) * 100)}
+              min={80}
+              max={250}
+              step={5}
+              ariaLabel="Line spacing"
+              suffix="%"
+              onChange={(v) => apply({ lineSpacing: v / 100 })}
+            />
+          </Group>
 
           {hasComponent && (
             <>
@@ -884,7 +921,7 @@ export function PropertiesPanel() {
         </>
       )}
 
-      {activeTab === "layers" && (
+      {effectiveTab === "layers" && (
         <>
           <Group title="Order">
             <div className="layer-btns">
