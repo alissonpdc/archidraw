@@ -257,8 +257,9 @@ function roughPolyline(
     const t = Math.min(1, d / 22);
     return t * t * (3 - 2 * t);
   };
-  // integer wave count: periodic on closed loops (seam matches exactly)
-  const lam = 48 + jit(24);
+  // integer wave count: periodic on closed loops (seam matches exactly);
+  // low frequency: several samples per period so chords can't alias
+  const lam = 90 + jit(40);
   const cycles = Math.max(1, Math.round(total / lam));
   const wamp = roughness * (0.9 + 0.5 * jit(1));
   const phase = jit(6.283);
@@ -328,12 +329,13 @@ function roughPolyline(
         ex,
         ey,
       );
-    } else if (e > i) {
-      // continuous straight run: subdivide so the wave is visible on it;
-      // normals lerp between the run's end bisectors (smooth swing)
+    } else {
+      // continuous stretch (straight run or arc chord): subdivide finely so
+      // the wave renders smoothly — drawing it only at sample vertices would
+      // alias into zig-zag on wide-spaced arc chords
       const sA = cum[i - 1];
       const sB = cum[e];
-      const steps = Math.max(1, Math.ceil((sB - sA) / 14));
+      const steps = Math.max(1, Math.ceil((sB - sA) / 8));
       for (let k = 1; k <= steps; k++) {
         const t = k / steps;
         const s = sA + (sB - sA) * t;
@@ -349,9 +351,6 @@ function roughPolyline(
         const w = waveAt(s);
         ctx.lineTo(bx + nx * w, by + ny * w);
       }
-    } else {
-      // single continuous segment (arc chord or short straight)
-      ctx.lineTo(ex, ey);
     }
     i = e + 1;
   }
