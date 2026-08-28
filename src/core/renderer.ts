@@ -1,5 +1,6 @@
-import type { Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
+import type { AnchorSide, ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
 import {
+  anchorPoint,
   arrowPoints,
   curvedArrowControl,
   diamondVertices,
@@ -31,6 +32,8 @@ export interface RenderState {
   colors?: RenderColors;
   gridMode?: "none" | "dots" | "lines";
   guides?: { orientation: "h" | "v"; pos: number }[] | null;
+  /** live anchor highlights while drawing/dragging an edge endpoint */
+  bindingPreview?: { start: ArrowBinding | null; end: ArrowBinding | null } | null;
   /** element whose label is being edited (suppresses selection box/handles) */
   hiddenLabelId?: string | null;
   /** free text element being edited (suppresses resize handles) */
@@ -1161,6 +1164,33 @@ function drawGuides(
   ctx.restore();
 }
 
+/** draws a dot on each anchor currently offered/accepted as a binding target */
+function drawBindingPreview(
+  ctx: CanvasRenderingContext2D,
+  preview: { start: ArrowBinding | null; end: ArrowBinding | null },
+  doc: Document,
+  zoom: number,
+  color: string,
+) {
+  const byId = new Map(doc.elements.map((el) => [el.id, el] as const));
+  for (const binding of [preview.start, preview.end]) {
+    if (!binding) continue;
+    const target = byId.get(binding.elementId);
+    if (!target) continue;
+    const ap = anchorPoint(target, binding.anchor as AnchorSide);
+    const r = 5 / zoom;
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2 / zoom;
+    ctx.beginPath();
+    ctx.arc(ap.x, ap.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 export function render(
   ctx: CanvasRenderingContext2D,
   state: RenderState,
@@ -1220,6 +1250,16 @@ export function render(
     drawElement(ctx, state.draft, colors);
     drawLabel(ctx, state.draft, colors);
     drawSelectionBox(ctx, state.draft, cam.zoom, colors.selection);
+  }
+
+  if (state.bindingPreview) {
+    drawBindingPreview(
+      ctx,
+      state.bindingPreview,
+      state.doc,
+      cam.zoom,
+      colors.selection,
+    );
   }
 
   if (state.marquee) {

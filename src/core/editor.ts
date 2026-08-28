@@ -34,6 +34,7 @@ import {
   edgeLabelAnchor,
   edgeParamAt,
   isEdge,
+  anchorPoint,
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
@@ -151,17 +152,6 @@ function visualBounds(el: Element): Bounds {
   return elementVisualBounds(_offCtx!, el);
 }
 
-function anchorPoint(el: Element, anchor: AnchorSide): Point {
-  const b = elementBounds(el);
-  switch (anchor) {
-    case "top": return { x: (b.x1 + b.x2) / 2, y: b.y1 };
-    case "bottom": return { x: (b.x1 + b.x2) / 2, y: b.y2 };
-    case "left": return { x: b.x1, y: (b.y1 + b.y2) / 2 };
-    case "right": return { x: b.x2, y: (b.y1 + b.y2) / 2 };
-    case "center": return { x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 };
-  }
-}
-
 function findNearestBinding(
   point: Point,
   elements: Element[],
@@ -169,7 +159,7 @@ function findNearestBinding(
 ): ArrowBinding | null {
   let best: { dist: number; binding: ArrowBinding } | null = null;
   for (const el of elements) {
-    if (el.id === excludeId || el.type === "arrow") continue;
+    if (el.id === excludeId || el.type === "arrow" || el.type === "line") continue;
     const anchors: AnchorSide[] = ["top", "right", "bottom", "left"];
     for (const anchor of anchors) {
       const ap = anchorPoint(el, anchor);
@@ -180,6 +170,47 @@ function findNearestBinding(
     }
   }
   return best?.binding ?? null;
+}
+
+/** live anchor highlights while drawing or dragging an edge endpoint */
+export interface BindingPreview {
+  start: ArrowBinding | null;
+  end: ArrowBinding | null;
+}
+
+/**
+ * re-snaps an edge's bound endpoints to their anchor points; unbound
+ * endpoints stay fixed. Used when either the edge itself or a shape it
+ * binds to moves/resizes.
+ */
+function snapEdgeEndpoints(
+  el: LineElement | ArrowElement,
+  resolve: (id: string) => Element | undefined,
+): LineElement | ArrowElement {
+  let x = el.x;
+  let y = el.y;
+  let w = el.width;
+  let h = el.height;
+  if (el.startBinding) {
+    const target = resolve(el.startBinding.elementId);
+    if (target) {
+      const ap = anchorPoint(target, el.startBinding.anchor);
+      // pivot on the free end: it stays where it is
+      w = x + w - ap.x;
+      h = y + h - ap.y;
+      x = ap.x;
+      y = ap.y;
+    }
+  }
+  if (el.endBinding) {
+    const target = resolve(el.endBinding.elementId);
+    if (target) {
+      const ap = anchorPoint(target, el.endBinding.anchor);
+      w = ap.x - x;
+      h = ap.y - y;
+    }
+  }
+  return { ...el, x, y, width: w, height: h };
 }
 
 type Interaction =
@@ -227,6 +258,7 @@ export class Editor {
   private editingInitial: string | null = null;
 
   private draft: Element | null = null;
+  private bindingPreview: BindingPreview | null = null;
   private marquee: { x1: number; y1: number; x2: number; y2: number } | null =
     null;
   private guides: SnapGuide[] | null = null;
@@ -321,14 +353,13 @@ export class Editor {
       elements: this.doc.elements
         .filter((el) => !deletedIds.has(el.id))
         .map((el) => {
-          if (el.type !== "arrow") return el;
-          const arrow = el;
-          const startBinding = arrow.startBinding && deletedIds.has(arrow.startBinding.elementId)
-            ? undefined : arrow.startBinding;
-          const endBinding = arrow.endBinding && deletedIds.has(arrow.endBinding.elementId)
-            ? undefined : arrow.endBinding;
-          if (startBinding !== arrow.startBinding || endBinding !== arrow.endBinding) {
-            return { ...arrow, startBinding, endBinding };
+          if (!isEdge(el)) return el;
+          const startBinding = el.startBinding && deletedIds.has(el.startBinding.elementId)
+            ? undefined : el.startBinding;
+          const endBinding = el.endBinding && deletedIds.has(el.endBinding.elementId)
+            ? undefined : el.endBinding;
+          if (startBinding !== el.startBinding || endBinding !== el.endBinding) {
+            return { ...el, startBinding, endBinding };
           }
           return el;
         }),
@@ -340,17 +371,42 @@ export class Editor {
   duplicateSelected() {
     if (this.selectedIds.size === 0) return;
     this.commitHistory();
-    const clones: Element[] = [];
-    for (const el of this.doc.elements) {
-      if (!this.selectedIds.has(el.id)) continue;
-      clones.push({ ...el, id: newId(), x: el.x + 10, y: el.y + 10 });
-    }
+    const originals = this.doc.elements.filter((el) =>
+      this.selectedIds.has(el.id),
+    );
+    const clones = this.cloneElements(originals, 10, 10);
     this.doc = {
       ...this.doc,
       elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
     };
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
+  }
+
+  /**
+   * clones elements with translated positions; edge bindings pointing at
+   * elements that are also cloned are remapped to the clone ids, otherwise
+   * they keep referencing the original target
+   */
+  private cloneElements(originals: Element[], dx: number, dy: number): Element[] {
+    const idMap = new Map<string, string>();
+    const clones = originals.map((el) => {
+      const id = newId();
+      idMap.set(el.id, id);
+      return { ...el, id, x: el.x + dx, y: el.y + dy };
+    });
+    return clones.map((el) => {
+      if (!isEdge(el)) return el;
+      const startBinding =
+        el.startBinding && idMap.has(el.startBinding.elementId)
+          ? { ...el.startBinding, elementId: idMap.get(el.startBinding.elementId)! }
+          : el.startBinding;
+      const endBinding =
+        el.endBinding && idMap.has(el.endBinding.elementId)
+          ? { ...el.endBinding, elementId: idMap.get(el.endBinding.elementId)! }
+          : el.endBinding;
+      return { ...el, startBinding, endBinding };
+    });
   }
 
   // ---- layer reorder ---------------------------------------------------
@@ -534,6 +590,7 @@ export class Editor {
     this.editingTextId = null;
     this.editingKind = "text";
     this.editingInitial = null;
+    this.bindingPreview = null;
     this.emit();
   }
 
@@ -624,6 +681,7 @@ export class Editor {
     this.selectedIds.clear();
     this.editingTextId = null;
     this.draft = null;
+    this.bindingPreview = null;
     this.marquee = null;
     this.interaction = { kind: "none" };
     this.emit();
@@ -658,6 +716,24 @@ export class Editor {
   /** call before mutating doc so undo returns to current state */
   commitHistory() {
     this.history.push(JSON.stringify(this.doc));
+  }
+
+  /** re-snaps edges bound to the given element after it changed shape/position */
+  private syncEdgesBoundTo(id: string) {
+    const target = this.doc.elements.find((el) => el.id === id);
+    if (!target) return;
+    let changed = false;
+    const elements = this.doc.elements.map((el) => {
+      if (!isEdge(el)) return el;
+      if (el.startBinding?.elementId !== id && el.endBinding?.elementId !== id) {
+        return el;
+      }
+      changed = true;
+      return snapEdgeEndpoints(el, (bid) =>
+        bid === id ? target : this.doc.elements.find((e) => e.id === bid),
+      );
+    });
+    if (changed) this.doc = { ...this.doc, elements };
   }
 
   zoomAt(screenPoint: Point, deltaZoom: number) {
@@ -935,12 +1011,7 @@ export class Editor {
 
     this.pasteCount += 1;
     const offset = 16 * this.pasteCount;
-    const clones = items.map((el) => ({
-      ...el,
-      id: newId(),
-      x: el.x + offset,
-      y: el.y + offset,
-    }));
+    const clones = this.cloneElements(items, offset, offset);
     this.commitHistory();
     this.doc = {
       ...this.doc,
@@ -1026,6 +1097,17 @@ export class Editor {
           el = { ...base, type: "line", ...bbox } satisfies LineElement;
         } else {
           el = { ...base, type: "arrow", ...bbox } satisfies ArrowElement;
+        }
+        // drawing that starts near a shape anchor binds and snaps the start
+        if (el.type === "line" || el.type === "arrow") {
+          const startBinding = findNearestBinding(scene, this.doc.elements, el.id);
+          if (startBinding) {
+            const target = this.doc.elements.find(
+              (e) => e.id === startBinding.elementId,
+            )!;
+            const ap = anchorPoint(target, startBinding.anchor);
+            el = { ...el, x: ap.x, y: ap.y, startBinding };
+          }
         }
         this.draft = el;
         this.interaction = { kind: "draw", startScene: scene, id: el.id };
@@ -1151,20 +1233,54 @@ export class Editor {
       }
       case "draw": {
         if (!this.draft) break;
-        const start = this.interaction.startScene;
-        let x2 = scene.x;
-        let y2 = scene.y;
-        if (shift) {
-          const type = this.draft.type;
-          if (type === "line" || type === "arrow") {
+        if (this.draft.type === "line" || this.draft.type === "arrow") {
+          // edge draft: pivots on its (possibly anchor-snapped) start point;
+          // width/height stay signed so the drawn direction (and the
+          // arrowhead) is preserved in any quadrant
+          const draft: LineElement | ArrowElement = this.draft;
+          const start = { x: draft.x, y: draft.y };
+          let x2 = scene.x;
+          let y2 = scene.y;
+          if (shift) {
             // shift locks the angle to the nearest 45° increment
             const d = this.snapAngle(x2 - start.x, y2 - start.y);
             x2 = start.x + d.x;
             y2 = start.y + d.y;
-          } else if (
-            type === "rectangle" ||
-            type === "ellipse" ||
-            type === "diamond"
+          }
+          // live binding: the moving end snaps to the nearest shape anchor
+          const endBinding = findNearestBinding(
+            { x: x2, y: y2 },
+            this.doc.elements,
+            draft.id,
+          );
+          if (endBinding) {
+            const target = this.doc.elements.find(
+              (e) => e.id === endBinding.elementId,
+            )!;
+            const ap = anchorPoint(target, endBinding.anchor);
+            x2 = ap.x;
+            y2 = ap.y;
+          }
+          this.bindingPreview = {
+            start: draft.startBinding ?? null,
+            end: endBinding,
+          };
+          this.draft = {
+            ...draft,
+            width: x2 - start.x,
+            height: y2 - start.y,
+            endBinding: endBinding ?? undefined,
+          };
+        } else {
+          const draft = this.draft;
+          const start = this.interaction.startScene;
+          let x2 = scene.x;
+          let y2 = scene.y;
+          if (
+            shift &&
+            (draft.type === "rectangle" ||
+              draft.type === "ellipse" ||
+              draft.type === "diamond")
           ) {
             // shift keeps the aspect ratio: perfect square/circle/diamond
             const dx = x2 - start.x;
@@ -1173,19 +1289,6 @@ export class Editor {
             x2 = start.x + (dx < 0 ? -size : size);
             y2 = start.y + (dy < 0 ? -size : size);
           }
-        }
-        if (this.draft.type === "line" || this.draft.type === "arrow") {
-          // width/height stay signed relative to the anchored start point so
-          // the drawn direction (and the arrowhead) is preserved in any
-          // quadrant — normalizing here would flip start/end while dragging
-          this.draft = {
-            ...this.draft,
-            x: start.x,
-            y: start.y,
-            width: x2 - start.x,
-            height: y2 - start.y,
-          };
-        } else {
           const b = normalizeBounds({
             x1: start.x,
             y1: start.y,
@@ -1193,7 +1296,7 @@ export class Editor {
             y2,
           });
           this.draft = {
-            ...this.draft,
+            ...draft,
             x: b.x1,
             y: b.y1,
             width: b.x2 - b.x1,
@@ -1273,39 +1376,30 @@ export class Editor {
         );
         this.interaction.moved =
           Math.abs(dx) > 1e-6 || Math.abs(dy) > 1e-6;
-        // update arrow bindings when bound elements move
+        // keep bindings coherent: edges bound to moved shapes follow their
+        // anchors, and moved edges re-snap their own bound endpoints
         const movedIds = new Set(moved.keys());
+        const resolveBound = (id: string) =>
+          moved.get(id) ?? this.doc.elements.find((el) => el.id === id);
         const updatedElements = this.doc.elements.map((el) => {
-          if (el.type !== "arrow") return el;
-          const arrow = el;
-          let changed = false;
-          let newX = arrow.x, newY = arrow.y, newW = arrow.width, newH = arrow.height;
-          if (arrow.startBinding && movedIds.has(arrow.startBinding.elementId)) {
-            const bound = moved.get(arrow.startBinding.elementId);
-            if (bound) {
-              const ap = anchorPoint(bound, arrow.startBinding.anchor);
-              // pivot on the start anchor: the free end stays fixed
-              newW = arrow.x + arrow.width - ap.x;
-              newH = arrow.y + arrow.height - ap.y;
-              newX = ap.x;
-              newY = ap.y;
-              changed = true;
-            }
+          const next = moved.get(el.id) ?? el;
+          if (!isEdge(next) || (!next.startBinding && !next.endBinding)) {
+            return next;
           }
-          if (arrow.endBinding && movedIds.has(arrow.endBinding.elementId)) {
-            const bound = moved.get(arrow.endBinding.elementId);
-            if (bound) {
-              const ap = anchorPoint(bound, arrow.endBinding.anchor);
-              newW = ap.x - newX;
-              newH = ap.y - newY;
-              changed = true;
-            }
+          const startAffected =
+            next.startBinding !== undefined &&
+            movedIds.has(next.startBinding.elementId);
+          const endAffected =
+            next.endBinding !== undefined &&
+            movedIds.has(next.endBinding.elementId);
+          if (!moved.has(next.id) && !startAffected && !endAffected) {
+            return next;
           }
-          return changed ? { ...arrow, x: newX, y: newY, width: newW, height: newH } : el;
+          return snapEdgeEndpoints(next, resolveBound);
         });
         this.doc = {
           ...this.doc,
-          elements: updatedElements.map((el) => moved.get(el.id) ?? el),
+          elements: updatedElements,
         };
         break;
       }
@@ -1333,7 +1427,14 @@ export class Editor {
         const handle = this.interaction.handle;
         let nb: Bounds = o;
         let linePatch:
-          | { x: number; y: number; width: number; height: number }
+          | {
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+              startBinding?: ArrowBinding;
+              endBinding?: ArrowBinding;
+            }
           | null = null;
         if (handle.length === 2 && (orig.type === "line" || orig.type === "arrow")) {
           // endpoint drag: the grabbed endpoint follows the pointer (shift
@@ -1351,9 +1452,45 @@ export class Editor {
             : { x: scene.x - fx, y: scene.y - fy };
           const ex = fx + delta.x;
           const ey = fy + delta.y;
-          linePatch = draggingStart
-            ? { x: ex, y: ey, width: bx - ex, height: by - ey }
-            : { x: ax, y: ay, width: ex - ax, height: ey - ay };
+          // live rebinding: drop the dragged endpoint near another shape
+          // anchor to bind it there; away from any anchor clears the binding
+          const candidate = findNearestBinding(
+            { x: ex, y: ey },
+            this.doc.elements,
+            orig.id,
+          );
+          let snapped = { x: ex, y: ey };
+          if (candidate) {
+            const target = this.doc.elements.find(
+              (e) => e.id === candidate.elementId,
+            )!;
+            snapped = anchorPoint(target, candidate.anchor);
+          }
+          if (draggingStart) {
+            linePatch = {
+              x: snapped.x,
+              y: snapped.y,
+              width: bx - snapped.x,
+              height: by - snapped.y,
+              startBinding: candidate ?? undefined,
+            };
+            this.bindingPreview = {
+              start: candidate,
+              end: orig.endBinding ?? null,
+            };
+          } else {
+            linePatch = {
+              x: ax,
+              y: ay,
+              width: snapped.x - ax,
+              height: snapped.y - ay,
+              endBinding: candidate ?? undefined,
+            };
+            this.bindingPreview = {
+              start: orig.startBinding ?? null,
+              end: candidate,
+            };
+          }
         } else if (handle.length === 2) {
           // corner handles: proportional scale anchored at the opposite corner
           const oW = o.x2 - o.x1 || 1;
@@ -1471,6 +1608,8 @@ export class Editor {
             ),
           };
         }
+        // edges bound to the resized shape follow its new anchors
+        this.syncEdgesBoundTo(id);
         break;
       }
       case "marquee": {
@@ -1503,22 +1642,7 @@ export class Editor {
         this.tool = "selection";
         this.selectedIds.clear();
       } else {
-        // detect bindings for arrows
-        if (this.draft.type === "arrow") {
-          const [startPt, endPt] = [
-            { x: this.draft.x, y: this.draft.y },
-            { x: this.draft.x + this.draft.width, y: this.draft.y + this.draft.height },
-          ];
-          const startBinding = findNearestBinding(startPt, this.doc.elements, this.draft.id);
-          const endBinding = findNearestBinding(endPt, this.doc.elements, this.draft.id);
-          if (startBinding || endBinding) {
-            this.draft = {
-              ...this.draft,
-              startBinding: startBinding ?? undefined,
-              endBinding: endBinding ?? undefined,
-            } as Element;
-          }
-        }
+        // bindings were resolved live during the draw (draft carries them)
         this.doc = { ...this.doc, elements: [...this.doc.elements, this.draft] };
         this.selectedIds = new Set([this.draft.id]);
       }
@@ -1532,6 +1656,7 @@ export class Editor {
     }
     this.marquee = null;
     this.guides = null;
+    this.bindingPreview = null;
     this.interaction = { kind: "none" };
     this.emit();
   }
@@ -1583,6 +1708,7 @@ export class Editor {
     this.selectedIds.clear();
     this.editingTextId = null;
     this.draft = null;
+    this.bindingPreview = null;
     this.marquee = null;
     this.interaction = { kind: "none" };
     this.emit();
@@ -1607,6 +1733,7 @@ export class Editor {
         colors: opts.colors,
         gridMode: opts.gridMode ?? "none",
         guides: this.guides,
+        bindingPreview: this.bindingPreview,
         hiddenLabelId:
           this.editingKind === "label" ? this.editingTextId : null,
         hiddenTextId: this.editingKind === "text" ? this.editingTextId : null,

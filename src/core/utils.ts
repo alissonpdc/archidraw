@@ -1,4 +1,5 @@
 import type {
+  AnchorSide,
   ArrowElement,
   Bounds,
   Camera,
@@ -182,6 +183,18 @@ export function diamondVertices(el: Element): Point[] {
 
 export function translateElement(el: Element, dx: number, dy: number): Element {
   return { ...el, x: el.x + dx, y: el.y + dy };
+}
+
+/** connection point of an element for a given anchor side */
+export function anchorPoint(el: Element, anchor: AnchorSide): Point {
+  const b = elementBounds(el);
+  switch (anchor) {
+    case "top": return { x: (b.x1 + b.x2) / 2, y: b.y1 };
+    case "bottom": return { x: (b.x1 + b.x2) / 2, y: b.y2 };
+    case "left": return { x: b.x1, y: (b.y1 + b.y2) / 2 };
+    case "right": return { x: b.x2, y: (b.y1 + b.y2) / 2 };
+    case "center": return { x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 };
+  }
 }
 
 /** union bounding box of all elements; null when empty */

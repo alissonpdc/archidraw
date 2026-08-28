@@ -103,6 +103,8 @@ export interface LineElement extends BaseElement {
   label?: string;
   /** label position along the stroke: 0 = start, 1 = end (default 0.5 = center) */
   labelT?: number;
+  startBinding?: ArrowBinding;
+  endBinding?: ArrowBinding;
 }
 
 export type LineType = "straight" | "curved" | "auto";
