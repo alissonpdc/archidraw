@@ -41,6 +41,71 @@ test.describe("tools", () => {
     expect(s.selectedIds).toHaveLength(1);
   });
 
+  test("drag with diamond tool creates a diamond", async ({
+    page,
+    editorState,
+  }) => {
+    await selectTool(page, "d");
+    await drag(page, { x: 200, y: 200 }, { x: 350, y: 320 });
+
+    const s = await editorState();
+    expect(s.elementCount).toBe(1);
+    expect(s.elements[0].type).toBe("diamond");
+    expect(s.selectedIds).toHaveLength(1);
+  });
+
+  test("drag with ellipse tool creates an ellipse", async ({
+    page,
+    editorState,
+  }) => {
+    await selectTool(page, "e");
+    await drag(page, { x: 200, y: 200 }, { x: 350, y: 320 });
+
+    const s = await editorState();
+    expect(s.elementCount).toBe(1);
+    expect(s.elements[0].type).toBe("ellipse");
+    expect(s.selectedIds).toHaveLength(1);
+  });
+
+  test("drag with line tool creates a line", async ({
+    page,
+    editorState,
+  }) => {
+    await selectTool(page, "l");
+    await drag(page, { x: 400, y: 300 }, { x: 600, y: 450 });
+
+    const s = await editorState();
+    expect(s.elementCount).toBe(1);
+    expect(s.elements[0].type).toBe("line");
+    expect(s.selectedIds).toHaveLength(1);
+  });
+
+  test("new shapes are hit-testable by their geometry", async ({
+    page,
+    editorState,
+  }) => {
+    await selectTool(page, "e");
+    await drag(page, { x: 200, y: 200 }, { x: 400, y: 400 });
+    await selectTool(page, "d");
+    await drag(page, { x: 500, y: 200 }, { x: 700, y: 400 });
+    await selectTool(page, "v");
+
+    // ellipse corner (inside bbox, outside the circle) should not select it
+    await page.mouse.click(210, 210);
+    let s = await editorState();
+    expect(s.selectedIds).toHaveLength(0);
+
+    // ellipse center should select it
+    await page.mouse.click(300, 300);
+    s = await editorState();
+    expect(s.selectedIds).toHaveLength(1);
+
+    // diamond center should select it
+    await page.mouse.click(600, 300);
+    s = await editorState();
+    expect(s.selectedIds).toHaveLength(1);
+  });
+
   test("text tool: click opens overlay and typed text creates element", async ({
     page,
     editorState,

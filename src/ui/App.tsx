@@ -16,6 +16,9 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
   v: "selection",
   h: "hand",
   r: "rectangle",
+  d: "diamond",
+  e: "ellipse",
+  l: "line",
   a: "arrow",
   t: "text",
 };
@@ -40,6 +43,10 @@ export function App() {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        editor.onShiftDown();
+        return;
+      }
       if (isTextEditing()) return;
       const mod = e.metaKey || e.ctrlKey;
 
@@ -89,6 +96,15 @@ export function App() {
         editor.paste();
         return;
       }
+      if (mod && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          editor.ungroupSelected();
+        } else {
+          editor.groupSelected();
+        }
+        return;
+      }
       if (e.shiftKey && e.code === "Digit1") {
         editor.zoomToFit();
         return;
@@ -115,6 +131,7 @@ export function App() {
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") editor.onShiftUp();
       if (e.code === "Space") editor.onSpaceUp();
     };
 

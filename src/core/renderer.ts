@@ -1,5 +1,13 @@
-import type { Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
-import { arrowPoints, elementBounds, measureText } from "./utils";
+import type { ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
+import {
+  arrowPoints,
+  bindingPoint,
+  curvedArrowControl,
+  diamondVertices,
+  edgeLabelAnchor,
+  elementBounds,
+  measureText,
+} from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage } from "./componentAssets";
 import { resolveFont, resolveTextColor, lineHeight } from "./textStyle";
@@ -10,6 +18,8 @@ export interface RenderColors {
   gridLine: string;
   /** theme-appropriate stroke for elements using the default color */
   elementStroke: string;
+  /** canvas background color (plates behind edge labels must match it) */
+  canvasBg: string;
 }
 
 export interface RenderState {
@@ -22,6 +32,8 @@ export interface RenderState {
   colors?: RenderColors;
   gridMode?: "none" | "dots" | "lines";
   guides?: { orientation: "h" | "v"; pos: number }[] | null;
+  /** live anchor highlights while drawing/dragging an edge endpoint */
+  bindingPreview?: { start: ArrowBinding | null; end: ArrowBinding | null } | null;
   /** element whose label is being edited (suppresses selection box/handles) */
   hiddenLabelId?: string | null;
   /** free text element being edited (suppresses resize handles) */
@@ -36,6 +48,7 @@ const DEFAULT_COLORS: RenderColors = {
   elementStroke: "#1e1e1e",
   gridDot: "rgba(0,0,0,0.14)",
   gridLine: "rgba(0,0,0,0.07)",
+  canvasBg: "#ffffff",
 };
 
 function visibleSceneRect(cam: Camera, w: number, h: number) {
@@ -155,6 +168,7 @@ function roughPolyline(
   points: Point[],
   roughness: number,
   seed: number,
+  waveScale = 1,
 ) {
   if (points.length < 2) return;
   let s = seed;
@@ -288,7 +302,7 @@ function roughPolyline(
   // low frequency: several samples per period so chords can't alias
   const lam = 90 + jit(40);
   const cycles = Math.max(1, Math.round(total / lam));
-  const wamp = roughness * (0.9 + 0.5 * jit(1));
+  const wamp = waveScale * roughness * (0.9 + 0.5 * jit(1));
   const phase = jit(6.283);
   const waveAt = (s: number): number =>
     wamp * envAt(s) * Math.sin((2 * Math.PI * cycles * s) / total + phase);
@@ -402,6 +416,7 @@ function sketchStroke(
   polylines: Point[][],
   roughness: number,
   seedBase: number,
+  waveScale = 1,
 ) {
   const passes = roughness === 0 ? 1 : roughness === 3 ? 3 : 2;
   for (let p = 0; p < passes; p++) {
@@ -411,7 +426,13 @@ function sketchStroke(
         for (let i = 1; i < pts.length; i++)
           ctx.lineTo(pts[i].x, pts[i].y);
       } else {
-        roughPolyline(ctx, pts, roughness, seedBase + p * 131 + pts.length);
+        roughPolyline(
+          ctx,
+          pts,
+          roughness,
+          seedBase + p * 131 + pts.length,
+          waveScale,
+        );
       }
     }
   }
@@ -497,6 +518,36 @@ function roundedRectLoop(
   return pts;
 }
 
+/** closed perimeter of a diamond as a polyline loop (first point == last) */
+function diamondLoop(el: Element): Point[] {
+  const v = diamondVertices(el);
+  return [...v, v[0]];
+}
+
+/**
+ * ellipse perimeter sampled as a closed polyline loop (first point == last),
+ * with fixed ~7.5° facets — same sampling style as the rounded-rect corners.
+ */
+function ellipseLoop(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): Point[] {
+  const rx = Math.abs(width) / 2;
+  const ry = Math.abs(height) / 2;
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const seg = 48;
+  const pts: Point[] = [];
+  for (let i = 0; i < seg; i++) {
+    const a = (i / seg) * Math.PI * 2;
+    pts.push({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) });
+  }
+  pts.push(pts[0]);
+  return pts;
+}
+
 function applyDash(
   ctx: CanvasRenderingContext2D,
   el: Element,
@@ -521,6 +572,30 @@ function applyDash(
 /** fixed icon→label distance and font size (do NOT scale with resize) */
 const ICON_LABEL_GAP = 2;
 const COMPONENT_LABEL_FONT = 12;
+
+/** label inset inside a shape: global text offset + the per-side offset of
+ *  the side the text is aligned to (same model as caption gap/offset) */
+export function textOffsets(el: Element): { padX: number; padY: number } {
+  const g = el.textOffsetGlobal ?? 8;
+  const align = el.textAlign ?? "center";
+  const vAlign = el.textVAlign ?? "middle";
+  return {
+    padX:
+      g +
+      (align === "left"
+        ? el.textOffsetLeft ?? 0
+        : align === "right"
+          ? el.textOffsetRight ?? 0
+          : 0),
+    padY:
+      g +
+      (vAlign === "top"
+        ? el.textOffsetTop ?? 0
+        : vAlign === "bottom"
+          ? el.textOffsetBottom ?? 0
+          : 0),
+  };
+}
 
 /** icon geometry shared between canvas rendering and label placement */
 export function componentIconLayout(el: ComponentElement) {
@@ -674,6 +749,7 @@ function drawElement(
           ],
           el.roughness,
           seedOf(el.id),
+          cornerRadius(el) > 0 ? 0.30 : 1,
         );
       }
       applyDash(ctx, el, el.strokeWidth);
@@ -681,6 +757,54 @@ function drawElement(
     }
 
     if (el.type === "component") drawComponentIcon(ctx, el);
+  } else if (el.type === "diamond") {
+    const v = diamondVertices(el);
+    if (el.backgroundColor !== "transparent") {
+      ctx.beginPath();
+      ctx.moveTo(v[0].x, v[0].y);
+      for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.beginPath();
+    if (el.roughness === 0) {
+      ctx.moveTo(v[0].x, v[0].y);
+      for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+      ctx.closePath();
+    } else {
+      sketchStroke(ctx, [diamondLoop(el)], el.roughness, seedOf(el.id));
+    }
+    applyDash(ctx, el, el.strokeWidth);
+    ctx.stroke();
+  } else if (el.type === "ellipse") {
+    const rx = Math.abs(el.width) / 2;
+    const ry = Math.abs(el.height) / 2;
+    const cx = el.x + el.width / 2;
+    const cy = el.y + el.height / 2;
+    if (el.backgroundColor !== "transparent") {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.beginPath();
+    if (el.roughness === 0) {
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    } else {
+      sketchStroke(
+        ctx,
+        [ellipseLoop(el.x, el.y, el.width, el.height)],
+        el.roughness,
+        seedOf(el.id),
+      );
+    }
+    applyDash(ctx, el, el.strokeWidth);
+    ctx.stroke();
+  } else if (el.type === "line") {
+    const [a, b] = arrowPoints(el);
+    ctx.beginPath();
+    sketchStroke(ctx, [[a, b]], el.roughness, seedOf(el.id));
+    applyDash(ctx, el, el.strokeWidth);
+    ctx.stroke();
   } else if (el.type === "arrow") {
     const [a, b] = arrowPoints(el);
     const lineType = el.lineType ?? "straight";
@@ -694,10 +818,7 @@ function drawElement(
       ctx.stroke();
       drawArrowHead(ctx, tip, a, Math.max(12, el.strokeWidth * 4));
     } else if (lineType === "curved") {
-      const cp = el.controlPoint ?? {
-        x: (a.x + tip.x) / 2,
-        y: (a.y + tip.y) / 2 - Math.abs(tip.x - a.x) * 0.3,
-      };
+      const cp = curvedArrowControl(el, a, tip);
       ctx.moveTo(a.x, a.y);
       ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
       applyDash(ctx, el, el.strokeWidth);
@@ -785,14 +906,14 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
     } else {
       const textAlign = el.textAlign ?? "center";
       const textVAlign = el.textVAlign ?? "middle";
-      const pad = el.textPadding ?? 8;
+      const { padX: pad, padY } = textOffsets(el);
       let lx: number;
       let ly: number;
       if (textAlign === "left") lx = el.x + pad;
       else if (textAlign === "right") lx = el.x + el.width - pad - tw;
       else lx = el.x + (el.width - tw) / 2;
-      if (textVAlign === "top") ly = el.y + pad;
-      else if (textVAlign === "bottom") ly = el.y + el.height - pad - th;
+      if (textVAlign === "top") ly = el.y + padY;
+      else if (textVAlign === "bottom") ly = el.y + el.height - padY - th;
       else ly = el.y + (el.height - th) / 2;
       // clip the text rect to the element bounds: text fully contained must NOT expand them
       const tx1 = Math.min(Math.max(lx, x1), x2);
@@ -815,8 +936,8 @@ function drawSelectionBox(
   zoom: number,
   color: string,
 ) {
-  // arrows: highlight the line itself instead of a misleading bbox rectangle
-  if (el.type === "arrow") {
+  // arrows/lines: highlight the line itself instead of a misleading bbox rectangle
+  if (el.type === "arrow" || el.type === "line") {
     const [a, b] = arrowPoints(el);
     ctx.save();
     ctx.strokeStyle = color;
@@ -891,16 +1012,18 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     ctx.textAlign = textAlign;
     let cx: number;
     let cy: number;
-    if (el.type === "arrow") {
-      cx = textAlign === "left" ? el.x : textAlign === "right" ? el.x + el.width : el.x + el.width / 2;
-      cy = el.y + el.height / 2;
+    if (el.type === "line" || el.type === "arrow") {
+      // edges: label slides along the stroke (labelT, default center)
+      const anchor = edgeLabelAnchor(el)!;
+      cx = anchor.x;
+      cy = anchor.y;
     } else {
-      const pad = el.textPadding ?? 8;
+      const { padX: pad, padY } = textOffsets(el);
       if (textAlign === "left") cx = el.x + pad;
       else if (textAlign === "right") cx = el.x + el.width - pad;
       else cx = el.x + el.width / 2;
-      if (textVAlign === "top") cy = el.y + pad;
-      else if (textVAlign === "bottom") cy = el.y + el.height - pad;
+      if (textVAlign === "top") cy = el.y + padY;
+      else if (textVAlign === "bottom") cy = el.y + el.height - padY;
       else cy = el.y + el.height / 2;
     }
     const fontSize = el.fontSize ?? 14;
@@ -908,6 +1031,31 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     const lh = lineHeight(el);
     const lines = el.label.split("\n");
     const step = fontSize * lh;
+    // edges: opaque plate in the canvas background color sits between the
+    // stroke and the text so the line does not cut through the label
+    // (never hardcoded — matches the live canvas background via the theme)
+    if (el.type === "line" || el.type === "arrow") {
+      const pad = Math.max(2, fontSize * 0.3);
+      const tw = Math.max(...lines.map((l) => ctx.measureText(l).width), 1);
+      const bh = (lines.length - 1) * step + fontSize;
+      const blockCy =
+        textVAlign === "top"
+          ? cy + ((lines.length - 1) * step) / 2
+          : textVAlign === "bottom"
+            ? cy - ((lines.length - 1) * step) / 2
+            : cy;
+      const bx =
+        textAlign === "left" ? cx : textAlign === "right" ? cx - tw : cx - tw / 2;
+      ctx.save();
+      ctx.globalAlpha = 1;
+      // fallback defends against callers with a stale colors object (e.g.
+      // React state created before canvasBg existed): assigning an undefined
+      // fillStyle is silently ignored and would reuse the TEXT color,
+      // painting an opaque block instead of a plate
+      ctx.fillStyle = colors.canvasBg || DEFAULT_COLORS.canvasBg;
+      ctx.fillRect(bx - pad, blockCy - bh / 2 - pad, tw + pad * 2, bh + pad * 2);
+      ctx.restore();
+    }
     const drawLine = (line: string, i: number) => {
       let ly: number;
       if (textVAlign === "top") ly = cy + i * step;
@@ -947,13 +1095,11 @@ function drawHandles(
   const b = elementVisualBounds(ctx, el);
   const cx = (b.x1 + b.x2) / 2;
   const cy = (b.y1 + b.y2) / 2;
-  // arrows expose only their two endpoints (start = bbox nw, end = bbox se)
+  // arrows/lines expose only their two endpoints; width/height are signed,
+  // so the endpoints are (x,y) and (x+width,y+height), not fixed bbox corners
   const points =
-    el.type === "arrow"
-      ? [
-          { x: b.x1, y: b.y1 },
-          { x: b.x2, y: b.y2 },
-        ]
+    el.type === "arrow" || el.type === "line"
+      ? arrowPoints(el)
       : [
           { x: b.x1, y: b.y1 },
           { x: cx, y: b.y1 },
@@ -974,6 +1120,16 @@ function drawHandles(
     ctx.rect(p.x - s / 2, p.y - s / 2, s, s);
     ctx.fill();
     ctx.stroke();
+  }
+  // circular handle for dragging the label along a line/arrow stroke
+  if (el.type === "line" || el.type === "arrow") {
+    const anchor = edgeLabelAnchor(el);
+    if (anchor && el.label) {
+      ctx.beginPath();
+      ctx.arc(anchor.x, anchor.y, s / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }
@@ -1006,6 +1162,60 @@ function drawGuides(
   }
   ctx.stroke();
   ctx.restore();
+}
+
+/** halo around a shape offered/accepted as a binding target */
+function drawBindingHighlight(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  zoom: number,
+  color: string,
+) {
+  const b = elementBounds(el);
+  const pad = 4 / zoom;
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = color + "1a";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5 / zoom;
+  ctx.beginPath();
+  ctx.rect(
+    b.x1 - pad,
+    b.y1 - pad,
+    b.x2 - b.x1 + pad * 2,
+    b.y2 - b.y1 + pad * 2,
+  );
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** draws the highlight of each binding target plus a dot on the outline */
+function drawBindingPreview(
+  ctx: CanvasRenderingContext2D,
+  preview: { start: ArrowBinding | null; end: ArrowBinding | null },
+  doc: Document,
+  zoom: number,
+  color: string,
+) {
+  const byId = new Map(doc.elements.map((el) => [el.id, el] as const));
+  for (const binding of [preview.start, preview.end]) {
+    if (!binding) continue;
+    const target = byId.get(binding.elementId);
+    if (!target) continue;
+    drawBindingHighlight(ctx, target, zoom, color);
+    const ap = bindingPoint(target, binding);
+    const r = 5 / zoom;
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2 / zoom;
+    ctx.beginPath();
+    ctx.arc(ap.x, ap.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 export function render(
@@ -1045,7 +1255,13 @@ export function render(
     const sel = state.doc.elements.find((el) => state.selectedIds.has(el.id));
     if (
       sel &&
-      (sel.type === "rectangle" || sel.type === "arrow" || sel.type === "component" || sel.type === "text") &&
+      (sel.type === "rectangle" ||
+        sel.type === "diamond" ||
+        sel.type === "ellipse" ||
+        sel.type === "line" ||
+        sel.type === "arrow" ||
+        sel.type === "component" ||
+        sel.type === "text") &&
       !(state.hiddenLabelId && sel.id === state.hiddenLabelId) &&
       !(state.hiddenTextId && sel.id === state.hiddenTextId)
     ) {
@@ -1061,6 +1277,16 @@ export function render(
     drawElement(ctx, state.draft, colors);
     drawLabel(ctx, state.draft, colors);
     drawSelectionBox(ctx, state.draft, cam.zoom, colors.selection);
+  }
+
+  if (state.bindingPreview) {
+    drawBindingPreview(
+      ctx,
+      state.bindingPreview,
+      state.doc,
+      cam.zoom,
+      colors.selection,
+    );
   }
 
   if (state.marquee) {

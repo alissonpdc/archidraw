@@ -10,7 +10,11 @@ export interface LibraryItem {
   category: string;
   keywords: string[];
   /** subpaths (stroke-only) in viewBox 0 0 24 24 */
-  icon: string[];
+  icon?: string[];
+  /** id da biblioteca importada de origem (arquivo .excalidrawlib) */
+  group?: string;
+  /** proporção largura/altura do ícone (bibliotecas importadas) */
+  aspect?: number;
 }
 
 export const LIBRARY_CATEGORIES = [
@@ -295,16 +299,29 @@ export const LIBRARY: LibraryItem[] = [
   },
 ];
 
+// ---- imported library items (.excalidrawlib) ------------------------------
+
+const importedItems = new Map<string, LibraryItem>();
+
+export function registerImportedLibraryItems(items: LibraryItem[]): void {
+  for (const item of items) importedItems.set(item.id, item);
+}
+
+export function unregisterImportedLibraryItems(ids: string[]): void {
+  for (const id of ids) importedItems.delete(id);
+}
+
 export function getLibraryItem(id: string): LibraryItem | undefined {
-  return LIBRARY.find((i) => i.id === id);
+  return LIBRARY.find((i) => i.id === id) ?? importedItems.get(id);
 }
 
 /** Simple case-insensitive search by name, keywords, and category */
 export function searchLibrary(query: string): LibraryItem[] {
   const q = query.trim().toLowerCase();
-  if (!q) return LIBRARY;
+  const pool = [...LIBRARY, ...importedItems.values()];
+  if (!q) return pool;
   const terms = q.split(/\s+/);
-  return LIBRARY.filter((item) => {
+  return pool.filter((item) => {
     const hay = `${item.name} ${item.category} ${item.keywords.join(" ")}`.toLowerCase();
     return terms.every((t) => hay.includes(t));
   });

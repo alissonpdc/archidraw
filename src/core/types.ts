@@ -1,4 +1,11 @@
-export type ElementType = "rectangle" | "arrow" | "text" | "component";
+export type ElementType =
+  | "rectangle"
+  | "diamond"
+  | "ellipse"
+  | "line"
+  | "arrow"
+  | "text"
+  | "component";
 
 /** line pattern: continuous, dashed, dotted or dash-dot */
 export type StrokeStyle = "solid" | "dashed" | "dotted" | "dashdot";
@@ -39,6 +46,9 @@ export interface BaseElement {
   /** corner rounding of rectangles, % of the smaller side (0–100) */
   borderRadius: number;
 
+  /** id of the logical group this element belongs to, if any (no container element) */
+  groupId?: string;
+
   // --- text styling (labels & text elements) ---
   fontFamily?: string;
   bold?: boolean;
@@ -52,8 +62,13 @@ export interface BaseElement {
   textAlign?: TextAlign;
   /** vertical alignment inside the element: top / middle / bottom */
   textVAlign?: TextVAlign;
-  /** padding from element borders when text is inside (rect/component) */
-  textPadding?: number;
+  /** global offset of the text inside the element (px), added to the per-side offset */
+  textOffsetGlobal?: number;
+  /** extra text offset when the text is aligned to a specific side (px) */
+  textOffsetTop?: number;
+  textOffsetBottom?: number;
+  textOffsetLeft?: number;
+  textOffsetRight?: number;
   /** component caption position relative to the icon */
   captionPosition?: CaptionPosition;
   /** gap between icon and caption (px) */
@@ -70,18 +85,47 @@ export interface RectangleElement extends BaseElement {
   label?: string;
 }
 
+export interface DiamondElement extends BaseElement {
+  type: "diamond";
+  label?: string;
+}
+
+export interface EllipseElement extends BaseElement {
+  type: "ellipse";
+  label?: string;
+}
+
+/** x,y = start; x+width,y+height = end (same convention as arrow).
+ *  width/height are SIGNED: they encode the drawn direction, so the
+ *  start point stays anchored regardless of the drag quadrant. */
+export interface LineElement extends BaseElement {
+  type: "line";
+  label?: string;
+  /** label position along the stroke: 0 = start, 1 = end (default 0.5 = center) */
+  labelT?: number;
+  startBinding?: ArrowBinding;
+  endBinding?: ArrowBinding;
+}
+
 export type LineType = "straight" | "curved" | "auto";
-export type AnchorSide = "top" | "right" | "bottom" | "left" | "center";
 
 export interface ArrowBinding {
   elementId: string;
-  anchor: AnchorSide;
+  /** bound point normalized within the element bounds (0..1); positions on
+   *  the unit-square border map to the element outline, so the endpoint
+   *  stays glued to the outline as the shape moves/resizes */
+  nx: number;
+  ny: number;
 }
 
-/** x,y = start; x+width,y+height = end (axis-aligned box used as bounds) */
+/** x,y = start; x+width,y+height = end (axis-aligned box used as bounds).
+ *  width/height are SIGNED (see LineElement) so the arrowhead follows the
+ *  drawn direction; use elementBounds() for the normalized bbox. */
 export interface ArrowElement extends BaseElement {
   type: "arrow";
   label?: string;
+  /** label position along the stroke: 0 = start, 1 = end (default 0.5 = center) */
+  labelT?: number;
   lineType?: LineType;
   /** control point for curved lines (relative to element center, scene units) */
   controlPoint?: Point;
@@ -105,6 +149,9 @@ export interface ComponentElement extends BaseElement {
 
 export type Element =
   | RectangleElement
+  | DiamondElement
+  | EllipseElement
+  | LineElement
   | ArrowElement
   | TextElement
   | ComponentElement;
@@ -114,7 +161,15 @@ export interface Document {
   elements: Element[];
 }
 
-export type Tool = "selection" | "hand" | "rectangle" | "arrow" | "text";
+export type Tool =
+  | "selection"
+  | "hand"
+  | "rectangle"
+  | "diamond"
+  | "ellipse"
+  | "line"
+  | "arrow"
+  | "text";
 
 export interface Camera {
   /** scene -> screen offset */

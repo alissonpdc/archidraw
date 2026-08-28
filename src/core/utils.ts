@@ -1,4 +1,12 @@
-import type { Bounds, Camera, Element, Point } from "./types";
+import type {
+  ArrowBinding,
+  ArrowElement,
+  Bounds,
+  Camera,
+  Element,
+  LineElement,
+  Point,
+} from "./types";
 
 let seed = 0;
 export const newId = () =>
@@ -59,8 +67,170 @@ export function arrowPoints(el: Element): [Point, Point] {
   ];
 }
 
+// ---- edge (line/arrow) label positioning ---------------------------------
+
+export type EdgeElement = LineElement | ArrowElement;
+
+export const isEdge = (el: Element): el is EdgeElement =>
+  el.type === "line" || el.type === "arrow";
+
+/** control point used when drawing curved arrows (shared default) */
+export function curvedArrowControl(el: EdgeElement, a: Point, tip: Point): Point {
+  const fallback = {
+    x: (a.x + tip.x) / 2,
+    y: (a.y + tip.y) / 2 - Math.abs(tip.x - a.x) * 0.3,
+  };
+  return el.type === "arrow" ? (el.controlPoint ?? fallback) : fallback;
+}
+
+/** polyline approximation of an edge path (curved arrows are sampled) */
+export function edgePathPoints(el: EdgeElement, samples = 32): Point[] {
+  const [a, b] = arrowPoints(el);
+  const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+  const lineType = el.type === "arrow" ? (el.lineType ?? "straight") : "straight";
+  if (lineType === "curved") {
+    const cp = curvedArrowControl(el, a, tip);
+    const pts: Point[] = [];
+    for (let i = 0; i <= samples; i++) {
+      const t = i / samples;
+      const u = 1 - t;
+      pts.push({
+        x: u * u * a.x + 2 * u * t * cp.x + t * t * tip.x,
+        y: u * u * a.y + 2 * u * t * cp.y + t * t * tip.y,
+      });
+    }
+    return pts;
+  }
+  if (lineType === "auto") {
+    // L-shaped routing (horizontal then vertical)
+    return [a, { x: tip.x, y: a.y }, tip];
+  }
+  return [a, tip];
+}
+
+function polylineLengths(pts: Point[]): { lens: number[]; total: number } {
+  const lens: number[] = [];
+  let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const len = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+    lens.push(len);
+    total += len;
+  }
+  return { lens, total };
+}
+
+/** point at arc-length parameter t (0 = start, 1 = end) along the edge */
+export function edgePointAt(el: EdgeElement, t: number): Point {
+  const pts = edgePathPoints(el);
+  const { lens, total } = polylineLengths(pts);
+  if (total === 0) return pts[0];
+  let remaining = clamp(t, 0, 1) * total;
+  for (let i = 0; i < lens.length; i++) {
+    if (remaining <= lens[i] || i === lens.length - 1) {
+      const f = lens[i] === 0 ? 0 : remaining / lens[i];
+      return {
+        x: pts[i].x + (pts[i + 1].x - pts[i].x) * f,
+        y: pts[i].y + (pts[i + 1].y - pts[i].y) * f,
+      };
+    }
+    remaining -= lens[i];
+  }
+  return pts[pts.length - 1];
+}
+
+/** arc-length parameter (0..1) of the point on the edge closest to p */
+export function edgeParamAt(el: EdgeElement, p: Point): number {
+  const pts = edgePathPoints(el, 64);
+  const { lens, total } = polylineLengths(pts);
+  if (total === 0) return 0.5;
+  let acc = 0;
+  let bestT = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < lens.length; i++) {
+    const a = pts[i];
+    const dx = pts[i + 1].x - a.x;
+    const dy = pts[i + 1].y - a.y;
+    const lenSq = dx * dx + dy * dy;
+    let f = lenSq === 0 ? 0 : ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+    f = clamp(f, 0, 1);
+    const d = Math.hypot(p.x - (a.x + f * dx), p.y - (a.y + f * dy));
+    if (d < bestDist) {
+      bestDist = d;
+      bestT = (acc + f * lens[i]) / total;
+    }
+    acc += lens[i];
+  }
+  return clamp(bestT, 0, 1);
+}
+
+/** label center of a line/arrow (null for other element types) */
+export function edgeLabelAnchor(el: Element): Point | null {
+  if (!isEdge(el)) return null;
+  return edgePointAt(el, el.labelT ?? 0.5);
+}
+
+/** the four vertices of a diamond inscribed in the element bbox */
+export function diamondVertices(el: Element): Point[] {
+  const cx = el.x + el.width / 2;
+  const cy = el.y + el.height / 2;
+  return [
+    { x: cx, y: el.y },
+    { x: el.x + el.width, y: cy },
+    { x: cx, y: el.y + el.height },
+    { x: el.x, y: cy },
+  ];
+}
+
 export function translateElement(el: Element, dx: number, dy: number): Element {
   return { ...el, x: el.x + dx, y: el.y + dy };
+}
+
+/** absolute point of a binding (normalized position within element bounds) */
+export function bindingPoint(el: Element, binding: ArrowBinding): Point {
+  const b = elementBounds(el);
+  return {
+    x: b.x1 + clamp(binding.nx, 0, 1) * (b.x2 - b.x1),
+    y: b.y1 + clamp(binding.ny, 0, 1) * (b.y2 - b.y1),
+  };
+}
+
+/** nearest point on the element outline from p (per-shape geometry) */
+export function nearestOutlinePoint(el: Element, p: Point): Point {
+  const b = elementBounds(el);
+  const cx = (b.x1 + b.x2) / 2;
+  const cy = (b.y1 + b.y2) / 2;
+  const hw = (b.x2 - b.x1) / 2;
+  const hh = (b.y2 - b.y1) / 2;
+  if (el.type === "ellipse") {
+    // radial projection of the direction onto the ellipse
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    if (dx === 0 && dy === 0) return { x: cx + hw, y: cy };
+    const t = 1 / Math.hypot(dx / (hw || 1), dy / (hh || 1));
+    return { x: cx + dx * t, y: cy + dy * t };
+  }
+  if (el.type === "diamond") {
+    // radial projection onto the rhombus |dx|/hw + |dy|/hh = 1
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    if (dx === 0 && dy === 0) return { x: cx + hw, y: cy };
+    const t = 1 / (Math.abs(dx) / (hw || 1) + Math.abs(dy) / (hh || 1));
+    return { x: cx + dx * t, y: cy + dy * t };
+  }
+  // rectangle outline: clamp to the border; points inside project to the
+  // nearest edge
+  const qx = clamp(p.x, b.x1, b.x2);
+  const qy = clamp(p.y, b.y1, b.y2);
+  if (qx !== p.x || qy !== p.y) return { x: qx, y: qy };
+  const dl = p.x - b.x1;
+  const dr = b.x2 - p.x;
+  const dt = p.y - b.y1;
+  const db = b.y2 - p.y;
+  const m = Math.min(dl, dr, dt, db);
+  if (m === dl) return { x: b.x1, y: p.y };
+  if (m === dr) return { x: b.x2, y: p.y };
+  if (m === dt) return { x: p.x, y: b.y1 };
+  return { x: p.x, y: b.y2 };
 }
 
 /** union bounding box of all elements; null when empty */

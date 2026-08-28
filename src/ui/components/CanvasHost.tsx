@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
-import { type RenderColors, componentIconLayout } from "../../core/renderer";
+import { type RenderColors, componentIconLayout, textOffsets } from "../../core/renderer";
 import { useGridMode } from "../viewPrefs";
 import type { Point } from "../../core/types";
 import { pushRecentComponent } from "../../core/library";
 import { COMPONENT_DND_TYPE } from "./LibraryPanel";
 import { resolveTextColor } from "../../core/textStyle";
-import { measureText } from "../../core/utils";
+import { measureText, edgeLabelAnchor } from "../../core/utils";
 
 function readThemeColors(): RenderColors & { elementStroke: string } {
   const style = getComputedStyle(document.documentElement);
@@ -15,6 +15,8 @@ function readThemeColors(): RenderColors & { elementStroke: string } {
     elementStroke: style.getPropertyValue("--element-stroke").trim() || "#1e1e1e",
     gridDot: style.getPropertyValue("--grid-dot").trim() || "rgba(0,0,0,0.14)",
     gridLine: style.getPropertyValue("--grid-line").trim() || "rgba(0,0,0,0.07)",
+    // label plates must always match the live canvas background
+    canvasBg: style.getPropertyValue("--bg-canvas").trim() || "#ffffff",
   };
 }
 
@@ -125,6 +127,7 @@ export function CanvasHost() {
       elementStroke: colors.elementStroke,
       gridDot: colors.gridDot,
       gridLine: colors.gridLine,
+      canvasBg: colors.canvasBg,
     };
 
     let lastSelKey = "";
@@ -176,19 +179,18 @@ export function CanvasHost() {
           align = el.textAlign ?? "center";
           vAlignMode = el.textVAlign ?? "middle";
           fontSize = el.fontSize ?? 14;
-          if (el.type === "arrow") {
-            hx =
-              align === "left" ? el.x :
-              align === "right" ? el.x + el.width :
-              el.x + el.width / 2;
-            cy = el.y + el.height / 2;
+          if (el.type === "line" || el.type === "arrow") {
+            // edges: label slides along the stroke (labelT, default center)
+            const anchor = edgeLabelAnchor(el)!;
+            hx = anchor.x;
+            cy = anchor.y;
           } else {
-            const pad = el.textPadding ?? 8;
+            const { padX: pad, padY } = textOffsets(el);
             if (align === "left") hx = el.x + pad;
             else if (align === "right") hx = el.x + el.width - pad;
             else hx = el.x + el.width / 2;
-            if (vAlignMode === "top") cy = el.y + pad;
-            else if (vAlignMode === "bottom") cy = el.y + el.height - pad;
+            if (vAlignMode === "top") cy = el.y + padY;
+            else if (vAlignMode === "bottom") cy = el.y + el.height - padY;
             else cy = el.y + el.height / 2;
           }
         }
@@ -277,6 +279,12 @@ export function CanvasHost() {
         y: layout.labelCy * cam.zoom + cam.scrollY,
       };
       labelFontSize = layout.labelFont * cam.zoom;
+    } else if (editingEl.type === "line" || editingEl.type === "arrow") {
+      const anchor = edgeLabelAnchor(editingEl)!;
+      labelPos = {
+        x: anchor.x * cam.zoom + cam.scrollX,
+        y: anchor.y * cam.zoom + cam.scrollY,
+      };
     } else {
       labelPos = {
         x: (editingEl.x + editingEl.width / 2) * cam.zoom + cam.scrollX,
@@ -322,7 +330,7 @@ export function CanvasHost() {
         }}
         onPointerMove={(e) => {
           const p = toPoint(e);
-          editor.pointerMove(p);
+          editor.pointerMove(p, { shift: e.shiftKey });
           // imperative resize-handle cursor (avoids re-renders on hover)
           const override = editor.cursorOverrideAt(p);
           e.currentTarget.style.cursor = override ?? "";
@@ -374,6 +382,7 @@ export function CanvasHost() {
           <textarea
             ref={textareaRef}
             className="text-overlay"
+            spellCheck={false}
             style={{
               left: editingEl.x * cam.zoom + cam.scrollX,
               top: editingEl.y * cam.zoom + cam.scrollY,
@@ -410,6 +419,7 @@ export function CanvasHost() {
           <textarea
             ref={textareaRef}
             className="text-overlay label-overlay"
+            spellCheck={false}
             style={{
               left: labelPos.x,
               top: labelPos.y,

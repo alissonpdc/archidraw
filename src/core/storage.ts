@@ -1,5 +1,5 @@
 import type { Editor } from "./editor";
-import type { Camera, Document } from "./types";
+import type { ArrowBinding, ArrowElement, Camera, Document, Element, LineElement } from "./types";
 
 const STORAGE_KEY = "archidraw:workspace";
 export const SCHEMA_VERSION = 2;
@@ -45,24 +45,67 @@ function isValidDoc(d: unknown): d is Document {
   );
 }
 
+/** anchor-side → normalized position within the element bounds */
+const LEGACY_ANCHOR_POS: Record<string, [number, number]> = {
+  top: [0.5, 0],
+  right: [1, 0.5],
+  bottom: [0.5, 1],
+  left: [0, 0.5],
+  center: [0.5, 0.5],
+};
+
+/** migrates legacy anchor-based edge bindings to normalized outline positions */
+function migrateBinding(b: unknown): unknown {
+  if (typeof b !== "object" || b === null) return b;
+  const rec = b as Record<string, unknown>;
+  if (typeof rec.anchor !== "string") return b;
+  const [nx, ny] = LEGACY_ANCHOR_POS[rec.anchor] ?? [0.5, 0.5];
+  return { elementId: rec.elementId, nx, ny };
+}
+
+/** legacy anchor-based bindings carry an `anchor` field */
+const needsBindingMigration = (b: unknown): boolean =>
+  typeof b === "object" && b !== null && "anchor" in b;
+
+/** view of an element's optional edge bindings (only lines/arrows have them) */
+type WithBindings = Partial<Pick<LineElement | ArrowElement, "startBinding" | "endBinding">>;
+
 /** fills style defaults on elements saved before strokeStyle/roughness/borderRadius existed */
 function normalizeDoc(doc: Document): Document {
   let changed = false;
   const elements = doc.elements.map((el) => {
+    let next: Document["elements"][number] = el;
     if (
-      el.strokeStyle !== undefined &&
-      el.roughness !== undefined &&
-      el.borderRadius !== undefined
+      el.strokeStyle === undefined ||
+      el.roughness === undefined ||
+      el.borderRadius === undefined
     ) {
-      return el;
+      next = {
+        ...el,
+        strokeStyle: el.strokeStyle ?? ("solid" as const),
+        roughness: el.roughness ?? (0 as const),
+        borderRadius: el.borderRadius ?? 0,
+      };
     }
-    changed = true;
-    return {
-      ...el,
-      strokeStyle: el.strokeStyle ?? ("solid" as const),
-      roughness: el.roughness ?? (0 as const),
-      borderRadius: el.borderRadius ?? 0,
-    };
+    const bindings = next as Element & WithBindings;
+    if (
+      needsBindingMigration(bindings.startBinding) ||
+      needsBindingMigration(bindings.endBinding)
+    ) {
+      next = {
+        ...next,
+        startBinding: needsBindingMigration(bindings.startBinding)
+          ? (migrateBinding(bindings.startBinding) as ArrowBinding)
+          : bindings.startBinding,
+        endBinding: needsBindingMigration(bindings.endBinding)
+          ? (migrateBinding(bindings.endBinding) as ArrowBinding)
+          : bindings.endBinding,
+      } as Element;
+    }
+    if (next !== el) {
+      changed = true;
+    }
+    return next;
   });
   return changed ? { ...doc, elements } : doc;
 }

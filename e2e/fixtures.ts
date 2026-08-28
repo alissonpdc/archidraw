@@ -23,6 +23,8 @@ export interface EditorSnapshotLike {
     type: string;
     componentId?: string;
     label?: string;
+    labelT?: number;
+    groupId?: string;
   }[];
 }
 
@@ -68,6 +70,8 @@ export const test = base.extend<TestFixtures>({
             type: el.type,
             componentId: el.componentId,
             label: el.label,
+            labelT: el.labelT,
+            groupId: el.groupId,
           })),
         };
       });
@@ -103,7 +107,7 @@ export async function drag(
 
 export async function selectTool(
   page: Page,
-  key: "v" | "h" | "r" | "a" | "t",
+  key: "v" | "h" | "r" | "d" | "e" | "l" | "a" | "t",
 ) {
   await page.keyboard.press(key);
 }

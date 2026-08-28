@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - 'feat/**'
+      - 'fix/**'
+      - 'chore/**'
+      - 'refactor/**'
+      - 'perf/**'
+      - 'test/**'
+      - 'docs/**'
+      - 'ci/**'
+      - 'style/**'
+      - 'build/**'
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint + Build + E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run lint
+
+      - run: npm run build
+
+      - run: npm run test:e2e
+
+  open-pr:
+    name: Abrir PR para main
+    if: github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Criar PR para main (se não existir)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          title=$(echo "$BRANCH" | sed -E 's|^([a-z]+)/|\1: |')
+          existing=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || true)
+
+          {
+            echo "## Commits desta branch"
+            echo ""
+            git log --format='- %s' "origin/main..HEAD"
+          } > pr-body.md
+
+          if [ -n "$existing" ]; then
+            echo "PR #$existing já existe para $BRANCH — nada a fazer."
+          else
+            gh pr create --base main --head "$BRANCH" \
+              --title "$title" \
+              --body-file pr-body.md
+          fi

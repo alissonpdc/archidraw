@@ -12,20 +12,77 @@ async function createRect(
 }
 
 test.describe("resize handles", () => {
-  test("dragging SE handle resizes rectangle", async ({ page }) => {
+  test("corner handle keeps aspect ratio", async ({ page }) => {
     await open(page);
     await createRect(page, 100, 100, 220, 180);
     await selectTool(page, "v");
 
-    // grab SE handle at (220,180) and pull out
+    // grab SE handle at (220,180) and pull out diagonally
     await drag(page, { x: 220, y: 180 }, { x: 260, y: 215 });
 
     const el = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
       return { w: s.doc.elements[0].width, h: s.doc.elements[0].height };
     });
-    expect(el.w).toBeCloseTo(160, 0);
-    expect(el.h).toBeCloseTo(115, 0);
+    // proportional: original ratio 120/80 = 1.5 is preserved
+    expect(el.w / el.h).toBeCloseTo(1.5, 1);
+    expect(el.w).toBeGreaterThan(120);
+  });
+
+  test("edge handle resizes on a single axis only", async ({ page }) => {
+    await open(page);
+    await createRect(page, 100, 100, 220, 180);
+    await selectTool(page, "v");
+
+    // grab E handle (220,140) and pull right+down: width grows, height unchanged
+    await drag(page, { x: 220, y: 140 }, { x: 280, y: 200 });
+
+    const el = await page.evaluate(() => {
+      const s = window.__editor__.getSnapshot();
+      return {
+        w: s.doc.elements[0].width,
+        h: s.doc.elements[0].height,
+        y: s.doc.elements[0].y,
+      };
+    });
+    expect(el.w).toBeCloseTo(180, 0);
+    expect(el.h).toBeCloseTo(80, 0);
+    expect(el.y).toBeCloseTo(100, 0);
+  });
+
+  test("edge handle on library component keeps aspect ratio", async ({
+    page,
+  }) => {
+    await open(page);
+    await page.evaluate(() => window.__editor__.insertComponent("sqs"));
+
+    const before = await page.evaluate(() => {
+      const s = window.__editor__.getSnapshot();
+      const el = s.doc.elements[0];
+      return {
+        w: el.width,
+        h: el.height,
+        x: el.x,
+        handleX: (el.x + el.width) * s.camera.zoom + s.camera.scrollX,
+        handleY: (el.y + el.height / 2) * s.camera.zoom + s.camera.scrollY,
+      };
+    });
+
+    // grab E handle and pull right+down: both axes follow the original ratio
+    await drag(
+      page,
+      { x: before.handleX, y: before.handleY },
+      { x: before.handleX + 40, y: before.handleY + 30 },
+    );
+
+    const after = await page.evaluate(() => {
+      const s = window.__editor__.getSnapshot();
+      const el = s.doc.elements[0];
+      return { w: el.width, h: el.height, x: el.x };
+    });
+    expect(after.w).toBeCloseTo(before.w + 40, 0);
+    expect(after.h / after.w).toBeCloseTo(before.h / before.w, 1);
+    expect(after.x).toBeCloseTo(before.x, 0); // left edge stays anchored
   });
 
   test("resize is undoable", async ({ page }) => {
@@ -46,13 +103,15 @@ test.describe("resize handles", () => {
 test.describe("snap guides", () => {
   test("moving near an aligned edge snaps into place", async ({ page }) => {
     await open(page);
-    await createRect(page, 100, 100, 220, 180); // A: centerY 140
+    // A placed right of the properties panel strip (x < ~200), which
+    // overlays the left side of the canvas while a shape is selected
+    await createRect(page, 220, 100, 340, 180); // A: centerY 140
     await createRect(page, 300, 300, 420, 400); // B: centerY 350
     await selectTool(page, "v");
-    await page.mouse.click(150, 140); // select A
+    await page.mouse.click(280, 140); // select A
 
     // drop A so its centerY lands 3px above B's (within 4px snap tolerance)
-    await drag(page, { x: 150, y: 140 }, { x: 150, y: 347 });
+    await drag(page, { x: 280, y: 140 }, { x: 280, y: 347 });
 
     const a = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
@@ -64,12 +123,12 @@ test.describe("snap guides", () => {
 
   test("moving far from alignment does not snap", async ({ page }) => {
     await open(page);
-    await createRect(page, 100, 100, 220, 180);
+    await createRect(page, 220, 100, 340, 180);
     await createRect(page, 300, 300, 420, 400);
     await selectTool(page, "v");
-    await page.mouse.click(150, 140);
+    await page.mouse.click(280, 140);
 
-    await drag(page, { x: 150, y: 140 }, { x: 150, y: 500 });
+    await drag(page, { x: 280, y: 140 }, { x: 280, y: 500 });
 
     const a = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
@@ -82,10 +141,11 @@ test.describe("snap guides", () => {
 test.describe("labels", () => {
   test("double-click edits shape label", async ({ page }) => {
     await open(page);
-    await createRect(page, 100, 100, 220, 180);
+    // right of the properties panel strip (see snap guides note)
+    await createRect(page, 220, 100, 340, 180);
     await selectTool(page, "v");
 
-    await page.mouse.dblclick(150, 140);
+    await page.mouse.dblclick(280, 140);
     const overlay = page.locator(".label-overlay");
     await expect(overlay).toBeVisible();
 
@@ -101,13 +161,14 @@ test.describe("labels", () => {
 
   test("emptying label removes it", async ({ page }) => {
     await open(page);
-    await createRect(page, 100, 100, 220, 180);
+    // right of the properties panel strip (see snap guides note)
+    await createRect(page, 220, 100, 340, 180);
     await selectTool(page, "v");
-    await page.mouse.dblclick(150, 140);
+    await page.mouse.dblclick(280, 140);
     await page.keyboard.type("Temp");
     await page.keyboard.press("Escape");
 
-    await page.mouse.dblclick(150, 140);
+    await page.mouse.dblclick(280, 140);
     const overlay = page.locator(".label-overlay");
     await expect(overlay).toBeVisible();
     await overlay.fill(""); // clear existing label

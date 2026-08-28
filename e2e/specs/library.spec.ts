@@ -93,7 +93,7 @@ test.describe("component library", () => {
     expect(state.elements[0].componentId).toBe("lambda");
   });
 
-  test("inserted component is born selected with service label", async ({
+  test("inserted component is born selected without label", async ({
     page,
     editorState,
   }) => {
@@ -103,7 +103,7 @@ test.describe("component library", () => {
       .click();
 
     const state = await editorState();
-    expect(state.elements[0].label).toBe("API Gateway");
+    expect(state.elements[0].label).toBeUndefined();
     expect(state.tool).toBe("selection");
   });
 
@@ -143,8 +143,9 @@ test.describe("component library", () => {
     });
     expect(overlayInfo.outlineStyle).toBe("none");
     expect(overlayInfo.color).toBe("rgba(0, 0, 0, 0)");
-    // label fica abaixo do centro do elemento (não no meio)
-    expect(overlayInfo.top).toBeGreaterThan(overlayInfo.expectedTop);
+    // componente nasce sem label: overlay começa no centro do elemento
+    // (ao digitar, o label assume a posição abaixo do ícone)
+    expect(overlayInfo.top).toBeGreaterThanOrEqual(overlayInfo.expectedTop - 1);
 
     await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.type("Upload bucket");

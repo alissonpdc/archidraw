@@ -57,7 +57,11 @@ type Patch = Partial<{
   lineSpacing: number;
   textAlign: "left" | "center" | "right";
   textVAlign: "top" | "middle" | "bottom";
-  textPadding: number;
+  textOffsetGlobal: number;
+  textOffsetTop: number;
+  textOffsetBottom: number;
+  textOffsetLeft: number;
+  textOffsetRight: number;
   captionPosition: "top" | "bottom" | "left" | "right";
   captionGap: number;
   captionOffsetTop: number;
@@ -437,10 +441,24 @@ export function PropertiesPanel() {
   const hasText = selected.some((el) => el.type === "text");
   const hasShape = selected.some(
     (el) =>
-      el.type === "rectangle" || el.type === "arrow" || el.type === "component",
+      el.type === "rectangle" ||
+      el.type === "diamond" ||
+      el.type === "ellipse" ||
+      el.type === "line" ||
+      el.type === "arrow" ||
+      el.type === "component",
+  );
+  const hasFillable = selected.some(
+    (el) =>
+      el.type === "rectangle" ||
+      el.type === "diamond" ||
+      el.type === "ellipse" ||
+      el.type === "component",
   );
   const hasComponent = selected.some((el) => el.type === "component");
   const hasRectangle = selected.some((el) => el.type === "rectangle");
+  const hasDiamond = selected.some((el) => el.type === "diamond");
+  const hasEllipse = selected.some((el) => el.type === "ellipse");
   const hasArrow = selected.some((el) => el.type === "arrow");
   const isOnlyText = selected.length > 0 && selected.every((el) => el.type === "text");
 
@@ -455,8 +473,14 @@ export function PropertiesPanel() {
   const allLineType = (v: string) =>
     selected.every((el) => (el.type === "arrow" ? (el.lineType ?? "straight") : v) === v);
   const allFont = (v: number) => {
-    const textEls = selected.filter((el) => el.type === "text");
-    return textEls.length > 0 && textEls.every((el) => el.type === "text" && el.fontSize === v);
+    const textEls = selected.filter((el) => el.type === "text" || el.label);
+    return (
+      textEls.length > 0 &&
+      textEls.every(
+        (el) =>
+          (el.fontSize ?? (el.type === "component" ? 12 : 14)) === v,
+      )
+    );
   };
 
   const opacityValue = (() => {
@@ -541,13 +565,15 @@ export function PropertiesPanel() {
           />
         </Group>
 
-          <Group title="Fill">
-            <PaletteGrid
-              current={selected[0].backgroundColor}
-              onPick={(backgroundColor) => apply({ backgroundColor })}
-              label="Fill"
-            />
-          </Group>
+          {hasFillable && (
+            <Group title="Fill">
+              <PaletteGrid
+                current={selected[0].backgroundColor}
+                onPick={(backgroundColor) => apply({ backgroundColor })}
+                label="Fill"
+              />
+            </Group>
+          )}
 
           <Group title="Opacity">
             <MiniSlider
@@ -688,7 +714,7 @@ export function PropertiesPanel() {
             ))}
           </Group>
 
-          {hasShape && !hasArrow && (
+          {hasRectangle && (
             <Group title="Borders">
               <div className="v-stack">
                 <div className="border-presets">
@@ -832,7 +858,7 @@ export function PropertiesPanel() {
             </div>
           </Group>
 
-          {(hasText || hasRectangle || hasArrow) && (
+          {(hasText || hasRectangle || hasDiamond || hasEllipse || hasArrow) && (
             <Group title="Horizontal alignment">
               {(["left", "center", "right"] as const).map((a) => (
                 <button
@@ -956,16 +982,32 @@ export function PropertiesPanel() {
             </>
           )}
 
-          {hasRectangle && (
-            <Group title="Offset">
-              <MiniSlider
-                value={selected[0].textPadding ?? 8}
-                min={0}
-                max={40}
-                step={1}
-                ariaLabel="Text offset"
-                suffix="px"
-                onChange={(v) => apply({ textPadding: v })}
+          {(hasRectangle || hasDiamond || hasEllipse) && (
+            <Group title="Text offset (px)" vertical>
+              <SpacingRow
+                label="Global"
+                value={selected[0].textOffsetGlobal ?? 8}
+                onChange={(v) => apply({ textOffsetGlobal: v })}
+              />
+              <SpacingRow
+                label="Left"
+                value={selected[0].textOffsetLeft ?? 0}
+                onChange={(v) => apply({ textOffsetLeft: v })}
+              />
+              <SpacingRow
+                label="Right"
+                value={selected[0].textOffsetRight ?? 0}
+                onChange={(v) => apply({ textOffsetRight: v })}
+              />
+              <SpacingRow
+                label="Top"
+                value={selected[0].textOffsetTop ?? 0}
+                onChange={(v) => apply({ textOffsetTop: v })}
+              />
+              <SpacingRow
+                label="Bottom"
+                value={selected[0].textOffsetBottom ?? 0}
+                onChange={(v) => apply({ textOffsetBottom: v })}
               />
             </Group>
           )}
@@ -1017,6 +1059,38 @@ export function PropertiesPanel() {
                 <svg width="16" height="16" viewBox="0 0 16 16">
                   <rect x="5" y="1" width="7" height="7" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5"/>
                   <rect x="1" y="5" width="7" height="7" rx="1" fill="currentColor" opacity="0.3" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </button>
+            </div>
+          </Group>
+
+          <Group title="Group">
+            <div className="layer-btns">
+              <button
+                className="size-btn"
+                data-tip="Group"
+                aria-label="Group"
+                disabled={selected.length < 2}
+                onClick={() => editor.groupSelected()}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="1.5" y="1.5" width="13" height="13" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.6"/>
+                  <rect x="4" y="4" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.3"/>
+                  <rect x="7" y="7" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+                </svg>
+              </button>
+              <button
+                className="size-btn"
+                data-tip="Ungroup"
+                aria-label="Ungroup"
+                disabled={!selected.some((el) => el.groupId)}
+                onClick={() => editor.ungroupSelected()}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.4"/>
+                  <rect x="9" y="9" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.4"/>
+                  <rect x="4" y="4" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.3"/>
+                  <rect x="7" y="7" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
                 </svg>
               </button>
             </div>

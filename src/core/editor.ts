@@ -3,14 +3,16 @@ import { hitTest, elementsInBounds } from "./hitTest";
 import { parse, serialize } from "./storage";
 import { render, type RenderColors } from "./renderer";
 import type {
-  AnchorSide,
   ArrowBinding,
   ArrowElement,
   Bounds,
   Camera,
   ComponentElement,
+  DiamondElement,
   Document,
   Element,
+  EllipseElement,
+  LineElement,
   LineType,
   Point,
   RectangleElement,
@@ -28,6 +30,11 @@ import {
   unionBounds,
   elementBounds,
   measureText,
+  edgeLabelAnchor,
+  edgeParamAt,
+  isEdge,
+  bindingPoint,
+  nearestOutlinePoint,
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
@@ -52,6 +59,8 @@ const HANDLE_CURSOR: Record<HandleId, string> = {
 const HANDLE_TOLERANCE_PX = 6;
 /** snap activation threshold in scene units */
 const SNAP_TOLERANCE = 4;
+/** 45° in radians, used by shift-constrained line/arrow angle snapping */
+const QUARTER_TURN = Math.PI / 4;
 
 export interface SnapGuide {
   orientation: "h" | "v";
@@ -96,9 +105,42 @@ function resizeHandleAt(
   return null;
 }
 
-const ARROW_HANDLES: HandleId[] = ["nw", "se"];
+/** element types that expose resize handles in single selection */
+function hasResizeHandles(el: Element): boolean {
+  return (
+    el.type === "rectangle" ||
+    el.type === "diamond" ||
+    el.type === "ellipse" ||
+    el.type === "line" ||
+    el.type === "arrow" ||
+    el.type === "component" ||
+    el.type === "text"
+  );
+}
+
+/** lines/arrows expose only their two endpoints instead of the 8 bbox handles.
+ *  width/height are signed: the start endpoint sits at (x,y) and the end at
+ *  (x+width, y+height), which map to different bbox corners per quadrant. */
+function handlesFor(el: Element): HandleId[] {
+  if (el.type === "line" || el.type === "arrow") {
+    const startHandle = `${el.height < 0 ? "s" : "n"}${el.width < 0 ? "e" : "w"}` as HandleId;
+    const endHandle = `${el.height < 0 ? "n" : "s"}${el.width < 0 ? "w" : "e"}` as HandleId;
+    return [startHandle, endHandle];
+  }
+  return HANDLES;
+}
 
 const BIND_TOLERANCE = 20; // scene units
+
+/** true when the scene point hits the label-drag handle of a selected edge */
+function labelHandleAt(scene: Point, el: Element, zoom: number): boolean {
+  if (!isEdge(el) || !el.label) return false;
+  const anchor = edgeLabelAnchor(el)!;
+  return (
+    Math.hypot(scene.x - anchor.x, scene.y - anchor.y) * zoom <=
+    HANDLE_TOLERANCE_PX
+  );
+}
 
 let _offCanvas: HTMLCanvasElement | null = null;
 let _offCtx: CanvasRenderingContext2D | null = null;
@@ -110,17 +152,11 @@ function visualBounds(el: Element): Bounds {
   return elementVisualBounds(_offCtx!, el);
 }
 
-function anchorPoint(el: Element, anchor: AnchorSide): Point {
-  const b = elementBounds(el);
-  switch (anchor) {
-    case "top": return { x: (b.x1 + b.x2) / 2, y: b.y1 };
-    case "bottom": return { x: (b.x1 + b.x2) / 2, y: b.y2 };
-    case "left": return { x: b.x1, y: (b.y1 + b.y2) / 2 };
-    case "right": return { x: b.x2, y: (b.y1 + b.y2) / 2 };
-    case "center": return { x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 };
-  }
-}
-
+/**
+ * binding candidate for a point: any non-edge element whose outline is
+ * within BIND_TOLERANCE of the point (or that contains it). Binds to the
+ * nearest outline point, stored normalized within the element bounds.
+ */
 function findNearestBinding(
   point: Point,
   elements: Element[],
@@ -128,17 +164,67 @@ function findNearestBinding(
 ): ArrowBinding | null {
   let best: { dist: number; binding: ArrowBinding } | null = null;
   for (const el of elements) {
-    if (el.id === excludeId || el.type === "arrow") continue;
-    const anchors: AnchorSide[] = ["top", "right", "bottom", "left"];
-    for (const anchor of anchors) {
-      const ap = anchorPoint(el, anchor);
-      const dist = Math.hypot(point.x - ap.x, point.y - ap.y);
-      if (dist <= BIND_TOLERANCE && (!best || dist < best.dist)) {
-        best = { dist, binding: { elementId: el.id, anchor } };
-      }
+    if (el.id === excludeId || isEdge(el)) continue;
+    const b = elementBounds(el);
+    const w = b.x2 - b.x1;
+    const h = b.y2 - b.y1;
+    const op = nearestOutlinePoint(el, point);
+    const dist = Math.hypot(point.x - op.x, point.y - op.y);
+    const inside =
+      point.x >= b.x1 && point.x <= b.x2 && point.y >= b.y1 && point.y <= b.y2;
+    if ((inside || dist <= BIND_TOLERANCE) && (!best || dist < best.dist)) {
+      best = {
+        dist,
+        binding: {
+          elementId: el.id,
+          nx: w === 0 ? 0.5 : (op.x - b.x1) / w,
+          ny: h === 0 ? 0.5 : (op.y - b.y1) / h,
+        },
+      };
     }
   }
   return best?.binding ?? null;
+}
+
+/** live anchor highlights while drawing or dragging an edge endpoint */
+export interface BindingPreview {
+  start: ArrowBinding | null;
+  end: ArrowBinding | null;
+}
+
+/**
+ * re-snaps an edge's bound endpoints to their anchor points; unbound
+ * endpoints stay fixed. Used when either the edge itself or a shape it
+ * binds to moves/resizes.
+ */
+function snapEdgeEndpoints(
+  el: LineElement | ArrowElement,
+  resolve: (id: string) => Element | undefined,
+): LineElement | ArrowElement {
+  let x = el.x;
+  let y = el.y;
+  let w = el.width;
+  let h = el.height;
+  if (el.startBinding) {
+    const target = resolve(el.startBinding.elementId);
+    if (target) {
+      const ap = bindingPoint(target, el.startBinding);
+      // pivot on the free end: it stays where it is
+      w = x + w - ap.x;
+      h = y + h - ap.y;
+      x = ap.x;
+      y = ap.y;
+    }
+  }
+  if (el.endBinding) {
+    const target = resolve(el.endBinding.elementId);
+    if (target) {
+      const ap = bindingPoint(target, el.endBinding);
+      w = ap.x - x;
+      h = ap.y - y;
+    }
+  }
+  return { ...el, x, y, width: w, height: h };
 }
 
 type Interaction =
@@ -147,6 +233,7 @@ type Interaction =
   | { kind: "draw"; startScene: Point; id: string }
   | { kind: "move"; startScene: Point; originals: Element[]; moved?: boolean }
   | { kind: "resize"; handle: HandleId; original: Element }
+  | { kind: "label-move"; id: string; moved?: boolean }
   | { kind: "marquee"; startScene: Point };
 
 export interface TabInfo {
@@ -185,11 +272,13 @@ export class Editor {
   private editingInitial: string | null = null;
 
   private draft: Element | null = null;
+  private bindingPreview: BindingPreview | null = null;
   private marquee: { x1: number; y1: number; x2: number; y2: number } | null =
     null;
   private guides: SnapGuide[] | null = null;
   private interaction: Interaction = { kind: "none" };
   private spacePressed = false;
+  private shiftPressed = false;
   private pasteCount = 0;
   private lastDefaultStroke: string = DEFAULT_STROKE;
   private lastStrokeStyle: StrokeStyle = "solid";
@@ -278,14 +367,13 @@ export class Editor {
       elements: this.doc.elements
         .filter((el) => !deletedIds.has(el.id))
         .map((el) => {
-          if (el.type !== "arrow") return el;
-          const arrow = el;
-          const startBinding = arrow.startBinding && deletedIds.has(arrow.startBinding.elementId)
-            ? undefined : arrow.startBinding;
-          const endBinding = arrow.endBinding && deletedIds.has(arrow.endBinding.elementId)
-            ? undefined : arrow.endBinding;
-          if (startBinding !== arrow.startBinding || endBinding !== arrow.endBinding) {
-            return { ...arrow, startBinding, endBinding };
+          if (!isEdge(el)) return el;
+          const startBinding = el.startBinding && deletedIds.has(el.startBinding.elementId)
+            ? undefined : el.startBinding;
+          const endBinding = el.endBinding && deletedIds.has(el.endBinding.elementId)
+            ? undefined : el.endBinding;
+          if (startBinding !== el.startBinding || endBinding !== el.endBinding) {
+            return { ...el, startBinding, endBinding };
           }
           return el;
         }),
@@ -297,14 +385,42 @@ export class Editor {
   duplicateSelected() {
     if (this.selectedIds.size === 0) return;
     this.commitHistory();
-    const clones: Element[] = [];
-    for (const el of this.doc.elements) {
-      if (!this.selectedIds.has(el.id)) continue;
-      clones.push({ ...el, id: newId(), x: el.x + 10, y: el.y + 10 });
-    }
-    this.doc = { ...this.doc, elements: [...this.doc.elements, ...clones] };
+    const originals = this.doc.elements.filter((el) =>
+      this.selectedIds.has(el.id),
+    );
+    const clones = this.cloneElements(originals, 10, 10);
+    this.doc = {
+      ...this.doc,
+      elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
+    };
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
+  }
+
+  /**
+   * clones elements with translated positions; edge bindings pointing at
+   * elements that are also cloned are remapped to the clone ids, otherwise
+   * they keep referencing the original target
+   */
+  private cloneElements(originals: Element[], dx: number, dy: number): Element[] {
+    const idMap = new Map<string, string>();
+    const clones = originals.map((el) => {
+      const id = newId();
+      idMap.set(el.id, id);
+      return { ...el, id, x: el.x + dx, y: el.y + dy };
+    });
+    return clones.map((el) => {
+      if (!isEdge(el)) return el;
+      const startBinding =
+        el.startBinding && idMap.has(el.startBinding.elementId)
+          ? { ...el.startBinding, elementId: idMap.get(el.startBinding.elementId)! }
+          : el.startBinding;
+      const endBinding =
+        el.endBinding && idMap.has(el.endBinding.elementId)
+          ? { ...el.endBinding, elementId: idMap.get(el.endBinding.elementId)! }
+          : el.endBinding;
+      return { ...el, startBinding, endBinding };
+    });
   }
 
   // ---- layer reorder ---------------------------------------------------
@@ -344,6 +460,58 @@ export class Editor {
   sendToBack() { this.reorderElements([...this.selectedIds], "back"); }
   bringForward() { this.reorderElements([...this.selectedIds], "forward"); }
   sendBackward() { this.reorderElements([...this.selectedIds], "backward"); }
+
+  // ---- grouping ---------------------------------------------------------
+  groupSelected() {
+    if (this.selectedIds.size < 2) return;
+    this.commitHistory();
+    const gid = newId();
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) =>
+        this.selectedIds.has(el.id) ? { ...el, groupId: gid } : el,
+      ),
+    };
+    this.emit();
+  }
+
+  ungroupSelected() {
+    const gids = new Set(
+      this.doc.elements
+        .filter((el) => this.selectedIds.has(el.id) && el.groupId)
+        .map((el) => el.groupId as string),
+    );
+    if (gids.size === 0) return;
+    this.commitHistory();
+    // dissolve the whole group even if only part of it is selected
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) =>
+        el.groupId && gids.has(el.groupId) ? { ...el, groupId: undefined } : el,
+      ),
+    };
+    this.emit();
+  }
+
+  /**
+   * remaps groupIds on cloned elements so clones form their own groups;
+   * clones that end up alone in a group lose the groupId entirely
+   */
+  private cloneGroupIds(elements: Element[]): Element[] {
+    const counts = new Map<string, number>();
+    for (const el of elements) {
+      if (el.groupId) counts.set(el.groupId, (counts.get(el.groupId) ?? 0) + 1);
+    }
+    const remap = new Map<string, string | undefined>();
+    return elements.map((el) => {
+      if (!el.groupId) return el;
+      if (!remap.has(el.groupId)) {
+        remap.set(el.groupId, (counts.get(el.groupId) ?? 0) > 1 ? newId() : undefined);
+      }
+      const gid = remap.get(el.groupId);
+      return gid ? { ...el, groupId: gid } : { ...el, groupId: undefined };
+    });
+  }
 
   // ---- multi-select alignment -----------------------------------------
   alignSelected(direction: "left" | "center" | "right" | "top" | "middle" | "bottom") {
@@ -402,21 +570,23 @@ export class Editor {
     const screen = screenPoint ?? this.screenCenter();
     const scene = screenToScene(screen, this.camera);
     // ícone preenche o bounds do elemento, então o tamanho de inserção
-    // é o tamanho visual do ícone
+    // é o tamanho visual do ícone (com proporção preservada p/ importados)
     const size = 64;
+    const aspect = item.aspect && item.aspect > 0 ? item.aspect : 1;
+    const w = aspect >= 1 ? size : size * aspect;
+    const h = aspect >= 1 ? size / aspect : size;
     this.commitHistory();
     const el: ComponentElement = {
       id: newId(),
       type: "component",
       componentId: componentId,
-      x: scene.x - size / 2,
-      y: scene.y - size / 2,
-      width: size,
-      height: size,
-      label: item.name,
+      x: scene.x - w / 2,
+      y: scene.y - h / 2,
+      width: w,
+      height: h,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
-      // sem contorno por padrão: apenas ícone + nome
+      // sem contorno e sem label por padrão: apenas o ícone
       strokeWidth: 0,
       opacity: 1,
       strokeStyle: "solid",
@@ -434,6 +604,7 @@ export class Editor {
     this.editingTextId = null;
     this.editingKind = "text";
     this.editingInitial = null;
+    this.bindingPreview = null;
     this.emit();
   }
 
@@ -524,6 +695,7 @@ export class Editor {
     this.selectedIds.clear();
     this.editingTextId = null;
     this.draft = null;
+    this.bindingPreview = null;
     this.marquee = null;
     this.interaction = { kind: "none" };
     this.emit();
@@ -558,6 +730,24 @@ export class Editor {
   /** call before mutating doc so undo returns to current state */
   commitHistory() {
     this.history.push(JSON.stringify(this.doc));
+  }
+
+  /** re-snaps edges bound to the given element after it changed shape/position */
+  private syncEdgesBoundTo(id: string) {
+    const target = this.doc.elements.find((el) => el.id === id);
+    if (!target) return;
+    let changed = false;
+    const elements = this.doc.elements.map((el) => {
+      if (!isEdge(el)) return el;
+      if (el.startBinding?.elementId !== id && el.endBinding?.elementId !== id) {
+        return el;
+      }
+      changed = true;
+      return snapEdgeEndpoints(el, (bid) =>
+        bid === id ? target : this.doc.elements.find((e) => e.id === bid),
+      );
+    });
+    if (changed) this.doc = { ...this.doc, elements };
   }
 
   zoomAt(screenPoint: Point, deltaZoom: number) {
@@ -624,6 +814,9 @@ export class Editor {
     if (
       hitEl &&
       (hitEl.type === "rectangle" ||
+        hitEl.type === "diamond" ||
+        hitEl.type === "ellipse" ||
+        hitEl.type === "line" ||
         hitEl.type === "arrow" ||
         hitEl.type === "component")
     ) {
@@ -693,7 +886,11 @@ export class Editor {
       lineSpacing?: number;
       textAlign?: import("./types").TextAlign;
       textVAlign?: import("./types").TextVAlign;
-      textPadding?: number;
+      textOffsetGlobal?: number;
+      textOffsetTop?: number;
+      textOffsetBottom?: number;
+      textOffsetLeft?: number;
+      textOffsetRight?: number;
       captionPosition?: import("./types").CaptionPosition;
       captionGap?: number;
       captionOffsetTop?: number;
@@ -828,14 +1025,12 @@ export class Editor {
 
     this.pasteCount += 1;
     const offset = 16 * this.pasteCount;
-    const clones = items.map((el) => ({
-      ...el,
-      id: newId(),
-      x: el.x + offset,
-      y: el.y + offset,
-    }));
+    const clones = this.cloneElements(items, offset, offset);
     this.commitHistory();
-    this.doc = { ...this.doc, elements: [...this.doc.elements, ...clones] };
+    this.doc = {
+      ...this.doc,
+      elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
+    };
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
     return clones.length;
@@ -856,6 +1051,22 @@ export class Editor {
     this.emit();
   }
 
+  onShiftDown() {
+    this.shiftPressed = true;
+  }
+
+  onShiftUp() {
+    this.shiftPressed = false;
+  }
+
+  /** snap an angle to the nearest multiple of 45° */
+  private snapAngle(dx: number, dy: number): { x: number; y: number } {
+    const angle =
+      Math.round(Math.atan2(dy, dx) / QUARTER_TURN) * QUARTER_TURN;
+    const len = Math.hypot(dx, dy);
+    return { x: len * Math.cos(angle), y: len * Math.sin(angle) };
+  }
+
   // ---- pointer events (screen coords) ----------------------------------
   pointerDown(
     screenPoint: Point,
@@ -873,6 +1084,9 @@ export class Editor {
 
     switch (this.tool) {
       case "rectangle":
+      case "diamond":
+      case "ellipse":
+      case "line":
       case "arrow": {
         this.commitHistory();
         const base = {
@@ -885,10 +1099,31 @@ export class Editor {
           roughness: this.lastRoughness,
           borderRadius: this.lastBorderRadius,
         };
-        const el: Element =
-          this.tool === "rectangle"
-            ? ({ ...base, type: "rectangle", x: scene.x, y: scene.y, width: 0, height: 0 } satisfies RectangleElement)
-            : ({ ...base, type: "arrow", x: scene.x, y: scene.y, width: 0, height: 0 } satisfies ArrowElement);
+        const bbox = { x: scene.x, y: scene.y, width: 0, height: 0 };
+        let el: Element;
+        if (this.tool === "rectangle") {
+          el = { ...base, type: "rectangle", ...bbox } satisfies RectangleElement;
+        } else if (this.tool === "diamond") {
+          el = { ...base, type: "diamond", ...bbox } satisfies DiamondElement;
+        } else if (this.tool === "ellipse") {
+          el = { ...base, type: "ellipse", ...bbox } satisfies EllipseElement;
+        } else if (this.tool === "line") {
+          el = { ...base, type: "line", ...bbox } satisfies LineElement;
+        } else {
+          el = { ...base, type: "arrow", ...bbox } satisfies ArrowElement;
+        }
+        // drawing that starts over/near a shape binds and snaps the start
+        // to the nearest outline point
+        if (el.type === "line" || el.type === "arrow") {
+          const startBinding = findNearestBinding(scene, this.doc.elements, el.id);
+          if (startBinding) {
+            const target = this.doc.elements.find(
+              (e) => e.id === startBinding.elementId,
+            )!;
+            const ap = nearestOutlinePoint(target, scene);
+            el = { ...el, x: ap.x, y: ap.y, startBinding };
+          }
+        }
         this.draft = el;
         this.interaction = { kind: "draw", startScene: scene, id: el.id };
         break;
@@ -918,23 +1153,28 @@ export class Editor {
         break;
       }
       case "selection": {
+        // label-drag handle of the single selected edge takes precedence
+        if (this.selectedIds.size === 1) {
+          const selected = this.doc.elements.find((el) =>
+            this.selectedIds.has(el.id),
+          );
+          if (selected && labelHandleAt(scene, selected, this.camera.zoom)) {
+            this.commitHistory();
+            this.interaction = { kind: "label-move", id: selected.id };
+            break;
+          }
+        }
         // resize handle of the single selected element takes precedence
         if (this.selectedIds.size === 1) {
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (
-            selected &&
-            (selected.type === "rectangle" ||
-              selected.type === "arrow" ||
-              selected.type === "component" ||
-              selected.type === "text")
-          ) {
+          if (selected && hasResizeHandles(selected)) {
             const handle = resizeHandleAt(
               scene,
               visualBounds(selected),
               this.camera.zoom,
-              selected.type === "arrow" ? ARROW_HANDLES : HANDLES,
+              handlesFor(selected),
             );
             if (handle) {
               this.commitHistory();
@@ -952,17 +1192,23 @@ export class Editor {
           .reverse()
           .find((el) => hitTest(el, scene));
         if (hitEl) {
+          // clicking a member of a group selects the whole group
+          const groupIds = hitEl.groupId
+            ? this.doc.elements
+                .filter((el) => el.groupId === hitEl.groupId)
+                .map((el) => el.id)
+            : [hitEl.id];
           if (modifiers.shift) {
             // additive selection
             const next = new Set(this.selectedIds);
             if (next.has(hitEl.id)) {
-              next.delete(hitEl.id);
+              for (const id of groupIds) next.delete(id);
             } else {
-              next.add(hitEl.id);
+              for (const id of groupIds) next.add(id);
             }
             this.selectedIds = next;
           } else if (!this.selectedIds.has(hitEl.id)) {
-            this.selectedIds = new Set([hitEl.id]);
+            this.selectedIds = new Set(groupIds);
           }
           if (this.selectedIds.size > 0) {
             this.commitHistory();
@@ -984,8 +1230,9 @@ export class Editor {
     this.emit();
   }
 
-  pointerMove(screenPoint: Point) {
+  pointerMove(screenPoint: Point, modifiers: { shift?: boolean } = {}) {
     const scene = screenToScene(screenPoint, this.camera);
+    const shift = modifiers.shift ?? this.shiftPressed;
 
     switch (this.interaction.kind) {
       case "pan": {
@@ -1001,19 +1248,76 @@ export class Editor {
       }
       case "draw": {
         if (!this.draft) break;
-        const b = normalizeBounds({
-          x1: this.interaction.startScene.x,
-          y1: this.interaction.startScene.y,
-          x2: scene.x,
-          y2: scene.y,
-        });
-        this.draft = {
-          ...this.draft,
-          x: b.x1,
-          y: b.y1,
-          width: b.x2 - b.x1,
-          height: b.y2 - b.y1,
-        };
+        if (this.draft.type === "line" || this.draft.type === "arrow") {
+          // edge draft: pivots on its (possibly anchor-snapped) start point;
+          // width/height stay signed so the drawn direction (and the
+          // arrowhead) is preserved in any quadrant
+          const draft: LineElement | ArrowElement = this.draft;
+          const start = { x: draft.x, y: draft.y };
+          let x2 = scene.x;
+          let y2 = scene.y;
+          if (shift) {
+            // shift locks the angle to the nearest 45° increment
+            const d = this.snapAngle(x2 - start.x, y2 - start.y);
+            x2 = start.x + d.x;
+            y2 = start.y + d.y;
+          }
+          // live binding: the moving end snaps to the nearest shape anchor
+          const endBinding = findNearestBinding(
+            { x: x2, y: y2 },
+            this.doc.elements,
+            draft.id,
+          );
+          if (endBinding) {
+            const target = this.doc.elements.find(
+              (e) => e.id === endBinding.elementId,
+            )!;
+            const ap = nearestOutlinePoint(target, { x: x2, y: y2 });
+            x2 = ap.x;
+            y2 = ap.y;
+          }
+          this.bindingPreview = {
+            start: draft.startBinding ?? null,
+            end: endBinding,
+          };
+          this.draft = {
+            ...draft,
+            width: x2 - start.x,
+            height: y2 - start.y,
+            endBinding: endBinding ?? undefined,
+          };
+        } else {
+          const draft = this.draft;
+          const start = this.interaction.startScene;
+          let x2 = scene.x;
+          let y2 = scene.y;
+          if (
+            shift &&
+            (draft.type === "rectangle" ||
+              draft.type === "ellipse" ||
+              draft.type === "diamond")
+          ) {
+            // shift keeps the aspect ratio: perfect square/circle/diamond
+            const dx = x2 - start.x;
+            const dy = y2 - start.y;
+            const size = Math.max(Math.abs(dx), Math.abs(dy));
+            x2 = start.x + (dx < 0 ? -size : size);
+            y2 = start.y + (dy < 0 ? -size : size);
+          }
+          const b = normalizeBounds({
+            x1: start.x,
+            y1: start.y,
+            x2,
+            y2,
+          });
+          this.draft = {
+            ...draft,
+            x: b.x1,
+            y: b.y1,
+            width: b.x2 - b.x1,
+            height: b.y2 - b.y1,
+          };
+        }
         break;
       }
       case "move": {
@@ -1087,49 +1391,196 @@ export class Editor {
         );
         this.interaction.moved =
           Math.abs(dx) > 1e-6 || Math.abs(dy) > 1e-6;
-        // update arrow bindings when bound elements move
+        // keep bindings coherent: edges bound to moved shapes follow their
+        // anchors, and moved edges re-snap their own bound endpoints
         const movedIds = new Set(moved.keys());
+        const resolveBound = (id: string) =>
+          moved.get(id) ?? this.doc.elements.find((el) => el.id === id);
         const updatedElements = this.doc.elements.map((el) => {
-          if (el.type !== "arrow") return el;
-          const arrow = el;
-          let changed = false;
-          let newX = arrow.x, newY = arrow.y, newW = arrow.width, newH = arrow.height;
-          if (arrow.startBinding && movedIds.has(arrow.startBinding.elementId)) {
-            const bound = moved.get(arrow.startBinding.elementId);
-            if (bound) {
-              const ap = anchorPoint(bound, arrow.startBinding.anchor);
-              newX = ap.x;
-              newY = ap.y;
-              changed = true;
-            }
+          const next = moved.get(el.id) ?? el;
+          if (!isEdge(next) || (!next.startBinding && !next.endBinding)) {
+            return next;
           }
-          if (arrow.endBinding && movedIds.has(arrow.endBinding.elementId)) {
-            const bound = moved.get(arrow.endBinding.elementId);
-            if (bound) {
-              const ap = anchorPoint(bound, arrow.endBinding.anchor);
-              newW = ap.x - newX;
-              newH = ap.y - newY;
-              changed = true;
-            }
+          const startAffected =
+            next.startBinding !== undefined &&
+            movedIds.has(next.startBinding.elementId);
+          const endAffected =
+            next.endBinding !== undefined &&
+            movedIds.has(next.endBinding.elementId);
+          if (!moved.has(next.id) && !startAffected && !endAffected) {
+            return next;
           }
-          return changed ? { ...arrow, x: newX, y: newY, width: newW, height: newH } : el;
+          return snapEdgeEndpoints(next, resolveBound);
         });
         this.doc = {
           ...this.doc,
-          elements: updatedElements.map((el) => moved.get(el.id) ?? el),
+          elements: updatedElements,
         };
+        break;
+      }
+      case "label-move": {
+        const moveId = this.interaction.id;
+        const el = this.doc.elements.find((e) => e.id === moveId);
+        if (el && isEdge(el)) {
+          const t = edgeParamAt(el, scene);
+          const prev = el.labelT ?? 0.5;
+          if (Math.abs(t - prev) > 1e-6) {
+            this.interaction.moved = true;
+            this.doc = {
+              ...this.doc,
+              elements: this.doc.elements.map((e) =>
+                e.id === el.id ? { ...e, labelT: t } : e,
+              ),
+            };
+          }
+        }
         break;
       }
       case "resize": {
         const o = elementBounds(this.interaction.original);
-        let { x1, y1, x2, y2 } = o;
-        if (this.interaction.handle.includes("e")) x2 = scene.x;
-        if (this.interaction.handle.includes("w")) x1 = scene.x;
-        if (this.interaction.handle.includes("n")) y1 = scene.y;
-        if (this.interaction.handle.includes("s")) y2 = scene.y;
-        const nb = normalizeBounds({ x1, y1, x2, y2 });
-        const id = this.interaction.original.id;
         const orig = this.interaction.original;
+        const handle = this.interaction.handle;
+        let nb: Bounds = o;
+        let linePatch:
+          | {
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+              startBinding?: ArrowBinding;
+              endBinding?: ArrowBinding;
+            }
+          | null = null;
+        if (handle.length === 2 && (orig.type === "line" || orig.type === "arrow")) {
+          // endpoint drag: the grabbed endpoint follows the pointer (shift
+          // locks the angle to 45° from the fixed one); the opposite endpoint
+          // stays anchored. Signed dims preserve the line direction.
+          const ax = orig.x;
+          const ay = orig.y;
+          const bx = orig.x + orig.width;
+          const by = orig.y + orig.height;
+          const draggingStart = handle === handlesFor(orig)[0];
+          const fx = draggingStart ? bx : ax;
+          const fy = draggingStart ? by : ay;
+          const delta = shift
+            ? this.snapAngle(scene.x - fx, scene.y - fy)
+            : { x: scene.x - fx, y: scene.y - fy };
+          const ex = fx + delta.x;
+          const ey = fy + delta.y;
+          // live rebinding: drop the dragged endpoint near another shape
+          // anchor to bind it there; away from any anchor clears the binding
+          const candidate = findNearestBinding(
+            { x: ex, y: ey },
+            this.doc.elements,
+            orig.id,
+          );
+          let snapped = { x: ex, y: ey };
+          if (candidate) {
+            const target = this.doc.elements.find(
+              (e) => e.id === candidate.elementId,
+            )!;
+            snapped = nearestOutlinePoint(target, { x: ex, y: ey });
+          }
+          if (draggingStart) {
+            linePatch = {
+              x: snapped.x,
+              y: snapped.y,
+              width: bx - snapped.x,
+              height: by - snapped.y,
+              startBinding: candidate ?? undefined,
+            };
+            this.bindingPreview = {
+              start: candidate,
+              end: orig.endBinding ?? null,
+            };
+          } else {
+            linePatch = {
+              x: ax,
+              y: ay,
+              width: snapped.x - ax,
+              height: snapped.y - ay,
+              endBinding: candidate ?? undefined,
+            };
+            this.bindingPreview = {
+              start: orig.startBinding ?? null,
+              end: candidate,
+            };
+          }
+        } else if (handle.length === 2) {
+          // corner handles: proportional scale anchored at the opposite corner
+          const oW = o.x2 - o.x1 || 1;
+          const oH = o.y2 - o.y1 || 1;
+          const fx = handle.includes("e") ? o.x1 : o.x2;
+          const fy = handle.includes("s") ? o.y1 : o.y2;
+          const corner = handlePosition(handle, o);
+          const sx = (scene.x - fx) / (corner.x - fx || 1);
+          const sy = (scene.y - fy) / (corner.y - fy || 1);
+          const s = Math.max(0.05, (sx + sy) / 2);
+          const w = oW * s;
+          const h = oH * s;
+          nb = {
+            x1: handle.includes("w") ? fx - w : fx,
+            y1: handle.includes("n") ? fy - h : fy,
+            x2: handle.includes("w") ? fx : fx + w,
+            y2: handle.includes("n") ? fy : fy + h,
+          };
+        } else if (orig.type === "component") {
+          // edge handles on library components also scale proportionally:
+          // dragged edge follows the pointer, opposite edge stays fixed and
+          // the other axis follows the original ratio (centered)
+          const oW = o.x2 - o.x1 || 1;
+          const oH = o.y2 - o.y1 || 1;
+          const cx = (o.x1 + o.x2) / 2;
+          const cy = (o.y1 + o.y2) / 2;
+          const ratio = oH / oW;
+          let w: number;
+          let h: number;
+          if (handle === "e" || handle === "w") {
+            w = handle === "e" ? scene.x - o.x1 : o.x2 - scene.x;
+            w = Math.max(1, w);
+            h = w * ratio;
+          } else {
+            h = handle === "s" ? scene.y - o.y1 : o.y2 - scene.y;
+            h = Math.max(1, h);
+            w = h / ratio;
+          }
+          nb = {
+            x1: handle === "e" ? o.x1 : handle === "w" ? o.x2 - w : cx - w / 2,
+            x2: handle === "e" ? o.x1 + w : handle === "w" ? o.x2 : cx + w / 2,
+            y1: handle === "s" ? o.y1 : handle === "n" ? o.y2 - h : cy - h / 2,
+            y2: handle === "s" ? o.y1 + h : handle === "n" ? o.y2 : cy + h / 2,
+          };
+        } else if (shift && orig.type !== "text") {
+          // shift on edge handles keeps the original aspect ratio,
+          // anchored at the opposite edge
+          const oW = o.x2 - o.x1 || 1;
+          const oH = o.y2 - o.y1 || 1;
+          const ratio = oH / oW;
+          let w: number;
+          let h: number;
+          if (handle === "e" || handle === "w") {
+            w = Math.max(1, handle === "e" ? scene.x - o.x1 : o.x2 - scene.x);
+            h = w * ratio;
+          } else {
+            h = Math.max(1, handle === "s" ? scene.y - o.y1 : o.y2 - scene.y);
+            w = h / ratio;
+          }
+          nb = {
+            x1: handle === "w" ? o.x2 - w : o.x1,
+            x2: handle === "w" ? o.x2 : o.x1 + w,
+            y1: handle === "n" ? o.y2 - h : o.y1,
+            y2: handle === "n" ? o.y2 : o.y1 + h,
+          };
+        } else {
+          // edge handles: resize along a single axis only (aspect ratio may distort)
+          let { x1, y1, x2, y2 } = o;
+          if (handle.includes("e")) x2 = scene.x;
+          if (handle.includes("w")) x1 = scene.x;
+          if (handle.includes("n")) y1 = scene.y;
+          if (handle.includes("s")) y2 = scene.y;
+          nb = normalizeBounds({ x1, y1, x2, y2 });
+        }
+        const id = this.interaction.original.id;
         if (orig.type === "text") {
           const oW = o.x2 - o.x1 || 1;
           const oH = o.y2 - o.y1 || 1;
@@ -1154,21 +1605,26 @@ export class Editor {
             ),
           };
         } else {
+          const patch = linePatch ?? {
+            x: nb.x1,
+            y: nb.y1,
+            width: nb.x2 - nb.x1,
+            height: nb.y2 - nb.y1,
+          };
           this.doc = {
             ...this.doc,
             elements: this.doc.elements.map((el) =>
               el.id === id
                 ? {
                     ...el,
-                    x: nb.x1,
-                    y: nb.y1,
-                    width: nb.x2 - nb.x1,
-                    height: nb.y2 - nb.y1,
+                    ...patch,
                   }
                 : el,
             ),
           };
         }
+        // edges bound to the resized shape follow its new anchors
+        this.syncEdgesBoundTo(id);
         break;
       }
       case "marquee": {
@@ -1201,22 +1657,7 @@ export class Editor {
         this.tool = "selection";
         this.selectedIds.clear();
       } else {
-        // detect bindings for arrows
-        if (this.draft.type === "arrow") {
-          const [startPt, endPt] = [
-            { x: this.draft.x, y: this.draft.y },
-            { x: this.draft.x + this.draft.width, y: this.draft.y + this.draft.height },
-          ];
-          const startBinding = findNearestBinding(startPt, this.doc.elements, this.draft.id);
-          const endBinding = findNearestBinding(endPt, this.doc.elements, this.draft.id);
-          if (startBinding || endBinding) {
-            this.draft = {
-              ...this.draft,
-              startBinding: startBinding ?? undefined,
-              endBinding: endBinding ?? undefined,
-            } as Element;
-          }
-        }
+        // bindings were resolved live during the draw (draft carries them)
         this.doc = { ...this.doc, elements: [...this.doc.elements, this.draft] };
         this.selectedIds = new Set([this.draft.id]);
       }
@@ -1225,8 +1666,12 @@ export class Editor {
     if (this.interaction.kind === "move" && !this.interaction.moved) {
       this.history.pop(); // click without drag: drop the useless snapshot
     }
+    if (this.interaction.kind === "label-move" && !this.interaction.moved) {
+      this.history.pop(); // handle grabbed without dragging: drop snapshot
+    }
     this.marquee = null;
     this.guides = null;
+    this.bindingPreview = null;
     this.interaction = { kind: "none" };
     this.emit();
   }
@@ -1236,20 +1681,14 @@ export class Editor {
     if (this.interaction.kind !== "none") return null;
     if (this.tool !== "selection" || this.selectedIds.size !== 1) return null;
     const selected = this.doc.elements.find((el) => this.selectedIds.has(el.id));
-    if (
-      !selected ||
-      (selected.type !== "rectangle" &&
-        selected.type !== "arrow" &&
-        selected.type !== "component" &&
-        selected.type !== "text")
-    )
-      return null;
+    if (!selected || !hasResizeHandles(selected)) return null;
     const scene = screenToScene(screenPoint, this.camera);
+    if (labelHandleAt(scene, selected, this.camera.zoom)) return "move";
     const handle = resizeHandleAt(
       scene,
       visualBounds(selected),
       this.camera.zoom,
-      selected.type === "arrow" ? ARROW_HANDLES : HANDLES,
+      handlesFor(selected),
     );
     return handle ? HANDLE_CURSOR[handle] : null;
   }
@@ -1284,6 +1723,7 @@ export class Editor {
     this.selectedIds.clear();
     this.editingTextId = null;
     this.draft = null;
+    this.bindingPreview = null;
     this.marquee = null;
     this.interaction = { kind: "none" };
     this.emit();
@@ -1308,6 +1748,7 @@ export class Editor {
         colors: opts.colors,
         gridMode: opts.gridMode ?? "none",
         guides: this.guides,
+        bindingPreview: this.bindingPreview,
         hiddenLabelId:
           this.editingKind === "label" ? this.editingTextId : null,
         hiddenTextId: this.editingKind === "text" ? this.editingTextId : null,
