@@ -50,6 +50,41 @@ test.describe("resize handles", () => {
     expect(el.y).toBeCloseTo(100, 0);
   });
 
+  test("edge handle on library component keeps aspect ratio", async ({
+    page,
+  }) => {
+    await open(page);
+    await page.evaluate(() => window.__editor__.insertComponent("sqs"));
+
+    const before = await page.evaluate(() => {
+      const s = window.__editor__.getSnapshot();
+      const el = s.doc.elements[0];
+      return {
+        w: el.width,
+        h: el.height,
+        x: el.x,
+        handleX: (el.x + el.width) * s.camera.zoom + s.camera.scrollX,
+        handleY: (el.y + el.height / 2) * s.camera.zoom + s.camera.scrollY,
+      };
+    });
+
+    // grab E handle and pull right+down: both axes follow the original ratio
+    await drag(
+      page,
+      { x: before.handleX, y: before.handleY },
+      { x: before.handleX + 40, y: before.handleY + 30 },
+    );
+
+    const after = await page.evaluate(() => {
+      const s = window.__editor__.getSnapshot();
+      const el = s.doc.elements[0];
+      return { w: el.width, h: el.height, x: el.x };
+    });
+    expect(after.w).toBeCloseTo(before.w + 40, 0);
+    expect(after.h / after.w).toBeCloseTo(before.h / before.w, 1);
+    expect(after.x).toBeCloseTo(before.x, 0); // left edge stays anchored
+  });
+
   test("resize is undoable", async ({ page }) => {
     await open(page);
     await createRect(page, 100, 100, 220, 180);

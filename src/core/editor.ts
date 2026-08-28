@@ -1144,6 +1144,32 @@ export class Editor {
             x2: handle.includes("w") ? fx : fx + w,
             y2: handle.includes("n") ? fy : fy + h,
           };
+        } else if (this.interaction.original.type === "component") {
+          // edge handles on library components also scale proportionally:
+          // dragged edge follows the pointer, opposite edge stays fixed and
+          // the other axis follows the original ratio (centered)
+          const oW = o.x2 - o.x1 || 1;
+          const oH = o.y2 - o.y1 || 1;
+          const cx = (o.x1 + o.x2) / 2;
+          const cy = (o.y1 + o.y2) / 2;
+          const ratio = oH / oW;
+          let w: number;
+          let h: number;
+          if (handle === "e" || handle === "w") {
+            w = handle === "e" ? scene.x - o.x1 : o.x2 - scene.x;
+            w = Math.max(1, w);
+            h = w * ratio;
+          } else {
+            h = handle === "s" ? scene.y - o.y1 : o.y2 - scene.y;
+            h = Math.max(1, h);
+            w = h / ratio;
+          }
+          nb = {
+            x1: handle === "e" ? o.x1 : handle === "w" ? o.x2 - w : cx - w / 2,
+            x2: handle === "e" ? o.x1 + w : handle === "w" ? o.x2 : cx + w / 2,
+            y1: handle === "s" ? o.y1 : handle === "n" ? o.y2 - h : cy - h / 2,
+            y2: handle === "s" ? o.y1 + h : handle === "n" ? o.y2 : cy + h / 2,
+          };
         } else {
           // edge handles: resize along a single axis only (aspect ratio may distort)
           let { x1, y1, x2, y2 } = o;
