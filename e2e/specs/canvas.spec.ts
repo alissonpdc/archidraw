@@ -12,20 +12,42 @@ async function createRect(
 }
 
 test.describe("resize handles", () => {
-  test("dragging SE handle resizes rectangle", async ({ page }) => {
+  test("corner handle keeps aspect ratio", async ({ page }) => {
     await open(page);
     await createRect(page, 100, 100, 220, 180);
     await selectTool(page, "v");
 
-    // grab SE handle at (220,180) and pull out
+    // grab SE handle at (220,180) and pull out diagonally
     await drag(page, { x: 220, y: 180 }, { x: 260, y: 215 });
 
     const el = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
       return { w: s.doc.elements[0].width, h: s.doc.elements[0].height };
     });
-    expect(el.w).toBeCloseTo(160, 0);
-    expect(el.h).toBeCloseTo(115, 0);
+    // proportional: original ratio 120/80 = 1.5 is preserved
+    expect(el.w / el.h).toBeCloseTo(1.5, 1);
+    expect(el.w).toBeGreaterThan(120);
+  });
+
+  test("edge handle resizes on a single axis only", async ({ page }) => {
+    await open(page);
+    await createRect(page, 100, 100, 220, 180);
+    await selectTool(page, "v");
+
+    // grab E handle (220,140) and pull right+down: width grows, height unchanged
+    await drag(page, { x: 220, y: 140 }, { x: 280, y: 200 });
+
+    const el = await page.evaluate(() => {
+      const s = window.__editor__.getSnapshot();
+      return {
+        w: s.doc.elements[0].width,
+        h: s.doc.elements[0].height,
+        y: s.doc.elements[0].y,
+      };
+    });
+    expect(el.w).toBeCloseTo(180, 0);
+    expect(el.h).toBeCloseTo(80, 0);
+    expect(el.y).toBeCloseTo(100, 0);
   });
 
   test("resize is undoable", async ({ page }) => {

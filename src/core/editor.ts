@@ -1124,12 +1124,35 @@ export class Editor {
       }
       case "resize": {
         const o = elementBounds(this.interaction.original);
-        let { x1, y1, x2, y2 } = o;
-        if (this.interaction.handle.includes("e")) x2 = scene.x;
-        if (this.interaction.handle.includes("w")) x1 = scene.x;
-        if (this.interaction.handle.includes("n")) y1 = scene.y;
-        if (this.interaction.handle.includes("s")) y2 = scene.y;
-        const nb = normalizeBounds({ x1, y1, x2, y2 });
+        const handle = this.interaction.handle;
+        let nb: Bounds;
+        if (handle.length === 2) {
+          // corner handles: proportional scale anchored at the opposite corner
+          const oW = o.x2 - o.x1 || 1;
+          const oH = o.y2 - o.y1 || 1;
+          const fx = handle.includes("e") ? o.x1 : o.x2;
+          const fy = handle.includes("s") ? o.y1 : o.y2;
+          const corner = handlePosition(handle, o);
+          const sx = (scene.x - fx) / (corner.x - fx || 1);
+          const sy = (scene.y - fy) / (corner.y - fy || 1);
+          const s = Math.max(0.05, (sx + sy) / 2);
+          const w = oW * s;
+          const h = oH * s;
+          nb = {
+            x1: handle.includes("w") ? fx - w : fx,
+            y1: handle.includes("n") ? fy - h : fy,
+            x2: handle.includes("w") ? fx : fx + w,
+            y2: handle.includes("n") ? fy : fy + h,
+          };
+        } else {
+          // edge handles: resize along a single axis only (aspect ratio may distort)
+          let { x1, y1, x2, y2 } = o;
+          if (handle.includes("e")) x2 = scene.x;
+          if (handle.includes("w")) x1 = scene.x;
+          if (handle.includes("n")) y1 = scene.y;
+          if (handle.includes("s")) y2 = scene.y;
+          nb = normalizeBounds({ x1, y1, x2, y2 });
+        }
         const id = this.interaction.original.id;
         const orig = this.interaction.original;
         if (orig.type === "text") {
