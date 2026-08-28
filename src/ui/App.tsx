@@ -96,6 +96,15 @@ export function App() {
         editor.paste();
         return;
       }
+      if (mod && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          editor.ungroupSelected();
+        } else {
+          editor.groupSelected();
+        }
+        return;
+      }
       if (e.shiftKey && e.code === "Digit1") {
         editor.zoomToFit();
         return;

@@ -24,6 +24,7 @@ export interface EditorSnapshotLike {
     componentId?: string;
     label?: string;
     labelT?: number;
+    groupId?: string;
   }[];
 }
 
@@ -70,6 +71,7 @@ export const test = base.extend<TestFixtures>({
             componentId: el.componentId,
             label: el.label,
             labelT: el.labelT,
+            groupId: el.groupId,
           })),
         };
       });

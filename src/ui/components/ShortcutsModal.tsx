@@ -34,6 +34,8 @@ const GROUPS: ShortcutGroup[] = [
       { keys: `${MOD}+Shift+Z`, desc: "Redo" },
       { keys: `${MOD}+C / X / V`, desc: "Copy/Cut/Paste" },
       { keys: `${MOD}+D`, desc: "Duplicate" },
+      { keys: `${MOD}+G`, desc: "Group" },
+      { keys: `${MOD}+Shift+G`, desc: "Ungroup" },
       { keys: `${MOD}+A`, desc: "Select all" },
       { keys: "Delete", desc: "Delete" },
       { keys: "Esc", desc: "Deselect" },

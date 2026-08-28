@@ -345,7 +345,10 @@ export class Editor {
       if (!this.selectedIds.has(el.id)) continue;
       clones.push({ ...el, id: newId(), x: el.x + 10, y: el.y + 10 });
     }
-    this.doc = { ...this.doc, elements: [...this.doc.elements, ...clones] };
+    this.doc = {
+      ...this.doc,
+      elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
+    };
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
   }
@@ -387,6 +390,58 @@ export class Editor {
   sendToBack() { this.reorderElements([...this.selectedIds], "back"); }
   bringForward() { this.reorderElements([...this.selectedIds], "forward"); }
   sendBackward() { this.reorderElements([...this.selectedIds], "backward"); }
+
+  // ---- grouping ---------------------------------------------------------
+  groupSelected() {
+    if (this.selectedIds.size < 2) return;
+    this.commitHistory();
+    const gid = newId();
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) =>
+        this.selectedIds.has(el.id) ? { ...el, groupId: gid } : el,
+      ),
+    };
+    this.emit();
+  }
+
+  ungroupSelected() {
+    const gids = new Set(
+      this.doc.elements
+        .filter((el) => this.selectedIds.has(el.id) && el.groupId)
+        .map((el) => el.groupId as string),
+    );
+    if (gids.size === 0) return;
+    this.commitHistory();
+    // dissolve the whole group even if only part of it is selected
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) =>
+        el.groupId && gids.has(el.groupId) ? { ...el, groupId: undefined } : el,
+      ),
+    };
+    this.emit();
+  }
+
+  /**
+   * remaps groupIds on cloned elements so clones form their own groups;
+   * clones that end up alone in a group lose the groupId entirely
+   */
+  private cloneGroupIds(elements: Element[]): Element[] {
+    const counts = new Map<string, number>();
+    for (const el of elements) {
+      if (el.groupId) counts.set(el.groupId, (counts.get(el.groupId) ?? 0) + 1);
+    }
+    const remap = new Map<string, string | undefined>();
+    return elements.map((el) => {
+      if (!el.groupId) return el;
+      if (!remap.has(el.groupId)) {
+        remap.set(el.groupId, (counts.get(el.groupId) ?? 0) > 1 ? newId() : undefined);
+      }
+      const gid = remap.get(el.groupId);
+      return gid ? { ...el, groupId: gid } : { ...el, groupId: undefined };
+    });
+  }
 
   // ---- multi-select alignment -----------------------------------------
   alignSelected(direction: "left" | "center" | "right" | "top" | "middle" | "bottom") {
@@ -887,7 +942,10 @@ export class Editor {
       y: el.y + offset,
     }));
     this.commitHistory();
-    this.doc = { ...this.doc, elements: [...this.doc.elements, ...clones] };
+    this.doc = {
+      ...this.doc,
+      elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
+    };
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
     return clones.length;
@@ -1037,17 +1095,23 @@ export class Editor {
           .reverse()
           .find((el) => hitTest(el, scene));
         if (hitEl) {
+          // clicking a member of a group selects the whole group
+          const groupIds = hitEl.groupId
+            ? this.doc.elements
+                .filter((el) => el.groupId === hitEl.groupId)
+                .map((el) => el.id)
+            : [hitEl.id];
           if (modifiers.shift) {
             // additive selection
             const next = new Set(this.selectedIds);
             if (next.has(hitEl.id)) {
-              next.delete(hitEl.id);
+              for (const id of groupIds) next.delete(id);
             } else {
-              next.add(hitEl.id);
+              for (const id of groupIds) next.add(id);
             }
             this.selectedIds = next;
           } else if (!this.selectedIds.has(hitEl.id)) {
-            this.selectedIds = new Set([hitEl.id]);
+            this.selectedIds = new Set(groupIds);
           }
           if (this.selectedIds.size > 0) {
             this.commitHistory();

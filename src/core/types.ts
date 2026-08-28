@@ -46,6 +46,9 @@ export interface BaseElement {
   /** corner rounding of rectangles, % of the smaller side (0–100) */
   borderRadius: number;
 
+  /** id of the logical group this element belongs to, if any (no container element) */
+  groupId?: string;
+
   // --- text styling (labels & text elements) ---
   fontFamily?: string;
   bold?: boolean;

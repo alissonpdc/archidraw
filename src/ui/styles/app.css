@@ -626,6 +626,15 @@ button {
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
+.size-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.size-btn:disabled:hover {
+  background: transparent;
+}
+
 .thickness-preview {
   display: block;
   width: 16px;

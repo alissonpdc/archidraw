@@ -1064,6 +1064,38 @@ export function PropertiesPanel() {
             </div>
           </Group>
 
+          <Group title="Group">
+            <div className="layer-btns">
+              <button
+                className="size-btn"
+                data-tip="Group"
+                aria-label="Group"
+                disabled={selected.length < 2}
+                onClick={() => editor.groupSelected()}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="1.5" y="1.5" width="13" height="13" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.6"/>
+                  <rect x="4" y="4" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.3"/>
+                  <rect x="7" y="7" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+                </svg>
+              </button>
+              <button
+                className="size-btn"
+                data-tip="Ungroup"
+                aria-label="Ungroup"
+                disabled={!selected.some((el) => el.groupId)}
+                onClick={() => editor.ungroupSelected()}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.4"/>
+                  <rect x="9" y="9" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.4"/>
+                  <rect x="4" y="4" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.3"/>
+                  <rect x="7" y="7" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+                </svg>
+              </button>
+            </div>
+          </Group>
+
           {selected.length >= 2 && (
             <Group title="Align horizontal">
               <div className="layer-btns">
