@@ -111,9 +111,10 @@ function findWrapperName(root: unknown, index: number): unknown {
 const PAD = 4;
 
 function fontFamilyOf(f: number | undefined): string {
-  if (f === 1) return '"Virgil","Segoe Print",cursive';
-  if (f === 3) return '"Cascadia",monospace';
-  return 'system-ui,sans-serif';
+  // aspas simples: o valor entra em atributo delimitado por aspas duplas
+  if (f === 1) return "Virgil,'Segoe Print',cursive";
+  if (f === 3) return "Cascadia,monospace";
+  return "system-ui,sans-serif";
 }
 
 function dashArray(style: string | undefined): string | null {
@@ -188,15 +189,19 @@ function angleTransform(el: ExcalidrawElementLike, ox: number, oy: number): stri
   return ` transform="rotate(${((el.angle * 180) / Math.PI).toFixed(3)} ${cx.toFixed(2)} ${cy.toFixed(2)})"`;
 }
 
-/** path d para polilinhas; smooth ≈ strokeSharpness "round" do Excalidraw */
+/**
+ * path d para polilinhas; os pontos são relativos a el.x/el.y, então o
+ * offset (dx, dy) = (el.x - ox, el.y - oy) os traz ao espaço do viewBox;
+ * smooth ≈ strokeSharpness "round" do Excalidraw
+ */
 function pathDFor(
   pts: { x: number; y: number }[],
-  ox: number,
-  oy: number,
+  dx: number,
+  dy: number,
   smooth: boolean,
 ): string {
   const P = (p: { x: number; y: number }) =>
-    `${(p.x - ox).toFixed(2)} ${(p.y - oy).toFixed(2)}`;
+    `${(p.x + dx).toFixed(2)} ${(p.y + dy).toFixed(2)}`;
   if (!smooth || pts.length < 3) {
     return `M${pts.map((p) => P(p)).join("L")}`;
   }
@@ -205,8 +210,8 @@ function pathDFor(
   for (let i = 1; i < pts.length - 1; i++) {
     const a = pts[i];
     const b = pts[i + 1];
-    const mx = (a.x + b.x) / 2 - ox;
-    const my = (a.y + b.y) / 2 - oy;
+    const mx = (a.x + b.x) / 2 + dx;
+    const my = (a.y + b.y) / 2 + dy;
     d += `Q${P(a)} ${mx.toFixed(2)} ${my.toFixed(2)}`;
   }
   d += `L${P(pts[pts.length - 1])}`;
@@ -220,13 +225,16 @@ function arrowHeads(
 ): string {
   const pts = el.points!;
   if (pts.length < 2) return "";
+  // points são relativos a el.x/el.y
+  const dx = el.x - ox;
+  const dy = el.y - oy;
   let out = "";
   const head = (tip: { x: number; y: number }, prev: { x: number; y: number }, len: number) => {
-    const dx = tip.x - prev.x;
-    const dy = tip.y - prev.y;
-    const d = Math.hypot(dx, dy) || 1;
-    const ux = dx / d;
-    const uy = dy / d;
+    const dxp = tip.x - prev.x;
+    const dyp = tip.y - prev.y;
+    const d = Math.hypot(dxp, dyp) || 1;
+    const ux = dxp / d;
+    const uy = dyp / d;
     const bx = tip.x - ux * len;
     const by = tip.y - uy * len;
     const px = -uy;
@@ -236,7 +244,7 @@ function arrowHeads(
       [tip.x, tip.y, bx + px * w, by + py * w],
       [tip.x, tip.y, bx - px * w, by - py * w],
     ];
-    return linesToPath(lines, ox, oy);
+    return linesToPath(lines, dx, dy);
   };
   if (el.endArrowhead !== "none" && el.endArrowhead !== null) {
     out += head(pts[pts.length - 1], pts[pts.length - 2], 10);
@@ -247,11 +255,11 @@ function arrowHeads(
   return out;
 }
 
-function linesToPath(lines: number[][], ox: number, oy: number): string {
+function linesToPath(lines: number[][], dx: number, dy: number): string {
   return lines
     .map(
       ([x1, y1, x2, y2]) =>
-        `M${(x1 - ox).toFixed(2)} ${(y1 - oy).toFixed(2)}L${(x2 - ox).toFixed(2)} ${(y2 - oy).toFixed(2)}`,
+        `M${(x1 + dx).toFixed(2)} ${(y1 + dy).toFixed(2)}L${(x2 + dx).toFixed(2)} ${(y2 + dy).toFixed(2)}`,
     )
     .join("");
 }
@@ -294,7 +302,9 @@ function elementToSvg(el: ExcalidrawElementLike, ox: number, oy: number): string
           pts[0].x === pts[pts.length - 1].x &&
           pts[0].y === pts[pts.length - 1].y);
       const smooth = round || el.type === "draw";
-      let d = pathDFor(pts, ox, oy, smooth);
+      const dx = el.x - ox;
+      const dy = el.y - oy;
+      let d = pathDFor(pts, dx, dy, smooth);
       if (closed) d += "Z";
       const shapeFill = el.type === "draw" || !closed ? "none" : fillAttrs(el);
       return `${open}<path d="${d}" ${shapeFill === "none" ? 'fill="none"' : shapeFill} ${strokeAttrs(el)}${angle}/></g>`;
@@ -302,7 +312,7 @@ function elementToSvg(el: ExcalidrawElementLike, ox: number, oy: number): string
     case "arrow": {
       const pts = el.points ?? [];
       if (pts.length < 2) return null;
-      const body = `<path d="${pathDFor(pts, ox, oy, round)}" fill="none" ${strokeAttrs(el)}${angle}/>`;
+      const body = `<path d="${pathDFor(pts, el.x - ox, el.y - oy, round)}" fill="none" ${strokeAttrs(el)}${angle}/>`;
       const heads = arrowHeads(el, ox, oy);
       return `${open}${body}${heads}</g>`;
     }
