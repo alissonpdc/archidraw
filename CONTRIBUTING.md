@@ -36,10 +36,26 @@ Regras críticas:
 
 ## Fluxo de contribuição
 
-1. Crie uma branch a partir de `main` (ex.: `feat/numeracao-setas`).
-2. Implemente com testes cobrindo o novo comportamento (specs E2E em `e2e/specs/`).
-3. Rode o GATE completo (obrigatório — veja abaixo).
-4. Abra um Pull Request com descrição clara do que muda e por quê.
+1. Crie uma branch com prefixo conventional a partir de `main` (`feat/...`, `fix/...`, `chore/...` etc.).
+2. Faça push da branch — o CI roda automaticamente **lint + build + E2E**.
+3. Com o pipeline verde, um **PR para `main` é aberto automaticamente** (pushes seguintes na mesma branch atualizam o PR existente).
+4. Revise/peça review e faça o merge — o merge dispara release automática (GitHub Release + Docker Hub).
+
+### Pipeline de Release
+
+No merge para `main` (`.github/workflows/release.yml`):
+
+1. Validação completa (lint + build + E2E).
+2. **Versionamento semântico automático** a partir dos conventional commits desde a última tag: `feat` → minor, `fix`/`perf` → patch, breaking (`!:` ou `BREAKING CHANGE`) → major.
+3. **GitHub Release** com notes agrupadas por categoria (features, fixes, melhorias, docs, manutenção).
+4. **Docker Hub**: imagem publicada com tags `X.Y.Z`, `X.Y` e `latest`. Requer os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` (ver README, seção "Autenticação Docker Hub").
+
+Por isso a mensagem de commit importa: ela define a versão e a seção das release notes.
+
+### Antes do push
+
+1. Implemente com testes cobrindo o novo comportamento (specs E2E em `e2e/specs/`).
+2. Rode o GATE completo localmente (obrigatório — veja abaixo).
 
 ### Definition of Done (obrigatório)
 

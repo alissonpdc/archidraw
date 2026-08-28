@@ -63,6 +63,26 @@ npm run test:e2e:ui  # UI interativa do Playwright
 3. Numere as setas para indicar a cronologia do fluxo; adicione detalhes técnicos via hover info box.
 4. Tudo é salvo automaticamente no navegador. Use export/import JSON para backup ou mover entre instâncias.
 
+## CI/CD
+
+Pipeline automatizado via GitHub Actions:
+
+1. **CI** (`.github/workflows/ci.yml`) — push em branches conventional (`feat/*`, `fix/*`, `chore/*`, etc.) ou PRs para `main` rodam **lint + build + testes E2E**. Com o pipeline verde, um **PR para `main` é aberto automaticamente** (idempotente — um PR por branch).
+2. **Release** (`.github/workflows/release.yml`) — merge em `main` dispara: validação completa → **GitHub Release** com notes user-friendly (features, fixes, melhorias, docs) e versionamento semântico automático (`feat` → minor, `fix` → patch, breaking → major) → **build e push da imagem Docker no Docker Hub** (tags `X.Y.Z`, `X.Y` e `latest`).
+
+O job de Docker só roda se os secrets abaixo estiverem configurados.
+
+### Autenticação Docker Hub
+
+Configure dois secrets no repositório (**Settings → Secrets and variables → Actions → New repository secret**):
+
+| Secret | Valor |
+|---|---|
+| `DOCKERHUB_USERNAME` | Seu username do Docker Hub |
+| `DOCKERHUB_TOKEN` | Access token do Docker Hub |
+
+Para gerar o token: Docker Hub → **Account Settings → Security → Personal access tokens → Generate new token** com permissões **Read & Write**. Use o token (não sua senha) — ele pode ser revogado a qualquer momento sem expor a conta.
+
 ## Documentação
 
 - [PRD.md](PRD.md) — visão de produto e roadmap
