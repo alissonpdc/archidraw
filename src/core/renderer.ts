@@ -1021,7 +1021,11 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
         textAlign === "left" ? cx : textAlign === "right" ? cx - tw : cx - tw / 2;
       ctx.save();
       ctx.globalAlpha = 1;
-      ctx.fillStyle = colors.canvasBg;
+      // fallback defends against callers with a stale colors object (e.g.
+      // React state created before canvasBg existed): assigning an undefined
+      // fillStyle is silently ignored and would reuse the TEXT color,
+      // painting an opaque block instead of a plate
+      ctx.fillStyle = colors.canvasBg || DEFAULT_COLORS.canvasBg;
       ctx.fillRect(bx - pad, blockCy - bh / 2 - pad, tw + pad * 2, bh + pad * 2);
       ctx.restore();
     }
