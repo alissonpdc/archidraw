@@ -416,10 +416,9 @@ export class Editor {
       y: scene.y - h / 2,
       width: w,
       height: h,
-      label: item.name,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
-      // sem contorno por padrão: apenas ícone + nome
+      // sem contorno e sem label por padrão: apenas o ícone
       strokeWidth: 0,
       opacity: 1,
       strokeStyle: "solid",

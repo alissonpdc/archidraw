@@ -175,13 +175,13 @@ test.describe("excalidraw library import", () => {
     await expect(tiles).toHaveCount(2);
     await expect(tiles.first().locator("img.library-card-img")).toBeVisible();
 
-    // clicking a tile inserts a component named after the library item
+    // clicking a tile inserts a component without a label
     await tiles.first().click();
     const state = await editorState();
     expect(state.elementCount).toBe(1);
     expect(state.elements[0].type).toBe("component");
     expect(state.elements[0].componentId).toMatch(/^imp-/);
-    expect(state.elements[0].label).toBe("DB Box");
+    expect(state.elements[0].label).toBeUndefined();
 
     // item appears in search too
     await page.locator(".library-search").fill("db box");
