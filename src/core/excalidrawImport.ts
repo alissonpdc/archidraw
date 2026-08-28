@@ -348,20 +348,23 @@ function escapeXml(s: string): string {
 /** converte um library item (lista de elementos) para um SVG completo */
 function itemToSvg(elements: ExcalidrawElementLike[]): { svg: string; aspect: number } {
   const b = computeBounds(elements);
-  const ox = b.x1 - PAD;
-  const oy = b.y1 - PAD;
+  // canvas quadrado: todo item ocupa o mesmo box na inserção (64×64),
+  // com o conteúdo centralizado — igual aos ícones oficiais
   const W = Math.max(b.x2 - b.x1 + PAD * 2, 1);
   const H = Math.max(b.y2 - b.y1 + PAD * 2, 1);
+  const S = Math.max(W, H);
+  const ox = b.x1 - PAD - (S - W) / 2;
+  const oy = b.y1 - PAD - (S - H) / 2;
 
   const parts = elements
     .map((el) => elementToSvg(el, ox, oy))
     .filter((s): s is string => !!s);
 
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${W.toFixed(2)}" height="${H.toFixed(2)}" viewBox="0 0 ${W.toFixed(2)} ${H.toFixed(2)}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${S.toFixed(2)}" height="${S.toFixed(2)}" viewBox="0 0 ${S.toFixed(2)} ${S.toFixed(2)}">` +
     parts.join("") +
     `</svg>`;
-  return { svg, aspect: W / H };
+  return { svg, aspect: 1 };
 }
 
 export function parseExcalidrawLib(jsonText: string): ExcalidrawLibParseResult {
