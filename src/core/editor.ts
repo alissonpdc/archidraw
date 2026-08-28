@@ -741,7 +741,11 @@ export class Editor {
       lineSpacing?: number;
       textAlign?: import("./types").TextAlign;
       textVAlign?: import("./types").TextVAlign;
-      textPadding?: number;
+      textOffsetGlobal?: number;
+      textOffsetTop?: number;
+      textOffsetBottom?: number;
+      textOffsetLeft?: number;
+      textOffsetRight?: number;
       captionPosition?: import("./types").CaptionPosition;
       captionGap?: number;
       captionOffsetTop?: number;

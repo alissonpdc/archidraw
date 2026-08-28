@@ -59,8 +59,13 @@ export interface BaseElement {
   textAlign?: TextAlign;
   /** vertical alignment inside the element: top / middle / bottom */
   textVAlign?: TextVAlign;
-  /** padding from element borders when text is inside (rect/component) */
-  textPadding?: number;
+  /** global offset of the text inside the element (px), added to the per-side offset */
+  textOffsetGlobal?: number;
+  /** extra text offset when the text is aligned to a specific side (px) */
+  textOffsetTop?: number;
+  textOffsetBottom?: number;
+  textOffsetLeft?: number;
+  textOffsetRight?: number;
   /** component caption position relative to the icon */
   captionPosition?: CaptionPosition;
   /** gap between icon and caption (px) */

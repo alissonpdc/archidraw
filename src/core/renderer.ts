@@ -570,6 +570,30 @@ function applyDash(
 const ICON_LABEL_GAP = 2;
 const COMPONENT_LABEL_FONT = 12;
 
+/** label inset inside a shape: global text offset + the per-side offset of
+ *  the side the text is aligned to (same model as caption gap/offset) */
+export function textOffsets(el: Element): { padX: number; padY: number } {
+  const g = el.textOffsetGlobal ?? 8;
+  const align = el.textAlign ?? "center";
+  const vAlign = el.textVAlign ?? "middle";
+  return {
+    padX:
+      g +
+      (align === "left"
+        ? el.textOffsetLeft ?? 0
+        : align === "right"
+          ? el.textOffsetRight ?? 0
+          : 0),
+    padY:
+      g +
+      (vAlign === "top"
+        ? el.textOffsetTop ?? 0
+        : vAlign === "bottom"
+          ? el.textOffsetBottom ?? 0
+          : 0),
+  };
+}
+
 /** icon geometry shared between canvas rendering and label placement */
 export function componentIconLayout(el: ComponentElement) {
   const s = Math.min(Math.abs(el.width), Math.abs(el.height));
@@ -879,14 +903,14 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
     } else {
       const textAlign = el.textAlign ?? "center";
       const textVAlign = el.textVAlign ?? "middle";
-      const pad = el.textPadding ?? 8;
+      const { padX: pad, padY } = textOffsets(el);
       let lx: number;
       let ly: number;
       if (textAlign === "left") lx = el.x + pad;
       else if (textAlign === "right") lx = el.x + el.width - pad - tw;
       else lx = el.x + (el.width - tw) / 2;
-      if (textVAlign === "top") ly = el.y + pad;
-      else if (textVAlign === "bottom") ly = el.y + el.height - pad - th;
+      if (textVAlign === "top") ly = el.y + padY;
+      else if (textVAlign === "bottom") ly = el.y + el.height - padY - th;
       else ly = el.y + (el.height - th) / 2;
       // clip the text rect to the element bounds: text fully contained must NOT expand them
       const tx1 = Math.min(Math.max(lx, x1), x2);
@@ -991,12 +1015,12 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
       cx = anchor.x;
       cy = anchor.y;
     } else {
-      const pad = el.textPadding ?? 8;
+      const { padX: pad, padY } = textOffsets(el);
       if (textAlign === "left") cx = el.x + pad;
       else if (textAlign === "right") cx = el.x + el.width - pad;
       else cx = el.x + el.width / 2;
-      if (textVAlign === "top") cy = el.y + pad;
-      else if (textVAlign === "bottom") cy = el.y + el.height - pad;
+      if (textVAlign === "top") cy = el.y + padY;
+      else if (textVAlign === "bottom") cy = el.y + el.height - padY;
       else cy = el.y + el.height / 2;
     }
     const fontSize = el.fontSize ?? 14;

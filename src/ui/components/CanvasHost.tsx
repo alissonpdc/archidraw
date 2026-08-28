@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
-import { type RenderColors, componentIconLayout } from "../../core/renderer";
+import { type RenderColors, componentIconLayout, textOffsets } from "../../core/renderer";
 import { useGridMode } from "../viewPrefs";
 import type { Point } from "../../core/types";
 import { pushRecentComponent } from "../../core/library";
@@ -185,12 +185,12 @@ export function CanvasHost() {
             hx = anchor.x;
             cy = anchor.y;
           } else {
-            const pad = el.textPadding ?? 8;
+            const { padX: pad, padY } = textOffsets(el);
             if (align === "left") hx = el.x + pad;
             else if (align === "right") hx = el.x + el.width - pad;
             else hx = el.x + el.width / 2;
-            if (vAlignMode === "top") cy = el.y + pad;
-            else if (vAlignMode === "bottom") cy = el.y + el.height - pad;
+            if (vAlignMode === "top") cy = el.y + padY;
+            else if (vAlignMode === "bottom") cy = el.y + el.height - padY;
             else cy = el.y + el.height / 2;
           }
         }

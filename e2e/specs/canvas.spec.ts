@@ -103,13 +103,15 @@ test.describe("resize handles", () => {
 test.describe("snap guides", () => {
   test("moving near an aligned edge snaps into place", async ({ page }) => {
     await open(page);
-    await createRect(page, 100, 100, 220, 180); // A: centerY 140
+    // A placed right of the properties panel strip (x < ~200), which
+    // overlays the left side of the canvas while a shape is selected
+    await createRect(page, 220, 100, 340, 180); // A: centerY 140
     await createRect(page, 300, 300, 420, 400); // B: centerY 350
     await selectTool(page, "v");
-    await page.mouse.click(150, 140); // select A
+    await page.mouse.click(280, 140); // select A
 
     // drop A so its centerY lands 3px above B's (within 4px snap tolerance)
-    await drag(page, { x: 150, y: 140 }, { x: 150, y: 347 });
+    await drag(page, { x: 280, y: 140 }, { x: 280, y: 347 });
 
     const a = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
@@ -121,12 +123,12 @@ test.describe("snap guides", () => {
 
   test("moving far from alignment does not snap", async ({ page }) => {
     await open(page);
-    await createRect(page, 100, 100, 220, 180);
+    await createRect(page, 220, 100, 340, 180);
     await createRect(page, 300, 300, 420, 400);
     await selectTool(page, "v");
-    await page.mouse.click(150, 140);
+    await page.mouse.click(280, 140);
 
-    await drag(page, { x: 150, y: 140 }, { x: 150, y: 500 });
+    await drag(page, { x: 280, y: 140 }, { x: 280, y: 500 });
 
     const a = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
@@ -139,10 +141,11 @@ test.describe("snap guides", () => {
 test.describe("labels", () => {
   test("double-click edits shape label", async ({ page }) => {
     await open(page);
-    await createRect(page, 100, 100, 220, 180);
+    // right of the properties panel strip (see snap guides note)
+    await createRect(page, 220, 100, 340, 180);
     await selectTool(page, "v");
 
-    await page.mouse.dblclick(150, 140);
+    await page.mouse.dblclick(280, 140);
     const overlay = page.locator(".label-overlay");
     await expect(overlay).toBeVisible();
 
@@ -158,13 +161,14 @@ test.describe("labels", () => {
 
   test("emptying label removes it", async ({ page }) => {
     await open(page);
-    await createRect(page, 100, 100, 220, 180);
+    // right of the properties panel strip (see snap guides note)
+    await createRect(page, 220, 100, 340, 180);
     await selectTool(page, "v");
-    await page.mouse.dblclick(150, 140);
+    await page.mouse.dblclick(280, 140);
     await page.keyboard.type("Temp");
     await page.keyboard.press("Escape");
 
-    await page.mouse.dblclick(150, 140);
+    await page.mouse.dblclick(280, 140);
     const overlay = page.locator(".label-overlay");
     await expect(overlay).toBeVisible();
     await overlay.fill(""); // clear existing label

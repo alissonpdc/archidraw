@@ -57,7 +57,11 @@ type Patch = Partial<{
   lineSpacing: number;
   textAlign: "left" | "center" | "right";
   textVAlign: "top" | "middle" | "bottom";
-  textPadding: number;
+  textOffsetGlobal: number;
+  textOffsetTop: number;
+  textOffsetBottom: number;
+  textOffsetLeft: number;
+  textOffsetRight: number;
   captionPosition: "top" | "bottom" | "left" | "right";
   captionGap: number;
   captionOffsetTop: number;
@@ -978,16 +982,32 @@ export function PropertiesPanel() {
             </>
           )}
 
-          {hasRectangle && (
-            <Group title="Border offset">
-              <MiniSlider
-                value={selected[0].textPadding ?? 8}
-                min={0}
-                max={40}
-                step={1}
-                ariaLabel="Border offset"
-                suffix="px"
-                onChange={(v) => apply({ textPadding: v })}
+          {(hasRectangle || hasDiamond || hasEllipse) && (
+            <Group title="Text offset (px)" vertical>
+              <SpacingRow
+                label="Global"
+                value={selected[0].textOffsetGlobal ?? 8}
+                onChange={(v) => apply({ textOffsetGlobal: v })}
+              />
+              <SpacingRow
+                label="Left"
+                value={selected[0].textOffsetLeft ?? 0}
+                onChange={(v) => apply({ textOffsetLeft: v })}
+              />
+              <SpacingRow
+                label="Right"
+                value={selected[0].textOffsetRight ?? 0}
+                onChange={(v) => apply({ textOffsetRight: v })}
+              />
+              <SpacingRow
+                label="Top"
+                value={selected[0].textOffsetTop ?? 0}
+                onChange={(v) => apply({ textOffsetTop: v })}
+              />
+              <SpacingRow
+                label="Bottom"
+                value={selected[0].textOffsetBottom ?? 0}
+                onChange={(v) => apply({ textOffsetBottom: v })}
               />
             </Group>
           )}
