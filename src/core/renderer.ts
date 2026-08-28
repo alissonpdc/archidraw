@@ -17,6 +17,8 @@ export interface RenderColors {
   gridLine: string;
   /** theme-appropriate stroke for elements using the default color */
   elementStroke: string;
+  /** canvas background color (plates behind edge labels must match it) */
+  canvasBg: string;
 }
 
 export interface RenderState {
@@ -43,6 +45,7 @@ const DEFAULT_COLORS: RenderColors = {
   elementStroke: "#1e1e1e",
   gridDot: "rgba(0,0,0,0.14)",
   gridLine: "rgba(0,0,0,0.07)",
+  canvasBg: "#ffffff",
 };
 
 function visibleSceneRect(cam: Camera, w: number, h: number) {
@@ -1001,6 +1004,27 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     const lh = lineHeight(el);
     const lines = el.label.split("\n");
     const step = fontSize * lh;
+    // edges: opaque plate in the canvas background color sits between the
+    // stroke and the text so the line does not cut through the label
+    // (never hardcoded — matches the live canvas background via the theme)
+    if (el.type === "line" || el.type === "arrow") {
+      const pad = Math.max(2, fontSize * 0.3);
+      const tw = Math.max(...lines.map((l) => ctx.measureText(l).width), 1);
+      const bh = (lines.length - 1) * step + fontSize;
+      const blockCy =
+        textVAlign === "top"
+          ? cy + ((lines.length - 1) * step) / 2
+          : textVAlign === "bottom"
+            ? cy - ((lines.length - 1) * step) / 2
+            : cy;
+      const bx =
+        textAlign === "left" ? cx : textAlign === "right" ? cx - tw : cx - tw / 2;
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = colors.canvasBg;
+      ctx.fillRect(bx - pad, blockCy - bh / 2 - pad, tw + pad * 2, bh + pad * 2);
+      ctx.restore();
+    }
     const drawLine = (line: string, i: number) => {
       let ly: number;
       if (textVAlign === "top") ly = cy + i * step;

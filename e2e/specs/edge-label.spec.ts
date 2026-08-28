@@ -93,6 +93,45 @@ test.describe("edge labels (line/arrow)", () => {
     expect(el.label).toBe("API");
   });
 
+  test("label gets an opaque plate matching the canvas background", async ({
+    page,
+  }) => {
+    await open(page);
+    // vertical stroke: the line crosses the plate at the label anchor
+    await selectTool(page, "l");
+    await drag(page, { x: 200, y: 200 }, { x: 200, y: 460 });
+    await selectTool(page, "v");
+    await page.mouse.dblclick(200, 330);
+    // two rows with a space at the center: the anchor column (x=200) has no
+    // glyph ink, so the pixel between the rows is pure plate over the stroke
+    await page.keyboard.type("H H");
+    await page.keyboard.press("Shift+Enter");
+    await page.keyboard.type("H H");
+    await page.keyboard.press("Escape");
+
+    // (200, 330) is ON the stroke and inside the label plate, right between
+    // the two text rows: without the plate it would be the dark stroke
+    // color; with it, the canvas background. Wait for two animation frames
+    // so a freshly rendered canvas frame is sampled (single read: repeated
+    // getImageData polling triggers the willReadFrequently console warning).
+    await page.evaluate(
+      () =>
+        new Promise((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(r)),
+        ),
+    );
+    const rgb = await page.evaluate(() => {
+      const canvas = document.querySelector("canvas")!;
+      const ctx = canvas.getContext("2d")!;
+      const d = ctx.getImageData(200, 330, 1, 1).data;
+      return [d[0], d[1], d[2]];
+    });
+    // light theme canvas bg is #ffffff; the stroke would be ~#1e1e1e
+    expect(rgb[0]).toBeGreaterThan(200);
+    expect(rgb[1]).toBeGreaterThan(200);
+    expect(rgb[2]).toBeGreaterThan(200);
+  });
+
   test("label follows the curved path of a curved arrow", async ({ page }) => {
     await open(page);
     await selectTool(page, "a");
