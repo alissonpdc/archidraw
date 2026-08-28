@@ -137,7 +137,7 @@ test.describe("excalidraw library import", () => {
     // o SVG gerado não pode ter coordenadas inválidas
     const svg = await page.evaluate(() => {
       const libs = JSON.parse(
-        localStorage.getItem("archidraw:importedLibraries:v2") || "[]",
+        localStorage.getItem("archidraw:importedLibraries:v3") || "[]",
       );
       return libs[0]?.items?.[0]?.svg ?? "";
     });
