@@ -23,6 +23,7 @@ export interface EditorSnapshotLike {
     type: string;
     componentId?: string;
     label?: string;
+    labelT?: number;
   }[];
 }
 
@@ -68,6 +69,7 @@ export const test = base.extend<TestFixtures>({
             type: el.type,
             componentId: el.componentId,
             label: el.label,
+            labelT: el.labelT,
           })),
         };
       });

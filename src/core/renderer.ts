@@ -1,5 +1,12 @@
 import type { Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
-import { arrowPoints, diamondVertices, elementBounds, measureText } from "./utils";
+import {
+  arrowPoints,
+  curvedArrowControl,
+  diamondVertices,
+  edgeLabelAnchor,
+  elementBounds,
+  measureText,
+} from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage } from "./componentAssets";
 import { resolveFont, resolveTextColor, lineHeight } from "./textStyle";
@@ -781,10 +788,7 @@ function drawElement(
       ctx.stroke();
       drawArrowHead(ctx, tip, a, Math.max(12, el.strokeWidth * 4));
     } else if (lineType === "curved") {
-      const cp = el.controlPoint ?? {
-        x: (a.x + tip.x) / 2,
-        y: (a.y + tip.y) / 2 - Math.abs(tip.x - a.x) * 0.3,
-      };
+      const cp = curvedArrowControl(el, a, tip);
       ctx.moveTo(a.x, a.y);
       ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
       applyDash(ctx, el, el.strokeWidth);
@@ -978,9 +982,11 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     ctx.textAlign = textAlign;
     let cx: number;
     let cy: number;
-    if (el.type === "arrow") {
-      cx = textAlign === "left" ? el.x : textAlign === "right" ? el.x + el.width : el.x + el.width / 2;
-      cy = el.y + el.height / 2;
+    if (el.type === "line" || el.type === "arrow") {
+      // edges: label slides along the stroke (labelT, default center)
+      const anchor = edgeLabelAnchor(el)!;
+      cx = anchor.x;
+      cy = anchor.y;
     } else {
       const pad = el.textPadding ?? 8;
       if (textAlign === "left") cx = el.x + pad;
@@ -1059,6 +1065,16 @@ function drawHandles(
     ctx.rect(p.x - s / 2, p.y - s / 2, s, s);
     ctx.fill();
     ctx.stroke();
+  }
+  // circular handle for dragging the label along a line/arrow stroke
+  if (el.type === "line" || el.type === "arrow") {
+    const anchor = edgeLabelAnchor(el);
+    if (anchor && el.label) {
+      ctx.beginPath();
+      ctx.arc(anchor.x, anchor.y, s / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }

@@ -93,6 +93,8 @@ export interface EllipseElement extends BaseElement {
 export interface LineElement extends BaseElement {
   type: "line";
   label?: string;
+  /** label position along the stroke: 0 = start, 1 = end (default 0.5 = center) */
+  labelT?: number;
 }
 
 export type LineType = "straight" | "curved" | "auto";
@@ -109,6 +111,8 @@ export interface ArrowBinding {
 export interface ArrowElement extends BaseElement {
   type: "arrow";
   label?: string;
+  /** label position along the stroke: 0 = start, 1 = end (default 0.5 = center) */
+  labelT?: number;
   lineType?: LineType;
   /** control point for curved lines (relative to element center, scene units) */
   controlPoint?: Point;

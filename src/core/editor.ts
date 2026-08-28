@@ -31,6 +31,9 @@ import {
   unionBounds,
   elementBounds,
   measureText,
+  edgeLabelAnchor,
+  edgeParamAt,
+  isEdge,
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
@@ -128,6 +131,16 @@ function handlesFor(el: Element): HandleId[] {
 
 const BIND_TOLERANCE = 20; // scene units
 
+/** true when the scene point hits the label-drag handle of a selected edge */
+function labelHandleAt(scene: Point, el: Element, zoom: number): boolean {
+  if (!isEdge(el) || !el.label) return false;
+  const anchor = edgeLabelAnchor(el)!;
+  return (
+    Math.hypot(scene.x - anchor.x, scene.y - anchor.y) * zoom <=
+    HANDLE_TOLERANCE_PX
+  );
+}
+
 let _offCanvas: HTMLCanvasElement | null = null;
 let _offCtx: CanvasRenderingContext2D | null = null;
 function visualBounds(el: Element): Bounds {
@@ -175,6 +188,7 @@ type Interaction =
   | { kind: "draw"; startScene: Point; id: string }
   | { kind: "move"; startScene: Point; originals: Element[]; moved?: boolean }
   | { kind: "resize"; handle: HandleId; original: Element }
+  | { kind: "label-move"; id: string; moved?: boolean }
   | { kind: "marquee"; startScene: Point };
 
 export interface TabInfo {
@@ -657,6 +671,7 @@ export class Editor {
       (hitEl.type === "rectangle" ||
         hitEl.type === "diamond" ||
         hitEl.type === "ellipse" ||
+        hitEl.type === "line" ||
         hitEl.type === "arrow" ||
         hitEl.type === "component")
     ) {
@@ -979,6 +994,17 @@ export class Editor {
         break;
       }
       case "selection": {
+        // label-drag handle of the single selected edge takes precedence
+        if (this.selectedIds.size === 1) {
+          const selected = this.doc.elements.find((el) =>
+            this.selectedIds.has(el.id),
+          );
+          if (selected && labelHandleAt(scene, selected, this.camera.zoom)) {
+            this.commitHistory();
+            this.interaction = { kind: "label-move", id: selected.id };
+            break;
+          }
+        }
         // resize handle of the single selected element takes precedence
         if (this.selectedIds.size === 1) {
           const selected = this.doc.elements.find((el) =>
@@ -1215,6 +1241,24 @@ export class Editor {
         };
         break;
       }
+      case "label-move": {
+        const moveId = this.interaction.id;
+        const el = this.doc.elements.find((e) => e.id === moveId);
+        if (el && isEdge(el)) {
+          const t = edgeParamAt(el, scene);
+          const prev = el.labelT ?? 0.5;
+          if (Math.abs(t - prev) > 1e-6) {
+            this.interaction.moved = true;
+            this.doc = {
+              ...this.doc,
+              elements: this.doc.elements.map((e) =>
+                e.id === el.id ? { ...e, labelT: t } : e,
+              ),
+            };
+          }
+        }
+        break;
+      }
       case "resize": {
         const o = elementBounds(this.interaction.original);
         const orig = this.interaction.original;
@@ -1415,6 +1459,9 @@ export class Editor {
     if (this.interaction.kind === "move" && !this.interaction.moved) {
       this.history.pop(); // click without drag: drop the useless snapshot
     }
+    if (this.interaction.kind === "label-move" && !this.interaction.moved) {
+      this.history.pop(); // handle grabbed without dragging: drop snapshot
+    }
     this.marquee = null;
     this.guides = null;
     this.interaction = { kind: "none" };
@@ -1428,6 +1475,7 @@ export class Editor {
     const selected = this.doc.elements.find((el) => this.selectedIds.has(el.id));
     if (!selected || !hasResizeHandles(selected)) return null;
     const scene = screenToScene(screenPoint, this.camera);
+    if (labelHandleAt(scene, selected, this.camera.zoom)) return "move";
     const handle = resizeHandleAt(
       scene,
       visualBounds(selected),

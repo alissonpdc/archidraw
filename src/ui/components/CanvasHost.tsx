@@ -6,7 +6,7 @@ import type { Point } from "../../core/types";
 import { pushRecentComponent } from "../../core/library";
 import { COMPONENT_DND_TYPE } from "./LibraryPanel";
 import { resolveTextColor } from "../../core/textStyle";
-import { measureText } from "../../core/utils";
+import { measureText, edgeLabelAnchor } from "../../core/utils";
 
 function readThemeColors(): RenderColors & { elementStroke: string } {
   const style = getComputedStyle(document.documentElement);
@@ -176,12 +176,11 @@ export function CanvasHost() {
           align = el.textAlign ?? "center";
           vAlignMode = el.textVAlign ?? "middle";
           fontSize = el.fontSize ?? 14;
-          if (el.type === "arrow") {
-            hx =
-              align === "left" ? el.x :
-              align === "right" ? el.x + el.width :
-              el.x + el.width / 2;
-            cy = el.y + el.height / 2;
+          if (el.type === "line" || el.type === "arrow") {
+            // edges: label slides along the stroke (labelT, default center)
+            const anchor = edgeLabelAnchor(el)!;
+            hx = anchor.x;
+            cy = anchor.y;
           } else {
             const pad = el.textPadding ?? 8;
             if (align === "left") hx = el.x + pad;
@@ -277,6 +276,12 @@ export function CanvasHost() {
         y: layout.labelCy * cam.zoom + cam.scrollY,
       };
       labelFontSize = layout.labelFont * cam.zoom;
+    } else if (editingEl.type === "line" || editingEl.type === "arrow") {
+      const anchor = edgeLabelAnchor(editingEl)!;
+      labelPos = {
+        x: anchor.x * cam.zoom + cam.scrollX,
+        y: anchor.y * cam.zoom + cam.scrollY,
+      };
     } else {
       labelPos = {
         x: (editingEl.x + editingEl.width / 2) * cam.zoom + cam.scrollX,
