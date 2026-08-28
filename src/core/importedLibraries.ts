@@ -33,7 +33,9 @@ export interface ImportedLibrary {
   items: ImportedLibraryItemData[];
 }
 
-const STORAGE_KEY = "archidraw:importedLibraries";
+const STORAGE_KEY = "archidraw:importedLibraries:v2";
+/** chave antiga (SVGs gerados com bugs de parsing) — descartada no init */
+const LEGACY_STORAGE_KEY = "archidraw:importedLibraries";
 
 let libraries: ImportedLibrary[] = [];
 
@@ -84,6 +86,12 @@ function persist() {
 /** restaura bibliotecas persistidas e as re-registra (chamado no startup) */
 export function initImportedLibraries(): void {
   try {
+    // descarta SVGs persistidos pela versão antiga do parser (inválidos)
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    // best-effort
+  }
+  try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed: unknown = JSON.parse(raw);
@@ -96,7 +104,15 @@ export function initImportedLibraries(): void {
         typeof (l as ImportedLibrary).name === "string" &&
         Array.isArray((l as ImportedLibrary).items),
     );
+    // descarta itens com SVG inválido (não decodificável como imagem)
+    for (const lib of libraries) {
+      lib.items = lib.items.filter(
+        (it) => typeof it.svg === "string" && !/NaN|undefined/.test(it.svg),
+      );
+    }
+    libraries = libraries.filter((l) => l.items.length > 0);
     for (const lib of libraries) registerAll(lib);
+    persist();
   } catch {
     libraries = [];
   }
