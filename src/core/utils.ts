@@ -1,5 +1,5 @@
 import type {
-  AnchorSide,
+  ArrowBinding,
   ArrowElement,
   Bounds,
   Camera,
@@ -185,16 +185,52 @@ export function translateElement(el: Element, dx: number, dy: number): Element {
   return { ...el, x: el.x + dx, y: el.y + dy };
 }
 
-/** connection point of an element for a given anchor side */
-export function anchorPoint(el: Element, anchor: AnchorSide): Point {
+/** absolute point of a binding (normalized position within element bounds) */
+export function bindingPoint(el: Element, binding: ArrowBinding): Point {
   const b = elementBounds(el);
-  switch (anchor) {
-    case "top": return { x: (b.x1 + b.x2) / 2, y: b.y1 };
-    case "bottom": return { x: (b.x1 + b.x2) / 2, y: b.y2 };
-    case "left": return { x: b.x1, y: (b.y1 + b.y2) / 2 };
-    case "right": return { x: b.x2, y: (b.y1 + b.y2) / 2 };
-    case "center": return { x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 };
+  return {
+    x: b.x1 + clamp(binding.nx, 0, 1) * (b.x2 - b.x1),
+    y: b.y1 + clamp(binding.ny, 0, 1) * (b.y2 - b.y1),
+  };
+}
+
+/** nearest point on the element outline from p (per-shape geometry) */
+export function nearestOutlinePoint(el: Element, p: Point): Point {
+  const b = elementBounds(el);
+  const cx = (b.x1 + b.x2) / 2;
+  const cy = (b.y1 + b.y2) / 2;
+  const hw = (b.x2 - b.x1) / 2;
+  const hh = (b.y2 - b.y1) / 2;
+  if (el.type === "ellipse") {
+    // radial projection of the direction onto the ellipse
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    if (dx === 0 && dy === 0) return { x: cx + hw, y: cy };
+    const t = 1 / Math.hypot(dx / (hw || 1), dy / (hh || 1));
+    return { x: cx + dx * t, y: cy + dy * t };
   }
+  if (el.type === "diamond") {
+    // radial projection onto the rhombus |dx|/hw + |dy|/hh = 1
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    if (dx === 0 && dy === 0) return { x: cx + hw, y: cy };
+    const t = 1 / (Math.abs(dx) / (hw || 1) + Math.abs(dy) / (hh || 1));
+    return { x: cx + dx * t, y: cy + dy * t };
+  }
+  // rectangle outline: clamp to the border; points inside project to the
+  // nearest edge
+  const qx = clamp(p.x, b.x1, b.x2);
+  const qy = clamp(p.y, b.y1, b.y2);
+  if (qx !== p.x || qy !== p.y) return { x: qx, y: qy };
+  const dl = p.x - b.x1;
+  const dr = b.x2 - p.x;
+  const dt = p.y - b.y1;
+  const db = b.y2 - p.y;
+  const m = Math.min(dl, dr, dt, db);
+  if (m === dl) return { x: b.x1, y: p.y };
+  if (m === dr) return { x: b.x2, y: p.y };
+  if (m === dt) return { x: p.x, y: b.y1 };
+  return { x: p.x, y: b.y2 };
 }
 
 /** union bounding box of all elements; null when empty */

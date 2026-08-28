@@ -6,8 +6,8 @@ interface EdgeData {
   y: number;
   width: number;
   height: number;
-  startBinding?: { elementId: string; anchor: string };
-  endBinding?: { elementId: string; anchor: string };
+  startBinding?: { elementId: string; nx: number; ny: number };
+  endBinding?: { elementId: string; nx: number; ny: number };
 }
 
 async function readEdges(
@@ -66,7 +66,8 @@ test.describe("edge binding to elements", () => {
       await readShape(page, 1),
     ];
 
-    // arrow from B's left anchor (400,330) to A's right anchor (220,140)
+    // arrow from over B's left edge to over A's right edge: the endpoints
+    // snap to the nearest outline point of each shape
     await selectTool(page, "a");
     await page.mouse.move(402, 330);
     await page.mouse.down();
@@ -76,13 +77,18 @@ test.describe("edge binding to elements", () => {
     const edges = await readEdges(page, "arrow");
     expect(edges).toHaveLength(1);
     const arrow = edges[0];
-    // both endpoints snapped exactly onto the anchors
+    // both endpoints snapped onto the outline
     expect(arrow.x).toBeCloseTo(400, 0);
     expect(arrow.y).toBeCloseTo(330, 0);
     expect(arrow.x + arrow.width).toBeCloseTo(220, 0);
-    expect(arrow.y + arrow.height).toBeCloseTo(140, 0);
-    expect(arrow.startBinding).toEqual({ elementId: b.id, anchor: "left" });
-    expect(arrow.endBinding).toEqual({ elementId: a.id, anchor: "right" });
+    expect(arrow.y + arrow.height).toBeCloseTo(150, 0);
+    // start bound to B's left edge midpoint, end to A's right edge
+    expect(arrow.startBinding?.elementId).toBe(b.id);
+    expect(arrow.startBinding?.nx).toBeCloseTo(0, 5);
+    expect(arrow.startBinding?.ny).toBeCloseTo(0.5, 5);
+    expect(arrow.endBinding?.elementId).toBe(a.id);
+    expect(arrow.endBinding?.nx).toBeCloseTo(1, 5);
+    expect(arrow.endBinding?.ny).toBeCloseTo(0.625, 5);
   });
 
   test("line (not only arrow) binds and follows a moved shape", async ({
@@ -100,10 +106,10 @@ test.describe("edge binding to elements", () => {
     await page.mouse.up();
 
     const before = (await readEdges(page, "line"))[0];
-    expect(before.startBinding).toEqual({ elementId: b.id, anchor: "left" });
-    expect(before.endBinding).toEqual({ elementId: a.id, anchor: "right" });
+    expect(before.startBinding?.elementId).toBe(b.id);
+    expect(before.endBinding?.elementId).toBe(a.id);
 
-    // move rect A by (+100,+50): line end follows A's right anchor
+    // move rect A by (+100,+50): line end follows its bound outline position
     await selectTool(page, "v");
     await page.mouse.move(160, 140);
     await page.mouse.down();
@@ -111,13 +117,14 @@ test.describe("edge binding to elements", () => {
     await page.mouse.up();
 
     const after = (await readEdges(page, "line"))[0];
-    expect(after.startBinding).toEqual({ elementId: b.id, anchor: "left" });
-    expect(after.endBinding).toEqual({ elementId: a.id, anchor: "right" });
-    // start (bound to B) unchanged; end on A's new right anchor (320,190)
+    expect(after.startBinding?.elementId).toBe(b.id);
+    expect(after.endBinding?.elementId).toBe(a.id);
+    // start (bound to B) unchanged; end keeps nx=1, ny=0.625 on A's new
+    // bounds (200,150)-(320,230) -> (320, 200)
     expect(after.x).toBeCloseTo(400, 0);
     expect(after.y).toBeCloseTo(330, 0);
     expect(after.x + after.width).toBeCloseTo(320, 0);
-    expect(after.y + after.height).toBeCloseTo(190, 0);
+    expect(after.y + after.height).toBeCloseTo(200, 0);
   });
 
   test("dragging an arrow endpoint onto another shape rebinds it", async ({
@@ -138,18 +145,28 @@ test.describe("edge binding to elements", () => {
     await selectTool(page, "v");
     await page.mouse.click(286, 270);
 
-    // grab the free end (350,400) and drop it near B's left anchor (400,330)
+    // grab the free end (350,400) and drag it over B: the shape must be
+    // highlighted (binding preview) while the pointer is over it
     await page.mouse.move(350, 400);
     await page.mouse.down();
     await page.mouse.move(405, 335, { steps: 5 });
+    const preview = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      return ed.bindingPreview as {
+        start: unknown;
+        end: { elementId: string } | null;
+      } | null;
+    });
+    expect(preview?.end?.elementId).toBe(b.id);
     await page.mouse.up();
 
     const edges = await readEdges(page, "arrow");
     expect(edges).toHaveLength(1);
     const arrow = edges[0];
-    expect(arrow.endBinding).toEqual({ elementId: b.id, anchor: "left" });
+    expect(arrow.endBinding?.elementId).toBe(b.id);
+    // dropped over B's left edge -> snapped to (400,335)
     expect(arrow.x + arrow.width).toBeCloseTo(400, 0);
-    expect(arrow.y + arrow.height).toBeCloseTo(330, 0);
+    expect(arrow.y + arrow.height).toBeCloseTo(335, 0);
   });
 
   test("dragging a bound endpoint to empty space clears the binding", async ({
@@ -208,8 +225,9 @@ test.describe("edge binding to elements", () => {
     const edges = await readEdges(page, "arrow");
     expect(edges).toHaveLength(1);
     const arrow = edges[0];
+    // end keeps its normalized position (nx=1, ny=0.525) on the new bounds
     expect(arrow.x + arrow.width).toBeCloseTo(320, 0);
-    expect(arrow.y + arrow.height).toBeCloseTo(140, 0);
+    expect(arrow.y + arrow.height).toBeCloseTo(142, 0);
   });
 
   test("duplicating a bound diagram remaps bindings to the clones", async ({

@@ -1,7 +1,7 @@
-import type { AnchorSide, ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
+import type { ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
 import {
-  anchorPoint,
   arrowPoints,
+  bindingPoint,
   curvedArrowControl,
   diamondVertices,
   edgeLabelAnchor,
@@ -1164,7 +1164,33 @@ function drawGuides(
   ctx.restore();
 }
 
-/** draws a dot on each anchor currently offered/accepted as a binding target */
+/** halo around a shape offered/accepted as a binding target */
+function drawBindingHighlight(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  zoom: number,
+  color: string,
+) {
+  const b = elementBounds(el);
+  const pad = 4 / zoom;
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = color + "1a";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5 / zoom;
+  ctx.beginPath();
+  ctx.rect(
+    b.x1 - pad,
+    b.y1 - pad,
+    b.x2 - b.x1 + pad * 2,
+    b.y2 - b.y1 + pad * 2,
+  );
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** draws the highlight of each binding target plus a dot on the outline */
 function drawBindingPreview(
   ctx: CanvasRenderingContext2D,
   preview: { start: ArrowBinding | null; end: ArrowBinding | null },
@@ -1177,7 +1203,8 @@ function drawBindingPreview(
     if (!binding) continue;
     const target = byId.get(binding.elementId);
     if (!target) continue;
-    const ap = anchorPoint(target, binding.anchor as AnchorSide);
+    drawBindingHighlight(ctx, target, zoom, color);
+    const ap = bindingPoint(target, binding);
     const r = 5 / zoom;
     ctx.save();
     ctx.fillStyle = "#ffffff";

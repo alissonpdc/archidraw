@@ -108,11 +108,14 @@ export interface LineElement extends BaseElement {
 }
 
 export type LineType = "straight" | "curved" | "auto";
-export type AnchorSide = "top" | "right" | "bottom" | "left" | "center";
 
 export interface ArrowBinding {
   elementId: string;
-  anchor: AnchorSide;
+  /** bound point normalized within the element bounds (0..1); positions on
+   *  the unit-square border map to the element outline, so the endpoint
+   *  stays glued to the outline as the shape moves/resizes */
+  nx: number;
+  ny: number;
 }
 
 /** x,y = start; x+width,y+height = end (axis-aligned box used as bounds).
