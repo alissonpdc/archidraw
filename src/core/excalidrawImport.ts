@@ -31,6 +31,7 @@ interface ExcalidrawElementLike {
   strokeStyle?: "solid" | "dashed" | "dotted";
   opacity?: number;
   roundness?: { type: number; value?: number } | null;
+  strokeSharpness?: string;
   points?: { x: number; y: number }[];
   text?: string;
   fontSize?: number;
@@ -43,25 +44,68 @@ interface ExcalidrawElementLike {
 
 export class ExcalidrawLibParseError extends Error {}
 
-/** extrai a lista de library items (v1: array de arrays; v2: {libraryItems}) */
+/** extrai a lista de library items (v1: {library}; v2: {libraryItems}; raiz: array) */
 function extractItems(root: unknown): ExcalidrawElementLike[][] {
   if (Array.isArray(root)) {
     return root.filter(
       (it): it is ExcalidrawElementLike[] => Array.isArray(it) && it.length > 0,
     );
   }
-  if (root && typeof root === "object" && Array.isArray((root as { libraryItems?: unknown }).libraryItems)) {
-    return ((root as { libraryItems: unknown[] }).libraryItems as unknown[])
-      .map((it) =>
-        it && typeof it === "object" && Array.isArray((it as { elements?: unknown }).elements)
-          ? ((it as { elements: ExcalidrawElementLike[] }).elements)
-          : Array.isArray(it)
-            ? (it as ExcalidrawElementLike[])
-            : null,
-      )
-      .filter((it): it is ExcalidrawElementLike[] => !!it && it.length > 0);
+  if (root && typeof root === "object") {
+    for (const key of ["libraryItems", "library"] as const) {
+      const list = (root as Record<string, unknown>)[key];
+      if (!Array.isArray(list)) continue;
+      return (list as unknown[])
+        .map((it) =>
+          it && typeof it === "object" && Array.isArray((it as { elements?: unknown }).elements)
+            ? ((it as { elements: ExcalidrawElementLike[] }).elements)
+            : Array.isArray(it)
+              ? (it as ExcalidrawElementLike[])
+              : null,
+        )
+        .filter((it): it is ExcalidrawElementLike[] => !!it && it.length > 0);
+    }
   }
   throw new ExcalidrawLibParseError("Invalid .excalidrawlib file: no libraryItems");
+}
+
+/**
+ * normaliza points: Excalidraw usa tuplas [x, y] (versões novas) ou
+ * objetos {x, y} (antigas); descarta valores inválidos
+ */
+function normalizePoints(points: unknown): { x: number; y: number }[] {
+  if (!Array.isArray(points)) return [];
+  const out: { x: number; y: number }[] = [];
+  for (const p of points) {
+    if (Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])) {
+      out.push({ x: p[0] as number, y: p[1] as number });
+    } else if (
+      p &&
+      typeof p === "object" &&
+      Number.isFinite((p as { x?: unknown }).x) &&
+      Number.isFinite((p as { y?: unknown }).y)
+    ) {
+      out.push({ x: (p as { x: number }).x, y: (p as { y: number }).y });
+    }
+  }
+  return out;
+}
+
+/** copia rasa do elemento com points normalizados para {x,y}[] */
+function normalizeElement(el: ExcalidrawElementLike): ExcalidrawElementLike {
+  if (!("points" in el)) return el;
+  return { ...el, points: normalizePoints((el as { points?: unknown }).points) };
+}
+
+/** nome do item i no formato v2 ({libraryItems:[{name,elements}]}) */
+function findWrapperName(root: unknown, index: number): unknown {
+  if (root && typeof root === "object") {
+    for (const key of ["libraryItems", "library"] as const) {
+      const list = (root as Record<string, unknown>)[key];
+      if (Array.isArray(list)) return list[index] ?? null;
+    }
+  }
+  return null;
 }
 
 const PAD = 4;
@@ -118,6 +162,16 @@ function fillOf(el: ExcalidrawElementLike): string {
   return bg;
 }
 
+/** fill + aproximação de fillStyle (hachure/cross-hatch → sólido translúcido) */
+function fillAttrs(el: ExcalidrawElementLike): string {
+  const fill = fillOf(el);
+  if (fill === "none") return 'fill="none"';
+  const style = el.fillStyle;
+  if (style === "hachure") return `fill="${fill}" fill-opacity="0.4"`;
+  if (style === "cross-hatch") return `fill="${fill}" fill-opacity="0.6"`;
+  return `fill="${fill}"`;
+}
+
 function strokeAttrs(el: ExcalidrawElementLike): string {
   const sw = typeof el.strokeWidth === "number" && el.strokeWidth > 0 ? el.strokeWidth : 1;
   const dash = dashArray(el.strokeStyle);
@@ -134,8 +188,29 @@ function angleTransform(el: ExcalidrawElementLike, ox: number, oy: number): stri
   return ` transform="rotate(${((el.angle * 180) / Math.PI).toFixed(3)} ${cx.toFixed(2)} ${cy.toFixed(2)})"`;
 }
 
-function pointAttrs(points: { x: number; y: number }[], ox: number, oy: number): string {
-  return points.map((p) => `${(p.x - ox).toFixed(2)},${(p.y - oy).toFixed(2)}`).join(" ");
+/** path d para polilinhas; smooth ≈ strokeSharpness "round" do Excalidraw */
+function pathDFor(
+  pts: { x: number; y: number }[],
+  ox: number,
+  oy: number,
+  smooth: boolean,
+): string {
+  const P = (p: { x: number; y: number }) =>
+    `${(p.x - ox).toFixed(2)} ${(p.y - oy).toFixed(2)}`;
+  if (!smooth || pts.length < 3) {
+    return `M${pts.map((p) => P(p)).join("L")}`;
+  }
+  // quadráticas pelos pontos-médios (aproximação das curvas do Excalidraw)
+  let d = `M${P(pts[0])}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    const mx = (a.x + b.x) / 2 - ox;
+    const my = (a.y + b.y) / 2 - oy;
+    d += `Q${P(a)} ${mx.toFixed(2)} ${my.toFixed(2)}`;
+  }
+  d += `L${P(pts[pts.length - 1])}`;
+  return d;
 }
 
 function arrowHeads(
@@ -184,18 +259,18 @@ function linesToPath(lines: number[][], ox: number, oy: number): string {
 function elementToSvg(el: ExcalidrawElementLike, ox: number, oy: number): string | null {
   const w = el.width ?? 0;
   const h = el.height ?? 0;
-  const fill = fillOf(el);
   const angle = angleTransform(el, ox, oy);
   const opacity = typeof el.opacity === "number" && el.opacity < 100 ? ` opacity="${el.opacity / 100}"` : "";
   const open = `<g${opacity}>`;
+  const round = !!el.roundness || el.strokeSharpness === "round";
 
   switch (el.type) {
     case "rectangle": {
-      const rx = el.roundness ? Math.min(w, h) * 0.25 : 0;
-      return `${open}<rect x="${(el.x - ox).toFixed(2)}" y="${(el.y - oy).toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}"${rx > 0 ? ` rx="${rx.toFixed(2)}"` : ""} fill="${fill}" ${strokeAttrs(el)}${angle}/></g>`;
+      const rx = round ? Math.min(w, h) * 0.25 : 0;
+      return `${open}<rect x="${(el.x - ox).toFixed(2)}" y="${(el.y - oy).toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}"${rx > 0 ? ` rx="${rx.toFixed(2)}"` : ""} ${fillAttrs(el)} ${strokeAttrs(el)}${angle}/></g>`;
     }
     case "ellipse":
-      return `${open}<ellipse cx="${(el.x + w / 2 - ox).toFixed(2)}" cy="${(el.y + h / 2 - oy).toFixed(2)}" rx="${(w / 2).toFixed(2)}" ry="${(h / 2).toFixed(2)}" fill="${fill}" ${strokeAttrs(el)}${angle}/></g>`;
+      return `${open}<ellipse cx="${(el.x + w / 2 - ox).toFixed(2)}" cy="${(el.y + h / 2 - oy).toFixed(2)}" rx="${(w / 2).toFixed(2)}" ry="${(h / 2).toFixed(2)}" ${fillAttrs(el)} ${strokeAttrs(el)}${angle}/></g>`;
     case "diamond": {
       const cx = el.x + w / 2;
       const cy = el.y + h / 2;
@@ -207,21 +282,27 @@ function elementToSvg(el: ExcalidrawElementLike, ox: number, oy: number): string
       ]
         .map(([x, y]) => `${(x - ox).toFixed(2)},${(y - oy).toFixed(2)}`)
         .join(" ");
-      return `${open}<polygon points="${pts}" fill="${fill}" ${strokeAttrs(el)}${angle}/></g>`;
+      return `${open}<polygon points="${pts}" ${fillAttrs(el)} ${strokeAttrs(el)}${angle}/></g>`;
     }
     case "line":
     case "draw": {
       const pts = el.points ?? [];
       if (pts.length < 2) return null;
-      const closed = !!el.closed || (pts.length > 2 && pts[0].x === pts[pts.length - 1].x && pts[0].y === pts[pts.length - 1].y);
-      const tag = closed ? "polygon" : "polyline";
-      const shapeFill = el.type === "draw" || !closed ? "none" : fill;
-      return `${open}<${tag} points="${pointAttrs(pts, ox, oy)}" fill="${shapeFill}" ${strokeAttrs(el)}${angle}/></g>`;
+      const closed =
+        !!el.closed ||
+        (pts.length > 2 &&
+          pts[0].x === pts[pts.length - 1].x &&
+          pts[0].y === pts[pts.length - 1].y);
+      const smooth = round || el.type === "draw";
+      let d = pathDFor(pts, ox, oy, smooth);
+      if (closed) d += "Z";
+      const shapeFill = el.type === "draw" || !closed ? "none" : fillAttrs(el);
+      return `${open}<path d="${d}" ${shapeFill === "none" ? 'fill="none"' : shapeFill} ${strokeAttrs(el)}${angle}/></g>`;
     }
     case "arrow": {
       const pts = el.points ?? [];
       if (pts.length < 2) return null;
-      const body = `<polyline points="${pointAttrs(pts, ox, oy)}" fill="none" ${strokeAttrs(el)}${angle}/>`;
+      const body = `<path d="${pathDFor(pts, ox, oy, round)}" fill="none" ${strokeAttrs(el)}${angle}/>`;
       const heads = arrowHeads(el, ox, oy);
       return `${open}${body}${heads}</g>`;
     }
@@ -288,24 +369,11 @@ export function parseExcalidrawLib(jsonText: string): ExcalidrawLibParseResult {
       findWrapperName(root, i),
       i,
     );
-    const { svg, aspect } = itemToSvg(elements);
+    const { svg, aspect } = itemToSvg(elements.map(normalizeElement));
     return { name, svg, aspect };
   });
   if (items.length === 0) {
     throw new ExcalidrawLibParseError("No items found in .excalidrawlib file");
   }
   return { items };
-}
-
-/** nome do item i no formato v2 ({libraryItems:[{name,elements}]}) */
-function findWrapperName(root: unknown, index: number): unknown {
-  if (
-    root &&
-    typeof root === "object" &&
-    Array.isArray((root as { libraryItems?: unknown }).libraryItems)
-  ) {
-    const wrapper = (root as { libraryItems: unknown[] }).libraryItems[index];
-    return wrapper ?? null;
-  }
-  return null;
 }

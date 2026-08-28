@@ -87,6 +87,65 @@ async function importLibOk(page: Page, name: string, content: string) {
 }
 
 test.describe("excalidraw library import", () => {
+  test("imports v1 format ({library}) with tuple points", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+    // v1: chave "library", items são arrays de elements, points [x,y]
+    await importLibOk(
+      page,
+      "v1-lib.excalidrawlib",
+      JSON.stringify({
+        type: "excalidrawlib",
+        version: 1,
+        library: [
+          [
+            {
+              type: "line",
+              x: 100,
+              y: 100,
+              width: 40,
+              height: 30,
+              points: [
+                [0, 0],
+                [-10, 20],
+                [30, 30],
+              ],
+              strokeColor: "#000000",
+              backgroundColor: "transparent",
+              strokeWidth: 2,
+              opacity: 100,
+            },
+            {
+              type: "rectangle",
+              x: 90,
+              y: 90,
+              width: 60,
+              height: 40,
+              strokeColor: "#000000",
+              backgroundColor: "#b2f2bb",
+              fillStyle: "hachure",
+              strokeWidth: 2,
+              opacity: 100,
+            },
+          ],
+        ],
+      }),
+    );
+
+    // o SVG gerado não pode ter coordenadas inválidas
+    const svg = await page.evaluate(() => {
+      const libs = JSON.parse(
+        localStorage.getItem("archidraw:importedLibraries") || "[]",
+      );
+      return libs[0]?.items?.[0]?.svg ?? "";
+    });
+    expect(svg).not.toContain("NaN");
+    expect(svg).not.toContain("undefined");
+    expect(svg).toContain("<path");
+    expect(svg).toContain('fill-opacity');
+  });
   test("import button is present in the library header", async ({ page }) => {
     await openLibrary(page);
     await expect(page.locator(IMPORT_BUTTON)).toBeVisible();

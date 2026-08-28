@@ -235,8 +235,8 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <path d="M12 3v12" />
-              <path d="M6.5 9.5 L12 15 L17.5 9.5" />
+              <path d="M12 17V5" />
+              <path d="M6.5 10.5 L12 5 L17.5 10.5" />
               <path d="M4 20 H20" />
             </svg>
           </button>
