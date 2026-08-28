@@ -444,6 +444,13 @@ export function PropertiesPanel() {
       el.type === "arrow" ||
       el.type === "component",
   );
+  const hasFillable = selected.some(
+    (el) =>
+      el.type === "rectangle" ||
+      el.type === "diamond" ||
+      el.type === "ellipse" ||
+      el.type === "component",
+  );
   const hasComponent = selected.some((el) => el.type === "component");
   const hasRectangle = selected.some((el) => el.type === "rectangle");
   const hasDiamond = selected.some((el) => el.type === "diamond");
@@ -548,13 +555,15 @@ export function PropertiesPanel() {
           />
         </Group>
 
-          <Group title="Fill">
-            <PaletteGrid
-              current={selected[0].backgroundColor}
-              onPick={(backgroundColor) => apply({ backgroundColor })}
-              label="Fill"
-            />
-          </Group>
+          {hasFillable && (
+            <Group title="Fill">
+              <PaletteGrid
+                current={selected[0].backgroundColor}
+                onPick={(backgroundColor) => apply({ backgroundColor })}
+                label="Fill"
+              />
+            </Group>
+          )}
 
           <Group title="Opacity">
             <MiniSlider
