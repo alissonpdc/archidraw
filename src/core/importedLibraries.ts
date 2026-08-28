@@ -33,11 +33,12 @@ export interface ImportedLibrary {
   items: ImportedLibraryItemData[];
 }
 
-const STORAGE_KEY = "archidraw:importedLibraries:v3";
+const STORAGE_KEY = "archidraw:importedLibraries:v4";
 /** chaves antigas (SVGs gerados por versões bugadas do parser) — descartadas no init */
 const LEGACY_STORAGE_KEYS = [
   "archidraw:importedLibraries",
   "archidraw:importedLibraries:v2",
+  "archidraw:importedLibraries:v3",
 ];
 
 let libraries: ImportedLibrary[] = [];
