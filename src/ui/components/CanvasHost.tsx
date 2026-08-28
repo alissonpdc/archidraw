@@ -382,6 +382,7 @@ export function CanvasHost() {
           <textarea
             ref={textareaRef}
             className="text-overlay"
+            spellCheck={false}
             style={{
               left: editingEl.x * cam.zoom + cam.scrollX,
               top: editingEl.y * cam.zoom + cam.scrollY,
@@ -418,6 +419,7 @@ export function CanvasHost() {
           <textarea
             ref={textareaRef}
             className="text-overlay label-overlay"
+            spellCheck={false}
             style={{
               left: labelPos.x,
               top: labelPos.y,
