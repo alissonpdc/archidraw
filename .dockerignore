@@ -1,0 +1,13 @@
+node_modules
+dist
+test-results
+ui-audit
+e2e
+.git
+.gitignore
+.agents
+.DS_Store
+*.md
+!README.md
+Dockerfile
+.dockerignore
