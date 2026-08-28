@@ -322,7 +322,7 @@ export function CanvasHost() {
         }}
         onPointerMove={(e) => {
           const p = toPoint(e);
-          editor.pointerMove(p);
+          editor.pointerMove(p, { shift: e.shiftKey });
           // imperative resize-handle cursor (avoids re-renders on hover)
           const override = editor.cursorOverrideAt(p);
           e.currentTarget.style.cursor = override ?? "";

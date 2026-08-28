@@ -43,6 +43,10 @@ export function App() {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        editor.onShiftDown();
+        return;
+      }
       if (isTextEditing()) return;
       const mod = e.metaKey || e.ctrlKey;
 
@@ -118,6 +122,7 @@ export function App() {
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") editor.onShiftUp();
       if (e.code === "Space") editor.onSpaceUp();
     };
 

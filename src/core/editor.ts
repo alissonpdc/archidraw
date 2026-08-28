@@ -55,6 +55,8 @@ const HANDLE_CURSOR: Record<HandleId, string> = {
 const HANDLE_TOLERANCE_PX = 6;
 /** snap activation threshold in scene units */
 const SNAP_TOLERANCE = 4;
+/** 45° in radians, used by shift-constrained line/arrow angle snapping */
+const QUARTER_TURN = Math.PI / 4;
 
 export interface SnapGuide {
   orientation: "h" | "v";
@@ -213,6 +215,7 @@ export class Editor {
   private guides: SnapGuide[] | null = null;
   private interaction: Interaction = { kind: "none" };
   private spacePressed = false;
+  private shiftPressed = false;
   private pasteCount = 0;
   private lastDefaultStroke: string = DEFAULT_STROKE;
   private lastStrokeStyle: StrokeStyle = "solid";
@@ -883,6 +886,22 @@ export class Editor {
     this.emit();
   }
 
+  onShiftDown() {
+    this.shiftPressed = true;
+  }
+
+  onShiftUp() {
+    this.shiftPressed = false;
+  }
+
+  /** snap an angle to the nearest multiple of 45° */
+  private snapAngle(dx: number, dy: number): { x: number; y: number } {
+    const angle =
+      Math.round(Math.atan2(dy, dx) / QUARTER_TURN) * QUARTER_TURN;
+    const len = Math.hypot(dx, dy);
+    return { x: len * Math.cos(angle), y: len * Math.sin(angle) };
+  }
+
   // ---- pointer events (screen coords) ----------------------------------
   pointerDown(
     screenPoint: Point,
@@ -1017,8 +1036,9 @@ export class Editor {
     this.emit();
   }
 
-  pointerMove(screenPoint: Point) {
+  pointerMove(screenPoint: Point, modifiers: { shift?: boolean } = {}) {
     const scene = screenToScene(screenPoint, this.camera);
+    const shift = modifiers.shift ?? this.shiftPressed;
 
     switch (this.interaction.kind) {
       case "pan": {
@@ -1034,11 +1054,34 @@ export class Editor {
       }
       case "draw": {
         if (!this.draft) break;
+        const start = this.interaction.startScene;
+        let x2 = scene.x;
+        let y2 = scene.y;
+        if (shift) {
+          const type = this.draft.type;
+          if (type === "line" || type === "arrow") {
+            // shift locks the angle to the nearest 45° increment
+            const d = this.snapAngle(x2 - start.x, y2 - start.y);
+            x2 = start.x + d.x;
+            y2 = start.y + d.y;
+          } else if (
+            type === "rectangle" ||
+            type === "ellipse" ||
+            type === "diamond"
+          ) {
+            // shift keeps the aspect ratio: perfect square/circle/diamond
+            const dx = x2 - start.x;
+            const dy = y2 - start.y;
+            const size = Math.max(Math.abs(dx), Math.abs(dy));
+            x2 = start.x + (dx < 0 ? -size : size);
+            y2 = start.y + (dy < 0 ? -size : size);
+          }
+        }
         const b = normalizeBounds({
-          x1: this.interaction.startScene.x,
-          y1: this.interaction.startScene.y,
-          x2: scene.x,
-          y2: scene.y,
+          x1: start.x,
+          y1: start.y,
+          x2,
+          y2,
         });
         this.draft = {
           ...this.draft,
@@ -1155,9 +1198,16 @@ export class Editor {
       }
       case "resize": {
         const o = elementBounds(this.interaction.original);
+        const orig = this.interaction.original;
         const handle = this.interaction.handle;
         let nb: Bounds;
-        if (handle.length === 2) {
+        if (handle.length === 2 && shift && (orig.type === "line" || orig.type === "arrow")) {
+          // shift locks the dragged endpoint to 45° increments from the fixed one
+          const fx = handle.includes("e") ? o.x1 : o.x2;
+          const fy = handle.includes("s") ? o.y1 : o.y2;
+          const d = this.snapAngle(scene.x - fx, scene.y - fy);
+          nb = normalizeBounds({ x1: fx, y1: fy, x2: fx + d.x, y2: fy + d.y });
+        } else if (handle.length === 2) {
           // corner handles: proportional scale anchored at the opposite corner
           const oW = o.x2 - o.x1 || 1;
           const oH = o.y2 - o.y1 || 1;
@@ -1175,7 +1225,7 @@ export class Editor {
             x2: handle.includes("w") ? fx : fx + w,
             y2: handle.includes("n") ? fy : fy + h,
           };
-        } else if (this.interaction.original.type === "component") {
+        } else if (orig.type === "component") {
           // edge handles on library components also scale proportionally:
           // dragged edge follows the pointer, opposite edge stays fixed and
           // the other axis follows the original ratio (centered)
@@ -1201,6 +1251,27 @@ export class Editor {
             y1: handle === "s" ? o.y1 : handle === "n" ? o.y2 - h : cy - h / 2,
             y2: handle === "s" ? o.y1 + h : handle === "n" ? o.y2 : cy + h / 2,
           };
+        } else if (shift && orig.type !== "text") {
+          // shift on edge handles keeps the original aspect ratio,
+          // anchored at the opposite edge
+          const oW = o.x2 - o.x1 || 1;
+          const oH = o.y2 - o.y1 || 1;
+          const ratio = oH / oW;
+          let w: number;
+          let h: number;
+          if (handle === "e" || handle === "w") {
+            w = Math.max(1, handle === "e" ? scene.x - o.x1 : o.x2 - scene.x);
+            h = w * ratio;
+          } else {
+            h = Math.max(1, handle === "s" ? scene.y - o.y1 : o.y2 - scene.y);
+            w = h / ratio;
+          }
+          nb = {
+            x1: handle === "w" ? o.x2 - w : o.x1,
+            x2: handle === "w" ? o.x2 : o.x1 + w,
+            y1: handle === "n" ? o.y2 - h : o.y1,
+            y2: handle === "n" ? o.y2 : o.y1 + h,
+          };
         } else {
           // edge handles: resize along a single axis only (aspect ratio may distort)
           let { x1, y1, x2, y2 } = o;
@@ -1211,7 +1282,6 @@ export class Editor {
           nb = normalizeBounds({ x1, y1, x2, y2 });
         }
         const id = this.interaction.original.id;
-        const orig = this.interaction.original;
         if (orig.type === "text") {
           const oW = o.x2 - o.x1 || 1;
           const oH = o.y2 - o.y1 || 1;
