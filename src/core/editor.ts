@@ -101,8 +101,6 @@ function resizeHandleAt(
   return null;
 }
 
-const ENDPOINT_HANDLES: HandleId[] = ["nw", "se"];
-
 /** element types that expose resize handles in single selection */
 function hasResizeHandles(el: Element): boolean {
   return (
@@ -116,11 +114,16 @@ function hasResizeHandles(el: Element): boolean {
   );
 }
 
-/** lines/arrows expose only their two endpoints instead of the 8 bbox handles */
+/** lines/arrows expose only their two endpoints instead of the 8 bbox handles.
+ *  width/height are signed: the start endpoint sits at (x,y) and the end at
+ *  (x+width, y+height), which map to different bbox corners per quadrant. */
 function handlesFor(el: Element): HandleId[] {
-  return el.type === "arrow" || el.type === "line"
-    ? ENDPOINT_HANDLES
-    : HANDLES;
+  if (el.type === "line" || el.type === "arrow") {
+    const startHandle = `${el.height < 0 ? "s" : "n"}${el.width < 0 ? "e" : "w"}` as HandleId;
+    const endHandle = `${el.height < 0 ? "n" : "s"}${el.width < 0 ? "w" : "e"}` as HandleId;
+    return [startHandle, endHandle];
+  }
+  return HANDLES;
 }
 
 const BIND_TOLERANCE = 20; // scene units
@@ -1077,19 +1080,32 @@ export class Editor {
             y2 = start.y + (dy < 0 ? -size : size);
           }
         }
-        const b = normalizeBounds({
-          x1: start.x,
-          y1: start.y,
-          x2,
-          y2,
-        });
-        this.draft = {
-          ...this.draft,
-          x: b.x1,
-          y: b.y1,
-          width: b.x2 - b.x1,
-          height: b.y2 - b.y1,
-        };
+        if (this.draft.type === "line" || this.draft.type === "arrow") {
+          // width/height stay signed relative to the anchored start point so
+          // the drawn direction (and the arrowhead) is preserved in any
+          // quadrant — normalizing here would flip start/end while dragging
+          this.draft = {
+            ...this.draft,
+            x: start.x,
+            y: start.y,
+            width: x2 - start.x,
+            height: y2 - start.y,
+          };
+        } else {
+          const b = normalizeBounds({
+            x1: start.x,
+            y1: start.y,
+            x2,
+            y2,
+          });
+          this.draft = {
+            ...this.draft,
+            x: b.x1,
+            y: b.y1,
+            width: b.x2 - b.x1,
+            height: b.y2 - b.y1,
+          };
+        }
         break;
       }
       case "move": {
@@ -1174,6 +1190,9 @@ export class Editor {
             const bound = moved.get(arrow.startBinding.elementId);
             if (bound) {
               const ap = anchorPoint(bound, arrow.startBinding.anchor);
+              // pivot on the start anchor: the free end stays fixed
+              newW = arrow.x + arrow.width - ap.x;
+              newH = arrow.y + arrow.height - ap.y;
               newX = ap.x;
               newY = ap.y;
               changed = true;
@@ -1200,13 +1219,29 @@ export class Editor {
         const o = elementBounds(this.interaction.original);
         const orig = this.interaction.original;
         const handle = this.interaction.handle;
-        let nb: Bounds;
-        if (handle.length === 2 && shift && (orig.type === "line" || orig.type === "arrow")) {
-          // shift locks the dragged endpoint to 45° increments from the fixed one
-          const fx = handle.includes("e") ? o.x1 : o.x2;
-          const fy = handle.includes("s") ? o.y1 : o.y2;
-          const d = this.snapAngle(scene.x - fx, scene.y - fy);
-          nb = normalizeBounds({ x1: fx, y1: fy, x2: fx + d.x, y2: fy + d.y });
+        let nb: Bounds = o;
+        let linePatch:
+          | { x: number; y: number; width: number; height: number }
+          | null = null;
+        if (handle.length === 2 && (orig.type === "line" || orig.type === "arrow")) {
+          // endpoint drag: the grabbed endpoint follows the pointer (shift
+          // locks the angle to 45° from the fixed one); the opposite endpoint
+          // stays anchored. Signed dims preserve the line direction.
+          const ax = orig.x;
+          const ay = orig.y;
+          const bx = orig.x + orig.width;
+          const by = orig.y + orig.height;
+          const draggingStart = handle === handlesFor(orig)[0];
+          const fx = draggingStart ? bx : ax;
+          const fy = draggingStart ? by : ay;
+          const delta = shift
+            ? this.snapAngle(scene.x - fx, scene.y - fy)
+            : { x: scene.x - fx, y: scene.y - fy };
+          const ex = fx + delta.x;
+          const ey = fy + delta.y;
+          linePatch = draggingStart
+            ? { x: ex, y: ey, width: bx - ex, height: by - ey }
+            : { x: ax, y: ay, width: ex - ax, height: ey - ay };
         } else if (handle.length === 2) {
           // corner handles: proportional scale anchored at the opposite corner
           const oW = o.x2 - o.x1 || 1;
@@ -1306,16 +1341,19 @@ export class Editor {
             ),
           };
         } else {
+          const patch = linePatch ?? {
+            x: nb.x1,
+            y: nb.y1,
+            width: nb.x2 - nb.x1,
+            height: nb.y2 - nb.y1,
+          };
           this.doc = {
             ...this.doc,
             elements: this.doc.elements.map((el) =>
               el.id === id
                 ? {
                     ...el,
-                    x: nb.x1,
-                    y: nb.y1,
-                    width: nb.x2 - nb.x1,
-                    height: nb.y2 - nb.y1,
+                    ...patch,
                   }
                 : el,
             ),

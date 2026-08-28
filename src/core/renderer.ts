@@ -1034,13 +1034,11 @@ function drawHandles(
   const b = elementVisualBounds(ctx, el);
   const cx = (b.x1 + b.x2) / 2;
   const cy = (b.y1 + b.y2) / 2;
-  // arrows/lines expose only their two endpoints (start = bbox nw, end = bbox se)
+  // arrows/lines expose only their two endpoints; width/height are signed,
+  // so the endpoints are (x,y) and (x+width,y+height), not fixed bbox corners
   const points =
     el.type === "arrow" || el.type === "line"
-      ? [
-          { x: b.x1, y: b.y1 },
-          { x: b.x2, y: b.y2 },
-        ]
+      ? arrowPoints(el)
       : [
           { x: b.x1, y: b.y1 },
           { x: cx, y: b.y1 },

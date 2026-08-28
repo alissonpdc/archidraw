@@ -87,7 +87,9 @@ export interface EllipseElement extends BaseElement {
   label?: string;
 }
 
-/** x,y = start; x+width,y+height = end (same bbox convention as arrow) */
+/** x,y = start; x+width,y+height = end (same convention as arrow).
+ *  width/height are SIGNED: they encode the drawn direction, so the
+ *  start point stays anchored regardless of the drag quadrant. */
 export interface LineElement extends BaseElement {
   type: "line";
   label?: string;
@@ -101,7 +103,9 @@ export interface ArrowBinding {
   anchor: AnchorSide;
 }
 
-/** x,y = start; x+width,y+height = end (axis-aligned box used as bounds) */
+/** x,y = start; x+width,y+height = end (axis-aligned box used as bounds).
+ *  width/height are SIGNED (see LineElement) so the arrowhead follows the
+ *  drawn direction; use elementBounds() for the normalized bbox. */
 export interface ArrowElement extends BaseElement {
   type: "arrow";
   label?: string;
