@@ -437,10 +437,17 @@ export function PropertiesPanel() {
   const hasText = selected.some((el) => el.type === "text");
   const hasShape = selected.some(
     (el) =>
-      el.type === "rectangle" || el.type === "arrow" || el.type === "component",
+      el.type === "rectangle" ||
+      el.type === "diamond" ||
+      el.type === "ellipse" ||
+      el.type === "line" ||
+      el.type === "arrow" ||
+      el.type === "component",
   );
   const hasComponent = selected.some((el) => el.type === "component");
   const hasRectangle = selected.some((el) => el.type === "rectangle");
+  const hasDiamond = selected.some((el) => el.type === "diamond");
+  const hasEllipse = selected.some((el) => el.type === "ellipse");
   const hasArrow = selected.some((el) => el.type === "arrow");
   const isOnlyText = selected.length > 0 && selected.every((el) => el.type === "text");
 
@@ -688,7 +695,7 @@ export function PropertiesPanel() {
             ))}
           </Group>
 
-          {hasShape && !hasArrow && (
+          {hasRectangle && (
             <Group title="Borders">
               <div className="v-stack">
                 <div className="border-presets">
@@ -832,7 +839,7 @@ export function PropertiesPanel() {
             </div>
           </Group>
 
-          {(hasText || hasRectangle || hasArrow) && (
+          {(hasText || hasRectangle || hasDiamond || hasEllipse || hasArrow) && (
             <Group title="Horizontal alignment">
               {(["left", "center", "right"] as const).map((a) => (
                 <button

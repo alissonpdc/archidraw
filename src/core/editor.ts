@@ -9,8 +9,11 @@ import type {
   Bounds,
   Camera,
   ComponentElement,
+  DiamondElement,
   Document,
   Element,
+  EllipseElement,
+  LineElement,
   LineType,
   Point,
   RectangleElement,
@@ -96,7 +99,27 @@ function resizeHandleAt(
   return null;
 }
 
-const ARROW_HANDLES: HandleId[] = ["nw", "se"];
+const ENDPOINT_HANDLES: HandleId[] = ["nw", "se"];
+
+/** element types that expose resize handles in single selection */
+function hasResizeHandles(el: Element): boolean {
+  return (
+    el.type === "rectangle" ||
+    el.type === "diamond" ||
+    el.type === "ellipse" ||
+    el.type === "line" ||
+    el.type === "arrow" ||
+    el.type === "component" ||
+    el.type === "text"
+  );
+}
+
+/** lines/arrows expose only their two endpoints instead of the 8 bbox handles */
+function handlesFor(el: Element): HandleId[] {
+  return el.type === "arrow" || el.type === "line"
+    ? ENDPOINT_HANDLES
+    : HANDLES;
+}
 
 const BIND_TOLERANCE = 20; // scene units
 
@@ -626,6 +649,8 @@ export class Editor {
     if (
       hitEl &&
       (hitEl.type === "rectangle" ||
+        hitEl.type === "diamond" ||
+        hitEl.type === "ellipse" ||
         hitEl.type === "arrow" ||
         hitEl.type === "component")
     ) {
@@ -875,6 +900,9 @@ export class Editor {
 
     switch (this.tool) {
       case "rectangle":
+      case "diamond":
+      case "ellipse":
+      case "line":
       case "arrow": {
         this.commitHistory();
         const base = {
@@ -887,10 +915,19 @@ export class Editor {
           roughness: this.lastRoughness,
           borderRadius: this.lastBorderRadius,
         };
-        const el: Element =
-          this.tool === "rectangle"
-            ? ({ ...base, type: "rectangle", x: scene.x, y: scene.y, width: 0, height: 0 } satisfies RectangleElement)
-            : ({ ...base, type: "arrow", x: scene.x, y: scene.y, width: 0, height: 0 } satisfies ArrowElement);
+        const bbox = { x: scene.x, y: scene.y, width: 0, height: 0 };
+        let el: Element;
+        if (this.tool === "rectangle") {
+          el = { ...base, type: "rectangle", ...bbox } satisfies RectangleElement;
+        } else if (this.tool === "diamond") {
+          el = { ...base, type: "diamond", ...bbox } satisfies DiamondElement;
+        } else if (this.tool === "ellipse") {
+          el = { ...base, type: "ellipse", ...bbox } satisfies EllipseElement;
+        } else if (this.tool === "line") {
+          el = { ...base, type: "line", ...bbox } satisfies LineElement;
+        } else {
+          el = { ...base, type: "arrow", ...bbox } satisfies ArrowElement;
+        }
         this.draft = el;
         this.interaction = { kind: "draw", startScene: scene, id: el.id };
         break;
@@ -925,18 +962,12 @@ export class Editor {
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (
-            selected &&
-            (selected.type === "rectangle" ||
-              selected.type === "arrow" ||
-              selected.type === "component" ||
-              selected.type === "text")
-          ) {
+          if (selected && hasResizeHandles(selected)) {
             const handle = resizeHandleAt(
               scene,
               visualBounds(selected),
               this.camera.zoom,
-              selected.type === "arrow" ? ARROW_HANDLES : HANDLES,
+              handlesFor(selected),
             );
             if (handle) {
               this.commitHistory();
@@ -1287,20 +1318,13 @@ export class Editor {
     if (this.interaction.kind !== "none") return null;
     if (this.tool !== "selection" || this.selectedIds.size !== 1) return null;
     const selected = this.doc.elements.find((el) => this.selectedIds.has(el.id));
-    if (
-      !selected ||
-      (selected.type !== "rectangle" &&
-        selected.type !== "arrow" &&
-        selected.type !== "component" &&
-        selected.type !== "text")
-    )
-      return null;
+    if (!selected || !hasResizeHandles(selected)) return null;
     const scene = screenToScene(screenPoint, this.camera);
     const handle = resizeHandleAt(
       scene,
       visualBounds(selected),
       this.camera.zoom,
-      selected.type === "arrow" ? ARROW_HANDLES : HANDLES,
+      handlesFor(selected),
     );
     return handle ? HANDLE_CURSOR[handle] : null;
   }

@@ -43,6 +43,30 @@ export function RectIcon({ size = 16 }: IconProps) {
   );
 }
 
+export function DiamondIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M12 4l8 8-8 8-8-8z" />
+    </svg>
+  );
+}
+
+export function EllipseIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="12" cy="12" r="8" />
+    </svg>
+  );
+}
+
+export function LineIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M5 19L19 5" />
+    </svg>
+  );
+}
+
 export function ArrowIcon({ size = 16 }: IconProps) {
   return (
     <svg {...base(size)}>

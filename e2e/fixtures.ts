@@ -103,7 +103,7 @@ export async function drag(
 
 export async function selectTool(
   page: Page,
-  key: "v" | "h" | "r" | "a" | "t",
+  key: "v" | "h" | "r" | "d" | "e" | "l" | "a" | "t",
 ) {
   await page.keyboard.press(key);
 }

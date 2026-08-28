@@ -59,6 +59,18 @@ export function arrowPoints(el: Element): [Point, Point] {
   ];
 }
 
+/** the four vertices of a diamond inscribed in the element bbox */
+export function diamondVertices(el: Element): Point[] {
+  const cx = el.x + el.width / 2;
+  const cy = el.y + el.height / 2;
+  return [
+    { x: cx, y: el.y },
+    { x: el.x + el.width, y: cy },
+    { x: cx, y: el.y + el.height },
+    { x: el.x, y: cy },
+  ];
+}
+
 export function translateElement(el: Element, dx: number, dy: number): Element {
   return { ...el, x: el.x + dx, y: el.y + dy };
 }

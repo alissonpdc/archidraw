@@ -1,5 +1,5 @@
 import type { Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
-import { arrowPoints, elementBounds, measureText } from "./utils";
+import { arrowPoints, diamondVertices, elementBounds, measureText } from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage } from "./componentAssets";
 import { resolveFont, resolveTextColor, lineHeight } from "./textStyle";
@@ -505,6 +505,36 @@ function roundedRectLoop(
   return pts;
 }
 
+/** closed perimeter of a diamond as a polyline loop (first point == last) */
+function diamondLoop(el: Element): Point[] {
+  const v = diamondVertices(el);
+  return [...v, v[0]];
+}
+
+/**
+ * ellipse perimeter sampled as a closed polyline loop (first point == last),
+ * with fixed ~7.5° facets — same sampling style as the rounded-rect corners.
+ */
+function ellipseLoop(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): Point[] {
+  const rx = Math.abs(width) / 2;
+  const ry = Math.abs(height) / 2;
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const seg = 48;
+  const pts: Point[] = [];
+  for (let i = 0; i < seg; i++) {
+    const a = (i / seg) * Math.PI * 2;
+    pts.push({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) });
+  }
+  pts.push(pts[0]);
+  return pts;
+}
+
 function applyDash(
   ctx: CanvasRenderingContext2D,
   el: Element,
@@ -690,6 +720,54 @@ function drawElement(
     }
 
     if (el.type === "component") drawComponentIcon(ctx, el);
+  } else if (el.type === "diamond") {
+    const v = diamondVertices(el);
+    if (el.backgroundColor !== "transparent") {
+      ctx.beginPath();
+      ctx.moveTo(v[0].x, v[0].y);
+      for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.beginPath();
+    if (el.roughness === 0) {
+      ctx.moveTo(v[0].x, v[0].y);
+      for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+      ctx.closePath();
+    } else {
+      sketchStroke(ctx, [diamondLoop(el)], el.roughness, seedOf(el.id));
+    }
+    applyDash(ctx, el, el.strokeWidth);
+    ctx.stroke();
+  } else if (el.type === "ellipse") {
+    const rx = Math.abs(el.width) / 2;
+    const ry = Math.abs(el.height) / 2;
+    const cx = el.x + el.width / 2;
+    const cy = el.y + el.height / 2;
+    if (el.backgroundColor !== "transparent") {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.beginPath();
+    if (el.roughness === 0) {
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    } else {
+      sketchStroke(
+        ctx,
+        [ellipseLoop(el.x, el.y, el.width, el.height)],
+        el.roughness,
+        seedOf(el.id),
+      );
+    }
+    applyDash(ctx, el, el.strokeWidth);
+    ctx.stroke();
+  } else if (el.type === "line") {
+    const [a, b] = arrowPoints(el);
+    ctx.beginPath();
+    sketchStroke(ctx, [[a, b]], el.roughness, seedOf(el.id));
+    applyDash(ctx, el, el.strokeWidth);
+    ctx.stroke();
   } else if (el.type === "arrow") {
     const [a, b] = arrowPoints(el);
     const lineType = el.lineType ?? "straight";
@@ -824,8 +902,8 @@ function drawSelectionBox(
   zoom: number,
   color: string,
 ) {
-  // arrows: highlight the line itself instead of a misleading bbox rectangle
-  if (el.type === "arrow") {
+  // arrows/lines: highlight the line itself instead of a misleading bbox rectangle
+  if (el.type === "arrow" || el.type === "line") {
     const [a, b] = arrowPoints(el);
     ctx.save();
     ctx.strokeStyle = color;
@@ -956,9 +1034,9 @@ function drawHandles(
   const b = elementVisualBounds(ctx, el);
   const cx = (b.x1 + b.x2) / 2;
   const cy = (b.y1 + b.y2) / 2;
-  // arrows expose only their two endpoints (start = bbox nw, end = bbox se)
+  // arrows/lines expose only their two endpoints (start = bbox nw, end = bbox se)
   const points =
-    el.type === "arrow"
+    el.type === "arrow" || el.type === "line"
       ? [
           { x: b.x1, y: b.y1 },
           { x: b.x2, y: b.y2 },
@@ -1054,7 +1132,13 @@ export function render(
     const sel = state.doc.elements.find((el) => state.selectedIds.has(el.id));
     if (
       sel &&
-      (sel.type === "rectangle" || sel.type === "arrow" || sel.type === "component" || sel.type === "text") &&
+      (sel.type === "rectangle" ||
+        sel.type === "diamond" ||
+        sel.type === "ellipse" ||
+        sel.type === "line" ||
+        sel.type === "arrow" ||
+        sel.type === "component" ||
+        sel.type === "text") &&
       !(state.hiddenLabelId && sel.id === state.hiddenLabelId) &&
       !(state.hiddenTextId && sel.id === state.hiddenTextId)
     ) {

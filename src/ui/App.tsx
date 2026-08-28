@@ -16,6 +16,9 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
   v: "selection",
   h: "hand",
   r: "rectangle",
+  d: "diamond",
+  e: "ellipse",
+  l: "line",
   a: "arrow",
   t: "text",
 };

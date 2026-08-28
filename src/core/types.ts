@@ -1,4 +1,11 @@
-export type ElementType = "rectangle" | "arrow" | "text" | "component";
+export type ElementType =
+  | "rectangle"
+  | "diamond"
+  | "ellipse"
+  | "line"
+  | "arrow"
+  | "text"
+  | "component";
 
 /** line pattern: continuous, dashed, dotted or dash-dot */
 export type StrokeStyle = "solid" | "dashed" | "dotted" | "dashdot";
@@ -70,6 +77,22 @@ export interface RectangleElement extends BaseElement {
   label?: string;
 }
 
+export interface DiamondElement extends BaseElement {
+  type: "diamond";
+  label?: string;
+}
+
+export interface EllipseElement extends BaseElement {
+  type: "ellipse";
+  label?: string;
+}
+
+/** x,y = start; x+width,y+height = end (same bbox convention as arrow) */
+export interface LineElement extends BaseElement {
+  type: "line";
+  label?: string;
+}
+
 export type LineType = "straight" | "curved" | "auto";
 export type AnchorSide = "top" | "right" | "bottom" | "left" | "center";
 
@@ -105,6 +128,9 @@ export interface ComponentElement extends BaseElement {
 
 export type Element =
   | RectangleElement
+  | DiamondElement
+  | EllipseElement
+  | LineElement
   | ArrowElement
   | TextElement
   | ComponentElement;
@@ -114,7 +140,15 @@ export interface Document {
   elements: Element[];
 }
 
-export type Tool = "selection" | "hand" | "rectangle" | "arrow" | "text";
+export type Tool =
+  | "selection"
+  | "hand"
+  | "rectangle"
+  | "diamond"
+  | "ellipse"
+  | "line"
+  | "arrow"
+  | "text";
 
 export interface Camera {
   /** scene -> screen offset */

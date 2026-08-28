@@ -3,8 +3,11 @@ import { Fragment } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
 import {
   ArrowIcon,
+  DiamondIcon,
+  EllipseIcon,
   HandIcon,
   LibraryIcon,
+  LineIcon,
   RectIcon,
   SelectionIcon,
   TextIcon,
@@ -14,6 +17,9 @@ const TOOLS: { id: Tool; label: string; key: string; Icon: typeof SelectionIcon 
   { id: "selection", label: "Selection", key: "V", Icon: SelectionIcon },
   { id: "hand", label: "Hand", key: "H", Icon: HandIcon },
   { id: "rectangle", label: "Rectangle", key: "R", Icon: RectIcon },
+  { id: "diamond", label: "Diamond", key: "D", Icon: DiamondIcon },
+  { id: "ellipse", label: "Ellipse", key: "E", Icon: EllipseIcon },
+  { id: "line", label: "Line", key: "L", Icon: LineIcon },
   { id: "arrow", label: "Arrow", key: "A", Icon: ArrowIcon },
   { id: "text", label: "Text", key: "T", Icon: TextIcon },
 ];
