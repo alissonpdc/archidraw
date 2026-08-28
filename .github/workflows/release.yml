@@ -70,7 +70,7 @@ jobs:
   docker:
     name: Docker Hub
     needs: release
-    if: env.DOCKERHUB_USERNAME != ''
+    if: secrets.DOCKERHUB_USERNAME != ''
     runs-on: ubuntu-latest
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
