@@ -957,13 +957,13 @@ export function PropertiesPanel() {
           )}
 
           {hasRectangle && (
-            <Group title="Offset">
+            <Group title="Border offset">
               <MiniSlider
                 value={selected[0].textPadding ?? 8}
                 min={0}
                 max={40}
                 step={1}
-                ariaLabel="Text offset"
+                ariaLabel="Border offset"
                 suffix="px"
                 onChange={(v) => apply({ textPadding: v })}
               />
