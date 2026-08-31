@@ -233,4 +233,42 @@ test.describe("image features", () => {
     const componentTitles = await panelGroupTitles(page);
     expect(imageTitles).toEqual(componentTitles);
   });
+
+  test("caption of a pasted image renders outside the image (like lib components)", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+
+    // image bottom edge in screen coordinates
+    const img = await page.evaluate(() => {
+      const ed = window.__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const cam = ed.getSnapshot().camera;
+      return {
+        sx: (el.x + el.width / 2) * cam.zoom + cam.scrollX,
+        sy: (el.y + el.height / 2) * cam.zoom + cam.scrollY,
+        bottom: (el.y + el.height) * cam.zoom + cam.scrollY,
+      };
+    });
+
+    // add a label via double-click
+    await page.mouse.dblclick(img.sx, img.sy);
+    await page.keyboard.type("S3 bucket");
+    await page.keyboard.press("Enter");
+
+    // re-open editing: overlay must sit BELOW the image, not over it
+    await page.mouse.dblclick(img.sx, img.sy);
+    const overlay = page.locator(".text-overlay.label-overlay");
+    await expect(overlay).toBeVisible();
+    const labelY = await page.evaluate(() => {
+      const o = document.querySelector(
+        ".text-overlay.label-overlay",
+      ) as HTMLElement | null;
+      return o ? parseFloat(o.style.top) : null;
+    });
+    expect(labelY).not.toBeNull();
+    // label center (style.top) is placed past the image bottom edge
+    expect(labelY!).toBeGreaterThanOrEqual(img.bottom);
+  });
 });

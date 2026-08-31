@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { editor } from "./hooks/useEditor";
 import { CanvasHost } from "./components/CanvasHost";
 import { Toolbar } from "./components/Toolbar";
@@ -26,8 +26,6 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
 export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  // flag compartilhada entre keydown (fallback) e evento `paste`
-  const pastePending = useRef(false);
 
   useEffect(() => {
     const openShortcuts = () => setShortcutsOpen(true);
@@ -42,6 +40,33 @@ export function App() {
     const isTextEditing = () => {
       const tag = document.activeElement?.tagName;
       return tag === "TEXTAREA" || tag === "INPUT";
+    };
+
+    /** cola via atalho: lê o clipboard do SO p/ imagem externa e, quando não
+     *  existe (ou sem permissão de leitura), cai no clipboard interno do app.
+     *  Uma única via → sem corrida com o evento `paste` (que antes duplicava:
+     *  `img correta` + `item lixo`). */
+    const pasteFromKeyboard = async () => {
+      let insertedImage = false;
+      try {
+        const items = navigator.clipboard
+          ? await navigator.clipboard.read()
+          : [];
+        for (const item of items) {
+          for (const type of item.types) {
+            if (type.startsWith("image/")) {
+              const blob = await item.getType(type);
+              editor.insertImage(
+                new File([blob], "pasted-image", { type }),
+              );
+              insertedImage = true;
+            }
+          }
+        }
+      } catch {
+        // sem permissão de leitura: mantém apenas o clipboard interno
+      }
+      if (!insertedImage) editor.paste();
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -94,18 +119,11 @@ export function App() {
         return;
       }
       if (mod && e.key.toLowerCase() === "v") {
-        // não prevenir default: isso dispararia o evento `paste` que carrega
-        // imagens externas do clipboard. Fallback em setTimeout: se o browser
-        // não disparar `paste` neste turno (ex.: clipboard vazio), cola o
-        // clipboard interno do app (localStorage). Se o `paste` disparar, ele
-        // limpa a flag e resolve sozinho — evita colar 2 elementos.
-        pastePending.current = true;
-        setTimeout(() => {
-          if (pastePending.current) {
-            pastePending.current = false;
-            editor.paste();
-          }
-        }, 0);
+        // decide o que colar de forma determinística (leitura assíncrona do
+        // clipboard do SO). preventDefault evita o evento `paste` nativo —
+        // sem corrida entre keydown e paste event => sem paste duplicado.
+        e.preventDefault();
+        void pasteFromKeyboard();
         return;
       }
       if (mod && e.key.toLowerCase() === "g") {
@@ -165,8 +183,9 @@ export function App() {
     };
 
     const onPaste = (e: ClipboardEvent) => {
-      // o evento `paste` foi disparado: cancela o fallback do keydown
-      pastePending.current = false;
+      // via secundária (ex.: item de menu "Paste", ou browsers sem API de
+      // clipboard no keydown): imagens externas têm prioridade e, sem elas,
+      // cola o clipboard interno do app
       const tag = document.activeElement?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT") return;
       const items = e.clipboardData?.items;

@@ -613,9 +613,73 @@ export function textOffsets(el: Element): { padX: number; padY: number } {
   };
 }
 
+/** caption layout for added/pasted images: the label lives OUTSIDE the image
+ *  bounds, next to the pasted pixels, so it never overlaps the image (same
+ *  caption model as components, where the label sits beside the icon box). */
+function imageCaptionLayout(el: ImageElement) {
+  const captionPos = el.captionPosition ?? "bottom";
+  const baseGap = el.captionGap ?? ICON_LABEL_GAP;
+  const offset =
+    captionPos === "top" ? (el.captionOffsetTop ?? 0) :
+    captionPos === "bottom" ? (el.captionOffsetBottom ?? 0) :
+    captionPos === "left" ? (el.captionOffsetLeft ?? 0) :
+    (el.captionOffsetRight ?? 0);
+  const gap = baseGap + offset;
+  const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
+  const labelH = labelFont * 1.25;
+  const lines = el.label ? el.label.split("\n") : [];
+  const hasLabel = lines.some((l) => l.trim() !== "");
+  const cx = el.x + el.width / 2;
+  const cy = el.y + el.height / 2;
+
+  if (!hasLabel) {
+    return {
+      hasLabel,
+      iconX: el.x,
+      iconY: el.y,
+      iconSize: Math.min(Math.abs(el.width), Math.abs(el.height)),
+      labelCx: cx,
+      labelCy: cy,
+      labelFont,
+      captionPosition: captionPos,
+    };
+  }
+
+  const lh = lineHeight(el);
+  const step = labelFont * lh;
+  const tw = measureText(el.label!, labelFont, el.fontFamily, el.bold, el.italic).width;
+  const n = lines.length;
+  const vShift = ((n - 1) * step) / 2;
+
+  // multi-line block sits fully outside the image: block starts at
+  // image edge + gap on the label side
+  let labelCx = cx;
+  let labelCy = cy;
+  if (captionPos === "top") {
+    labelCy = el.y - gap - vShift - labelH / 2;
+  } else if (captionPos === "bottom") {
+    labelCy = el.y + el.height + gap + vShift + labelH / 2;
+  } else if (captionPos === "left") {
+    labelCx = el.x - gap - tw / 2;
+  } else {
+    labelCx = el.x + el.width + gap + tw / 2;
+  }
+  return {
+    hasLabel,
+    iconX: el.x,
+    iconY: el.y,
+    iconSize: Math.min(Math.abs(el.width), Math.abs(el.height)),
+    labelCx,
+    labelCy,
+    labelFont,
+    captionPosition: captionPos,
+  };
+}
+
 /** icon/caption geometry shared between canvas rendering and label placement.
  *  Used by components and by added/pasted images (same caption model). */
 export function componentIconLayout(el: ComponentElement | ImageElement) {
+  if (el.type === "image") return imageCaptionLayout(el);
   const s = Math.min(Math.abs(el.width), Math.abs(el.height));
   const hasLabel = !!el.label && el.label.trim() !== "";
   const cx = el.x + el.width / 2;
@@ -910,17 +974,12 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
       el.fontSize ?? (el.type === "component" || el.type === "image" ? 12 : 14);
     ctx.font = resolveFont(el, fontSize);
     const lines = el.label.split("\n");
-    const tw =
-      el.type === "component" || el.type === "image"
-        ? ctx.measureText(el.label).width
-        : Math.max(...lines.map((l) => ctx.measureText(l).width));
+    const tw = Math.max(...lines.map((l) => ctx.measureText(l).width));
     const lh = lineHeight(el);
     const th =
-      el.type === "component" || el.type === "image"
+      lines.length === 1
         ? fontSize * 1.25
-        : lines.length === 1
-          ? fontSize * 1.25
-          : (lines.length - 1) * fontSize * lh + fontSize;
+        : (lines.length - 1) * fontSize * lh + fontSize;
     if (el.type === "component" || el.type === "image") {
       const layout = componentIconLayout(el);
       x1 = Math.min(x1, layout.iconX);
