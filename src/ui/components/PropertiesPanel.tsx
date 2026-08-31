@@ -21,7 +21,12 @@ const BASE_COLORS: { name: string; color: string }[] = [
 ];
 
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
-const FONT_SIZES = [16, 20, 28, 36];
+const FONT_SIZES = [
+  { label: "S", value: 16 },
+  { label: "M", value: 20 },
+  { label: "L", value: 28 },
+  { label: "XL", value: 36 },
+];
 const FONT_FAMILIES = [
   { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', glyph: "Aa" },
   { label: "Sketch", value: '"Architects Daughter", cursive', glyph: "Aa" },
@@ -791,13 +796,12 @@ export function PropertiesPanel() {
           <Group title="Size">
             {FONT_SIZES.map((f) => (
               <button
-                key={f}
-                className={`size-btn text-btn ${allFont(f) ? "active" : ""}`}
-                aria-label={`Font ${f}px`}
-                style={{ fontSize: Math.max(10, f / 2 - 2) }}
-                onClick={() => apply({ fontSize: f })}
+                key={f.value}
+                className={`size-btn text-btn ${allFont(f.value) ? "active" : ""}`}
+                aria-label={`Font ${f.label} (${f.value}px)`}
+                onClick={() => apply({ fontSize: f.value })}
               >
-                Aa
+                {f.label}
               </button>
             ))}
           </Group>
