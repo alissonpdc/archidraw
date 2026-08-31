@@ -206,17 +206,18 @@ test.describe("clipboard", () => {
     await page.mouse.click(150, 140);
 
     await page.keyboard.press("Control+c");
-    await page.keyboard.press("Control+v");
+    await page.keyboard.press("Meta+v");
 
-    // paste interno agora é tratado no evento `paste` (assíncrono em headless
-    // com clipboard vazio), então aguarda o elemento duplicar
+    // paste interno agora é tratado no evento `paste` nativo (Meta+V no menu
+    // macOS; em headless o Control+V não dispara o evento), então aguarda o
+    // elemento duplicar
     await expect
       .poll(() =>
         page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
       )
       .toBe(2);
 
-    await page.keyboard.press("Control+v");
+    await page.keyboard.press("Meta+v");
     await expect
       .poll(() =>
         page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
@@ -234,7 +235,7 @@ test.describe("clipboard", () => {
     let n = await page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length);
     expect(n).toBe(0);
 
-    await page.keyboard.press("Control+v");
+    await page.keyboard.press("Meta+v");
     await expect
       .poll(() =>
         page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
@@ -250,7 +251,7 @@ test.describe("clipboard", () => {
     await page.keyboard.press("Control+c");
 
     await page.click('[data-testid="tab-add"]'); // new empty tab
-    await page.keyboard.press("Control+v");
+    await page.keyboard.press("Meta+v");
 
     await expect
       .poll(() =>

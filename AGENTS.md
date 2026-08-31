@@ -7,6 +7,7 @@ Webapp canvas (estilo Excalidraw/draw.io) para desenho de arquiteturas e system 
 Antes de implementar UI/interações, consulte **`.agents/knowledge/*.md`** — são lições registradas de bugs recorrentes, com regras obrigatórias e snippets prontos:
 
 - `.agents/knowledge/tooltip-clipping.md` — tooltips cortados por contêineres com `overflow`/`transform`: quando usar tooltip portal/fixed em vez do pseudo-elemento CSS `[data-tip]::after`.
+- `.agents/knowledge/clipboard-paste.md` — colar com Cmd+V: via única é o evento nativo `paste`; nunca usar `navigator.clipboard.read()` no keydown (abre o menu nativo "Paste" no Chrome/macOS) e nunca `preventDefault` no keydown de V (suprime o `paste`).
 
 Ao corrigir um bug que enseje uma regra geral (algo que já deu problema mais de uma vez), registre uma nova entrada em `.agents/knowledge/` e referencie-a aqui.
 

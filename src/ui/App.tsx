@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { editor } from "./hooks/useEditor";
 import { CanvasHost } from "./components/CanvasHost";
 import { Toolbar } from "./components/Toolbar";
@@ -26,9 +26,6 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
 export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  // token de deduplicação entre as duas vias de colar (keydown fallback e o
-  // evento `paste`): a via que resolver primeiro invalida a outra
-  const pasteToken = useRef(0);
 
   useEffect(() => {
     const openShortcuts = () => setShortcutsOpen(true);
@@ -95,34 +92,11 @@ export function App() {
         return;
       }
       if (mod && e.key.toLowerCase() === "v") {
-        // NÃO prevenir default aqui: no macOS Chrome isso suprime o evento
-        // `paste` nativo e abre o menu "Paste" do sistema em vez de colar. A
-        // via primária é o evento `paste` (tratado adiante), que carrega as
-        // imagens do clipboard do SO. Fallback abaixo cobre os casos onde o
-        // evento `paste` não chega (ex.: headless / Ctrl+V no macOS), usando
-        // o token para não colar 2x quando o `paste` também disparar.
-        const token = ++pasteToken.current;
-        void (async () => {
-          let imageFile: File | null = null;
-          try {
-            const items = navigator.clipboard
-              ? await navigator.clipboard.read()
-              : [];
-            for (const item of items) {
-              for (const type of item.types) {
-                if (type.startsWith("image/")) {
-                  const blob = await item.getType(type);
-                  imageFile = new File([blob], "pasted-image", { type });
-                }
-              }
-            }
-          } catch {
-            // sem permissão de leitura: mantém apenas o clipboard interno
-          }
-          if (pasteToken.current !== token) return; // `paste` já assumiu
-          if (imageFile) editor.insertImage(imageFile);
-          else editor.paste();
-        })();
+        // NÃO prevenir default e NÃO ler o clipboard aqui: o browser dispara o
+        // evento `paste` nativo (tratado adiante) com os dados do clipboard do
+        // SO — inclusive imagens. Suprimir o keydown impediria esse evento, e
+        // `navigator.clipboard.read()` faz o Chrome (macOS) abrir o menu nativo
+        // "Paste" em vez de colar direto. Via única = evento `paste`.
         return;
       }
       if (mod && e.key.toLowerCase() === "g") {
@@ -182,20 +156,19 @@ export function App() {
     };
 
     const onPaste = (e: ClipboardEvent) => {
-      // via nativa de colar: dispara para Ctrl/Meta+V, item de menu "Paste" e
-      // clique direito → Paste, sempre com os dados do clipboard do SO.
-      // cancelar o fallback do keydown garante que só uma via insere (token).
-      // Imagens externas têm prioridade; sem elas, cola o clipboard interno
-      // do app (localStorage). preventDefault aqui também evita o menu nativo
-      // de "Paste" do macOS.
-      pasteToken.current += 1;
+      // via única de colar: o browser dispara `paste` para Ctrl/Meta+V, item
+      // de menu "Paste" e clique direito → Paste, sempre com os dados do
+      // clipboard do SO. preventDefault em TODA chamada tratada (ou ignorada)
+      // evita o menu nativo "Paste" do macOS e a inserção default em alvo
+      // não-editável. Imagens externas têm prioridade; sem elas, cola o
+      // clipboard interno do app (localStorage); caso contrário, nada.
       const tag = document.activeElement?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT") return;
+      e.preventDefault();
       const items = e.clipboardData?.items;
       if (items) {
         for (const item of items) {
           if (item.kind === "file" && item.type.startsWith("image/")) {
-            e.preventDefault();
             const file = item.getAsFile();
             if (file) editor.insertImage(file);
             return;
@@ -204,7 +177,6 @@ export function App() {
       }
       // sem imagem externa: cola o clipboard interno do app (localStorage)
       if (internalClipboardHas()) {
-        e.preventDefault();
         editor.paste();
       }
     };

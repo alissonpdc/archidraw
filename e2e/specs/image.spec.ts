@@ -314,4 +314,50 @@ test.describe("image features", () => {
       )
       .toBeGreaterThanOrEqual(img.bottom - 1);
   });
+
+  test("caption of a pasted image uses the Text default font (20px sans)", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+
+    // a pasted image is born with the same font default as Text (médio + sans)
+    const el = await page.evaluate(() => {
+      const ed = window.__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      return { fontSize: e.fontSize, fontFamily: e.fontFamily };
+    });
+    expect(el.fontSize).toBe(20);
+    expect(el.fontFamily).toBeUndefined();
+
+    // double-click and type: the caption renders with that font size (20px)
+    const center = await page.evaluate(() => {
+      const ed = window.__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      const cam = ed.getSnapshot().camera;
+      return {
+        x: (e.x + e.width / 2) * cam.zoom + cam.scrollX,
+        y: (e.y + e.height / 2) * cam.zoom + cam.scrollY,
+      };
+    });
+    await page.mouse.dblclick(center.x, center.y);
+    await page.keyboard.type("S3 bucket");
+
+    // while editing, the invisible overlay is set to the caption font (20px)
+    const overlayFont = await page.evaluate(() => {
+      const overlay = document.querySelector(
+        ".text-overlay.label-overlay",
+      ) as HTMLElement | null;
+      return overlay ? parseFloat(overlay.style.fontSize) : null;
+    });
+    expect(overlayFont).toBe(20);
+
+    await page.keyboard.press("Enter");
+
+    const after = await page.evaluate(() => {
+      const e = window.__editor__.getSnapshot().doc.elements[0];
+      return { label: e.label };
+    });
+    expect(after.label).toBe("S3 bucket");
+  });
 });

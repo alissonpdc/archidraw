@@ -633,6 +633,8 @@ export class Editor {
           y: scene.y - h / 2,
           width: w,
           height: h,
+          // legenda/editação usa a mesma fonte default do texto (média, sans)
+          fontSize: 20,
           strokeColor: DEFAULT_STROKE,
           backgroundColor: DEFAULT_BG,
           strokeWidth: 0,
