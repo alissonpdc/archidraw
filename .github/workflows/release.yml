@@ -167,6 +167,13 @@ jobs:
           name: ArchiDraw ${{ steps.version.outputs.new_tag }}
           body: ${{ steps.notes.outputs.notes }}
 
+      - name: Upload do build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.version.outputs.new_tag }}
+          path: dist/
+          retention-days: 30
+
   docker:
     name: Docker Hub
     needs: release
