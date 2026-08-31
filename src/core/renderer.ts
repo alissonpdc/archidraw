@@ -999,6 +999,17 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
     y2 = Math.max(y2, ty2);
   }
 
+  // component: the icon may be smaller than the element bounds (shrinks when
+  // a label is present, or element is non-square). Selection box must wrap
+  // only the visible icon, not the full element area.
+  if (el.type === "component") {
+    const layout = componentIconLayout(el);
+    x1 = layout.iconX;
+    y1 = layout.iconY;
+    x2 = layout.iconX + layout.iconSize;
+    y2 = layout.iconY + layout.iconSize;
+  }
+
   return { x1, y1, x2, y2 };
 }
 

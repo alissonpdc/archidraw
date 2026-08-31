@@ -225,21 +225,11 @@ test.describe("component library", () => {
     expect(after.label).toBe("S3 bucket");
   });
 
-  test("visual bounds of a library component do not expand with its label", async ({
+  test("visual bounds of a library component match the icon, not the element+label", async ({
     page,
   }) => {
     await openLibraryWithAws(page);
     await page.locator('.library-panel [data-component-id="s3"]').click();
-
-    // get visual bounds WITHOUT any label
-    const boundsNoLabel = await page.evaluate(() => {
-      const ed = (window as any).__editor__;
-      const el = ed.getSnapshot().doc.elements[0];
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
-      const b = (window as any).__elementVisualBounds__(ctx, el);
-      return { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 };
-    });
 
     // add a label
     const center = await page.evaluate(() => {
@@ -251,21 +241,43 @@ test.describe("component library", () => {
     await page.keyboard.type("S3 bucket");
     await page.keyboard.press("Escape");
 
-    // get visual bounds WITH label
-    const boundsWithLabel = await page.evaluate(() => {
+    // visual bounds must match the icon from componentIconLayout, NOT the full element
+    const check = await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d")!;
-      const b = (window as any).__elementVisualBounds__(ctx, el);
-      return { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 };
+      const vb = (window as any).__elementVisualBounds__(ctx, el);
+      // elementBounds = raw x/y/w/h
+      const eb = { x1: el.x, y1: el.y, x2: el.x + el.width, y2: el.y + el.height };
+      return { vb, eb, label: el.label };
     });
 
-    // bounds must be identical — label must not expand the selection box
-    expect(boundsWithLabel.x1).toBeCloseTo(boundsNoLabel.x1, 0);
-    expect(boundsWithLabel.y1).toBeCloseTo(boundsNoLabel.y1, 0);
-    expect(boundsWithLabel.x2).toBeCloseTo(boundsNoLabel.x2, 0);
-    expect(boundsWithLabel.y2).toBeCloseTo(boundsNoLabel.y2, 0);
+    // must have a label
+    expect(check.label).toBe("S3 bucket");
+    // visual bounds must be SMALLER than element bounds (icon shrinks with label)
+    expect(check.vb.x2 - check.vb.x1).toBeLessThan(check.eb.x2 - check.eb.x1);
+    expect(check.vb.y2 - check.vb.y1).toBeLessThan(check.eb.y2 - check.eb.y1);
+    // label text must be OUTSIDE the visual bounds (below the icon)
+    const labelY = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+      const { componentIconLayout } = (window as any).__renderer__ ?? {};
+      // fallback: compute label position from known layout
+      const s = Math.min(Math.abs(el.width), Math.abs(el.height));
+      const iconSize = Math.max(s * 0.65, 8);
+      const cx = el.x + el.width / 2;
+      const cy = el.y + el.height / 2;
+      const gap = el.captionGap ?? 2;
+      const labelH = (el.fontSize ?? 20) * 1.25;
+      const totalH = iconSize + gap + labelH;
+      const topOffset = cy - totalH / 2;
+      const labelCy = topOffset + iconSize + gap + labelH / 2;
+      return labelCy;
+    });
+    expect(labelY).toBeGreaterThan(check.vb.y2);
   });
 
   test("component persists after reload", async ({ page, editorState }) => {
