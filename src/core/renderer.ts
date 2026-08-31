@@ -963,13 +963,12 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
   let x2 = eb.x2;
   let y2 = eb.y2;
 
-  // image captions (labels) live OUTSIDE the image and do NOT expand with the
-  // selection, so the selection box/handles/group bounds must cover only the
-  // image pixels — not the caption text. Component labels ARE part of the icon
-  // block and keep expanding.
-  if ("label" in el && el.label && el.type !== "image") {
-    const fontSize =
-      el.fontSize ?? (el.type === "component" ? 12 : 14);
+  // image and component labels live OUTSIDE the element and do NOT expand
+  // with the selection, so the selection box/handles/group bounds must cover
+  // only the icon/pixels — not the caption text. Only free-form shapes clip
+  // text inside their bounds.
+  if ("label" in el && el.label && el.type !== "image" && el.type !== "component") {
+    const fontSize = el.fontSize ?? 14;
     ctx.font = resolveFont(el, fontSize);
     const lines = el.label.split("\n");
     const tw = Math.max(...lines.map((l) => ctx.measureText(l).width));
@@ -978,40 +977,26 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
       lines.length === 1
         ? fontSize * 1.25
         : (lines.length - 1) * fontSize * lh + fontSize;
-    if (el.type === "component") {
-      const layout = componentIconLayout(el);
-      x1 = Math.min(x1, layout.iconX);
-      y1 = Math.min(y1, layout.iconY);
-      x2 = Math.max(x2, layout.iconX + layout.iconSize);
-      y2 = Math.max(y2, layout.iconY + layout.iconSize);
-      const lx = layout.labelCx - tw / 2;
-      const ly = layout.labelCy - th / 2;
-      x1 = Math.min(x1, lx);
-      y1 = Math.min(y1, ly);
-      x2 = Math.max(x2, lx + tw);
-      y2 = Math.max(y2, ly + th);
-    } else {
-      const textAlign = el.textAlign ?? "center";
-      const textVAlign = el.textVAlign ?? "middle";
-      const { padX: pad, padY } = textOffsets(el);
-      let lx: number;
-      let ly: number;
-      if (textAlign === "left") lx = el.x + pad;
-      else if (textAlign === "right") lx = el.x + el.width - pad - tw;
-      else lx = el.x + (el.width - tw) / 2;
-      if (textVAlign === "top") ly = el.y + padY;
-      else if (textVAlign === "bottom") ly = el.y + el.height - padY - th;
-      else ly = el.y + (el.height - th) / 2;
-      // clip the text rect to the element bounds: text fully contained must NOT expand them
-      const tx1 = Math.min(Math.max(lx, x1), x2);
-      const ty1 = Math.min(Math.max(ly, y1), y2);
-      const tx2 = Math.max(tx1, Math.min(lx + tw, x2));
-      const ty2 = Math.max(ty1, Math.min(ly + th, y2));
-      x1 = Math.min(x1, tx1);
-      y1 = Math.min(y1, ty1);
-      x2 = Math.max(x2, tx2);
-      y2 = Math.max(y2, ty2);
-    }
+    const textAlign = el.textAlign ?? "center";
+    const textVAlign = el.textVAlign ?? "middle";
+    const { padX: pad, padY } = textOffsets(el);
+    let lx: number;
+    let ly: number;
+    if (textAlign === "left") lx = el.x + pad;
+    else if (textAlign === "right") lx = el.x + el.width - pad - tw;
+    else lx = el.x + (el.width - tw) / 2;
+    if (textVAlign === "top") ly = el.y + padY;
+    else if (textVAlign === "bottom") ly = el.y + el.height - padY - th;
+    else ly = el.y + (el.height - th) / 2;
+    // clip the text rect to the element bounds: text fully contained must NOT expand them
+    const tx1 = Math.min(Math.max(lx, x1), x2);
+    const ty1 = Math.min(Math.max(ly, y1), y2);
+    const tx2 = Math.max(tx1, Math.min(lx + tw, x2));
+    const ty2 = Math.max(ty1, Math.min(ly + th, y2));
+    x1 = Math.min(x1, tx1);
+    y1 = Math.min(y1, ty1);
+    x2 = Math.max(x2, tx2);
+    y2 = Math.max(y2, ty2);
   }
 
   return { x1, y1, x2, y2 };

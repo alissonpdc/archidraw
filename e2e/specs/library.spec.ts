@@ -183,6 +183,91 @@ test.describe("component library", () => {
     expect(state.editingTextId).toBeNull();
   });
 
+  test("label of a library component uses the Text default font (20px sans)", async ({
+    page,
+  }) => {
+    await openLibraryWithAws(page);
+    await page.locator('.library-panel [data-component-id="s3"]').click();
+
+    // a library component is born with the same font default as Text (médio + sans)
+    const el = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      return { fontSize: e.fontSize, fontFamily: e.fontFamily };
+    });
+    expect(el.fontSize).toBe(20);
+    expect(el.fontFamily).toBeUndefined();
+
+    // double-click and type: the label renders with that font size (20px)
+    const center = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      return ed.getScreenPoint({ x: e.x + e.width / 2, y: e.y + e.height / 2 });
+    });
+    await page.mouse.dblclick(center.x, center.y);
+    await page.keyboard.type("S3 bucket");
+
+    // while editing, the invisible overlay is set to the caption font (20px)
+    const overlayFont = await page.evaluate(() => {
+      const overlay = document.querySelector(
+        ".text-overlay.label-overlay",
+      ) as HTMLElement | null;
+      return overlay ? parseFloat(overlay.style.fontSize) : null;
+    });
+    expect(overlayFont).toBe(20);
+
+    await page.keyboard.press("Enter");
+
+    const after = await page.evaluate(() => {
+      const e = (window as any).__editor__.getSnapshot().doc.elements[0];
+      return { label: e.label };
+    });
+    expect(after.label).toBe("S3 bucket");
+  });
+
+  test("visual bounds of a library component do not expand with its label", async ({
+    page,
+  }) => {
+    await openLibraryWithAws(page);
+    await page.locator('.library-panel [data-component-id="s3"]').click();
+
+    // get visual bounds WITHOUT any label
+    const boundsNoLabel = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+      const b = (window as any).__elementVisualBounds__(ctx, el);
+      return { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 };
+    });
+
+    // add a label
+    const center = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      return ed.getScreenPoint({ x: e.x + e.width / 2, y: e.y + e.height / 2 });
+    });
+    await page.mouse.dblclick(center.x, center.y);
+    await page.keyboard.type("S3 bucket");
+    await page.keyboard.press("Escape");
+
+    // get visual bounds WITH label
+    const boundsWithLabel = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+      const b = (window as any).__elementVisualBounds__(ctx, el);
+      return { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 };
+    });
+
+    // bounds must be identical — label must not expand the selection box
+    expect(boundsWithLabel.x1).toBeCloseTo(boundsNoLabel.x1, 0);
+    expect(boundsWithLabel.y1).toBeCloseTo(boundsNoLabel.y1, 0);
+    expect(boundsWithLabel.x2).toBeCloseTo(boundsNoLabel.x2, 0);
+    expect(boundsWithLabel.y2).toBeCloseTo(boundsNoLabel.y2, 0);
+  });
+
   test("component persists after reload", async ({ page, editorState }) => {
     await openLibraryWithAws(page);
     await page.locator('.library-panel [data-component-id="rds"]').click();

@@ -588,12 +588,14 @@ export class Editor {
       height: h,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
-      // sem contorno e sem label por padrão: apenas o ícone
+      // no border and no label by default: just the icon
       strokeWidth: 0,
       opacity: 1,
       strokeStyle: "solid",
       roughness: 0,
       borderRadius: 20,
+      // legenda/editação usa a mesma fonte default do texto (média, sans)
+      fontSize: 20,
     };
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
     this.tool = "selection";
