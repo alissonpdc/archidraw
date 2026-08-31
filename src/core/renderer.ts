@@ -963,9 +963,13 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
   let x2 = eb.x2;
   let y2 = eb.y2;
 
-  if ("label" in el && el.label) {
+  // image captions (labels) live OUTSIDE the image and do NOT expand with the
+  // selection, so the selection box/handles/group bounds must cover only the
+  // image pixels — not the caption text. Component labels ARE part of the icon
+  // block and keep expanding.
+  if ("label" in el && el.label && el.type !== "image") {
     const fontSize =
-      el.fontSize ?? (el.type === "component" || el.type === "image" ? 12 : 14);
+      el.fontSize ?? (el.type === "component" ? 12 : 14);
     ctx.font = resolveFont(el, fontSize);
     const lines = el.label.split("\n");
     const tw = Math.max(...lines.map((l) => ctx.measureText(l).width));
@@ -974,7 +978,7 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
       lines.length === 1
         ? fontSize * 1.25
         : (lines.length - 1) * fontSize * lh + fontSize;
-    if (el.type === "component" || el.type === "image") {
+    if (el.type === "component") {
       const layout = componentIconLayout(el);
       x1 = Math.min(x1, layout.iconX);
       y1 = Math.min(y1, layout.iconY);

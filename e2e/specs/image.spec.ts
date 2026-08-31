@@ -360,4 +360,55 @@ test.describe("image features", () => {
     });
     expect(after.label).toBe("S3 bucket");
   });
+
+  test("selection of an image excludes its caption (bottom handle grips the image)", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+
+    // add a caption below the image via double-click
+    const center = await page.evaluate(() => {
+      const ed = window.__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      const cam = ed.getSnapshot().camera;
+      return {
+        x: (e.x + e.width / 2) * cam.zoom + cam.scrollX,
+        y: (e.y + e.height / 2) * cam.zoom + cam.scrollY,
+      };
+    });
+    await page.mouse.dblclick(center.x, center.y);
+    await page.keyboard.type("S3 bucket");
+    await page.keyboard.press("Escape");
+
+    // escape cleared the selection: click the image to re-select it
+    await page.mouse.click(center.x, center.y);
+
+    // the bottom-center resize handle sits at the IMAGE bottom edge (not at
+    // the caption below it), so dragging it resizes only the image
+    const grab = await page.evaluate(() => {
+      const ed = window.__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      const cam = ed.getSnapshot().camera;
+      return {
+        x: (e.x + e.width / 2) * cam.zoom + cam.scrollX,
+        y: (e.y + e.height) * cam.zoom + cam.scrollY,
+        h: e.height,
+        w: e.width,
+      };
+    });
+    await drag(
+      page,
+      { x: grab.x, y: grab.y },
+      { x: grab.x, y: grab.y - 50 },
+    );
+
+    const after = await page.evaluate(() => {
+      const e = window.__editor__.getSnapshot().doc.elements[0];
+      return { w: e.width, h: e.height, label: e.label };
+    });
+    // only the image shrank — the caption (outside the image) was not resized
+    expect(after.h).toBeLessThan(grab.h);
+    expect(after.label).toBe("S3 bucket");
+  });
 });
