@@ -133,10 +133,46 @@ function Tile({
   );
 }
 
+/** collapsible group header (chevron + label) — same pattern for AWS and Imported */
+function SectionHeader({
+  open,
+  onToggle,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      className="library-section-header"
+      aria-expanded={open}
+      onClick={onToggle}
+    >
+      <svg
+        className={`library-chevron ${open ? "open" : ""}`}
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 1.5 L7 5 L3 8.5" />
+      </svg>
+      {children}
+    </button>
+  );
+}
+
 export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("");
   const [recents, setRecents] = useState<string[]>(getRecentComponents);
   const [awsOpen, setAwsOpen] = useState(false);
+  const [importedOpen, setImportedOpen] = useState(false);
   const [tip, setTip] = useState<TipState | null>(null);
   const [imported, setImported] = useState<ImportedLibrary[]>(getImportedLibraries);
   const [importedImages, setImportedImages] = useState<ImportedImageData[]>(getImportedImages);
@@ -330,27 +366,12 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
               </div>
             )}
             <section className="library-section">
-              <button
-                className="library-section-header"
-                aria-expanded={awsOpen}
-                onClick={() => setAwsOpen((v) => !v)}
+              <SectionHeader
+                open={awsOpen}
+                onToggle={() => setAwsOpen((v) => !v)}
               >
-                <svg
-                  className={`library-chevron ${awsOpen ? "open" : ""}`}
-                  width="10"
-                  height="10"
-                  viewBox="0 0 10 10"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M3 1.5 L7 5 L3 8.5" />
-                </svg>
                 AWS
-              </button>
+              </SectionHeader>
               {awsOpen &&
                 LIBRARY_CATEGORIES.map((cat) => {
                   const items = awsItems.filter((i) => i.category === cat);
@@ -372,28 +393,35 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                 className="library-section"
                 data-testid="library-imported-images"
               >
-                <div className="panel-subtitle">Imported</div>
-                <div className="library-subgroup">
-                  <div className="library-grid">
-                    {importedImages.map((img) => {
-                      const item = getLibraryItem(img.id);
-                      if (!item) return null;
-                      return (
-                        <div key={item.id} className="library-tile-wrap">
-                          <Tile item={item} onInsert={insert} />
-                          <button
-                            className="library-tile-remove"
-                            aria-label={`Remove ${item.name}`}
-                            data-tip={`Remove ${item.name}`}
-                            onClick={() => onRemoveImportedImage(item.id)}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
+                <SectionHeader
+                  open={importedOpen}
+                  onToggle={() => setImportedOpen((v) => !v)}
+                >
+                  Imported
+                </SectionHeader>
+                {importedOpen && (
+                  <div className="library-subgroup">
+                    <div className="library-grid">
+                      {importedImages.map((img) => {
+                        const item = getLibraryItem(img.id);
+                        if (!item) return null;
+                        return (
+                          <div key={item.id} className="library-tile-wrap">
+                            <Tile item={item} onInsert={insert} />
+                            <button
+                              className="library-tile-remove"
+                              aria-label={`Remove ${item.name}`}
+                              data-tip={`Remove ${item.name}`}
+                              onClick={() => onRemoveImportedImage(item.id)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
               </section>
             )}
             {imported.map((lib) => {
@@ -405,10 +433,9 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                   data-testid="library-imported-group"
                 >
                   <div className="library-section-row">
-                    <button
-                      className="library-section-header"
-                      aria-expanded={isOpen}
-                      onClick={() =>
+                    <SectionHeader
+                      open={isOpen}
+                      onToggle={() =>
                         setOpenGroups((prev) => {
                           const next = new Set(prev);
                           if (next.has(lib.id)) next.delete(lib.id);
@@ -417,22 +444,8 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                         })
                       }
                     >
-                      <svg
-                        className={`library-chevron ${isOpen ? "open" : ""}`}
-                        width="10"
-                        height="10"
-                        viewBox="0 0 10 10"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <path d="M3 1.5 L7 5 L3 8.5" />
-                      </svg>
                       <span className="library-group-name">{lib.name}</span>
-                    </button>
+                    </SectionHeader>
                     <button
                       className="tool-btn library-group-remove"
                       aria-label={`Remove library ${lib.name}`}

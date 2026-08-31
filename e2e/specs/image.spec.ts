@@ -485,7 +485,15 @@ test.describe("image features", () => {
     await page.keyboard.press("b");
     const group = page.locator('[data-testid="library-imported-images"]');
     await expect(group).toBeVisible();
-    await expect(group.locator(".panel-subtitle")).toHaveText("Imported");
+    // collapsible group like AWS: header + chevron, starts collapsed
+    await expect(group.locator(".library-section-header")).toHaveText("Imported");
+    await expect(group.locator(".library-section-header")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    await expect(group.locator(".library-tile")).toHaveCount(0);
+
+    await group.locator(".library-section-header").click();
     await expect(group.locator(".library-tile")).toHaveCount(1);
 
     const remove = group.locator(".library-tile-remove");
@@ -504,6 +512,9 @@ test.describe("image features", () => {
     const componentId = (await editorState()).elements[0].componentId;
 
     await page.keyboard.press("b");
+    await page
+      .locator('[data-testid="library-imported-images"] .library-section-header')
+      .click();
     await page
       .locator('[data-testid="library-imported-images"] .library-tile')
       .click();
@@ -549,6 +560,7 @@ test.describe("image features", () => {
 
     await page.keyboard.press("b");
     const group = page.locator('[data-testid="library-imported-images"]');
+    await group.locator(".library-section-header").click();
     await expect(group.locator(".library-tile")).toHaveCount(1);
     await expect(group.locator(".library-tile-remove")).toHaveCount(1);
   });
@@ -561,11 +573,97 @@ test.describe("image features", () => {
 
     await page.keyboard.press("b");
     const group = page.locator('[data-testid="library-imported-images"]');
+    await group.locator(".library-section-header").click();
     await group.locator(".library-tile").hover();
     await group.locator(".library-tile-remove").click();
     await expect(
       page.locator('[data-testid="library-imported-images"]'),
     ).toHaveCount(0);
+  });
+
+  test("removing an image from the lib keeps the placed image on the canvas", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+
+    // remove o item do grupo Imported (palette)
+    await page.keyboard.press("b");
+    const group = page.locator('[data-testid="library-imported-images"]');
+    await group.locator(".library-section-header").click();
+    await group.locator(".library-tile").hover();
+    await group.locator(".library-tile-remove").click();
+    await expect(
+      page.locator('[data-testid="library-imported-images"]'),
+    ).toHaveCount(0);
+
+    // o elemento continua sendo um componente com src autocontido + fill
+    const el = await page.evaluate(() => {
+      const e = window.__editor__.getSnapshot().doc.elements[0];
+      return {
+        type: e.type,
+        hasSrc: typeof e.src === "string" && e.src.length > 0,
+        fill: e.fill,
+      };
+    });
+    expect(el.type).toBe("component");
+    expect(el.hasSrc).toBe(true);
+    expect(el.fill).toBe(true);
+
+    // e ainda renderiza os pixels (imagem 1x1 vermelha preenche o centro)
+    await page.waitForTimeout(500);
+    const centerPx = await page.evaluate(() => {
+      const canvas = document.querySelector(".canvas") as HTMLCanvasElement;
+      const ctx = canvas.getContext("2d")!;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const cx = (window.innerWidth / 2 - rect.left) * dpr;
+      const cy = (window.innerHeight / 2 - rect.top) * dpr;
+      const { data } = ctx.getImageData(cx, cy, 1, 1);
+      return [data[0], data[1], data[2]];
+    });
+    expect(centerPx[0]).toBeGreaterThan(180);
+    expect(centerPx[1]).toBeLessThan(120);
+    expect(centerPx[2]).toBeLessThan(120);
+  });
+
+  test("removed lib image still renders after a reload (self-contained src)", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+
+    // remove da lib e salva (autosave)
+    await page.keyboard.press("b");
+    const group = page.locator('[data-testid="library-imported-images"]');
+    await group.locator(".library-section-header").click();
+    await group.locator(".library-tile").hover();
+    await group.locator(".library-tile-remove").click();
+    await page.waitForTimeout(700); // autosave debounce
+
+    await page.reload();
+    await open(page);
+
+    const el = await page.evaluate(() => {
+      const e = window.__editor__.getSnapshot().doc.elements[0] as any;
+      return { type: e.type, hasSrc: !!e.src, fill: e.fill };
+    });
+    expect(el.type).toBe("component");
+    expect(el.hasSrc).toBe(true);
+    expect(el.fill).toBe(true);
+
+    await page.waitForTimeout(500);
+    const centerPx = await page.evaluate(() => {
+      const canvas = document.querySelector(".canvas") as HTMLCanvasElement;
+      const ctx = canvas.getContext("2d")!;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const cx = (window.innerWidth / 2 - rect.left) * dpr;
+      const cy = (window.innerHeight / 2 - rect.top) * dpr;
+      const { data } = ctx.getImageData(cx, cy, 1, 1);
+      return [data[0], data[1], data[2]];
+    });
+    expect(centerPx[0]).toBeGreaterThan(180);
   });
 
   test("imported images persist across reloads", async ({ page }) => {
@@ -579,6 +677,7 @@ test.describe("image features", () => {
 
     const group = page.locator('[data-testid="library-imported-images"]');
     await expect(group).toBeVisible();
+    await group.locator(".library-section-header").click();
     await expect(group.locator(".library-tile")).toHaveCount(1);
   });
 });

@@ -595,6 +595,10 @@ export class Editor {
       borderRadius: 20,
       // legenda/editação usa a mesma fonte default do texto (média, sans)
       fontSize: 20,
+      // imagens (asset raster) embedam o src para renderizar mesmo se o item
+      // de lib for removido da biblioteca depois
+      ...(item.src ? { src: item.src } : {}),
+      ...(item.fill === true ? { fill: true } : {}),
     };
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
     this.tool = "selection";

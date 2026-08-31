@@ -55,6 +55,7 @@ function toLibraryItem(img: ImportedImageData): LibraryItem {
     aspect: img.aspect,
     group: IMPORTED_IMAGES_GROUP,
     fill: true,
+    src: img.src,
   };
 }
 

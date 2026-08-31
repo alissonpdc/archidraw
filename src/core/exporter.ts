@@ -43,6 +43,16 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/** espera um data URI de imagem decodificar (imagens autocontidas no elemento) */
+function waitForDataUri(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = src;
+  });
+}
+
 export function slugify(name: string): string {
   return (
     name
@@ -66,6 +76,16 @@ export async function exportPNG(doc: Document, filename: string): Promise<boolea
       .filter((el) => el.type === "component")
       .map((el) => (el as { componentId: string }).componentId),
   );
+  // imagens autocontidas (src embebido) também precisam estar decodificadas
+  const embeddedSrcs: string[] = [];
+  for (const el of doc.elements) {
+    if (el.type === "component" && typeof el.src === "string" && el.src !== "") {
+      embeddedSrcs.push(el.src);
+    }
+  }
+  if (embeddedSrcs.length > 0) {
+    await Promise.all(embeddedSrcs.map(waitForDataUri));
+  }
 
   const w = bounds.x2 - bounds.x1 + EXPORT_PADDING * 2;
   const h = bounds.y2 - bounds.y1 + EXPORT_PADDING * 2;
@@ -158,10 +178,10 @@ export function exportSVG(doc: Document, filename: string): boolean {
         `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="${fill}" ${stroke}${dash}${opacity}/>`
       );
       const layout = componentIconLayout(el);
-      const dataUri = componentAssetDataUri(el.componentId);
+      const dataUri = el.src ?? componentAssetDataUri(el.componentId);
       if (dataUri) {
         parts.push(
-          `<image x="${layout.iconX}" y="${layout.iconY}" width="${layout.iconWidth}" height="${layout.iconHeight}" href="${dataUri}"${opacity}/>`
+          `<image x="${layout.iconX}" y="${layout.iconY}" width="${layout.iconWidth}" height="${layout.iconHeight}" href="${escapeXml(dataUri)}"${opacity}/>`
         );
       } else {
         // fallback: hand-drawn glyph paths (24x24 viewBox)

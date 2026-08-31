@@ -102,6 +102,10 @@ function migrateLegacyImage(raw: Element): Element | null {
     ...(rest as Record<string, unknown>),
     type: "component" as const,
     componentId: item.id,
+    // autocontido: mantém o src no elemento para renderizar mesmo se o item
+    // de lib for removido (e preenche o bounds inteiro)
+    src: item.src,
+    fill: true,
   } as unknown as Element;
 }
 

@@ -145,6 +145,11 @@ export interface ComponentElement extends BaseElement {
   /** id in the component catalog (core/library.ts) */
   componentId: string;
   label?: string;
+  /** self-contained raster asset (imagens importadas/coladas): o elemento
+   *  mantém o src embedado e renderiza mesmo se o item de lib for removido */
+  src?: string;
+  /** raster asset preenche o bounds inteiro (não ícone quadrado centralizado) */
+  fill?: boolean;
 }
 
 export type Element =

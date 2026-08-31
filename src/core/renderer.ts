@@ -649,6 +649,23 @@ function captionLayout(
   return { hasLabel, labelCx, labelCy };
 }
 
+// ---- raster asset cache (HTMLImageElement from data URLs) ----------------
+// usado por imagens autocontidas (src embebido no elemento) quando o item de
+// lib já foi removido; assets registrados (AWS/libs) vêm de componentAssets.
+const imageCache = new Map<string, HTMLImageElement>();
+
+function getCachedImage(src: string): HTMLImageElement | null {
+  let img = imageCache.get(src);
+  if (!img) {
+    // cacheia imediatamente (mesmo enquanto carrega): descartar sem cachear
+    // reinicia o load a cada frame do loop RAF e a imagem nunca "complete"
+    img = new Image();
+    img.src = src;
+    imageCache.set(src, img);
+  }
+  return img.complete && img.naturalWidth > 0 ? img : null;
+}
+
 /**
  * icon/caption geometry shared between canvas rendering, label placement and
  * SVG export. Componentes de lib (AWS/importados) desenham o ícone no menor
@@ -658,7 +675,9 @@ function captionLayout(
 export function componentIconLayout(el: ComponentElement) {
   const cx = el.x + el.width / 2;
   const cy = el.y + el.height / 2;
-  const fill = getLibraryItem(el.componentId)?.fill === true;
+  // o elemento carrega seu próprio fill (imagens autocontidas); fallback para
+  // o item de lib quando o flag ainda estiver lá
+  const fill = el.fill === true || getLibraryItem(el.componentId)?.fill === true;
   const iconWidth = fill
     ? Math.abs(el.width)
     : Math.min(Math.abs(el.width), Math.abs(el.height));
@@ -688,10 +707,21 @@ function drawComponentIcon(ctx: CanvasRenderingContext2D, el: ComponentElement) 
   const { iconX, iconY, iconWidth, iconHeight } = componentIconLayout(el);
 
   // official bundled icon (AWS Architecture Icons) when available — includes
-  // libs importadas (.excalidrawlib) e imagens raster registradas como asset
-  const img = getComponentImage(el.componentId);
+  // libs importadas (.excalidrawlib) e imagens raster registradas como asset.
+  // Imagens autocontidas (src no elemento) independent do registro: renderizam
+  // mesmo se o item de lib tiver sido removido
+  const img = getComponentImage(el.componentId) ??
+    (el.src ? getCachedImage(el.src) : null);
   if (img && img.complete && img.naturalWidth > 0) {
     ctx.drawImage(img, iconX, iconY, iconWidth, iconHeight);
+    return;
+  }
+  if (el.src) {
+    // placeholder enquanto o raster embebido ainda carrega
+    ctx.save();
+    ctx.fillStyle = "#e0e0e0";
+    ctx.fillRect(iconX, iconY, iconWidth, iconHeight);
+    ctx.restore();
     return;
   }
 
