@@ -27,17 +27,20 @@
    interno do app (localStorage) → `editor.paste()`; senão nada.
 4. Nunca reintroduzir fallback assíncrono via `navigator.clipboard.read()` para
    consertar o paste interno; se o `paste` nativo não disparar em headless, o
-   teste deve disparar o evento manualmente (ou usar `Meta+v`, que no Chromium
-   macOS dispara `paste`; `Control+v` NÃO dispara no macOS).
+   teste deve despachar o evento manualmente via `page.evaluate` com
+   `new ClipboardEvent("paste", { clipboardData: new DataTransfer() })`.
+   **NÃO usar `Meta+v` em testes** — não dispara `paste` no Linux (CI);
+   `Control+v` não dispara no macOS. O dispatch sintético é cross-platform.
 5. Clipboard interno do app (elementos copiados) fica em localStorage — não é
    escrito no clipboard do SO; o `paste` nativo para ele vem com `items` vazio.
 
 ## Onde aconteceu (referência)
 
 - `src/ui/App.tsx` — tratado no efeito que registra `window.addEventListener("paste")`.
-- Testes: `e2e/specs/image.spec.ts` (imagem externa via Meta+V) e
-  `e2e/specs/canvas.spec.ts` (clipboard interno) usam `Meta+v` — que dispara o
-  evento `paste` de verdade no Chromium macOS.
+- Testes: `e2e/fixtures.ts` exporta `pressPaste()` que despacha um
+  `ClipboardEvent("paste")` sintético — cross-platform, funciona no CI Linux.
+  Para imagens externas (`image.spec.ts`), o teste lê `navigator.clipboard.read()`
+  e monta o `DataTransfer` com o arquivo antes de despachar.
 
 ## Checklist antes de mexer em clipboard/paste
 
@@ -45,4 +48,4 @@
 - [ ] `preventDefault()` no keydown de Cmd+V está ausente?
 - [ ] O evento nativo `paste` é a única via de inserção de imagem externa?
 - [ ] `paste` handler faz `preventDefault()` em todo caminho tratado/ignorado?
-- [ ] E2E usa `Meta+v` (ou dispatch manual de `ClipboardEvent`), nunca `Control+v`?
+- [ ] E2E usa `pressPaste()` (dispatch sintético) ou `Meta+v` (só macOS local), nunca `Control+v`?
