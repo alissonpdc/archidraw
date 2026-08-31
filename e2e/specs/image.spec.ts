@@ -176,7 +176,27 @@ test.describe("image features", () => {
     expect(wrote).toBe(true);
 
     // real keyboard shortcut — dispatches keydown + native paste event
-    await page.keyboard.press("Meta+v");
+    // Use synthetic paste event (cross-platform, works in headless CI on Linux
+    // where Meta+v does not fire the native paste event)
+    await page.evaluate(async () => {
+      const items = await navigator.clipboard.read();
+      const dt = new DataTransfer();
+      for (const item of items) {
+        for (const type of item.types) {
+          const blob = await item.getType(type);
+          dt.items.add(
+            new File([blob], `paste.${type.split("/")[1]}`, { type }),
+          );
+        }
+      }
+      document.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: dt,
+        }),
+      );
+    });
 
     // só a imagem deve ser inserida — o retângulo copiado NÃO deve duplicar
     await expect

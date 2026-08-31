@@ -1,4 +1,11 @@
-import { test, expect, drag, selectTool, open } from "../fixtures";
+import {
+  test,
+  expect,
+  drag,
+  selectTool,
+  open,
+  pressPaste,
+} from "../fixtures";
 
 async function createRect(
   page: import("@playwright/test").Page,
@@ -206,7 +213,7 @@ test.describe("clipboard", () => {
     await page.mouse.click(150, 140);
 
     await page.keyboard.press("Control+c");
-    await page.keyboard.press("Meta+v");
+    await pressPaste(page);
 
     // paste interno agora é tratado no evento `paste` nativo (Meta+V no menu
     // macOS; em headless o Control+V não dispara o evento), então aguarda o
@@ -217,7 +224,7 @@ test.describe("clipboard", () => {
       )
       .toBe(2);
 
-    await page.keyboard.press("Meta+v");
+    await pressPaste(page);
     await expect
       .poll(() =>
         page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
@@ -235,7 +242,7 @@ test.describe("clipboard", () => {
     let n = await page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length);
     expect(n).toBe(0);
 
-    await page.keyboard.press("Meta+v");
+    await pressPaste(page);
     await expect
       .poll(() =>
         page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
@@ -251,7 +258,7 @@ test.describe("clipboard", () => {
     await page.keyboard.press("Control+c");
 
     await page.click('[data-testid="tab-add"]'); // new empty tab
-    await page.keyboard.press("Meta+v");
+    await pressPaste(page);
 
     await expect
       .poll(() =>
