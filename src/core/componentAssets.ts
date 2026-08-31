@@ -54,6 +54,12 @@ export function registerCustomAsset(componentId: string, svg: string): void {
   images.delete(componentId);
 }
 
+/** registra um asset de imagem raster via data URI pronto (ex. PNG colado) */
+export function registerImageAsset(componentId: string, dataUri: string): void {
+  dataUris.set(componentId, dataUri);
+  images.delete(componentId);
+}
+
 export function unregisterCustomAsset(componentId: string): void {
   dataUris.delete(componentId);
   images.delete(componentId);

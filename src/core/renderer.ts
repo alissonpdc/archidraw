@@ -1,4 +1,4 @@
-import type { ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, ImageElement, Point } from "./types";
+import type { ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
 import {
   arrowPoints,
   bindingPoint,
@@ -473,21 +473,8 @@ function iconPaths(componentId: string): Path2D[] {
   return paths;
 }
 
-// ---- image cache (HTMLImageElement from data URLs) ----------------------
-const imageCache = new Map<string, HTMLImageElement>();
-
-function getCachedImage(src: string): HTMLImageElement | null {
-  let img = imageCache.get(src);
-  if (!img) {
-    // cache imediatamente (mesmo enquanto carrega): descartar a instância
-    // sem cachear reinicia o load a cada frame no RAF loop e a imagem
-    // (principalmente screenshots grandes) nunca fica "complete".
-    img = new Image();
-    img.src = src;
-    imageCache.set(src, img);
-  }
-  return img.complete && img.naturalWidth > 0 ? img : null;
-}
+// assets (ícones AWS, libs importadas e imagens raster) são desenhados pelo
+// pipeline de imagens em componentAssets — nenhum cache duplicado aqui.
 
 /**
  * closed perimeter of a rounded rectangle as a sampled polyline loop
@@ -662,50 +649,34 @@ function captionLayout(
   return { hasLabel, labelCx, labelCy };
 }
 
-/** caption layout for pasted images: the label lives OUTSIDE the image
- *  bounds, next to the pasted pixels, so it never overlaps the image. */
-function imageCaptionLayout(el: ImageElement) {
-  const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
-  const a = captionLayout(
-    el,
-    { x: el.x, y: el.y, width: el.width, height: el.height },
-    labelFont,
-  );
-  return {
-    hasLabel: a.hasLabel,
-    iconX: el.x,
-    iconY: el.y,
-    iconSize: Math.min(Math.abs(el.width), Math.abs(el.height)),
-    labelCx: a.labelCx,
-    labelCy: a.labelCy,
-    labelFont,
-    captionPosition: el.captionPosition ?? "bottom",
-  };
-}
-
-/** icon/caption geometry shared between canvas rendering and label placement.
- *  Used by components and by added/pasted images (same caption model). */
-export function componentIconLayout(el: ComponentElement | ImageElement) {
-  if (el.type === "image") return imageCaptionLayout(el);
-  const s = Math.min(Math.abs(el.width), Math.abs(el.height));
+/**
+ * icon/caption geometry shared between canvas rendering, label placement and
+ * SVG export. Componentes de lib (AWS/importados) desenham o ícone no menor
+ * lado, centralizado; imagens raster importadas (item de lib com `fill`)
+ * preenchem o bounds inteiro do elemento — o mesmo modelo de legenda.
+ */
+export function componentIconLayout(el: ComponentElement) {
   const cx = el.x + el.width / 2;
   const cy = el.y + el.height / 2;
-  // icon is ALWAYS the element's smaller side, centered — adding a caption
-  // never shrinks the item (same model as pasted images)
-  const iconSize = s;
-  const iconX = cx - iconSize / 2;
-  const iconY = cy - iconSize / 2;
+  const fill = getLibraryItem(el.componentId)?.fill === true;
+  const iconWidth = fill
+    ? Math.abs(el.width)
+    : Math.min(Math.abs(el.width), Math.abs(el.height));
+  const iconHeight = fill ? Math.abs(el.height) : iconWidth;
+  const iconX = fill ? Math.min(el.x, el.x + el.width) : cx - iconWidth / 2;
+  const iconY = fill ? Math.min(el.y, el.y + el.height) : cy - iconHeight / 2;
   const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
   const a = captionLayout(
     el,
-    { x: iconX, y: iconY, width: iconSize, height: iconSize },
+    { x: iconX, y: iconY, width: iconWidth, height: iconHeight },
     labelFont,
   );
   return {
     hasLabel: a.hasLabel,
     iconX,
     iconY,
-    iconSize,
+    iconWidth,
+    iconHeight,
     labelCx: a.labelCx,
     labelCy: a.labelCy,
     labelFont,
@@ -714,18 +685,19 @@ export function componentIconLayout(el: ComponentElement | ImageElement) {
 }
 
 function drawComponentIcon(ctx: CanvasRenderingContext2D, el: ComponentElement) {
-  const { iconX, iconY, iconSize } = componentIconLayout(el);
+  const { iconX, iconY, iconWidth, iconHeight } = componentIconLayout(el);
 
-  // official bundled icon (AWS Architecture Icons) when available
+  // official bundled icon (AWS Architecture Icons) when available — includes
+  // libs importadas (.excalidrawlib) e imagens raster registradas como asset
   const img = getComponentImage(el.componentId);
   if (img && img.complete && img.naturalWidth > 0) {
-    ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
+    ctx.drawImage(img, iconX, iconY, iconWidth, iconHeight);
     return;
   }
 
   const paths = iconPaths(el.componentId);
   if (paths.length === 0) return;
-  const scale = iconSize / 24;
+  const scale = iconWidth / 24;
   ctx.save();
   ctx.translate(iconX, iconY);
   ctx.scale(scale, scale);
@@ -892,18 +864,6 @@ function drawElement(
         }
       }
     });
-  } else if (el.type === "image") {
-    const img = getCachedImage(el.src);
-    if (img) {
-      ctx.drawImage(img, el.x, el.y, el.width, el.height);
-    } else {
-      // placeholder while image loads
-      ctx.fillStyle = "#e0e0e0";
-      ctx.fillRect(el.x, el.y, el.width, el.height);
-      ctx.strokeStyle = resolveStroke(el, colors);
-      ctx.lineWidth = 1;
-      ctx.strokeRect(el.x, el.y, el.width, el.height);
-    }
   }
   ctx.restore();
 }
@@ -915,11 +875,10 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
   let x2 = eb.x2;
   let y2 = eb.y2;
 
-  // image and component labels live OUTSIDE the element and do NOT expand
-  // with the selection, so the selection box/handles/group bounds must cover
-  // only the icon/pixels — not the caption text. Only free-form shapes clip
-  // text inside their bounds.
-  if ("label" in el && el.label && el.type !== "image" && el.type !== "component") {
+  // component labels live OUTSIDE the element and do NOT expand the
+  // selection, so the selection box/handles/group bounds must cover only the
+  // icon/pixels — not the caption text. Only free-form shapes clip text.
+  if ("label" in el && el.label && el.type !== "component") {
     const fontSize = el.fontSize ?? 14;
     ctx.font = resolveFont(el, fontSize);
     const lines = el.label.split("\n");
@@ -952,14 +911,14 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
   }
 
   // component: the icon may be smaller than the element bounds (shrinks when
-  // a label is present, or element is non-square). Selection box must wrap
-  // only the visible icon, not the full element area.
+  // a label is present, or element is non-square); raster images (fill) cover
+  // the full bounds. Selection box must wrap only the visible icon/pixels.
   if (el.type === "component") {
     const layout = componentIconLayout(el);
     x1 = layout.iconX;
     y1 = layout.iconY;
-    x2 = layout.iconX + layout.iconSize;
-    y2 = layout.iconY + layout.iconSize;
+    x2 = layout.iconX + layout.iconWidth;
+    y2 = layout.iconY + layout.iconHeight;
   }
 
   return { x1, y1, x2, y2 };
@@ -1009,7 +968,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const underlineOn = !!el.underline;
-  if (el.type === "component" || el.type === "image") {
+  if (el.type === "component") {
     const layout = componentIconLayout(el);
     ctx.font = resolveFont(el, layout.labelFont);
     const fs = layout.labelFont;
@@ -1296,8 +1255,7 @@ export function render(
         sel.type === "line" ||
         sel.type === "arrow" ||
         sel.type === "component" ||
-        sel.type === "text" ||
-        sel.type === "image") &&
+        sel.type === "text") &&
       !(state.hiddenLabelId && sel.id === state.hiddenLabelId) &&
       !(state.hiddenTextId && sel.id === state.hiddenTextId)
     ) {

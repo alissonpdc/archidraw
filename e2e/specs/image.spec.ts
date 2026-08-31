@@ -33,7 +33,7 @@ test.describe("image features", () => {
     await expect(imageBtn).toBeVisible();
   });
 
-  test("insertImage adds an image element to the canvas", async ({
+  test("insertImage registers the image as a component and a lib item", async ({
     page,
     editorState,
   }) => {
@@ -68,10 +68,12 @@ test.describe("image features", () => {
     expect(inserted).toBe(true);
     const state = await editorState();
     expect(state.elementCount).toBe(1);
-    expect(state.elements[0].type).toBe("image");
+    // imagens viram componentes da lib (componentId do grupo Imported)
+    expect(state.elements[0].type).toBe("component");
+    expect(state.elements[0].componentId).toMatch(/^img-/);
   });
 
-  test("pasting an image from clipboard inserts an image element", async ({
+  test("pasting an image from clipboard inserts a component", async ({
     page,
     editorState,
   }) => {
@@ -114,7 +116,8 @@ test.describe("image features", () => {
     expect(inserted).toBe(true);
     const state = await editorState();
     expect(state.elementCount).toBe(1);
-    expect(state.elements[0].type).toBe("image");
+    expect(state.elements[0].type).toBe("component");
+    expect(state.elements[0].componentId).toMatch(/^img-/);
   });
 
   test("Meta+V with an external image pastes only the image and renders it", async ({
@@ -170,7 +173,7 @@ test.describe("image features", () => {
           ),
         ),
       )
-      .toEqual(["rectangle", "image"]);
+      .toEqual(["rectangle", "component"]);
 
     // aguarda o RAF renderizar a imagem carregada e lê o pixel central
     // (1x1 vermelho) — colado no centro da viewport. Vermelho => renderizou;
@@ -192,15 +195,29 @@ test.describe("image features", () => {
     expect(centerPx[2]).toBeLessThan(120);
   });
 
-  test("Style tab of a selected image only offers Opacity", async ({ page }) => {
+  test("Style options of an image match those of a library component", async ({
+    page,
+  }) => {
     await open(page);
     await insertImage(page);
 
-    // no stroke/thickness/fill groups for images
-    await expect(page.getByRole("button", { name: "Stroke color Blue" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Thickness 1" })).toHaveCount(0);
-    await expect(page.getByRole("slider", { name: "Opacity" })).toBeVisible();
-    expect(await panelGroupTitles(page)).toEqual(["Opacity"]);
+    // imagens viram componentes: o painel de estilo é o MESMO de um item de lib
+    const imageTitles = await panelGroupTitles(page);
+
+    await page.evaluate(() => (window as any).__editor__.insertComponent("ec2"));
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as any).__editor__.getSnapshot().doc.elements.at(-1).type,
+        ),
+      )
+      .toBe("component");
+    const componentTitles = await panelGroupTitles(page);
+
+    expect(imageTitles).toEqual(componentTitles);
+    // nenhum dos dois oferece bordas (reservadas a rectangles)
+    expect(imageTitles).not.toContain("Borders");
   });
 
   test("Text options of an image match those of a library component", async ({
@@ -457,5 +474,111 @@ test.describe("image features", () => {
     // only the image shrank — the caption (outside the image) was not resized
     expect(after.h).toBeLessThan(grab.h);
     expect(after.label).toBe("S3 bucket");
+  });
+
+  test("imported image appears in the Imported group with a hover-only remove", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+
+    await page.keyboard.press("b");
+    const group = page.locator('[data-testid="library-imported-images"]');
+    await expect(group).toBeVisible();
+    await expect(group.locator(".panel-subtitle")).toHaveText("Imported");
+    await expect(group.locator(".library-tile")).toHaveCount(1);
+
+    const remove = group.locator(".library-tile-remove");
+    await expect(remove).toHaveCount(1);
+    await expect(remove).toHaveCSS("opacity", "0");
+    await group.locator(".library-tile").hover();
+    await expect(remove).toHaveCSS("opacity", "1");
+  });
+
+  test("clicking an imported image tile inserts the same component", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+    await insertImage(page);
+    const componentId = (await editorState()).elements[0].componentId;
+
+    await page.keyboard.press("b");
+    await page
+      .locator('[data-testid="library-imported-images"] .library-tile')
+      .click();
+
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => window.__editor__.getSnapshot().doc.elements.length,
+        ),
+      )
+      .toBe(2);
+    const state = await editorState();
+    expect(state.elements[1].type).toBe("component");
+    expect(state.elements[1].componentId).toBe(componentId);
+  });
+
+  test("pasting the same image twice does not duplicate the Imported item", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+    // insert the SAME image bytes again through the editor API (dedup by src)
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const pngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+      const byteStr = atob(pngBase64);
+      const arr = new Uint8Array(byteStr.length);
+      for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
+      const blob = new Blob([arr], { type: "image/png" });
+      const file = new File([blob], "test.png", { type: "image/png" });
+      ed.insertImage(file);
+    });
+
+    // waits for the second element to land (the lib item is already reused)
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => window.__editor__.getSnapshot().doc.elements.length,
+        ),
+      )
+      .toBe(2);
+
+    await page.keyboard.press("b");
+    const group = page.locator('[data-testid="library-imported-images"]');
+    await expect(group.locator(".library-tile")).toHaveCount(1);
+    await expect(group.locator(".library-tile-remove")).toHaveCount(1);
+  });
+
+  test("removing an image from the Imported group deletes the item", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+
+    await page.keyboard.press("b");
+    const group = page.locator('[data-testid="library-imported-images"]');
+    await group.locator(".library-tile").hover();
+    await group.locator(".library-tile-remove").click();
+    await expect(
+      page.locator('[data-testid="library-imported-images"]'),
+    ).toHaveCount(0);
+  });
+
+  test("imported images persist across reloads", async ({ page }) => {
+    await open(page);
+    await insertImage(page);
+    await page.waitForTimeout(700); // autosave debounce
+
+    await page.reload();
+    await open(page);
+    await page.keyboard.press("b");
+
+    const group = page.locator('[data-testid="library-imported-images"]');
+    await expect(group).toBeVisible();
+    await expect(group.locator(".library-tile")).toHaveCount(1);
   });
 });

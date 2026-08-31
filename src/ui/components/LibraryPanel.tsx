@@ -26,6 +26,11 @@ import {
   removeImportedLibrary,
 } from "../../core/importedLibraries";
 import type { ImportedLibrary } from "../../core/importedLibraries";
+import {
+  getImportedImages,
+  removeImportedImage,
+} from "../../core/importedImages";
+import type { ImportedImageData } from "../../core/importedImages";
 
 export const COMPONENT_DND_TYPE = "application/x-archidraw-component";
 
@@ -134,9 +139,21 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [awsOpen, setAwsOpen] = useState(false);
   const [tip, setTip] = useState<TipState | null>(null);
   const [imported, setImported] = useState<ImportedLibrary[]>(getImportedLibraries);
+  const [importedImages, setImportedImages] = useState<ImportedImageData[]>(getImportedImages);
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set());
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // re-syncs the Imported group when a new image is inserted/pasted (the editor
+  // emits on insertComponent; getImportedImages returns a stable ref until items
+  // change, so setState bails out when nothing changed — no wasted re-renders)
+  useEffect(() => {
+    const onEdit = () => setImportedImages(getImportedImages());
+    const unsub = editor.subscribe(onEdit);
+    return () => {
+      unsub();
+    };
+  }, []);
 
   const close = () => {
     setQuery("");
@@ -191,6 +208,11 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const onRemoveImported = (libId: string) => {
     removeImportedLibrary(libId);
     setImported(getImportedLibraries());
+  };
+
+  const onRemoveImportedImage = (id: string) => {
+    removeImportedImage(id);
+    setImportedImages(getImportedImages());
   };
 
   // event-delegated tooltips (same pattern as PropertiesPanel)
@@ -345,6 +367,35 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                   );
                 })}
             </section>
+            {importedImages.length > 0 && (
+              <section
+                className="library-section"
+                data-testid="library-imported-images"
+              >
+                <div className="panel-subtitle">Imported</div>
+                <div className="library-subgroup">
+                  <div className="library-grid">
+                    {importedImages.map((img) => {
+                      const item = getLibraryItem(img.id);
+                      if (!item) return null;
+                      return (
+                        <div key={item.id} className="library-tile-wrap">
+                          <Tile item={item} onInsert={insert} />
+                          <button
+                            className="library-tile-remove"
+                            aria-label={`Remove ${item.name}`}
+                            data-tip={`Remove ${item.name}`}
+                            onClick={() => onRemoveImportedImage(item.id)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
             {imported.map((lib) => {
               const isOpen = openGroups.has(lib.id);
               return (

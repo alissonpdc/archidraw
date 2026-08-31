@@ -12,7 +12,6 @@ import type {
   Document,
   Element,
   EllipseElement,
-  ImageElement,
   LineElement,
   LineType,
   Point,
@@ -39,6 +38,7 @@ import {
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
+import { addImportedImage } from "./importedImages";
 import { elementVisualBounds } from "./renderer";
 
 type HandleId = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -115,8 +115,7 @@ function hasResizeHandles(el: Element): boolean {
     el.type === "line" ||
     el.type === "arrow" ||
     el.type === "component" ||
-    el.type === "text" ||
-    el.type === "image"
+    el.type === "text"
   );
 }
 
@@ -612,43 +611,24 @@ export class Editor {
     this.emit();
   }
 
-  /** inserts a raster image file onto the canvas at the viewport center */
+  /** registers a raster image file in the "Imported" library group and inserts
+   *  it as a component at the viewport center (same pipeline as lib items) */
   insertImage(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
       const src = reader.result as string;
       const img = new Image();
       img.onload = () => {
-        const maxDim = 400;
-        const aspect = img.naturalWidth / img.naturalHeight;
-        const w = aspect >= 1 ? maxDim : maxDim * aspect;
-        const h = aspect >= 1 ? maxDim / aspect : maxDim;
-        const scene = screenToScene(this.screenCenter(), this.camera);
-        this.commitHistory();
-        const el: ImageElement = {
-          id: newId(),
-          type: "image",
+        const name = file.name
+          .replace(/\.(png|jpe?g|gif|webp|bmp|svg)$/i, "")
+          .trim();
+        const item = addImportedImage({
           src,
+          name,
           naturalWidth: img.naturalWidth,
           naturalHeight: img.naturalHeight,
-          x: scene.x - w / 2,
-          y: scene.y - h / 2,
-          width: w,
-          height: h,
-          // legenda/editação usa a mesma fonte default do texto (média, sans)
-          fontSize: 20,
-          strokeColor: DEFAULT_STROKE,
-          backgroundColor: DEFAULT_BG,
-          strokeWidth: 0,
-          opacity: 1,
-          strokeStyle: "solid",
-          roughness: 0,
-          borderRadius: 0,
-        };
-        this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
-        this.tool = "selection";
-        this.selectedIds = new Set([el.id]);
-        this.emit();
+        });
+        if (item) this.insertComponent(item.id);
       };
       img.src = src;
     };
@@ -865,8 +845,7 @@ export class Editor {
         hitEl.type === "ellipse" ||
         hitEl.type === "line" ||
         hitEl.type === "arrow" ||
-        hitEl.type === "component" ||
-        hitEl.type === "image")
+        hitEl.type === "component")
     ) {
       if (!this.selectedIds.has(hitEl.id)) {
         this.selectedIds = new Set([hitEl.id]);
@@ -1572,7 +1551,7 @@ export class Editor {
             x2: handle.includes("w") ? fx : fx + w,
             y2: handle.includes("n") ? fy : fy + h,
           };
-        } else if (orig.type === "component" || orig.type === "image") {
+        } else if (orig.type === "component") {
           // edge handles on library components also scale proportionally:
           // dragged edge follows the pointer, opposite edge stays fixed and
           // the other axis follows the original ratio (centered)

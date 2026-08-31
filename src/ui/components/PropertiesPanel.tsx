@@ -456,10 +456,8 @@ export function PropertiesPanel() {
       el.type === "component",
   );
   const hasComponent = selected.some((el) => el.type === "component");
-  const hasImage = selected.some((el) => el.type === "image");
-  /** elements that use the icon+caption label model (components and images) */
-  const hasCaption = hasComponent || hasImage;
-  const isOnlyImage = selected.length > 0 && selected.every((el) => el.type === "image");
+  /** elements that use the icon+caption label model (components — incl. imagens) */
+  const hasCaption = hasComponent;
   const hasRectangle = selected.some((el) => el.type === "rectangle");
   const hasDiamond = selected.some((el) => el.type === "diamond");
   const hasEllipse = selected.some((el) => el.type === "ellipse");
@@ -482,7 +480,7 @@ export function PropertiesPanel() {
       textEls.length > 0 &&
       textEls.every(
         (el) =>
-          (el.fontSize ?? (el.type === "component" || el.type === "image" ? 12 : 14)) === v,
+          (el.fontSize ?? (el.type === "component" ? 12 : 14)) === v,
       )
     );
   };
@@ -561,7 +559,6 @@ export function PropertiesPanel() {
       </div>
 
       <div ref={styleRef} className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
-{!isOnlyImage && (
         <Group title="Stroke">
           <PaletteGrid
             current={selected[0].strokeColor}
@@ -569,7 +566,6 @@ export function PropertiesPanel() {
             label="Stroke color"
           />
         </Group>
-      )}
 
           {hasFillable && (
             <Group title="Fill">
@@ -707,8 +703,7 @@ export function PropertiesPanel() {
             </Group>
           )}
 
-{!isOnlyImage && (
-        <Group title="Thickness">
+<Group title="Thickness">
           {STROKE_WIDTHS.map((w) => (
             <button
               key={w}
@@ -720,7 +715,6 @@ export function PropertiesPanel() {
             </button>
           ))}
         </Group>
-      )}
 
           {hasRectangle && (
             <Group title="Borders">

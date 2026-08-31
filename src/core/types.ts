@@ -5,8 +5,7 @@ export type ElementType =
   | "line"
   | "arrow"
   | "text"
-  | "component"
-  | "image";
+  | "component";
 
 /** line pattern: continuous, dashed, dotted or dash-dot */
 export type StrokeStyle = "solid" | "dashed" | "dotted" | "dashdot";
@@ -140,23 +139,11 @@ export interface TextElement extends BaseElement {
   fontSize: number;
 }
 
-/** software component from the library (AWS services etc.) */
+/** software component from the library (AWS services, imported libs, images) */
 export interface ComponentElement extends BaseElement {
   type: "component";
   /** id in the component catalog (core/library.ts) */
   componentId: string;
-  label?: string;
-}
-
-/** user-imported raster image (PNG, JPEG, etc.) */
-export interface ImageElement extends BaseElement {
-  type: "image";
-  /** data URL of the image (data:image/png;base64,...) */
-  src: string;
-  /** natural width of the original image (for aspect ratio) */
-  naturalWidth: number;
-  /** natural height of the original image (for aspect ratio) */
-  naturalHeight: number;
   label?: string;
 }
 
@@ -167,8 +154,7 @@ export type Element =
   | LineElement
   | ArrowElement
   | TextElement
-  | ComponentElement
-  | ImageElement;
+  | ComponentElement;
 
 export interface Document {
   schemaVersion: 1;

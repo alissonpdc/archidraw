@@ -15,6 +15,9 @@ export interface LibraryItem {
   group?: string;
   /** proporção largura/altura do ícone (bibliotecas importadas) */
   aspect?: number;
+  /** asset (imagem raster) preenche o bounds inteiro do elemento em vez de
+   *  um ícone quadrado centralizado — usado por imagens importadas/coladas */
+  fill?: boolean;
 }
 
 export const LIBRARY_CATEGORIES = [
