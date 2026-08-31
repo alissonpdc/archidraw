@@ -90,4 +90,57 @@ test.describe("image features", () => {
     expect(state.elementCount).toBe(1);
     expect(state.elements[0].type).toBe("image");
   });
+
+  test("pasting an image with Meta+V from the real clipboard inserts it", async ({
+    page,
+    context,
+    editorState,
+  }) => {
+    await open(page);
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+      origin: "http://localhost:4173",
+    });
+    // put a tiny 1x1 red PNG into the real OS clipboard
+    const wrote = await page.evaluate(async () => {
+      const pngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
+      const byteStr = atob(pngBase64);
+      const arr = new Uint8Array(byteStr.length);
+      for (let i = 0; i < byteStr.length; i++)
+        arr[i] = byteStr.charCodeAt(i);
+      const blob = new Blob([arr], { type: "image/png" });
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
+        return true;
+      } catch (e) {
+        return String(e);
+      }
+    });
+    expect(wrote).toBe(true);
+
+    // real keyboard shortcut — dispatches keydown + native paste event
+    await page.keyboard.press("Meta+v");
+
+    const inserted = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      return new Promise<boolean>((resolve) => {
+        const check = setInterval(() => {
+          const s = ed.getSnapshot();
+          if (s.doc.elements.length > 0) {
+            clearInterval(check);
+            resolve(true);
+          }
+        }, 50);
+        setTimeout(() => {
+          clearInterval(check);
+          resolve(false);
+        }, 3000);
+      });
+    });
+    expect(inserted).toBe(true);
+    const state = await editorState();
+    expect(state.elements[0].type).toBe("image");
+  });
 });

@@ -92,7 +92,8 @@ export function App() {
         return;
       }
       if (mod && e.key.toLowerCase() === "v") {
-        e.preventDefault();
+        // não prevenir default: bloquear o keydown suprime o evento `paste`
+        // do browser e impede colar imagens da área de transferência.
         editor.paste();
         return;
       }
