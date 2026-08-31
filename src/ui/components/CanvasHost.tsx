@@ -178,7 +178,7 @@ export function CanvasHost() {
         } else {
           align = el.textAlign ?? "center";
           vAlignMode = el.textVAlign ?? "middle";
-          fontSize = el.fontSize ?? 14;
+          fontSize = el.fontSize ?? 20;
           if (el.type === "line" || el.type === "arrow") {
             // edges: label slides along the stroke (labelT, default center)
             const anchor = edgeLabelAnchor(el)!;
@@ -270,7 +270,7 @@ export function CanvasHost() {
   // label overlay sits at the rendered label position (below the icon
   // for components), so editing is truly in-place
   let labelPos: Point | null = null;
-  let labelFontSize = 14;
+  let labelFontSize = 20;
   if (isEditingLabel && editingEl) {
     if (editingEl.type === "component") {
       const layout = componentIconLayout(editingEl);

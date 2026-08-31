@@ -16,7 +16,7 @@ export function resolveTextColor(el: Element, colors: RenderColors): string {
 
 /** build a CSS font string from element text props */
 export function resolveFont(el: Element, fontSizeOverride?: number): string {
-  const size = fontSizeOverride ?? el.fontSize ?? 14;
+  const size = fontSizeOverride ?? el.fontSize ?? 20;
   const family = el.fontFamily || DEFAULT_FONT_FAMILY;
   const style = el.italic ? "italic " : "";
   const weight = el.bold ? "bold " : "";

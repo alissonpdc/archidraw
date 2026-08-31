@@ -909,7 +909,7 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
   // selection, so the selection box/handles/group bounds must cover only the
   // icon/pixels — not the caption text. Only free-form shapes clip text.
   if ("label" in el && el.label && el.type !== "component") {
-    const fontSize = el.fontSize ?? 14;
+    const fontSize = el.fontSize ?? 20;
     ctx.font = resolveFont(el, fontSize);
     const lines = el.label.split("\n");
     const tw = Math.max(...lines.map((l) => ctx.measureText(l).width));
@@ -1050,7 +1050,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
       else if (textVAlign === "bottom") cy = el.y + el.height - padY;
       else cy = el.y + el.height / 2;
     }
-    const fontSize = el.fontSize ?? 14;
+    const fontSize = el.fontSize ?? 20;
     ctx.font = resolveFont(el, fontSize);
     const lh = lineHeight(el);
     const lines = el.label.split("\n");

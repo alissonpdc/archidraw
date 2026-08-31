@@ -485,7 +485,7 @@ export function PropertiesPanel() {
       textEls.length > 0 &&
       textEls.every(
         (el) =>
-          (el.fontSize ?? (el.type === "component" ? 12 : 14)) === v,
+          (el.fontSize ?? (el.type === "component" ? 12 : 20)) === v,
       )
     );
   };
