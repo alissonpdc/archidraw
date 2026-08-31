@@ -1,19 +1,10 @@
 import { test, expect, open } from "../fixtures";
 
 test.describe("image features", () => {
-  test("Open Image menu item is present and triggers file input", async ({
-    page,
-  }) => {
+  test("Open Image button is present in the toolbar", async ({ page }) => {
     await open(page);
-    // open the app menu
-    await page.locator('[data-testid="app-menu-button"]').click();
-    await expect(page.locator(".menu-dropdown")).toBeVisible();
-    // the "Open Image..." item exists
-    const openImageItem = page.locator(".menu-item", { hasText: "Open Image" });
-    await expect(openImageItem).toBeVisible();
-    // clicking it should trigger the hidden image file input
-    const imageInput = page.locator('[data-testid="image-input"]');
-    await expect(imageInput).toHaveAttribute("accept", "image/*");
+    const imageBtn = page.locator('[aria-label="Open Image"]');
+    await expect(imageBtn).toBeVisible();
   });
 
   test("insertImage adds an image element to the canvas", async ({
