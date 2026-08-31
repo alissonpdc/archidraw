@@ -53,8 +53,8 @@ export function Toolbar({
       <div className="toolbar-sep" />
       <button
         className="tool-btn"
-        data-tip="Open Image"
-        aria-label="Open Image"
+        data-tip="Import Image"
+        aria-label="Import Image"
         onClick={() => imageInputRef.current?.click()}
       >
         <ImageIcon size={18} />

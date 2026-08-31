@@ -571,8 +571,10 @@ export class Editor {
     const screen = screenPoint ?? this.screenCenter();
     const scene = screenToScene(screen, this.camera);
     // ícone preenche o bounds do elemento, então o tamanho de inserção
-    // é o tamanho visual do ícone (com proporção preservada p/ importados)
-    const size = 64;
+    // é o tamanho visual do ícone (com proporção preservada p/ importados).
+    // Imagens raster (fill) são inseridas 5x maiores — 64px de ícone fica
+    // pequeno demais para um screenshot/diagrama colado.
+    const size = item.fill === true ? 64 * 5 : 64;
     const aspect = item.aspect && item.aspect > 0 ? item.aspect : 1;
     const w = aspect >= 1 ? size : size * aspect;
     const h = aspect >= 1 ? size / aspect : size;

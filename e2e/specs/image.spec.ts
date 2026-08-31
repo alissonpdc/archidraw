@@ -27,10 +27,24 @@ async function panelGroupTitles(page: Page): Promise<string[]> {
 }
 
 test.describe("image features", () => {
-  test("Open Image button is present in the toolbar", async ({ page }) => {
+  test("Import Image button is present in the toolbar", async ({ page }) => {
     await open(page);
-    const imageBtn = page.locator('[aria-label="Open Image"]');
+    const imageBtn = page.locator('[aria-label="Import Image"]');
     await expect(imageBtn).toBeVisible();
+  });
+
+  test("inserted/pasted images are 5x larger (320px) than lib components", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+    // base de inserção de um componente é 64px; imagens raster entram 5x
+    const dims = await page.evaluate(() => {
+      const e = (window as any).__editor__.getSnapshot().doc.elements[0];
+      return { w: e.width, h: e.height };
+    });
+    expect(dims.w).toBe(320);
+    expect(dims.h).toBe(320);
   });
 
   test("insertImage registers the image as a component and a lib item", async ({
