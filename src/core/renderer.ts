@@ -614,14 +614,17 @@ export function textOffsets(el: Element): { padX: number; padY: number } {
 }
 
 /**
- * caption layout for added/pasted images: the label lives OUTSIDE the image
- * bounds, next to the pasted pixels, so it never overlaps the image (same
- * caption model as components, where the label sits beside the icon box).
- * labelCx/labelCy are computed on the label side even when there is no text
- * yet — so the edit caret starts exactly where the caption will render
- * (instead of the image center, which shifted the text on first keystroke).
+ * shared caption-positioning for elements whose label lives OUTSIDE the icon
+ * (library components) or image rect (pasted png): the label block center is
+ * placed on the requested caption side even when there is NO text yet — so
+ * the edit caret starts exactly where the caption will render (instead of the
+ * element center, which shifted the text on the first keystroke).
  */
-function imageCaptionLayout(el: ImageElement) {
+function captionLayout(
+  el: Element & { label?: string },
+  box: { x: number; y: number; width: number; height: number },
+  labelFont: number,
+) {
   const captionPos = el.captionPosition ?? "bottom";
   const baseGap = el.captionGap ?? ICON_LABEL_GAP;
   const offset =
@@ -630,13 +633,9 @@ function imageCaptionLayout(el: ImageElement) {
     captionPos === "left" ? (el.captionOffsetLeft ?? 0) :
     (el.captionOffsetRight ?? 0);
   const gap = baseGap + offset;
-  const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
   const labelH = labelFont * 1.25;
   const lines = el.label ? el.label.split("\n") : [];
-  const hasLabel = lines.some((l) => l.trim() !== "");
-  const cx = el.x + el.width / 2;
-  const cy = el.y + el.height / 2;
-
+  const hasLabel = lines.length > 0 && lines.some((l) => l.trim() !== "");
   const lh = lineHeight(el);
   const step = labelFont * lh;
   const n = Math.max(lines.length, 1);
@@ -644,29 +643,43 @@ function imageCaptionLayout(el: ImageElement) {
     ? measureText(el.label!, labelFont, el.fontFamily, el.bold, el.italic).width
     : 0;
   const vShift = hasLabel ? ((n - 1) * step) / 2 : 0;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
 
-  // single-line block sits fully outside the image: block center starts at
-  // image edge + gap on the label side (multi-line adds vShift around it)
+  // single-line block sits fully outside the box: block center starts at the
+  // box edge + gap on the label side (multi-line adds vShift around it)
   let labelCx = cx;
   let labelCy = cy;
   if (captionPos === "top") {
-    labelCy = el.y - gap - vShift - labelH / 2;
+    labelCy = box.y - gap - vShift - labelH / 2;
   } else if (captionPos === "bottom") {
-    labelCy = el.y + el.height + gap + vShift + labelH / 2;
+    labelCy = box.y + box.height + gap + vShift + labelH / 2;
   } else if (captionPos === "left") {
-    labelCx = el.x - gap - tw / 2;
+    labelCx = box.x - gap - tw / 2;
   } else {
-    labelCx = el.x + el.width + gap + tw / 2;
+    labelCx = box.x + box.width + gap + tw / 2;
   }
+  return { hasLabel, labelCx, labelCy };
+}
+
+/** caption layout for pasted images: the label lives OUTSIDE the image
+ *  bounds, next to the pasted pixels, so it never overlaps the image. */
+function imageCaptionLayout(el: ImageElement) {
+  const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
+  const a = captionLayout(
+    el,
+    { x: el.x, y: el.y, width: el.width, height: el.height },
+    labelFont,
+  );
   return {
-    hasLabel,
+    hasLabel: a.hasLabel,
     iconX: el.x,
     iconY: el.y,
     iconSize: Math.min(Math.abs(el.width), Math.abs(el.height)),
-    labelCx,
-    labelCy,
+    labelCx: a.labelCx,
+    labelCy: a.labelCy,
     labelFont,
-    captionPosition: captionPos,
+    captionPosition: el.captionPosition ?? "bottom",
   };
 }
 
@@ -675,89 +688,28 @@ function imageCaptionLayout(el: ImageElement) {
 export function componentIconLayout(el: ComponentElement | ImageElement) {
   if (el.type === "image") return imageCaptionLayout(el);
   const s = Math.min(Math.abs(el.width), Math.abs(el.height));
-  const hasLabel = !!el.label && el.label.trim() !== "";
   const cx = el.x + el.width / 2;
   const cy = el.y + el.height / 2;
-  const baseGap = el.captionGap ?? ICON_LABEL_GAP;
-  const captionPos = el.captionPosition ?? "bottom";
-  const offset =
-    captionPos === "top" ? (el.captionOffsetTop ?? 0) :
-    captionPos === "bottom" ? (el.captionOffsetBottom ?? 0) :
-    captionPos === "left" ? (el.captionOffsetLeft ?? 0) :
-    (el.captionOffsetRight ?? 0);
-  const gap = baseGap + offset;
+  // icon is ALWAYS the element's smaller side, centered — adding a caption
+  // never shrinks the item (same model as pasted images)
+  const iconSize = s;
+  const iconX = cx - iconSize / 2;
+  const iconY = cy - iconSize / 2;
   const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
-  const labelH = labelFont * 1.25;
-
-  // icon size is ALWAYS fixed proportion of element, never affected by fontSize
-  const iconSizeFixed = hasLabel ? Math.max(s * 0.65, 8) : s;
-
-  if (!hasLabel) {
-    return {
-      hasLabel,
-      iconX: cx - iconSizeFixed / 2,
-      iconY: cy - iconSizeFixed / 2,
-      iconSize: iconSizeFixed,
-      labelCx: cx,
-      labelCy: cy,
-      labelFont,
-      captionPosition: captionPos,
-    };
-  }
-
-  if (captionPos === "left" || captionPos === "right") {
-    // horizontal layout: icon and label side by side, edge-to-edge
-    const { width: tw } = measureText(el.label!, labelFont);
-    const iconY = cy - iconSizeFixed / 2;
-    const totalW = iconSizeFixed + gap + tw;
-    let iconX: number;
-    let labelCx: number;
-    if (captionPos === "left") {
-      // label on left, icon on right
-      iconX = cx + totalW / 2 - iconSizeFixed;
-      labelCx = cx - totalW / 2 + tw / 2;
-    } else {
-      // label on right, icon on left
-      iconX = cx - totalW / 2;
-      labelCx = cx + totalW / 2 - tw / 2;
-    }
-    return {
-      hasLabel,
-      iconX,
-      iconY,
-      iconSize: iconSizeFixed,
-      labelCx,
-      labelCy: cy,
-      labelFont,
-      captionPosition: captionPos,
-    };
-  }
-
-  // vertical layout (top or bottom): icon takes fixed space, label gets remaining
-  const totalContentH = iconSizeFixed + gap + labelH;
-  const topOffset = cy - totalContentH / 2;
-  if (captionPos === "top") {
-    return {
-      hasLabel,
-      iconX: cx - iconSizeFixed / 2,
-      iconY: topOffset + labelH + gap,
-      iconSize: iconSizeFixed,
-      labelCx: cx,
-      labelCy: topOffset + labelH / 2,
-      labelFont,
-      captionPosition: captionPos,
-    };
-  }
-  // bottom (default)
-  return {
-    hasLabel,
-    iconX: cx - iconSizeFixed / 2,
-    iconY: topOffset,
-    iconSize: iconSizeFixed,
-    labelCx: cx,
-    labelCy: topOffset + iconSizeFixed + gap + labelH / 2,
+  const a = captionLayout(
+    el,
+    { x: iconX, y: iconY, width: iconSize, height: iconSize },
     labelFont,
-    captionPosition: captionPos,
+  );
+  return {
+    hasLabel: a.hasLabel,
+    iconX,
+    iconY,
+    iconSize,
+    labelCx: a.labelCx,
+    labelCy: a.labelCy,
+    labelFont,
+    captionPosition: el.captionPosition ?? "bottom",
   };
 }
 

@@ -137,15 +137,25 @@ test.describe("component library", () => {
         outlineStyle: getComputedStyle(overlay).outlineStyle,
         color: getComputedStyle(overlay).color,
         top: parseFloat(overlay.style.top),
-        expectedTop:
-          (el.y + el.height / 2) * cam.zoom + cam.scrollY,
+        bottom: (el.y + el.height) * cam.zoom + cam.scrollY,
       };
     });
     expect(overlayInfo.outlineStyle).toBe("none");
     expect(overlayInfo.color).toBe("rgba(0, 0, 0, 0)");
-    // componente nasce sem label: overlay começa no centro do elemento
-    // (ao digitar, o label assume a posição abaixo do ícone)
-    expect(overlayInfo.top).toBeGreaterThanOrEqual(overlayInfo.expectedTop - 1);
+    // componente nasce sem label: o caret da legenda já começa ABAIXO do
+    // ícone (na posição em que o label vai renderizar) — mesmo modelo das
+    // imagens coladas, não no centro do elemento
+    expect(overlayInfo.top).toBeGreaterThanOrEqual(overlayInfo.bottom - 1);
+
+    // the fake caret also sits below the item edge
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const caret = document.querySelector(".fake-caret") as HTMLElement;
+          return caret ? parseFloat(caret.style.top) : null;
+        }),
+      )
+      .toBeGreaterThanOrEqual(overlayInfo.bottom - 1);
 
     await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.type("Upload bucket");
@@ -225,7 +235,7 @@ test.describe("component library", () => {
     expect(after.label).toBe("S3 bucket");
   });
 
-  test("visual bounds of a library component match the icon, not the element+label", async ({
+  test("adding a caption does NOT shrink the component icon", async ({
     page,
   }) => {
     await openLibraryWithAws(page);
@@ -241,7 +251,6 @@ test.describe("component library", () => {
     await page.keyboard.type("S3 bucket");
     await page.keyboard.press("Escape");
 
-    // visual bounds must match the icon from componentIconLayout, NOT the full element
     const check = await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
@@ -253,29 +262,21 @@ test.describe("component library", () => {
       return { vb, eb, label: el.label };
     });
 
-    // must have a label
     expect(check.label).toBe("S3 bucket");
-    // visual bounds must be SMALLER than element bounds (icon shrinks with label)
-    expect(check.vb.x2 - check.vb.x1).toBeLessThan(check.eb.x2 - check.eb.x1);
-    expect(check.vb.y2 - check.vb.y1).toBeLessThan(check.eb.y2 - check.eb.y1);
-    // label text must be OUTSIDE the visual bounds (below the icon)
+    // icon keeps its full size even WITH a caption (no 65% shrink)
+    expect(check.vb.x2 - check.vb.x1).toBeCloseTo(check.eb.x2 - check.eb.x1, 0);
+    expect(check.vb.y2 - check.vb.y1).toBeCloseTo(check.eb.y2 - check.eb.y1, 0);
+    // label text must live BELOW the icon bounds (outside the selection box)
     const labelY = await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
-      const { componentIconLayout } = (window as any).__renderer__ ?? {};
-      // fallback: compute label position from known layout
       const s = Math.min(Math.abs(el.width), Math.abs(el.height));
-      const iconSize = Math.max(s * 0.65, 8);
       const cx = el.x + el.width / 2;
       const cy = el.y + el.height / 2;
       const gap = el.captionGap ?? 2;
       const labelH = (el.fontSize ?? 20) * 1.25;
-      const totalH = iconSize + gap + labelH;
-      const topOffset = cy - totalH / 2;
-      const labelCy = topOffset + iconSize + gap + labelH / 2;
-      return labelCy;
+      // icon keeps full size; label = icon bottom + gap + half label block
+      return cy + s / 2 + gap + labelH / 2;
     });
     expect(labelY).toBeGreaterThan(check.vb.y2);
   });
