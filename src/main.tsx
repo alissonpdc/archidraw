@@ -7,9 +7,12 @@ import { attachAutosave, loadFromStorage } from "./core/storage";
 import { markSaved } from "./ui/saveStatus";
 import { applyThemePref, loadThemePref } from "./ui/theme";
 import { initImportedLibraries } from "./core/importedLibraries";
+import { elementVisualBounds } from "./core/renderer";
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__editor__ = editor;
+  (window as unknown as Record<string, unknown>).__elementVisualBounds__ =
+    elementVisualBounds;
 }
 
 // restore theme preference before first render (no flash of wrong theme)

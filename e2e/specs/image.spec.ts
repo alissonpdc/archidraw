@@ -361,6 +361,53 @@ test.describe("image features", () => {
     expect(after.label).toBe("S3 bucket");
   });
 
+  test("visual bounds of an image do not expand with its caption", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+
+    // get visual bounds WITHOUT any caption
+    const boundsNoCaption = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+      const b = (window as any).__elementVisualBounds__(ctx, el);
+      return { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 };
+    });
+
+    // add a caption
+    const center = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      const cam = ed.getSnapshot().camera;
+      return {
+        x: (e.x + e.width / 2) * cam.zoom + cam.scrollX,
+        y: (e.y + e.height / 2) * cam.zoom + cam.scrollY,
+      };
+    });
+    await page.mouse.dblclick(center.x, center.y);
+    await page.keyboard.type("S3 bucket");
+    await page.keyboard.press("Escape");
+
+    // get visual bounds WITH caption
+    const boundsWithCaption = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+      const b = (window as any).__elementVisualBounds__(ctx, el);
+      return { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 };
+    });
+
+    // bounds must be identical — caption must not expand the selection box
+    expect(boundsWithCaption.x1).toBeCloseTo(boundsNoCaption.x1, 0);
+    expect(boundsWithCaption.y1).toBeCloseTo(boundsNoCaption.y1, 0);
+    expect(boundsWithCaption.x2).toBeCloseTo(boundsNoCaption.x2, 0);
+    expect(boundsWithCaption.y2).toBeCloseTo(boundsNoCaption.y2, 0);
+  });
+
   test("selection of an image excludes its caption (bottom handle grips the image)", async ({
     page,
   }) => {
