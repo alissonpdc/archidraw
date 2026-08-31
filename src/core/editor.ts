@@ -12,6 +12,7 @@ import type {
   Document,
   Element,
   EllipseElement,
+  ImageElement,
   LineElement,
   LineType,
   Point,
@@ -114,7 +115,8 @@ function hasResizeHandles(el: Element): boolean {
     el.type === "line" ||
     el.type === "arrow" ||
     el.type === "component" ||
-    el.type === "text"
+    el.type === "text" ||
+    el.type === "image"
   );
 }
 
@@ -606,6 +608,47 @@ export class Editor {
     this.editingInitial = null;
     this.bindingPreview = null;
     this.emit();
+  }
+
+  /** inserts a raster image file onto the canvas at the viewport center */
+  insertImage(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 400;
+        const aspect = img.naturalWidth / img.naturalHeight;
+        const w = aspect >= 1 ? maxDim : maxDim * aspect;
+        const h = aspect >= 1 ? maxDim / aspect : maxDim;
+        const scene = screenToScene(this.screenCenter(), this.camera);
+        this.commitHistory();
+        const el: ImageElement = {
+          id: newId(),
+          type: "image",
+          src,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+          x: scene.x - w / 2,
+          y: scene.y - h / 2,
+          width: w,
+          height: h,
+          strokeColor: DEFAULT_STROKE,
+          backgroundColor: DEFAULT_BG,
+          strokeWidth: 0,
+          opacity: 1,
+          strokeStyle: "solid",
+          roughness: 0,
+          borderRadius: 0,
+        };
+        this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
+        this.tool = "selection";
+        this.selectedIds = new Set([el.id]);
+        this.emit();
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
   }
 
   // ---- tabs ------------------------------------------------------------
@@ -1524,7 +1567,7 @@ export class Editor {
             x2: handle.includes("w") ? fx : fx + w,
             y2: handle.includes("n") ? fy : fy + h,
           };
-        } else if (orig.type === "component") {
+        } else if (orig.type === "component" || orig.type === "image") {
           // edge handles on library components also scale proportionally:
           // dragged edge follows the pointer, opposite edge stays fixed and
           // the other axis follows the original ratio (centered)

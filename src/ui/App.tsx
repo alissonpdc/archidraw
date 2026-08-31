@@ -143,6 +143,25 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === "TEXTAREA" || tag === "INPUT") return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) editor.insertImage(file);
+          return;
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, []);
+
   return (
     <div className="app" data-library-open={libraryOpen || undefined}>
       <CanvasHost />

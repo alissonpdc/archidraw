@@ -473,6 +473,20 @@ function iconPaths(componentId: string): Path2D[] {
   return paths;
 }
 
+// ---- image cache (HTMLImageElement from data URLs) ----------------------
+const imageCache = new Map<string, HTMLImageElement>();
+
+function getCachedImage(src: string): HTMLImageElement | null {
+  let img = imageCache.get(src);
+  if (!img) {
+    img = new Image();
+    img.src = src;
+    if (!img.complete) return null;
+    imageCache.set(src, img);
+  }
+  return img.complete && img.naturalWidth > 0 ? img : null;
+}
+
 /**
  * closed perimeter of a rounded rectangle as a sampled polyline loop
  * (first point == last point), so hand-drawn strokes follow the corners.
@@ -865,6 +879,18 @@ function drawElement(
         }
       }
     });
+  } else if (el.type === "image") {
+    const img = getCachedImage(el.src);
+    if (img) {
+      ctx.drawImage(img, el.x, el.y, el.width, el.height);
+    } else {
+      // placeholder while image loads
+      ctx.fillStyle = "#e0e0e0";
+      ctx.fillRect(el.x, el.y, el.width, el.height);
+      ctx.strokeStyle = resolveStroke(el, colors);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(el.x, el.y, el.width, el.height);
+    }
   }
   ctx.restore();
 }
@@ -1036,7 +1062,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     // (never hardcoded — matches the live canvas background via the theme)
     if (el.type === "line" || el.type === "arrow") {
       const pad = Math.max(2, fontSize * 0.3);
-      const tw = Math.max(...lines.map((l) => ctx.measureText(l).width), 1);
+      const tw = Math.max(...lines.map((l: string) => ctx.measureText(l).width), 1);
       const bh = (lines.length - 1) * step + fontSize;
       const blockCy =
         textVAlign === "top"
@@ -1261,7 +1287,8 @@ export function render(
         sel.type === "line" ||
         sel.type === "arrow" ||
         sel.type === "component" ||
-        sel.type === "text") &&
+        sel.type === "text" ||
+        sel.type === "image") &&
       !(state.hiddenLabelId && sel.id === state.hiddenLabelId) &&
       !(state.hiddenTextId && sel.id === state.hiddenTextId)
     ) {

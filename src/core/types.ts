@@ -5,7 +5,8 @@ export type ElementType =
   | "line"
   | "arrow"
   | "text"
-  | "component";
+  | "component"
+  | "image";
 
 /** line pattern: continuous, dashed, dotted or dash-dot */
 export type StrokeStyle = "solid" | "dashed" | "dotted" | "dashdot";
@@ -147,6 +148,18 @@ export interface ComponentElement extends BaseElement {
   label?: string;
 }
 
+/** user-imported raster image (PNG, JPEG, etc.) */
+export interface ImageElement extends BaseElement {
+  type: "image";
+  /** data URL of the image (data:image/png;base64,...) */
+  src: string;
+  /** natural width of the original image (for aspect ratio) */
+  naturalWidth: number;
+  /** natural height of the original image (for aspect ratio) */
+  naturalHeight: number;
+  label?: string;
+}
+
 export type Element =
   | RectangleElement
   | DiamondElement
@@ -154,7 +167,8 @@ export type Element =
   | LineElement
   | ArrowElement
   | TextElement
-  | ComponentElement;
+  | ComponentElement
+  | ImageElement;
 
 export interface Document {
   schemaVersion: 1;

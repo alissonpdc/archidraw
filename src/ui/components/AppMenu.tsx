@@ -54,6 +54,7 @@ export function AppMenu() {
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
   const gridMode = useSyncExternalStore(subscribeGrid, getGridMode);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const activeName =
     snap.tabs.find((t) => t.id === snap.activeTabId)?.name ?? "diagrama";
@@ -104,6 +105,7 @@ export function AppMenu() {
           <div className="menu-dropdown">
             <MenuSection title="File">
               <MenuItem label="Import JSON…" onClick={() => fileInputRef.current?.click()} />
+              <MenuItem label="Open Image…" onClick={() => imageInputRef.current?.click()} />
               <MenuItem
                 label="Export PNG"
                 onClick={() => {
@@ -170,6 +172,19 @@ export function AppMenu() {
         onChange={(e) => {
           onImportFile(e.target.files?.[0]);
           e.target.value = "";
+        }}
+      />
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        data-testid="image-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) editor.insertImage(file);
+          e.target.value = "";
+          close();
         }}
       />
     </div>
