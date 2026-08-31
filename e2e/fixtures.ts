@@ -111,3 +111,19 @@ export async function selectTool(
 ) {
   await page.keyboard.press(key);
 }
+
+/**
+ * Dispatch a synthetic paste event — cross-platform, works in headless CI
+ * where Meta+v does not fire the native paste event (Linux).
+ */
+export async function pressPaste(page: Page) {
+  await page.evaluate(() => {
+    document.dispatchEvent(
+      new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: new DataTransfer(),
+      }),
+    );
+  });
+}

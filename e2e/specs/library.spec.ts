@@ -137,15 +137,25 @@ test.describe("component library", () => {
         outlineStyle: getComputedStyle(overlay).outlineStyle,
         color: getComputedStyle(overlay).color,
         top: parseFloat(overlay.style.top),
-        expectedTop:
-          (el.y + el.height / 2) * cam.zoom + cam.scrollY,
+        bottom: (el.y + el.height) * cam.zoom + cam.scrollY,
       };
     });
     expect(overlayInfo.outlineStyle).toBe("none");
     expect(overlayInfo.color).toBe("rgba(0, 0, 0, 0)");
-    // componente nasce sem label: overlay começa no centro do elemento
-    // (ao digitar, o label assume a posição abaixo do ícone)
-    expect(overlayInfo.top).toBeGreaterThanOrEqual(overlayInfo.expectedTop - 1);
+    // componente nasce sem label: o caret da legenda já começa ABAIXO do
+    // ícone (na posição em que o label vai renderizar) — mesmo modelo das
+    // imagens coladas, não no centro do elemento
+    expect(overlayInfo.top).toBeGreaterThanOrEqual(overlayInfo.bottom - 1);
+
+    // the fake caret also sits below the item edge
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const caret = document.querySelector(".fake-caret") as HTMLElement;
+          return caret ? parseFloat(caret.style.top) : null;
+        }),
+      )
+      .toBeGreaterThanOrEqual(overlayInfo.bottom - 1);
 
     await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.type("Upload bucket");
@@ -181,6 +191,94 @@ test.describe("component library", () => {
     const state = await editorState();
     expect(state.elements[0].label).toBe("Upload bucket");
     expect(state.editingTextId).toBeNull();
+  });
+
+  test("label of a library component uses the Text default font (20px sans)", async ({
+    page,
+  }) => {
+    await openLibraryWithAws(page);
+    await page.locator('.library-panel [data-component-id="s3"]').click();
+
+    // a library component is born with the same font default as Text (médio + sans)
+    const el = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      return { fontSize: e.fontSize, fontFamily: e.fontFamily };
+    });
+    expect(el.fontSize).toBe(20);
+    expect(el.fontFamily).toBeUndefined();
+
+    // double-click and type: the label renders with that font size (20px)
+    const center = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      return ed.getScreenPoint({ x: e.x + e.width / 2, y: e.y + e.height / 2 });
+    });
+    await page.mouse.dblclick(center.x, center.y);
+    await page.keyboard.type("S3 bucket");
+
+    // while editing, the invisible overlay is set to the caption font (20px)
+    const overlayFont = await page.evaluate(() => {
+      const overlay = document.querySelector(
+        ".text-overlay.label-overlay",
+      ) as HTMLElement | null;
+      return overlay ? parseFloat(overlay.style.fontSize) : null;
+    });
+    expect(overlayFont).toBe(20);
+
+    await page.keyboard.press("Enter");
+
+    const after = await page.evaluate(() => {
+      const e = (window as any).__editor__.getSnapshot().doc.elements[0];
+      return { label: e.label };
+    });
+    expect(after.label).toBe("S3 bucket");
+  });
+
+  test("adding a caption does NOT shrink the component icon", async ({
+    page,
+  }) => {
+    await openLibraryWithAws(page);
+    await page.locator('.library-panel [data-component-id="s3"]').click();
+
+    // add a label
+    const center = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const e = ed.getSnapshot().doc.elements[0];
+      return ed.getScreenPoint({ x: e.x + e.width / 2, y: e.y + e.height / 2 });
+    });
+    await page.mouse.dblclick(center.x, center.y);
+    await page.keyboard.type("S3 bucket");
+    await page.keyboard.press("Escape");
+
+    const check = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+      const vb = (window as any).__elementVisualBounds__(ctx, el);
+      // elementBounds = raw x/y/w/h
+      const eb = { x1: el.x, y1: el.y, x2: el.x + el.width, y2: el.y + el.height };
+      return { vb, eb, label: el.label };
+    });
+
+    expect(check.label).toBe("S3 bucket");
+    // icon keeps its full size even WITH a caption (no 65% shrink)
+    expect(check.vb.x2 - check.vb.x1).toBeCloseTo(check.eb.x2 - check.eb.x1, 0);
+    expect(check.vb.y2 - check.vb.y1).toBeCloseTo(check.eb.y2 - check.eb.y1, 0);
+    // label text must live BELOW the icon bounds (outside the selection box)
+    const labelY = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const s = Math.min(Math.abs(el.width), Math.abs(el.height));
+      const cx = el.x + el.width / 2;
+      const cy = el.y + el.height / 2;
+      const gap = el.captionGap ?? 2;
+      const labelH = (el.fontSize ?? 20) * 1.25;
+      // icon keeps full size; label = icon bottom + gap + half label block
+      return cy + s / 2 + gap + labelH / 2;
+    });
+    expect(labelY).toBeGreaterThan(check.vb.y2);
   });
 
   test("component persists after reload", async ({ page, editorState }) => {

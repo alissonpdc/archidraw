@@ -1,5 +1,6 @@
 import type { Editor } from "./editor";
 import type { ArrowBinding, ArrowElement, Camera, Document, Element, LineElement } from "./types";
+import { addImportedImage } from "./importedImages";
 
 const STORAGE_KEY = "archidraw:workspace";
 export const SCHEMA_VERSION = 2;
@@ -70,43 +71,85 @@ const needsBindingMigration = (b: unknown): boolean =>
 /** view of an element's optional edge bindings (only lines/arrows have them) */
 type WithBindings = Partial<Pick<LineElement | ArrowElement, "startBinding" | "endBinding">>;
 
+/**
+ * migra elementos "image" legados (pré-unificação) para componentes de lib:
+ * o `src` vinha embutido no elemento; agora vira um item do grupo "Imported"
+ * (asset registrado) e o elemento passa a referenciar o componentId. Retorna
+ * null para imagens inválidas (sem src/dimensões), que são descartadas.
+ */
+function migrateLegacyImage(raw: Element): Element | null {
+  const legacy = raw as unknown as Record<string, unknown>;
+  if (legacy.type !== "image") return raw;
+  const item = addImportedImage({
+    src: typeof legacy.src === "string" ? legacy.src : "",
+    name: "Imported image",
+    naturalWidth:
+      typeof legacy.naturalWidth === "number" && legacy.naturalWidth > 0
+        ? legacy.naturalWidth
+        : typeof legacy.width === "number"
+          ? Math.abs(legacy.width)
+          : 1,
+    naturalHeight:
+      typeof legacy.naturalHeight === "number" && legacy.naturalHeight > 0
+        ? legacy.naturalHeight
+        : typeof legacy.height === "number"
+          ? Math.abs(legacy.height)
+          : 1,
+  });
+  if (!item) return null;
+  const { src: _src, naturalWidth: _w, naturalHeight: _h, ...rest } = legacy;
+  return {
+    ...(rest as Record<string, unknown>),
+    type: "component" as const,
+    componentId: item.id,
+    // autocontido: mantém o src no elemento para renderizar mesmo se o item
+    // de lib for removido (e preenche o bounds inteiro)
+    src: item.src,
+    fill: true,
+  } as unknown as Element;
+}
+
 /** fills style defaults on elements saved before strokeStyle/roughness/borderRadius existed */
 function normalizeDoc(doc: Document): Document {
   let changed = false;
-  const elements = doc.elements.map((el) => {
-    let next: Document["elements"][number] = el;
-    if (
-      el.strokeStyle === undefined ||
-      el.roughness === undefined ||
-      el.borderRadius === undefined
-    ) {
-      next = {
-        ...el,
-        strokeStyle: el.strokeStyle ?? ("solid" as const),
-        roughness: el.roughness ?? (0 as const),
-        borderRadius: el.borderRadius ?? 0,
-      };
-    }
-    const bindings = next as Element & WithBindings;
-    if (
-      needsBindingMigration(bindings.startBinding) ||
-      needsBindingMigration(bindings.endBinding)
-    ) {
-      next = {
-        ...next,
-        startBinding: needsBindingMigration(bindings.startBinding)
-          ? (migrateBinding(bindings.startBinding) as ArrowBinding)
-          : bindings.startBinding,
-        endBinding: needsBindingMigration(bindings.endBinding)
-          ? (migrateBinding(bindings.endBinding) as ArrowBinding)
-          : bindings.endBinding,
-      } as Element;
-    }
-    if (next !== el) {
-      changed = true;
-    }
-    return next;
-  });
+  const elements = doc.elements
+    .map(migrateLegacyImage)
+    .filter((el): el is Element => el !== null)
+    .map((el) => {
+      let next: Document["elements"][number] = el;
+      if (
+        el.strokeStyle === undefined ||
+        el.roughness === undefined ||
+        el.borderRadius === undefined
+      ) {
+        next = {
+          ...el,
+          strokeStyle: el.strokeStyle ?? ("solid" as const),
+          roughness: el.roughness ?? (0 as const),
+          borderRadius: el.borderRadius ?? 0,
+        };
+      }
+      const bindings = next as Element & WithBindings;
+      if (
+        needsBindingMigration(bindings.startBinding) ||
+        needsBindingMigration(bindings.endBinding)
+      ) {
+        next = {
+          ...next,
+          startBinding: needsBindingMigration(bindings.startBinding)
+            ? (migrateBinding(bindings.startBinding) as ArrowBinding)
+            : bindings.startBinding,
+          endBinding: needsBindingMigration(bindings.endBinding)
+            ? (migrateBinding(bindings.endBinding) as ArrowBinding)
+            : bindings.endBinding,
+        } as Element;
+      }
+      if (next !== el) {
+        changed = true;
+      }
+      return next;
+    })
+    .filter((el): el is Element => el !== null);
   return changed ? { ...doc, elements } : doc;
 }
 

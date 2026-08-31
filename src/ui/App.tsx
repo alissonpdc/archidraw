@@ -92,8 +92,11 @@ export function App() {
         return;
       }
       if (mod && e.key.toLowerCase() === "v") {
-        e.preventDefault();
-        editor.paste();
+        // NÃO prevenir default e NÃO ler o clipboard aqui: o browser dispara o
+        // evento `paste` nativo (tratado adiante) com os dados do clipboard do
+        // SO — inclusive imagens. Suprimir o keydown impediria esse evento, e
+        // `navigator.clipboard.read()` faz o Chrome (macOS) abrir o menu nativo
+        // "Paste" em vez de colar direto. Via única = evento `paste`.
         return;
       }
       if (mod && e.key.toLowerCase() === "g") {
@@ -141,6 +144,44 @@ export function App() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
+  }, []);
+
+  useEffect(() => {
+    const internalClipboardHas = () => {
+      try {
+        return localStorage.getItem("archidraw:clipboard") !== null;
+      } catch {
+        return false;
+      }
+    };
+
+    const onPaste = (e: ClipboardEvent) => {
+      // via única de colar: o browser dispara `paste` para Ctrl/Meta+V, item
+      // de menu "Paste" e clique direito → Paste, sempre com os dados do
+      // clipboard do SO. preventDefault em TODA chamada tratada (ou ignorada)
+      // evita o menu nativo "Paste" do macOS e a inserção default em alvo
+      // não-editável. Imagens externas têm prioridade; sem elas, cola o
+      // clipboard interno do app (localStorage); caso contrário, nada.
+      const tag = document.activeElement?.tagName;
+      if (tag === "TEXTAREA" || tag === "INPUT") return;
+      e.preventDefault();
+      const items = e.clipboardData?.items;
+      if (items) {
+        for (const item of items) {
+          if (item.kind === "file" && item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) editor.insertImage(file);
+            return;
+          }
+        }
+      }
+      // sem imagem externa: cola o clipboard interno do app (localStorage)
+      if (internalClipboardHas()) {
+        editor.paste();
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
   }, []);
 
   return (

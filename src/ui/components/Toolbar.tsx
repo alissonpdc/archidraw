@@ -1,11 +1,12 @@
 import type { Tool } from "../../core/types";
-import { Fragment } from "react";
+import { Fragment, useRef } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
 import {
   ArrowIcon,
   DiamondIcon,
   EllipseIcon,
   HandIcon,
+  ImageIcon,
   LibraryIcon,
   LineIcon,
   RectIcon,
@@ -32,6 +33,7 @@ export function Toolbar({
   onToggleLibrary?: () => void;
 }) {
   const snap = useEditor();
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="toolbar">
@@ -50,6 +52,14 @@ export function Toolbar({
       ))}
       <div className="toolbar-sep" />
       <button
+        className="tool-btn"
+        data-tip="Import Image"
+        aria-label="Import Image"
+        onClick={() => imageInputRef.current?.click()}
+      >
+        <ImageIcon size={18} />
+      </button>
+      <button
         className={`tool-btn ${libraryOpen ? "active" : ""}`}
         data-tip="Component Library (B)"
         aria-label="Component Library"
@@ -57,6 +67,18 @@ export function Toolbar({
       >
         <LibraryIcon size={18} />
       </button>
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        data-testid="image-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) editor.insertImage(file);
+          e.target.value = "";
+        }}
+      />
     </div>
   );
 }

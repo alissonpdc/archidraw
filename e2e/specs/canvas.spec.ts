@@ -1,4 +1,11 @@
-import { test, expect, drag, selectTool, open } from "../fixtures";
+import {
+  test,
+  expect,
+  drag,
+  selectTool,
+  open,
+  pressPaste,
+} from "../fixtures";
 
 async function createRect(
   page: import("@playwright/test").Page,
@@ -206,14 +213,23 @@ test.describe("clipboard", () => {
     await page.mouse.click(150, 140);
 
     await page.keyboard.press("Control+c");
-    await page.keyboard.press("Control+v");
+    await pressPaste(page);
 
-    let n = await page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length);
-    expect(n).toBe(2);
+    // paste interno agora é tratado no evento `paste` nativo (Meta+V no menu
+    // macOS; em headless o Control+V não dispara o evento), então aguarda o
+    // elemento duplicar
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
+      )
+      .toBe(2);
 
-    await page.keyboard.press("Control+v");
-    n = await page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length);
-    expect(n).toBe(3);
+    await pressPaste(page);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
+      )
+      .toBe(3);
   });
 
   test("cut removes and paste restores", async ({ page }) => {
@@ -226,9 +242,12 @@ test.describe("clipboard", () => {
     let n = await page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length);
     expect(n).toBe(0);
 
-    await page.keyboard.press("Control+v");
-    n = await page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length);
-    expect(n).toBe(1);
+    await pressPaste(page);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
+      )
+      .toBe(1);
   });
 
   test("paste works across tabs", async ({ page }) => {
@@ -239,12 +258,15 @@ test.describe("clipboard", () => {
     await page.keyboard.press("Control+c");
 
     await page.click('[data-testid="tab-add"]'); // new empty tab
-    await page.keyboard.press("Control+v");
+    await pressPaste(page);
 
-    const n = await page.evaluate(() =>
-      window.__editor__.getSnapshot().doc.elements.length,
-    );
-    expect(n).toBe(1);
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          window.__editor__.getSnapshot().doc.elements.length,
+        ),
+      )
+      .toBe(1);
   });
 });
 

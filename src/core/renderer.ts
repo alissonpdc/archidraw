@@ -473,6 +473,9 @@ function iconPaths(componentId: string): Path2D[] {
   return paths;
 }
 
+// assets (ícones AWS, libs importadas e imagens raster) são desenhados pelo
+// pipeline de imagens em componentAssets — nenhum cache duplicado aqui.
+
 /**
  * closed perimeter of a rounded rectangle as a sampled polyline loop
  * (first point == last point), so hand-drawn strokes follow the corners.
@@ -597,108 +600,134 @@ export function textOffsets(el: Element): { padX: number; padY: number } {
   };
 }
 
-/** icon geometry shared between canvas rendering and label placement */
-export function componentIconLayout(el: ComponentElement) {
-  const s = Math.min(Math.abs(el.width), Math.abs(el.height));
-  const hasLabel = !!el.label && el.label.trim() !== "";
-  const cx = el.x + el.width / 2;
-  const cy = el.y + el.height / 2;
-  const baseGap = el.captionGap ?? ICON_LABEL_GAP;
+/**
+ * shared caption-positioning for elements whose label lives OUTSIDE the icon
+ * (library components) or image rect (pasted png): the label block center is
+ * placed on the requested caption side even when there is NO text yet — so
+ * the edit caret starts exactly where the caption will render (instead of the
+ * element center, which shifted the text on the first keystroke).
+ */
+function captionLayout(
+  el: Element & { label?: string },
+  box: { x: number; y: number; width: number; height: number },
+  labelFont: number,
+) {
   const captionPos = el.captionPosition ?? "bottom";
+  const baseGap = el.captionGap ?? ICON_LABEL_GAP;
   const offset =
     captionPos === "top" ? (el.captionOffsetTop ?? 0) :
     captionPos === "bottom" ? (el.captionOffsetBottom ?? 0) :
     captionPos === "left" ? (el.captionOffsetLeft ?? 0) :
     (el.captionOffsetRight ?? 0);
   const gap = baseGap + offset;
-  const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
   const labelH = labelFont * 1.25;
+  const lines = el.label ? el.label.split("\n") : [];
+  const hasLabel = lines.length > 0 && lines.some((l) => l.trim() !== "");
+  const lh = lineHeight(el);
+  const step = labelFont * lh;
+  const n = Math.max(lines.length, 1);
+  const tw = hasLabel
+    ? measureText(el.label!, labelFont, el.fontFamily, el.bold, el.italic).width
+    : 0;
+  const vShift = hasLabel ? ((n - 1) * step) / 2 : 0;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
 
-  // icon size is ALWAYS fixed proportion of element, never affected by fontSize
-  const iconSizeFixed = hasLabel ? Math.max(s * 0.65, 8) : s;
-
-  if (!hasLabel) {
-    return {
-      hasLabel,
-      iconX: cx - iconSizeFixed / 2,
-      iconY: cy - iconSizeFixed / 2,
-      iconSize: iconSizeFixed,
-      labelCx: cx,
-      labelCy: cy,
-      labelFont,
-      captionPosition: captionPos,
-    };
-  }
-
-  if (captionPos === "left" || captionPos === "right") {
-    // horizontal layout: icon and label side by side, edge-to-edge
-    const { width: tw } = measureText(el.label!, labelFont);
-    const iconY = cy - iconSizeFixed / 2;
-    const totalW = iconSizeFixed + gap + tw;
-    let iconX: number;
-    let labelCx: number;
-    if (captionPos === "left") {
-      // label on left, icon on right
-      iconX = cx + totalW / 2 - iconSizeFixed;
-      labelCx = cx - totalW / 2 + tw / 2;
-    } else {
-      // label on right, icon on left
-      iconX = cx - totalW / 2;
-      labelCx = cx + totalW / 2 - tw / 2;
-    }
-    return {
-      hasLabel,
-      iconX,
-      iconY,
-      iconSize: iconSizeFixed,
-      labelCx,
-      labelCy: cy,
-      labelFont,
-      captionPosition: captionPos,
-    };
-  }
-
-  // vertical layout (top or bottom): icon takes fixed space, label gets remaining
-  const totalContentH = iconSizeFixed + gap + labelH;
-  const topOffset = cy - totalContentH / 2;
+  // single-line block sits fully outside the box: block center starts at the
+  // box edge + gap on the label side (multi-line adds vShift around it)
+  let labelCx = cx;
+  let labelCy = cy;
   if (captionPos === "top") {
-    return {
-      hasLabel,
-      iconX: cx - iconSizeFixed / 2,
-      iconY: topOffset + labelH + gap,
-      iconSize: iconSizeFixed,
-      labelCx: cx,
-      labelCy: topOffset + labelH / 2,
-      labelFont,
-      captionPosition: captionPos,
-    };
+    labelCy = box.y - gap - vShift - labelH / 2;
+  } else if (captionPos === "bottom") {
+    labelCy = box.y + box.height + gap + vShift + labelH / 2;
+  } else if (captionPos === "left") {
+    labelCx = box.x - gap - tw / 2;
+  } else {
+    labelCx = box.x + box.width + gap + tw / 2;
   }
-  // bottom (default)
-  return {
-    hasLabel,
-    iconX: cx - iconSizeFixed / 2,
-    iconY: topOffset,
-    iconSize: iconSizeFixed,
-    labelCx: cx,
-    labelCy: topOffset + iconSizeFixed + gap + labelH / 2,
+  return { hasLabel, labelCx, labelCy };
+}
+
+// ---- raster asset cache (HTMLImageElement from data URLs) ----------------
+// usado por imagens autocontidas (src embebido no elemento) quando o item de
+// lib já foi removido; assets registrados (AWS/libs) vêm de componentAssets.
+const imageCache = new Map<string, HTMLImageElement>();
+
+function getCachedImage(src: string): HTMLImageElement | null {
+  let img = imageCache.get(src);
+  if (!img) {
+    // cacheia imediatamente (mesmo enquanto carrega): descartar sem cachear
+    // reinicia o load a cada frame do loop RAF e a imagem nunca "complete"
+    img = new Image();
+    img.src = src;
+    imageCache.set(src, img);
+  }
+  return img.complete && img.naturalWidth > 0 ? img : null;
+}
+
+/**
+ * icon/caption geometry shared between canvas rendering, label placement and
+ * SVG export. Componentes de lib (AWS/importados) desenham o ícone no menor
+ * lado, centralizado; imagens raster importadas (item de lib com `fill`)
+ * preenchem o bounds inteiro do elemento — o mesmo modelo de legenda.
+ */
+export function componentIconLayout(el: ComponentElement) {
+  const cx = el.x + el.width / 2;
+  const cy = el.y + el.height / 2;
+  // o elemento carrega seu próprio fill (imagens autocontidas); fallback para
+  // o item de lib quando o flag ainda estiver lá
+  const fill = el.fill === true || getLibraryItem(el.componentId)?.fill === true;
+  const iconWidth = fill
+    ? Math.abs(el.width)
+    : Math.min(Math.abs(el.width), Math.abs(el.height));
+  const iconHeight = fill ? Math.abs(el.height) : iconWidth;
+  const iconX = fill ? Math.min(el.x, el.x + el.width) : cx - iconWidth / 2;
+  const iconY = fill ? Math.min(el.y, el.y + el.height) : cy - iconHeight / 2;
+  const labelFont = el.fontSize ?? COMPONENT_LABEL_FONT;
+  const a = captionLayout(
+    el,
+    { x: iconX, y: iconY, width: iconWidth, height: iconHeight },
     labelFont,
-    captionPosition: captionPos,
+  );
+  return {
+    hasLabel: a.hasLabel,
+    iconX,
+    iconY,
+    iconWidth,
+    iconHeight,
+    labelCx: a.labelCx,
+    labelCy: a.labelCy,
+    labelFont,
+    captionPosition: el.captionPosition ?? "bottom",
   };
 }
 
 function drawComponentIcon(ctx: CanvasRenderingContext2D, el: ComponentElement) {
-  const { iconX, iconY, iconSize } = componentIconLayout(el);
+  const { iconX, iconY, iconWidth, iconHeight } = componentIconLayout(el);
 
-  // official bundled icon (AWS Architecture Icons) when available
-  const img = getComponentImage(el.componentId);
+  // official bundled icon (AWS Architecture Icons) when available — includes
+  // libs importadas (.excalidrawlib) e imagens raster registradas como asset.
+  // Imagens autocontidas (src no elemento) independent do registro: renderizam
+  // mesmo se o item de lib tiver sido removido
+  const img = getComponentImage(el.componentId) ??
+    (el.src ? getCachedImage(el.src) : null);
   if (img && img.complete && img.naturalWidth > 0) {
-    ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
+    ctx.drawImage(img, iconX, iconY, iconWidth, iconHeight);
+    return;
+  }
+  if (el.src) {
+    // placeholder enquanto o raster embebido ainda carrega
+    ctx.save();
+    ctx.fillStyle = "#e0e0e0";
+    ctx.fillRect(iconX, iconY, iconWidth, iconHeight);
+    ctx.restore();
     return;
   }
 
   const paths = iconPaths(el.componentId);
   if (paths.length === 0) return;
-  const scale = iconSize / 24;
+  const scale = iconWidth / 24;
   ctx.save();
   ctx.translate(iconX, iconY);
   ctx.scale(scale, scale);
@@ -876,55 +905,50 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
   let x2 = eb.x2;
   let y2 = eb.y2;
 
-  if ("label" in el && el.label) {
-    const fontSize = el.fontSize ?? (el.type === "component" ? 12 : 14);
+  // component labels live OUTSIDE the element and do NOT expand the
+  // selection, so the selection box/handles/group bounds must cover only the
+  // icon/pixels — not the caption text. Only free-form shapes clip text.
+  if ("label" in el && el.label && el.type !== "component") {
+    const fontSize = el.fontSize ?? 20;
     ctx.font = resolveFont(el, fontSize);
     const lines = el.label.split("\n");
-    const tw =
-      el.type === "component"
-        ? ctx.measureText(el.label).width
-        : Math.max(...lines.map((l) => ctx.measureText(l).width));
+    const tw = Math.max(...lines.map((l) => ctx.measureText(l).width));
     const lh = lineHeight(el);
     const th =
-      el.type === "component"
+      lines.length === 1
         ? fontSize * 1.25
-        : lines.length === 1
-          ? fontSize * 1.25
-          : (lines.length - 1) * fontSize * lh + fontSize;
-    if (el.type === "component") {
-      const layout = componentIconLayout(el);
-      x1 = Math.min(x1, layout.iconX);
-      y1 = Math.min(y1, layout.iconY);
-      x2 = Math.max(x2, layout.iconX + layout.iconSize);
-      y2 = Math.max(y2, layout.iconY + layout.iconSize);
-      const lx = layout.labelCx - tw / 2;
-      const ly = layout.labelCy - th / 2;
-      x1 = Math.min(x1, lx);
-      y1 = Math.min(y1, ly);
-      x2 = Math.max(x2, lx + tw);
-      y2 = Math.max(y2, ly + th);
-    } else {
-      const textAlign = el.textAlign ?? "center";
-      const textVAlign = el.textVAlign ?? "middle";
-      const { padX: pad, padY } = textOffsets(el);
-      let lx: number;
-      let ly: number;
-      if (textAlign === "left") lx = el.x + pad;
-      else if (textAlign === "right") lx = el.x + el.width - pad - tw;
-      else lx = el.x + (el.width - tw) / 2;
-      if (textVAlign === "top") ly = el.y + padY;
-      else if (textVAlign === "bottom") ly = el.y + el.height - padY - th;
-      else ly = el.y + (el.height - th) / 2;
-      // clip the text rect to the element bounds: text fully contained must NOT expand them
-      const tx1 = Math.min(Math.max(lx, x1), x2);
-      const ty1 = Math.min(Math.max(ly, y1), y2);
-      const tx2 = Math.max(tx1, Math.min(lx + tw, x2));
-      const ty2 = Math.max(ty1, Math.min(ly + th, y2));
-      x1 = Math.min(x1, tx1);
-      y1 = Math.min(y1, ty1);
-      x2 = Math.max(x2, tx2);
-      y2 = Math.max(y2, ty2);
-    }
+        : (lines.length - 1) * fontSize * lh + fontSize;
+    const textAlign = el.textAlign ?? "center";
+    const textVAlign = el.textVAlign ?? "middle";
+    const { padX: pad, padY } = textOffsets(el);
+    let lx: number;
+    let ly: number;
+    if (textAlign === "left") lx = el.x + pad;
+    else if (textAlign === "right") lx = el.x + el.width - pad - tw;
+    else lx = el.x + (el.width - tw) / 2;
+    if (textVAlign === "top") ly = el.y + padY;
+    else if (textVAlign === "bottom") ly = el.y + el.height - padY - th;
+    else ly = el.y + (el.height - th) / 2;
+    // clip the text rect to the element bounds: text fully contained must NOT expand them
+    const tx1 = Math.min(Math.max(lx, x1), x2);
+    const ty1 = Math.min(Math.max(ly, y1), y2);
+    const tx2 = Math.max(tx1, Math.min(lx + tw, x2));
+    const ty2 = Math.max(ty1, Math.min(ly + th, y2));
+    x1 = Math.min(x1, tx1);
+    y1 = Math.min(y1, ty1);
+    x2 = Math.max(x2, tx2);
+    y2 = Math.max(y2, ty2);
+  }
+
+  // component: the icon may be smaller than the element bounds (shrinks when
+  // a label is present, or element is non-square); raster images (fill) cover
+  // the full bounds. Selection box must wrap only the visible icon/pixels.
+  if (el.type === "component") {
+    const layout = componentIconLayout(el);
+    x1 = layout.iconX;
+    y1 = layout.iconY;
+    x2 = layout.iconX + layout.iconWidth;
+    y2 = layout.iconY + layout.iconHeight;
   }
 
   return { x1, y1, x2, y2 };
@@ -1026,7 +1050,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
       else if (textVAlign === "bottom") cy = el.y + el.height - padY;
       else cy = el.y + el.height / 2;
     }
-    const fontSize = el.fontSize ?? 14;
+    const fontSize = el.fontSize ?? 20;
     ctx.font = resolveFont(el, fontSize);
     const lh = lineHeight(el);
     const lines = el.label.split("\n");
@@ -1036,7 +1060,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     // (never hardcoded — matches the live canvas background via the theme)
     if (el.type === "line" || el.type === "arrow") {
       const pad = Math.max(2, fontSize * 0.3);
-      const tw = Math.max(...lines.map((l) => ctx.measureText(l).width), 1);
+      const tw = Math.max(...lines.map((l: string) => ctx.measureText(l).width), 1);
       const bh = (lines.length - 1) * step + fontSize;
       const blockCy =
         textVAlign === "top"

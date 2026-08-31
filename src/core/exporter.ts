@@ -7,6 +7,17 @@ import { componentAssetDataUri, waitForComponentImages } from "./componentAssets
 const EXPORT_PADDING = 20;
 const PNG_SCALE = 2;
 
+/** corner radius (scene px) of a rectangle/component — same rule as the renderer */
+function radiusOf(el: Element): number {
+  if ((el.type !== "rectangle" && el.type !== "component") || el.borderRadius <= 0) {
+    return 0;
+  }
+  return (
+    (Math.min(100, el.borderRadius) / 100) *
+    (Math.min(Math.abs(el.width), Math.abs(el.height)) / 2)
+  );
+}
+
 function contentBounds(elements: Element[]): Bounds | null {
   if (elements.length === 0) return null;
   let x1 = Infinity;
@@ -32,6 +43,16 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/** espera um data URI de imagem decodificar (imagens autocontidas no elemento) */
+function waitForDataUri(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = src;
+  });
+}
+
 export function slugify(name: string): string {
   return (
     name
@@ -55,6 +76,16 @@ export async function exportPNG(doc: Document, filename: string): Promise<boolea
       .filter((el) => el.type === "component")
       .map((el) => (el as { componentId: string }).componentId),
   );
+  // imagens autocontidas (src embebido) também precisam estar decodificadas
+  const embeddedSrcs: string[] = [];
+  for (const el of doc.elements) {
+    if (el.type === "component" && typeof el.src === "string" && el.src !== "") {
+      embeddedSrcs.push(el.src);
+    }
+  }
+  if (embeddedSrcs.length > 0) {
+    await Promise.all(embeddedSrcs.map(waitForDataUri));
+  }
 
   const w = bounds.x2 - bounds.x1 + EXPORT_PADDING * 2;
   const h = bounds.y2 - bounds.y1 + EXPORT_PADDING * 2;
@@ -137,34 +168,26 @@ export function exportSVG(doc: Document, filename: string): boolean {
     const opacity = el.opacity < 1 ? ` opacity="${el.opacity}"` : "";
     const fill = el.backgroundColor === "transparent" ? "none" : el.backgroundColor;
     if (el.type === "rectangle") {
-      const r =
-        el.borderRadius > 0
-          ? Math.min(100, el.borderRadius) / 100 *
-            (Math.min(Math.abs(el.width), Math.abs(el.height)) / 2)
-          : 0;
+      const r = radiusOf(el);
       parts.push(
         `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="${fill}" ${stroke}${dash}${opacity}/>`
       );
     } else if (el.type === "component") {
-      const r =
-        el.borderRadius > 0
-          ? Math.min(100, el.borderRadius) / 100 *
-            (Math.min(Math.abs(el.width), Math.abs(el.height)) / 2)
-          : 0;
+      const r = radiusOf(el);
       parts.push(
         `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="${fill}" ${stroke}${dash}${opacity}/>`
       );
       const layout = componentIconLayout(el);
-      const dataUri = componentAssetDataUri(el.componentId);
+      const dataUri = el.src ?? componentAssetDataUri(el.componentId);
       if (dataUri) {
         parts.push(
-          `<image x="${layout.iconX}" y="${layout.iconY}" width="${layout.iconSize}" height="${layout.iconSize}" href="${dataUri}"${opacity}/>`
+          `<image x="${layout.iconX}" y="${layout.iconY}" width="${layout.iconWidth}" height="${layout.iconHeight}" href="${escapeXml(dataUri)}"${opacity}/>`
         );
       } else {
         // fallback: hand-drawn glyph paths (24x24 viewBox)
         const item = getLibraryItem(el.componentId);
         if (item && item.icon && item.icon.length > 0) {
-          const scale = layout.iconSize / 24;
+          const scale = layout.iconWidth / 24;
           parts.push(
             `<g transform="translate(${layout.iconX} ${layout.iconY}) scale(${scale})" fill="none" stroke="${el.strokeColor}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${opacity}>${item.icon
               .map((d) => `<path d="${d}"/>`)

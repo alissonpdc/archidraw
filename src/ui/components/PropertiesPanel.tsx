@@ -21,7 +21,12 @@ const BASE_COLORS: { name: string; color: string }[] = [
 ];
 
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
-const FONT_SIZES = [16, 20, 28, 36];
+const FONT_SIZES = [
+  { label: "S", value: 16 },
+  { label: "M", value: 20 },
+  { label: "L", value: 28 },
+  { label: "XL", value: 36 },
+];
 const FONT_FAMILIES = [
   { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', glyph: "Aa" },
   { label: "Sketch", value: '"Architects Daughter", cursive', glyph: "Aa" },
@@ -456,6 +461,8 @@ export function PropertiesPanel() {
       el.type === "component",
   );
   const hasComponent = selected.some((el) => el.type === "component");
+  /** elements that use the icon+caption label model (components — incl. imagens) */
+  const hasCaption = hasComponent;
   const hasRectangle = selected.some((el) => el.type === "rectangle");
   const hasDiamond = selected.some((el) => el.type === "diamond");
   const hasEllipse = selected.some((el) => el.type === "ellipse");
@@ -478,7 +485,7 @@ export function PropertiesPanel() {
       textEls.length > 0 &&
       textEls.every(
         (el) =>
-          (el.fontSize ?? (el.type === "component" ? 12 : 14)) === v,
+          (el.fontSize ?? (el.type === "component" ? 12 : 20)) === v,
       )
     );
   };
@@ -701,18 +708,18 @@ export function PropertiesPanel() {
             </Group>
           )}
 
-          <Group title="Thickness">
-            {STROKE_WIDTHS.map((w) => (
-              <button
-                key={w}
-                className={`size-btn ${allStroke(w) ? "active" : ""}`}
-                aria-label={`Thickness ${w}`}
-                onClick={() => apply({ strokeWidth: w })}
-              >
-                <span className="thickness-preview" style={{ height: w + 1 }} />
-              </button>
-            ))}
-          </Group>
+<Group title="Thickness">
+          {STROKE_WIDTHS.map((w) => (
+            <button
+              key={w}
+              className={`size-btn ${allStroke(w) ? "active" : ""}`}
+              aria-label={`Thickness ${w}`}
+              onClick={() => apply({ strokeWidth: w })}
+            >
+              <span className="thickness-preview" style={{ height: w + 1 }} />
+            </button>
+          ))}
+        </Group>
 
           {hasRectangle && (
             <Group title="Borders">
@@ -789,13 +796,12 @@ export function PropertiesPanel() {
           <Group title="Size">
             {FONT_SIZES.map((f) => (
               <button
-                key={f}
-                className={`size-btn text-btn ${allFont(f) ? "active" : ""}`}
-                aria-label={`Font ${f}px`}
-                style={{ fontSize: Math.max(10, f / 2 - 2) }}
-                onClick={() => apply({ fontSize: f })}
+                key={f.value}
+                className={`size-btn text-btn ${allFont(f.value) ? "active" : ""}`}
+                aria-label={`Font ${f.label} (${f.value}px)`}
+                onClick={() => apply({ fontSize: f.value })}
               >
-                Aa
+                {f.label}
               </button>
             ))}
           </Group>
@@ -930,7 +936,7 @@ export function PropertiesPanel() {
             />
           </Group>
 
-          {hasComponent && (
+          {hasCaption && (
             <>
               <Group title="Caption position">
                 {CAPTION_POSITIONS.map((cp) => (
