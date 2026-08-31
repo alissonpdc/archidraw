@@ -168,7 +168,7 @@ export function CanvasHost() {
         let cy: number;
         let align: "left" | "center" | "right";
         let vAlignMode: "top" | "middle" | "bottom";
-        if (el.type === "component") {
+        if (el.type === "component" || el.type === "image") {
           const layout = componentIconLayout(el);
           fontSize = layout.labelFont;
           hx = layout.labelCx;
@@ -272,7 +272,7 @@ export function CanvasHost() {
   let labelPos: Point | null = null;
   let labelFontSize = 14;
   if (isEditingLabel && editingEl) {
-    if (editingEl.type === "component") {
+    if (editingEl.type === "component" || editingEl.type === "image") {
       const layout = componentIconLayout(editingEl);
       labelPos = {
         x: layout.labelCx * cam.zoom + cam.scrollX,

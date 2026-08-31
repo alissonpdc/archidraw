@@ -1,4 +1,4 @@
-import type { ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
+import type { ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, ImageElement, Point } from "./types";
 import {
   arrowPoints,
   bindingPoint,
@@ -613,8 +613,9 @@ export function textOffsets(el: Element): { padX: number; padY: number } {
   };
 }
 
-/** icon geometry shared between canvas rendering and label placement */
-export function componentIconLayout(el: ComponentElement) {
+/** icon/caption geometry shared between canvas rendering and label placement.
+ *  Used by components and by added/pasted images (same caption model). */
+export function componentIconLayout(el: ComponentElement | ImageElement) {
   const s = Math.min(Math.abs(el.width), Math.abs(el.height));
   const hasLabel = !!el.label && el.label.trim() !== "";
   const cx = el.x + el.width / 2;
@@ -905,21 +906,22 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
   let y2 = eb.y2;
 
   if ("label" in el && el.label) {
-    const fontSize = el.fontSize ?? (el.type === "component" ? 12 : 14);
+    const fontSize =
+      el.fontSize ?? (el.type === "component" || el.type === "image" ? 12 : 14);
     ctx.font = resolveFont(el, fontSize);
     const lines = el.label.split("\n");
     const tw =
-      el.type === "component"
+      el.type === "component" || el.type === "image"
         ? ctx.measureText(el.label).width
         : Math.max(...lines.map((l) => ctx.measureText(l).width));
     const lh = lineHeight(el);
     const th =
-      el.type === "component"
+      el.type === "component" || el.type === "image"
         ? fontSize * 1.25
         : lines.length === 1
           ? fontSize * 1.25
           : (lines.length - 1) * fontSize * lh + fontSize;
-    if (el.type === "component") {
+    if (el.type === "component" || el.type === "image") {
       const layout = componentIconLayout(el);
       x1 = Math.min(x1, layout.iconX);
       y1 = Math.min(y1, layout.iconY);
@@ -1002,7 +1004,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const underlineOn = !!el.underline;
-  if (el.type === "component") {
+  if (el.type === "component" || el.type === "image") {
     const layout = componentIconLayout(el);
     ctx.font = resolveFont(el, layout.labelFont);
     const fs = layout.labelFont;

@@ -1,4 +1,30 @@
-import { test, expect, open, drag, selectTool } from "../fixtures";
+import { type Page, test, expect, open, drag, selectTool } from "../fixtures";
+
+/** inserts a 1x1 red PNG via the editor API and waits for it to be selected */
+async function insertImage(page: Page) {
+  await page.evaluate(() => {
+    const ed = (window as any).__editor__;
+    const pngBase64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+    const byteStr = atob(pngBase64);
+    const arr = new Uint8Array(byteStr.length);
+    for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
+    const blob = new Blob([arr], { type: "image/png" });
+    const file = new File([blob], "test.png", { type: "image/png" });
+    ed.insertImage(file);
+  });
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__editor__.getSnapshot().doc.elements.length))
+    .toBe(1);
+  await expect(page.locator(".properties-panel")).toBeVisible();
+}
+
+/** group titles of the currently visible tab content */
+async function panelGroupTitles(page: Page): Promise<string[]> {
+  return page
+    .locator(".panel-tab-content:not(.hidden) .panel-subtitle")
+    .allTextContents();
+}
 
 test.describe("image features", () => {
   test("Open Image button is present in the toolbar", async ({ page }) => {
@@ -164,5 +190,47 @@ test.describe("image features", () => {
     expect(centerPx[0]).toBeGreaterThan(180);
     expect(centerPx[1]).toBeLessThan(120);
     expect(centerPx[2]).toBeLessThan(120);
+  });
+
+  test("Style tab of a selected image only offers Opacity", async ({ page }) => {
+    await open(page);
+    await insertImage(page);
+
+    // no stroke/thickness/fill groups for images
+    await expect(page.getByRole("button", { name: "Stroke color Blue" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Thickness 1" })).toHaveCount(0);
+    await expect(page.getByRole("slider", { name: "Opacity" })).toBeVisible();
+    expect(await panelGroupTitles(page)).toEqual(["Opacity"]);
+  });
+
+  test("Text options of an image match those of a library component", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+    await page.locator(".panel-tab", { hasText: "Text" }).click();
+    const imageTitles = await panelGroupTitles(page);
+    expect(imageTitles).toEqual([
+      "Text color",
+      "Size",
+      "Family",
+      "Style",
+      "Line spacing",
+      "Caption position",
+      "Text offset (px)",
+    ]);
+
+    // same list as a component from the library (img de lib)
+    await page.evaluate(() => (window as any).__editor__.insertComponent("ec2"));
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as any).__editor__.getSnapshot().doc.elements.at(-1).type,
+        ),
+      )
+      .toBe("component");
+    const componentTitles = await panelGroupTitles(page);
+    expect(imageTitles).toEqual(componentTitles);
   });
 });

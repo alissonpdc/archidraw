@@ -861,7 +861,8 @@ export class Editor {
         hitEl.type === "ellipse" ||
         hitEl.type === "line" ||
         hitEl.type === "arrow" ||
-        hitEl.type === "component")
+        hitEl.type === "component" ||
+        hitEl.type === "image")
     ) {
       if (!this.selectedIds.has(hitEl.id)) {
         this.selectedIds = new Set([hitEl.id]);

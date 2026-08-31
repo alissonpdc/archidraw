@@ -456,6 +456,10 @@ export function PropertiesPanel() {
       el.type === "component",
   );
   const hasComponent = selected.some((el) => el.type === "component");
+  const hasImage = selected.some((el) => el.type === "image");
+  /** elements that use the icon+caption label model (components and images) */
+  const hasCaption = hasComponent || hasImage;
+  const isOnlyImage = selected.length > 0 && selected.every((el) => el.type === "image");
   const hasRectangle = selected.some((el) => el.type === "rectangle");
   const hasDiamond = selected.some((el) => el.type === "diamond");
   const hasEllipse = selected.some((el) => el.type === "ellipse");
@@ -478,7 +482,7 @@ export function PropertiesPanel() {
       textEls.length > 0 &&
       textEls.every(
         (el) =>
-          (el.fontSize ?? (el.type === "component" ? 12 : 14)) === v,
+          (el.fontSize ?? (el.type === "component" || el.type === "image" ? 12 : 14)) === v,
       )
     );
   };
@@ -557,6 +561,7 @@ export function PropertiesPanel() {
       </div>
 
       <div ref={styleRef} className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
+{!isOnlyImage && (
         <Group title="Stroke">
           <PaletteGrid
             current={selected[0].strokeColor}
@@ -564,6 +569,7 @@ export function PropertiesPanel() {
             label="Stroke color"
           />
         </Group>
+      )}
 
           {hasFillable && (
             <Group title="Fill">
@@ -701,18 +707,20 @@ export function PropertiesPanel() {
             </Group>
           )}
 
-          <Group title="Thickness">
-            {STROKE_WIDTHS.map((w) => (
-              <button
-                key={w}
-                className={`size-btn ${allStroke(w) ? "active" : ""}`}
-                aria-label={`Thickness ${w}`}
-                onClick={() => apply({ strokeWidth: w })}
-              >
-                <span className="thickness-preview" style={{ height: w + 1 }} />
-              </button>
-            ))}
-          </Group>
+{!isOnlyImage && (
+        <Group title="Thickness">
+          {STROKE_WIDTHS.map((w) => (
+            <button
+              key={w}
+              className={`size-btn ${allStroke(w) ? "active" : ""}`}
+              aria-label={`Thickness ${w}`}
+              onClick={() => apply({ strokeWidth: w })}
+            >
+              <span className="thickness-preview" style={{ height: w + 1 }} />
+            </button>
+          ))}
+        </Group>
+      )}
 
           {hasRectangle && (
             <Group title="Borders">
@@ -930,7 +938,7 @@ export function PropertiesPanel() {
             />
           </Group>
 
-          {hasComponent && (
+          {hasCaption && (
             <>
               <Group title="Caption position">
                 {CAPTION_POSITIONS.map((cp) => (
