@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { editor } from "./hooks/useEditor";
 import { CanvasHost } from "./components/CanvasHost";
 import { Toolbar } from "./components/Toolbar";
@@ -26,6 +26,9 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
 export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  // token de deduplicação entre as duas vias de colar (keydown fallback e o
+  // evento `paste`): a via que resolver primeiro invalida a outra
+  const pasteToken = useRef(0);
 
   useEffect(() => {
     const openShortcuts = () => setShortcutsOpen(true);
@@ -40,33 +43,6 @@ export function App() {
     const isTextEditing = () => {
       const tag = document.activeElement?.tagName;
       return tag === "TEXTAREA" || tag === "INPUT";
-    };
-
-    /** cola via atalho: lê o clipboard do SO p/ imagem externa e, quando não
-     *  existe (ou sem permissão de leitura), cai no clipboard interno do app.
-     *  Uma única via → sem corrida com o evento `paste` (que antes duplicava:
-     *  `img correta` + `item lixo`). */
-    const pasteFromKeyboard = async () => {
-      let insertedImage = false;
-      try {
-        const items = navigator.clipboard
-          ? await navigator.clipboard.read()
-          : [];
-        for (const item of items) {
-          for (const type of item.types) {
-            if (type.startsWith("image/")) {
-              const blob = await item.getType(type);
-              editor.insertImage(
-                new File([blob], "pasted-image", { type }),
-              );
-              insertedImage = true;
-            }
-          }
-        }
-      } catch {
-        // sem permissão de leitura: mantém apenas o clipboard interno
-      }
-      if (!insertedImage) editor.paste();
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -119,11 +95,34 @@ export function App() {
         return;
       }
       if (mod && e.key.toLowerCase() === "v") {
-        // decide o que colar de forma determinística (leitura assíncrona do
-        // clipboard do SO). preventDefault evita o evento `paste` nativo —
-        // sem corrida entre keydown e paste event => sem paste duplicado.
-        e.preventDefault();
-        void pasteFromKeyboard();
+        // NÃO prevenir default aqui: no macOS Chrome isso suprime o evento
+        // `paste` nativo e abre o menu "Paste" do sistema em vez de colar. A
+        // via primária é o evento `paste` (tratado adiante), que carrega as
+        // imagens do clipboard do SO. Fallback abaixo cobre os casos onde o
+        // evento `paste` não chega (ex.: headless / Ctrl+V no macOS), usando
+        // o token para não colar 2x quando o `paste` também disparar.
+        const token = ++pasteToken.current;
+        void (async () => {
+          let imageFile: File | null = null;
+          try {
+            const items = navigator.clipboard
+              ? await navigator.clipboard.read()
+              : [];
+            for (const item of items) {
+              for (const type of item.types) {
+                if (type.startsWith("image/")) {
+                  const blob = await item.getType(type);
+                  imageFile = new File([blob], "pasted-image", { type });
+                }
+              }
+            }
+          } catch {
+            // sem permissão de leitura: mantém apenas o clipboard interno
+          }
+          if (pasteToken.current !== token) return; // `paste` já assumiu
+          if (imageFile) editor.insertImage(imageFile);
+          else editor.paste();
+        })();
         return;
       }
       if (mod && e.key.toLowerCase() === "g") {
@@ -183,9 +182,13 @@ export function App() {
     };
 
     const onPaste = (e: ClipboardEvent) => {
-      // via secundária (ex.: item de menu "Paste", ou browsers sem API de
-      // clipboard no keydown): imagens externas têm prioridade e, sem elas,
-      // cola o clipboard interno do app
+      // via nativa de colar: dispara para Ctrl/Meta+V, item de menu "Paste" e
+      // clique direito → Paste, sempre com os dados do clipboard do SO.
+      // cancelar o fallback do keydown garante que só uma via insere (token).
+      // Imagens externas têm prioridade; sem elas, cola o clipboard interno
+      // do app (localStorage). preventDefault aqui também evita o menu nativo
+      // de "Paste" do macOS.
+      pasteToken.current += 1;
       const tag = document.activeElement?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT") return;
       const items = e.clipboardData?.items;
@@ -201,6 +204,7 @@ export function App() {
       }
       // sem imagem externa: cola o clipboard interno do app (localStorage)
       if (internalClipboardHas()) {
+        e.preventDefault();
         editor.paste();
       }
     };
