@@ -1,19 +1,21 @@
 name: Release
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-concurrency:
-  group: release-${{ github.ref }}
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
 
 jobs:
   validate:
-    name: Lint + Build + E2E
+    name: Lint + Type check + E2E
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +31,8 @@ jobs:
 
       - run: npm run lint
 
+      - run: npx tsc -b
+
       - run: npm run build
 
       - run: npm run test:e2e
@@ -36,36 +40,132 @@ jobs:
   release:
     name: GitHub Release
     needs: validate
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
-      version: ${{ steps.prep.outputs.version }}
+      version: ${{ steps.version.outputs.new_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Calcular versão e gerar release notes
-        id: prep
-        run: |
-          version=$(bash .github/scripts/compute-version.sh)
-          echo "version=v${version}" >> "$GITHUB_OUTPUT"
-          bash .github/scripts/generate-notes.sh "$version" > release-notes.md
-          cat release-notes.md
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-      - name: Criar GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.prep.outputs.version }}
+      - run: npm ci
+
+      - name: Definir versão (semver automático pelo histórico de commits)
+        id: version
         run: |
-          if gh release view "$VERSION" > /dev/null 2>&1; then
-            echo "Release $VERSION já existe — nada a fazer."
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          LAST=${LAST_TAG#v}
+          MAJOR=$(echo "$LAST" | cut -d. -f1)
+          MINOR=$(echo "$LAST" | cut -d. -f2)
+          PATCH=$(echo "$LAST" | cut -d. -f3)
+          if [ "$LAST_TAG" = "v0.0.0" ]; then
+            RANGE="HEAD"
           else
-            gh release create "$VERSION" \
-              --title "ArchiDraw $VERSION" \
-              --notes-file release-notes.md
+            RANGE="$LAST_TAG..HEAD"
           fi
+          if git log --pretty=format:"%B %s" "$RANGE" | grep -qiE "BREAKING CHANGE|^(feat|fix|refactor|perf|chore|docs|test|build|ci)(\([^)]*\))?!:"; then
+            NEW_TAG="v$((MAJOR + 1)).0.0"
+          elif git log --pretty=format:"%s" "$RANGE" | grep -qE "^feat(\([^)]*\))?:"; then
+            NEW_TAG="v${MAJOR}.$((MINOR + 1)).0"
+          else
+            NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+          echo "last_tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "Versão: $LAST_TAG -> $NEW_TAG"
+
+      - name: Selecionar melhor modelo free (OpenRouter)
+        id: model
+        run: |
+          curl -s "https://openrouter.ai/api/v1/models" \
+            -H "Authorization: Bearer ${{ secrets.OPENROUTER_API_KEY }}" \
+            -o /tmp/models_raw.json
+
+          python3 << 'PYEOF'
+          import json, re
+
+          with open("/tmp/models_raw.json") as f:
+              raw = f.read()
+
+          clean = re.sub(r'[\x00-\x1f\x7f]', ' ', raw)
+          data = json.loads(clean)
+          models = data.get("data", [])
+
+          free = []
+          for m in models:
+              p = m.get("pricing", {})
+              if str(p.get("prompt", "1")) == "0" and str(p.get("completion", "1")) == "0":
+                  arch = m.get("architecture", {})
+                  modality = arch.get("modality", "")
+                  if modality.endswith("->text") or modality == "text->text":
+                      mid = m["id"]
+                      if "inkling" in mid.lower():
+                          continue
+                      free.append(m)
+
+          free.sort(key=lambda m: m.get("context_length") or 0, reverse=True)
+
+          if free:
+              best = free[0]["id"]
+              print(f"Melhor modelo free: {best} (ctx={free[0].get('context_length', 0)})")
+              with open("/tmp/model_output.txt", "w") as f:
+                  f.write(best)
+          else:
+              print("Nenhum modelo free encontrado, usando fallback")
+              with open("/tmp/model_output.txt", "w") as f:
+                  f.write("google/gemma-3-12b-it:free")
+          PYEOF
+
+          BEST_MODEL=$(cat /tmp/model_output.txt)
+          echo "model=$BEST_MODEL" >> "$GITHUB_OUTPUT"
+
+      - name: Gerar release notes (OpenRouter + fallback)
+        run: |
+          LAST_TAG="${{ steps.version.outputs.last_tag }}"
+          PRIMARY_MODEL="${{ steps.model.outputs.model }}"
+          if [ "$LAST_TAG" = "v0.0.0" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="$LAST_TAG..HEAD"
+          fi
+          git log --no-merges --pretty=format:"- %s" "$RANGE" | grep -v "release:" > /tmp/commits.txt
+          git diff --stat "$RANGE" 2>/dev/null > /tmp/diff.txt || echo "N/A" > /tmp/diff.txt
+          echo "$PRIMARY_MODEL" > /tmp/model.txt
+          echo "${{ secrets.OPENROUTER_API_KEY }}" > /tmp/api_key.txt
+
+          python3 "$GITHUB_WORKSPACE/.github/scripts/generate_release_notes.py"
+
+          echo "----- Release notes geradas -----"
+          cat /tmp/release_notes.txt
+
+      - name: Definir release notes como output
+        id: notes
+        run: |
+          python3 -c "
+          import os, uuid
+          content = open('/tmp/release_notes.txt').read()
+          delim = 'X' + uuid.uuid4().hex
+          out_path = os.environ['GITHUB_OUTPUT']
+          with open(out_path, 'a') as f:
+              f.write(f'notes<<{delim}\n')
+              f.write(content)
+              f.write(f'\n{delim}\n')
+          "
+
+      - name: Criar tag e publicar release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.new_tag }}
+          name: ArchiDraw ${{ steps.version.outputs.new_tag }}
+          body: ${{ steps.notes.outputs.notes }}
 
   docker:
     name: Docker Hub

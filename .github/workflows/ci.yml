@@ -13,8 +13,6 @@ on:
       - 'ci/**'
       - 'style/**'
       - 'build/**'
-  pull_request:
-    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -24,8 +22,38 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx tsc -b
+
   test:
-    name: Lint + Build + E2E
+    name: E2E tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,16 +67,28 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
-      - run: npm run lint
+      - run: npm run test:e2e
+
+  build:
+    name: Build
+    needs: [lint, typecheck, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
 
       - run: npm run build
 
-      - run: npm run test:e2e
-
-  open-pr:
-    name: Abrir PR para main
+  create-pr:
+    name: Criar PR para main
+    needs: build
     if: github.event_name == 'push'
-    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,7 +98,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Criar PR para main (se não existir)
+      - name: Criar Pull Request (se não existir)
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.ref_name }}
@@ -67,7 +107,7 @@ jobs:
           existing=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || true)
 
           {
-            echo "## Commits desta branch"
+            echo "## Commits nesta branch"
             echo ""
             git log --format='- %s' "origin/main..HEAD"
           } > pr-body.md
