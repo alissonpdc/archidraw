@@ -479,9 +479,11 @@ const imageCache = new Map<string, HTMLImageElement>();
 function getCachedImage(src: string): HTMLImageElement | null {
   let img = imageCache.get(src);
   if (!img) {
+    // cache imediatamente (mesmo enquanto carrega): descartar a instância
+    // sem cachear reinicia o load a cada frame no RAF loop e a imagem
+    // (principalmente screenshots grandes) nunca fica "complete".
     img = new Image();
     img.src = src;
-    if (!img.complete) return null;
     imageCache.set(src, img);
   }
   return img.complete && img.naturalWidth > 0 ? img : null;

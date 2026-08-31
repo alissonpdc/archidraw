@@ -208,12 +208,20 @@ test.describe("clipboard", () => {
     await page.keyboard.press("Control+c");
     await page.keyboard.press("Control+v");
 
-    let n = await page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length);
-    expect(n).toBe(2);
+    // paste interno agora é tratado no evento `paste` (assíncrono em headless
+    // com clipboard vazio), então aguarda o elemento duplicar
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
+      )
+      .toBe(2);
 
     await page.keyboard.press("Control+v");
-    n = await page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length);
-    expect(n).toBe(3);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
+      )
+      .toBe(3);
   });
 
   test("cut removes and paste restores", async ({ page }) => {
@@ -227,8 +235,11 @@ test.describe("clipboard", () => {
     expect(n).toBe(0);
 
     await page.keyboard.press("Control+v");
-    n = await page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length);
-    expect(n).toBe(1);
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__editor__.getSnapshot().doc.elements.length),
+      )
+      .toBe(1);
   });
 
   test("paste works across tabs", async ({ page }) => {
@@ -241,10 +252,13 @@ test.describe("clipboard", () => {
     await page.click('[data-testid="tab-add"]'); // new empty tab
     await page.keyboard.press("Control+v");
 
-    const n = await page.evaluate(() =>
-      window.__editor__.getSnapshot().doc.elements.length,
-    );
-    expect(n).toBe(1);
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          window.__editor__.getSnapshot().doc.elements.length,
+        ),
+      )
+      .toBe(1);
   });
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { editor } from "./hooks/useEditor";
 import { CanvasHost } from "./components/CanvasHost";
 import { Toolbar } from "./components/Toolbar";
@@ -26,6 +26,8 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
 export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  // flag compartilhada entre keydown (fallback) e evento `paste`
+  const pastePending = useRef(false);
 
   useEffect(() => {
     const openShortcuts = () => setShortcutsOpen(true);
@@ -92,9 +94,18 @@ export function App() {
         return;
       }
       if (mod && e.key.toLowerCase() === "v") {
-        // não prevenir default: bloquear o keydown suprime o evento `paste`
-        // do browser e impede colar imagens da área de transferência.
-        editor.paste();
+        // não prevenir default: isso dispararia o evento `paste` que carrega
+        // imagens externas do clipboard. Fallback em setTimeout: se o browser
+        // não disparar `paste` neste turno (ex.: clipboard vazio), cola o
+        // clipboard interno do app (localStorage). Se o `paste` disparar, ele
+        // limpa a flag e resolve sozinho — evita colar 2 elementos.
+        pastePending.current = true;
+        setTimeout(() => {
+          if (pastePending.current) {
+            pastePending.current = false;
+            editor.paste();
+          }
+        }, 0);
         return;
       }
       if (mod && e.key.toLowerCase() === "g") {
@@ -145,18 +156,33 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const internalClipboardHas = () => {
+      try {
+        return localStorage.getItem("archidraw:clipboard") !== null;
+      } catch {
+        return false;
+      }
+    };
+
     const onPaste = (e: ClipboardEvent) => {
+      // o evento `paste` foi disparado: cancela o fallback do keydown
+      pastePending.current = false;
       const tag = document.activeElement?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT") return;
       const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of items) {
-        if (item.type.startsWith("image/")) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) editor.insertImage(file);
-          return;
+      if (items) {
+        for (const item of items) {
+          if (item.kind === "file" && item.type.startsWith("image/")) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) editor.insertImage(file);
+            return;
+          }
         }
+      }
+      // sem imagem externa: cola o clipboard interno do app (localStorage)
+      if (internalClipboardHas()) {
+        editor.paste();
       }
     };
     window.addEventListener("paste", onPaste);
