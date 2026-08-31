@@ -271,4 +271,47 @@ test.describe("image features", () => {
     // label center (style.top) is placed past the image bottom edge
     expect(labelY!).toBeGreaterThanOrEqual(img.bottom);
   });
+
+  test("editing a pasted image caption starts the caret below the image", async ({
+    page,
+  }) => {
+    await open(page);
+    await insertImage(page);
+
+    // image bottom edge in screen coordinates
+    const img = await page.evaluate(() => {
+      const ed = window.__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      const cam = ed.getSnapshot().camera;
+      return {
+        sx: (el.x + el.width / 2) * cam.zoom + cam.scrollX,
+        sy: (el.y + el.height / 2) * cam.zoom + cam.scrollY,
+        bottom: (el.y + el.height) * cam.zoom + cam.scrollY,
+      };
+    });
+
+    // double-click on an image WITHOUT a label yet: the edit caret must
+    // already sit below the image (where the caption will render), not at
+    // the image center
+    await page.mouse.dblclick(img.sx, img.sy);
+    const overlay = page.locator(".text-overlay.label-overlay");
+    await expect(overlay).toBeVisible();
+
+    const overlayTop = await page.evaluate(() => {
+      const o = document.querySelector(
+        ".text-overlay.label-overlay",
+      ) as HTMLElement;
+      return parseFloat(o.style.top);
+    });
+    expect(overlayTop).toBeGreaterThanOrEqual(img.bottom);
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const caret = document.querySelector(".fake-caret") as HTMLElement;
+          return caret ? parseFloat(caret.style.top) : null;
+        }),
+      )
+      .toBeGreaterThanOrEqual(img.bottom - 1);
+  });
 });

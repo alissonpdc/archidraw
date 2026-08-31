@@ -613,9 +613,14 @@ export function textOffsets(el: Element): { padX: number; padY: number } {
   };
 }
 
-/** caption layout for added/pasted images: the label lives OUTSIDE the image
- *  bounds, next to the pasted pixels, so it never overlaps the image (same
- *  caption model as components, where the label sits beside the icon box). */
+/**
+ * caption layout for added/pasted images: the label lives OUTSIDE the image
+ * bounds, next to the pasted pixels, so it never overlaps the image (same
+ * caption model as components, where the label sits beside the icon box).
+ * labelCx/labelCy are computed on the label side even when there is no text
+ * yet — so the edit caret starts exactly where the caption will render
+ * (instead of the image center, which shifted the text on first keystroke).
+ */
 function imageCaptionLayout(el: ImageElement) {
   const captionPos = el.captionPosition ?? "bottom";
   const baseGap = el.captionGap ?? ICON_LABEL_GAP;
@@ -632,27 +637,16 @@ function imageCaptionLayout(el: ImageElement) {
   const cx = el.x + el.width / 2;
   const cy = el.y + el.height / 2;
 
-  if (!hasLabel) {
-    return {
-      hasLabel,
-      iconX: el.x,
-      iconY: el.y,
-      iconSize: Math.min(Math.abs(el.width), Math.abs(el.height)),
-      labelCx: cx,
-      labelCy: cy,
-      labelFont,
-      captionPosition: captionPos,
-    };
-  }
-
   const lh = lineHeight(el);
   const step = labelFont * lh;
-  const tw = measureText(el.label!, labelFont, el.fontFamily, el.bold, el.italic).width;
-  const n = lines.length;
-  const vShift = ((n - 1) * step) / 2;
+  const n = Math.max(lines.length, 1);
+  const tw = hasLabel
+    ? measureText(el.label!, labelFont, el.fontFamily, el.bold, el.italic).width
+    : 0;
+  const vShift = hasLabel ? ((n - 1) * step) / 2 : 0;
 
-  // multi-line block sits fully outside the image: block starts at
-  // image edge + gap on the label side
+  // single-line block sits fully outside the image: block center starts at
+  // image edge + gap on the label side (multi-line adds vShift around it)
   let labelCx = cx;
   let labelCy = cy;
   if (captionPos === "top") {
