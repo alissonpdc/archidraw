@@ -91,6 +91,45 @@ test.describe("edge binding to elements", () => {
     expect(arrow.endBinding?.ny).toBeCloseTo(0.625, 5);
   });
 
+  test("edges subtly snap to a shape's horizontal/vertical centers", async ({
+    page,
+  }) => {
+    await open(page);
+    await drawTwoRects(page);
+    const a = await readShape(page, 0);
+
+    // arrow end near A's right edge center (220,140): draws at (218,142) and
+    // must be captured to the exact vertical/horizontal center midpoint
+    await selectTool(page, "a");
+    await page.mouse.move(600, 500);
+    await page.mouse.down();
+    await page.mouse.move(218, 142, { steps: 5 });
+    await page.mouse.up();
+
+    // arrow end near A's bottom edge center (160,180): draws at (162,182)
+    await page.mouse.move(600, 520);
+    await page.mouse.down();
+    await page.mouse.move(162, 182, { steps: 5 });
+    await page.mouse.up();
+
+    const edges = await readEdges(page, "arrow");
+    expect(edges).toHaveLength(2);
+    const [right, bottom] = edges;
+    expect(right.startBinding).toBeUndefined();
+    expect(right.endBinding?.elementId).toBe(a.id);
+    expect(right.endBinding?.nx).toBeCloseTo(1, 5);
+    expect(right.endBinding?.ny).toBeCloseTo(0.5, 5);
+    expect(right.x + right.width).toBeCloseTo(220, 0);
+    expect(right.y + right.height).toBeCloseTo(140, 0);
+
+    expect(bottom.startBinding).toBeUndefined();
+    expect(bottom.endBinding?.elementId).toBe(a.id);
+    expect(bottom.endBinding?.nx).toBeCloseTo(0.5, 5);
+    expect(bottom.endBinding?.ny).toBeCloseTo(1, 5);
+    expect(bottom.x + bottom.width).toBeCloseTo(160, 0);
+    expect(bottom.y + bottom.height).toBeCloseTo(180, 0);
+  });
+
   test("line (not only arrow) binds and follows a moved shape", async ({
     page,
   }) => {
@@ -164,9 +203,10 @@ test.describe("edge binding to elements", () => {
     expect(edges).toHaveLength(1);
     const arrow = edges[0];
     expect(arrow.endBinding?.elementId).toBe(b.id);
-    // dropped over B's left edge -> snapped to (400,335)
+    // dropped near B's left edge center -> subtle snap to its vertical
+    // center (400,330) instead of the raw outline point (400,335)
     expect(arrow.x + arrow.width).toBeCloseTo(400, 0);
-    expect(arrow.y + arrow.height).toBeCloseTo(335, 0);
+    expect(arrow.y + arrow.height).toBeCloseTo(330, 0);
   });
 
   test("dragging a bound endpoint to empty space clears the binding", async ({
@@ -225,9 +265,11 @@ test.describe("edge binding to elements", () => {
     const edges = await readEdges(page, "arrow");
     expect(edges).toHaveLength(1);
     const arrow = edges[0];
-    // end keeps its normalized position (nx=1, ny=0.525) on the new bounds
+    // the endpoint drawn at (218,142) was subtly captured by A's right edge
+    // center (220,140); resizing keeps it attached at ny=0.5
+    // end keeps its normalized position (nx=1, ny=0.5) on the new bounds
     expect(arrow.x + arrow.width).toBeCloseTo(320, 0);
-    expect(arrow.y + arrow.height).toBeCloseTo(142, 0);
+    expect(arrow.y + arrow.height).toBeCloseTo(140, 0);
   });
 
   test("duplicating a bound diagram remaps bindings to the clones", async ({

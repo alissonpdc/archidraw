@@ -132,6 +132,11 @@ function handlesFor(el: Element): HandleId[] {
 }
 
 const BIND_TOLERANCE = 20; // scene units
+/** capture radius (scene units) around a shape's cardinal centers where an
+ *  edge endpoint gently locks to the horizontal/vertical center point */
+const CENTER_SNAP_RADIUS = 12;
+/** priority bonus so a center snap wins over the free outline point */
+const CENTER_SNAP_BONUS = 6;
 
 /** true when the scene point hits the label-drag handle of a selected edge */
 function labelHandleAt(scene: Point, el: Element, zoom: number): boolean {
@@ -157,34 +162,58 @@ function visualBounds(el: Element): Bounds {
  * binding candidate for a point: any non-edge element whose outline is
  * within BIND_TOLERANCE of the point (or that contains it). Binds to the
  * nearest outline point, stored normalized within the element bounds.
+ *
+ * Anchoring stays free anywhere; near one of the shape's four cardinal
+ * centers (the horizontal/vertical midpoints of the outline) the endpoint
+ * subtly locks to that center, so orthogonal connections are easy to land.
+ * Returns the exact snapped scene point alongside the binding.
  */
 function findNearestBinding(
   point: Point,
   elements: Element[],
   excludeId: string,
-): ArrowBinding | null {
-  let best: { dist: number; binding: ArrowBinding } | null = null;
+): { binding: ArrowBinding; point: Point } | null {
+  let best: { binding: ArrowBinding; point: Point; score: number } | null =
+    null;
   for (const el of elements) {
     if (el.id === excludeId || isEdge(el)) continue;
     const b = elementBounds(el);
     const w = b.x2 - b.x1;
     const h = b.y2 - b.y1;
-    const op = nearestOutlinePoint(el, point);
-    const dist = Math.hypot(point.x - op.x, point.y - op.y);
     const inside =
       point.x >= b.x1 && point.x <= b.x2 && point.y >= b.y1 && point.y <= b.y2;
-    if ((inside || dist <= BIND_TOLERANCE) && (!best || dist < best.dist)) {
-      best = {
-        dist,
-        binding: {
-          elementId: el.id,
-          nx: w === 0 ? 0.5 : (op.x - b.x1) / w,
-          ny: h === 0 ? 0.5 : (op.y - b.y1) / h,
-        },
+    const candidates: { p: Point; score: number }[] = [];
+    // free anchor: nearest outline point (any position is bindable)
+    const op = nearestOutlinePoint(el, point);
+    const freeDist = Math.hypot(point.x - op.x, point.y - op.y);
+    if (inside || freeDist <= BIND_TOLERANCE) {
+      candidates.push({ p: op, score: freeDist });
+    }
+    // subtle center snap: top/bottom (vertical axis) and left/right
+    // (horizontal axis) midpoints of the outline
+    const cx = (b.x1 + b.x2) / 2;
+    const cy = (b.y1 + b.y2) / 2;
+    for (const c of [
+      { x: cx, y: b.y1 },
+      { x: cx, y: b.y2 },
+      { x: b.x1, y: cy },
+      { x: b.x2, y: cy },
+    ]) {
+      const cd = Math.hypot(point.x - c.x, point.y - c.y);
+      if (cd <= CENTER_SNAP_RADIUS) candidates.push({ p: c, score: cd - CENTER_SNAP_BONUS });
+    }
+    for (const c of candidates) {
+      const binding = {
+        elementId: el.id,
+        nx: w === 0 ? 0.5 : (c.p.x - b.x1) / w,
+        ny: h === 0 ? 0.5 : (c.p.y - b.y1) / h,
       };
+      if (!best || c.score < best.score) {
+        best = { binding, point: c.p, score: c.score };
+      }
     }
   }
-  return best?.binding ?? null;
+  return best ? { binding: best.binding, point: best.point } : null;
 }
 
 /** live anchor highlights while drawing or dragging an edge endpoint */
@@ -1146,15 +1175,16 @@ export class Editor {
           el = { ...base, type: "arrow", ...bbox } satisfies ArrowElement;
         }
         // drawing that starts over/near a shape binds and snaps the start
-        // to the nearest outline point
+        // to the nearest outline point (or to a cardinal center nearby)
         if (el.type === "line" || el.type === "arrow") {
-          const startBinding = findNearestBinding(scene, this.doc.elements, el.id);
-          if (startBinding) {
-            const target = this.doc.elements.find(
-              (e) => e.id === startBinding.elementId,
-            )!;
-            const ap = nearestOutlinePoint(target, scene);
-            el = { ...el, x: ap.x, y: ap.y, startBinding };
+          const startSnap = findNearestBinding(scene, this.doc.elements, el.id);
+          if (startSnap) {
+            el = {
+              ...el,
+              x: startSnap.point.x,
+              y: startSnap.point.y,
+              startBinding: startSnap.binding,
+            };
           }
         }
         this.draft = el;
@@ -1296,28 +1326,25 @@ export class Editor {
             y2 = start.y + d.y;
           }
           // live binding: the moving end snaps to the nearest shape anchor
-          const endBinding = findNearestBinding(
+          // (subtly capturing the horizontal/vertical centers when nearby)
+          const endSnap = findNearestBinding(
             { x: x2, y: y2 },
             this.doc.elements,
             draft.id,
           );
-          if (endBinding) {
-            const target = this.doc.elements.find(
-              (e) => e.id === endBinding.elementId,
-            )!;
-            const ap = nearestOutlinePoint(target, { x: x2, y: y2 });
-            x2 = ap.x;
-            y2 = ap.y;
+          if (endSnap) {
+            x2 = endSnap.point.x;
+            y2 = endSnap.point.y;
           }
           this.bindingPreview = {
             start: draft.startBinding ?? null,
-            end: endBinding,
+            end: endSnap?.binding ?? null,
           };
           this.draft = {
             ...draft,
             width: x2 - start.x,
             height: y2 - start.y,
-            endBinding: endBinding ?? undefined,
+            endBinding: endSnap?.binding ?? undefined,
           };
         } else {
           const draft = this.draft;
@@ -1502,28 +1529,22 @@ export class Editor {
           const ey = fy + delta.y;
           // live rebinding: drop the dragged endpoint near another shape
           // anchor to bind it there; away from any anchor clears the binding
-          const candidate = findNearestBinding(
+          const snap = findNearestBinding(
             { x: ex, y: ey },
             this.doc.elements,
             orig.id,
           );
-          let snapped = { x: ex, y: ey };
-          if (candidate) {
-            const target = this.doc.elements.find(
-              (e) => e.id === candidate.elementId,
-            )!;
-            snapped = nearestOutlinePoint(target, { x: ex, y: ey });
-          }
+          const snapped = snap ? snap.point : { x: ex, y: ey };
           if (draggingStart) {
             linePatch = {
               x: snapped.x,
               y: snapped.y,
               width: bx - snapped.x,
               height: by - snapped.y,
-              startBinding: candidate ?? undefined,
+              startBinding: snap?.binding ?? undefined,
             };
             this.bindingPreview = {
-              start: candidate,
+              start: snap?.binding ?? null,
               end: orig.endBinding ?? null,
             };
           } else {
@@ -1532,11 +1553,11 @@ export class Editor {
               y: ay,
               width: snapped.x - ax,
               height: snapped.y - ay,
-              endBinding: candidate ?? undefined,
+              endBinding: snap?.binding ?? undefined,
             };
             this.bindingPreview = {
               start: orig.startBinding ?? null,
-              end: candidate,
+              end: snap?.binding ?? null,
             };
           }
         } else if (handle.length === 2) {
