@@ -316,16 +316,18 @@ function SpacingRow({
   onChange,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   onChange: (v: number) => void;
 }) {
+  const isMixed = value === null;
   return (
     <div className="spacing-row">
       <span className="spacing-label">{label}</span>
       <button
         className="spacing-btn"
         aria-label={`Decrease ${label}`}
-        onClick={() => onChange(Math.max(0, value - 1))}
+        disabled={isMixed}
+        onClick={() => onChange(Math.max(0, (value ?? 0) - 1))}
       >
         −
       </button>
@@ -334,7 +336,8 @@ function SpacingRow({
         type="number"
         min={0}
         max={50}
-        value={value}
+        placeholder={isMixed ? "-" : undefined}
+        value={isMixed ? "" : value}
         onChange={(e) => {
           const v = parseInt(e.target.value, 10);
           if (!isNaN(v)) onChange(Math.max(0, Math.min(50, v)));
@@ -343,7 +346,8 @@ function SpacingRow({
       <button
         className="spacing-btn"
         aria-label={`Increase ${label}`}
-        onClick={() => onChange(Math.min(50, value + 1))}
+        disabled={isMixed}
+        onClick={() => onChange(Math.min(50, (value ?? 0) + 1))}
       >
         +
       </button>
@@ -529,6 +533,16 @@ export function PropertiesPanel() {
       ? first
       : null;
   })();
+
+  // unified offset helpers: return value if all selected agree, null otherwise
+  const unifiedOffset = (key: string, fallback: number) => {
+    const first = ((selected[0] as any)[key] ?? fallback) as number;
+    return selected.every(
+      (el) => ((el as any)[key] ?? fallback) === first,
+    )
+      ? first
+      : null;
+  };
 
   return (
     <div
@@ -937,85 +951,80 @@ export function PropertiesPanel() {
           </Group>
 
           {hasCaption && (
-            <>
-              <Group title="Caption position">
-                {CAPTION_POSITIONS.map((cp) => (
-                  <button
-                    key={cp.value}
-                    className={`size-btn ${allCaptionPos(cp.value) ? "active" : ""}`}
-                    aria-label={`Caption ${cp.label}`}
-                    data-tip={cp.label}
-                    onClick={() => apply({ captionPosition: cp.value })}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16">
-                      <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                      {cp.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
-                      {cp.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
-                      {cp.value === "left" && <rect x="2" y="7" width="6" height="2" rx="1" fill="currentColor" />}
-                      {cp.value === "right" && <rect x="8" y="7" width="6" height="2" rx="1" fill="currentColor" />}
-                    </svg>
-                  </button>
-                ))}
-              </Group>
+            <Group title="Caption position">
+              {CAPTION_POSITIONS.map((cp) => (
+                <button
+                  key={cp.value}
+                  className={`size-btn ${allCaptionPos(cp.value) ? "active" : ""}`}
+                  aria-label={`Caption ${cp.label}`}
+                  data-tip={cp.label}
+                  onClick={() => apply({ captionPosition: cp.value })}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                    {cp.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
+                    {cp.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
+                    {cp.value === "left" && <rect x="2" y="7" width="6" height="2" rx="1" fill="currentColor" />}
+                    {cp.value === "right" && <rect x="8" y="7" width="6" height="2" rx="1" fill="currentColor" />}
+                  </svg>
+                </button>
+              ))}
+            </Group>
+          )}
 
-              <Group title="Text offset (px)" vertical>
+          {(hasCaption || hasRectangle || hasDiamond || hasEllipse) && (
+            <Group title="Text offset (px)" vertical>
                 <SpacingRow
                   label="Global"
-                  value={selected[0].captionGap ?? 2}
-                  onChange={(v) => apply({ captionGap: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionGap" : "textOffsetGlobal", hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? 2 : 8)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionGap = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetGlobal = v;
+                    apply(patch);
+                  }}
                 />
                 <SpacingRow
                   label="Left"
-                  value={selected[0].captionOffsetLeft ?? 0}
-                  onChange={(v) => apply({ captionOffsetLeft: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetLeft" : "textOffsetLeft", 0)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionOffsetLeft = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetLeft = v;
+                    apply(patch);
+                  }}
                 />
                 <SpacingRow
                   label="Right"
-                  value={selected[0].captionOffsetRight ?? 0}
-                  onChange={(v) => apply({ captionOffsetRight: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetRight" : "textOffsetRight", 0)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionOffsetRight = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetRight = v;
+                    apply(patch);
+                  }}
                 />
                 <SpacingRow
                   label="Top"
-                  value={selected[0].captionOffsetTop ?? 0}
-                  onChange={(v) => apply({ captionOffsetTop: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetTop" : "textOffsetTop", 0)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionOffsetTop = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetTop = v;
+                    apply(patch);
+                  }}
                 />
                 <SpacingRow
                   label="Bottom"
-                  value={selected[0].captionOffsetBottom ?? 0}
-                  onChange={(v) => apply({ captionOffsetBottom: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetBottom" : "textOffsetBottom", 0)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionOffsetBottom = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetBottom = v;
+                    apply(patch);
+                  }}
                 />
               </Group>
-            </>
-          )}
-
-          {(hasRectangle || hasDiamond || hasEllipse) && (
-            <Group title="Text offset (px)" vertical>
-              <SpacingRow
-                label="Global"
-                value={selected[0].textOffsetGlobal ?? 8}
-                onChange={(v) => apply({ textOffsetGlobal: v })}
-              />
-              <SpacingRow
-                label="Left"
-                value={selected[0].textOffsetLeft ?? 0}
-                onChange={(v) => apply({ textOffsetLeft: v })}
-              />
-              <SpacingRow
-                label="Right"
-                value={selected[0].textOffsetRight ?? 0}
-                onChange={(v) => apply({ textOffsetRight: v })}
-              />
-              <SpacingRow
-                label="Top"
-                value={selected[0].textOffsetTop ?? 0}
-                onChange={(v) => apply({ textOffsetTop: v })}
-              />
-              <SpacingRow
-                label="Bottom"
-                value={selected[0].textOffsetBottom ?? 0}
-                onChange={(v) => apply({ textOffsetBottom: v })}
-              />
-            </Group>
           )}
       </div>
       <div ref={layersRef} className={`panel-tab-content${effectiveTab === "layers" ? "" : " hidden"}`}>
