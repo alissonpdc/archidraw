@@ -63,23 +63,25 @@ button {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: stretch;
-  height: 34px;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-1);
   max-width: calc(100% - 420px);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .tabbar-seg-wrap {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   min-width: 0;
 }
 
 /* middle dot entre abas inativas (oculto junto à aba ativa) */
 .tabbar-dot {
   flex-shrink: 0;
-  align-self: center;
   color: var(--text-muted);
   opacity: 0.6;
   font-size: 15px;
@@ -92,12 +94,17 @@ button {
   align-items: center;
   gap: 3px;
   padding: 0 var(--space-2);
-  border-radius: 0;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   font-size: var(--font-size-md);
   min-width: 0;
-  cursor: grab;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .tabbar-seg.dragging {
@@ -135,8 +142,8 @@ button {
 
 /* aba ativa: pinta o espaço inteiro (altura/largura totais, sem box próprio) */
 .tabbar-seg.active {
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--text-primary);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .tabbar-add {
@@ -144,6 +151,15 @@ button {
   width: 26px;
   height: 26px;
   color: var(--text-muted);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: background-color var(--transition-fast);
+}
+
+.tabbar-add:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
 }
 
 .tab-rename {
@@ -166,11 +182,12 @@ button {
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-muted);
+  color: inherit;
   cursor: pointer;
   padding: 0;
+  transition: background-color var(--transition-fast);
 }
 
 .tab-close::before {
