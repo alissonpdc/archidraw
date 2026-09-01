@@ -1,11 +1,13 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 import { editor, useEditor } from "../hooks/useEditor";
+import { DEFAULT_STROKE } from "../../core/types";
 
 /** 9 basic colors shared by stroke and fill */
 const BASE_COLORS: { name: string; color: string }[] = [
@@ -217,6 +219,11 @@ function PaletteGrid({
       ? shadesOf(BASE_COLORS[expanded - 1].color)
       : null;
 
+  const groupShades = useMemo(
+    () => BASE_COLORS.map((e) => shadesOf(e.color)),
+    [],
+  );
+
   const handleSwatchClick = (i: number, e: React.MouseEvent<HTMLButtonElement>) => {
     if (expanded === i + 1) {
       setExpanded(null);
@@ -232,12 +239,15 @@ function PaletteGrid({
     }
   };
 
+  const AUTO_STROKES = ["#1e1e1e", "#e8e8e8"];
+  const isAutoColor = auto !== undefined && AUTO_STROKES.includes(current);
+
   return (
     <div className="palette-wrap" ref={wrapRef}>
       <div className="swatch-row swatch-row-5">
         {auto !== undefined ? (
           <button
-            className={`swatch swatch-auto ${current === "" ? "active" : ""}`}
+            className={`swatch swatch-auto ${current === "" || isAutoColor ? "active" : ""}`}
             aria-label={`${label} Auto`}
             data-tip="Auto"
             onClick={() => {
@@ -268,8 +278,7 @@ function PaletteGrid({
           <button
             key={entry.name}
             className={`swatch ${
-              current === entry.color ||
-              (expandedShades?.includes(current) && expanded === i + 1)
+              current === entry.color || groupShades[i].includes(current)
                 ? "active"
                 : ""
             }`}
@@ -583,6 +592,7 @@ export function PropertiesPanel() {
             current={selected[0].strokeColor}
             onPick={(strokeColor) => apply({ strokeColor })}
             label="Stroke color"
+            auto={DEFAULT_STROKE}
           />
         </Group>
 

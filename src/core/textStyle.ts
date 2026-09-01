@@ -9,7 +9,9 @@ const AUTO_STROKES = new Set(["#1e1e1e", "#e8e8e8"]);
 export function resolveTextColor(el: Element, colors: RenderColors): string {
   const tc = el.textColor && el.textColor !== "" ? el.textColor : null;
   if (!tc) {
-    return AUTO_STROKES.has(el.strokeColor) ? colors.elementStroke : el.strokeColor;
+    return el.strokeColor === "" || AUTO_STROKES.has(el.strokeColor)
+      ? colors.elementStroke
+      : el.strokeColor;
   }
   return tc;
 }
