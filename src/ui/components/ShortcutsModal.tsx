@@ -1,47 +1,62 @@
 import { useEffect } from "react";
 import { MOD } from "../platform";
 
-type ShortcutGroup = { title: string; items: { keys: string; desc: string }[] };
+type ShortcutItem = { keys: string; desc: string };
+type ShortcutGroup = { title: string; items: ShortcutItem[] };
 
-const GROUPS: ShortcutGroup[] = [
-  {
-    title: "Tools",
-    items: [
-      { keys: "V", desc: "Selection" },
-      { keys: "H", desc: "Hand" },
-      { keys: "R", desc: "Rectangle" },
-      { keys: "D", desc: "Diamond" },
-      { keys: "E", desc: "Ellipse" },
-      { keys: "L", desc: "Line" },
-      { keys: "A", desc: "Arrow" },
-      { keys: "T", desc: "Text" },
-      { keys: "B", desc: "Library" },
-    ],
-  },
-  {
-    title: "Canvas",
-    items: [
-      { keys: "Space+drag", desc: "Pan" },
-      { keys: `${MOD}+Scroll`, desc: "Zoom" },
-      { keys: "Shift+1", desc: "Fit" },
-      { keys: "Double click", desc: "Edit label" },
-    ],
-  },
-  {
-    title: "Editing",
-    items: [
-      { keys: `${MOD}+Z`, desc: "Undo" },
-      { keys: `${MOD}+Shift+Z`, desc: "Redo" },
-      { keys: `${MOD}+C / X / V`, desc: "Copy/Cut/Paste" },
-      { keys: `${MOD}+D`, desc: "Duplicate" },
-      { keys: `${MOD}+G`, desc: "Group" },
-      { keys: `${MOD}+Shift+G`, desc: "Ungroup" },
-      { keys: `${MOD}+A`, desc: "Select all" },
-      { keys: "Delete", desc: "Delete" },
-      { keys: "Esc", desc: "Deselect" },
-    ],
-  },
-];
+const TOOLS: ShortcutGroup = {
+  title: "Tools",
+  items: [
+    { keys: "V", desc: "Selection" },
+    { keys: "H", desc: "Hand" },
+    { keys: "R", desc: "Rectangle" },
+    { keys: "D", desc: "Diamond" },
+    { keys: "E", desc: "Ellipse" },
+    { keys: "L", desc: "Line" },
+    { keys: "A", desc: "Arrow" },
+    { keys: "T", desc: "Text" },
+    { keys: "B", desc: "Library" },
+  ],
+};
+
+const CANVAS: ShortcutGroup = {
+  title: "Canvas",
+  items: [
+    { keys: "Space+drag", desc: "Pan" },
+    { keys: `${MOD}+Scroll`, desc: "Zoom" },
+    { keys: "Shift+1", desc: "Fit" },
+    { keys: "Double click", desc: "Edit label" },
+  ],
+};
+
+const EDITING: ShortcutGroup = {
+  title: "Editing",
+  items: [
+    { keys: `${MOD}+Z`, desc: "Undo" },
+    { keys: `${MOD}+Shift+Z`, desc: "Redo" },
+    { keys: `${MOD}+C / X / V`, desc: "Copy/Cut/Paste" },
+    { keys: `${MOD}+D`, desc: "Duplicate" },
+    { keys: `${MOD}+G`, desc: "Group" },
+    { keys: `${MOD}+Shift+G`, desc: "Ungroup" },
+    { keys: `${MOD}+A`, desc: "Select all" },
+    { keys: "Delete", desc: "Delete" },
+    { keys: "Esc", desc: "Deselect" },
+  ],
+};
+
+function Section({ group }: { group: ShortcutGroup }) {
+  return (
+    <div className="shortcuts-section">
+      <div className="shortcuts-section-title">{group.title}</div>
+      {group.items.map((s) => (
+        <div key={s.keys} className="shortcut-row">
+          <span className="shortcut-desc">{s.desc}</span>
+          <kbd>{s.keys}</kbd>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   useEffect(() => {
@@ -58,7 +73,7 @@ export function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () =
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="shortcuts-modal shortcuts-modal-wide"
+        className="shortcuts-modal"
         role="dialog"
         aria-label="Keyboard shortcuts"
         onClick={(e) => e.stopPropagation()}
@@ -69,18 +84,14 @@ export function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () =
             ×
           </button>
         </div>
-        <div className="shortcuts-grid shortcuts-grid-2col">
-          {GROUPS.map((group) => (
-            <div key={group.title} className="shortcuts-section">
-              <div className="menu-section-title">{group.title}</div>
-              {group.items.map((s) => (
-                <div key={s.keys} className="shortcut-row">
-                  <span>{s.desc}</span>
-                  <kbd>{s.keys}</kbd>
-                </div>
-              ))}
-            </div>
-          ))}
+        <div className="shortcuts-body">
+          <div className="shortcuts-column">
+            <Section group={TOOLS} />
+          </div>
+          <div className="shortcuts-column">
+            <Section group={CANVAS} />
+            <Section group={EDITING} />
+          </div>
         </div>
       </div>
     </div>
