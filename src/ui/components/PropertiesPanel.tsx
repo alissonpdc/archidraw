@@ -273,20 +273,20 @@ function PaletteGrid({
             }}
           />
         )}
-        {BASE_COLORS.map((entry, i) => (
-          <button
-            key={entry.name}
-            className={`swatch ${
-              current === entry.color || groupShades[i].includes(current)
-                ? "active"
-                : ""
-            }`}
-            style={{ background: entry.color }}
-            aria-label={`${label} ${entry.name}`}
-            data-tip={entry.name}
-            onClick={(e) => handleSwatchClick(i, e)}
-          />
-        ))}
+        {BASE_COLORS.map((entry, i) => {
+          const isThisGroup =
+            current === entry.color || groupShades[i].includes(current);
+          return (
+            <button
+              key={entry.name}
+              className={`swatch ${isThisGroup ? "active" : ""}`}
+              style={{ background: isThisGroup ? current : entry.color }}
+              aria-label={`${label} ${entry.name}`}
+              data-tip={entry.name}
+              onClick={(e) => handleSwatchClick(i, e)}
+            />
+          );
+        })}
       </div>
       {expandedShades && popPos && createPortal(
         <div
