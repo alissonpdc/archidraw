@@ -239,7 +239,7 @@ function PaletteGrid({
   };
 
   const AUTO_STROKES = ["#1e1e1e", "#e8e8e8"];
-  const isAutoColor = auto !== undefined && AUTO_STROKES.includes(current);
+  const isAutoColor = AUTO_STROKES.includes(current);
 
   return (
     <div className="palette-wrap" ref={wrapRef}>
@@ -591,6 +591,7 @@ export function PropertiesPanel() {
             current={selected[0].strokeColor}
             onPick={(strokeColor) => apply({ strokeColor })}
             label="Stroke color"
+            auto="auto"
           />
         </Group>
 

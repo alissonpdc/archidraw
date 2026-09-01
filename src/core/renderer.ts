@@ -140,7 +140,9 @@ function drawArrowHead(
 
 /** resolves the element stroke, adapting default colors to the theme */
 function resolveStroke(el: Element, colors: RenderColors): string {
-  return AUTO_STROKES.has(el.strokeColor) ? colors.elementStroke : el.strokeColor;
+  return el.strokeColor === "" || AUTO_STROKES.has(el.strokeColor)
+    ? colors.elementStroke
+    : el.strokeColor;
 }
 
 /** deterministic pseudo-random in [-1, 1] from integer seed */
