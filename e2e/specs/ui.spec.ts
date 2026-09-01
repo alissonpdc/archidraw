@@ -62,8 +62,8 @@ test.describe("ui widgets", () => {
       await page.evaluate(() => localStorage.getItem("archidraw:grid")),
     ).toBe("lines");
 
-    // menu stays open after toggling; checkmark moved to "Lines" in the Grid section
-    const gridSection = page.locator(".menu-section", { hasText: "Grid" });
+    // menu stays open after toggling; checkmark moved to "Lines" in the Canvas section
+    const gridSection = page.locator(".menu-section", { hasText: "Canvas" });
     await expect(gridSection.locator(".menu-item.active")).toHaveText(/Lines/);
   });
 

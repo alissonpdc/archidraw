@@ -66,27 +66,6 @@ test.describe("export / import", () => {
       .toEqual({ n: 1, type: "rectangle", tabs: 1 });
   });
 
-  test("export .excalidraw downloads a valid excalidraw file", async ({ page }) => {
-    const downloadPromise = page.waitForEvent("download");
-    await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Export .excalidraw" }).click();
-    const download = await downloadPromise;
-
-    expect(download.suggestedFilename()).toMatch(/\.excalidraw$/);
-
-    const stream = await download.createReadStream();
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) chunks.push(chunk as Buffer);
-    const data = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
-
-    expect(data.type).toBe("excalidraw");
-    expect(data.version).toBe(2);
-    expect(data.source).toBe("https://archidraw.app");
-    expect(Array.isArray(data.elements)).toBe(true);
-    expect(data.elements.length).toBeGreaterThanOrEqual(1);
-    expect(data.elements[0].type).toBe("rectangle");
-  });
-
   test("import .excalidraw file creates elements on canvas", async ({ page }) => {
     // create an excalidraw scene file with a rectangle
     const excalidrawFile = JSON.stringify({

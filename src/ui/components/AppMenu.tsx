@@ -1,7 +1,6 @@
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
 import { exportPNG, exportSVG, slugify } from "../../core/exporter";
-import { exportExcalidraw } from "../../core/excalidrawExporter";
 import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
   applyThemePref,
@@ -9,13 +8,23 @@ import {
   type ThemePref,
 } from "../theme";
 import { getGridMode, setGridMode, subscribeGrid, type GridMode } from "../viewPrefs";
-import { CheckIcon, MenuIcon } from "./icons";
+import {
+  CheckIcon,
+  ExportIcon,
+  GridIcon,
+  ImportIcon,
+  KeyboardIcon,
+  MenuIcon,
+  MonitorIcon,
+  MoonIcon,
+  SunIcon,
+} from "./icons";
 import { toast } from "../toasts";
 
-const THEME_OPTIONS: { id: ThemePref; label: string }[] = [
-  { id: "system", label: "System" },
-  { id: "light", label: "Light" },
-  { id: "dark", label: "Dark" },
+const THEME_OPTIONS: { id: ThemePref; label: string; icon: ReactNode }[] = [
+  { id: "system", label: "System", icon: <MonitorIcon size={14} /> },
+  { id: "light", label: "Light", icon: <SunIcon size={14} /> },
+  { id: "dark", label: "Dark", icon: <MoonIcon size={14} /> },
 ];
 
 const GRID_OPTIONS: { id: GridMode; label: string }[] = [
@@ -35,17 +44,20 @@ function MenuSection({ title, children }: { title: string; children: ReactNode }
 
 function MenuItem({
   label,
+  icon,
   active = false,
   onClick,
 }: {
   label: string;
+  icon?: ReactNode;
   active?: boolean;
   onClick: () => void;
 }) {
   return (
     <button className={`menu-item ${active ? "active" : ""}`} onClick={onClick}>
+      <span className="menu-item-icon">{icon}</span>
+      <span className="menu-item-label">{label}</span>
       <span className="menu-item-check">{active && <CheckIcon size={12} />}</span>
-      {label}
     </button>
   );
 }
@@ -74,19 +86,6 @@ export function AppMenu() {
     a.click();
     URL.revokeObjectURL(url);
     toast("Workspace exported");
-    close();
-  };
-
-  const exportExcalidrawFile = () => {
-    const json = exportExcalidraw(snap.doc);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename}.excalidraw`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast("Exported as .excalidraw");
     close();
   };
 
@@ -134,9 +133,14 @@ export function AppMenu() {
           <div className="menu-backdrop" onClick={close} />
           <div className="menu-dropdown">
             <MenuSection title="File">
-              <MenuItem label="Import…" onClick={() => fileInputRef.current?.click()} />
+              <MenuItem
+                label="Import…"
+                icon={<ImportIcon size={14} />}
+                onClick={() => fileInputRef.current?.click()}
+              />
               <MenuItem
                 label="Export PNG"
+                icon={<ExportIcon size={14} />}
                 onClick={() => {
                   exportPNG(snap.doc, filename).then((ok) =>
                     toast(ok ? "PNG exported" : "Empty canvas — nothing to export"),
@@ -146,21 +150,26 @@ export function AppMenu() {
               />
               <MenuItem
                 label="Export SVG"
+                icon={<ExportIcon size={14} />}
                 onClick={() => {
                   const ok = exportSVG(snap.doc, filename);
                   toast(ok ? "SVG exported" : "Empty canvas — nothing to export");
                   close();
                 }}
               />
-              <MenuItem label="Export .archidraw" onClick={exportJSON} />
-              <MenuItem label="Export .excalidraw" onClick={exportExcalidrawFile} />
+              <MenuItem
+                label="Export .archidraw"
+                icon={<ExportIcon size={14} />}
+                onClick={exportJSON}
+              />
             </MenuSection>
 
-            <MenuSection title="Theme">
+            <MenuSection title="Appearance">
               {THEME_OPTIONS.map((opt) => (
                 <MenuItem
                   key={opt.id}
                   label={opt.label}
+                  icon={opt.icon}
                   active={themePref === opt.id}
                   onClick={() => {
                     applyThemePref(opt.id);
@@ -170,11 +179,12 @@ export function AppMenu() {
               ))}
             </MenuSection>
 
-            <MenuSection title="Grid">
+            <MenuSection title="Canvas">
               {GRID_OPTIONS.map((opt) => (
                 <MenuItem
                   key={opt.id}
                   label={opt.label}
+                  icon={<GridIcon size={14} />}
                   active={gridMode === opt.id}
                   onClick={() => setGridMode(opt.id)}
                 />
@@ -183,7 +193,8 @@ export function AppMenu() {
 
             <MenuSection title="Help">
               <MenuItem
-                label="Keyboard shortcuts (?)"
+                label="Keyboard shortcuts"
+                icon={<KeyboardIcon size={14} />}
                 onClick={() => {
                   window.dispatchEvent(new Event("archidraw:shortcuts"));
                   close();
