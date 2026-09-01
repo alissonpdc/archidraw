@@ -1,19 +1,30 @@
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
 import { exportPNG, exportSVG, slugify } from "../../core/exporter";
+import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
   applyThemePref,
   loadThemePref,
   type ThemePref,
 } from "../theme";
 import { getGridMode, setGridMode, subscribeGrid, type GridMode } from "../viewPrefs";
-import { CheckIcon, MenuIcon } from "./icons";
+import {
+  CheckIcon,
+  ExportIcon,
+  GridIcon,
+  ImportIcon,
+  KeyboardIcon,
+  MenuIcon,
+  MonitorIcon,
+  MoonIcon,
+  SunIcon,
+} from "./icons";
 import { toast } from "../toasts";
 
-const THEME_OPTIONS: { id: ThemePref; label: string }[] = [
-  { id: "system", label: "System" },
-  { id: "light", label: "Light" },
-  { id: "dark", label: "Dark" },
+const THEME_OPTIONS: { id: ThemePref; label: string; icon: ReactNode }[] = [
+  { id: "system", label: "System", icon: <MonitorIcon size={14} /> },
+  { id: "light", label: "Light", icon: <SunIcon size={14} /> },
+  { id: "dark", label: "Dark", icon: <MoonIcon size={14} /> },
 ];
 
 const GRID_OPTIONS: { id: GridMode; label: string }[] = [
@@ -33,17 +44,20 @@ function MenuSection({ title, children }: { title: string; children: ReactNode }
 
 function MenuItem({
   label,
+  icon,
   active = false,
   onClick,
 }: {
   label: string;
+  icon?: ReactNode;
   active?: boolean;
   onClick: () => void;
 }) {
   return (
     <button className={`menu-item ${active ? "active" : ""}`} onClick={onClick}>
+      <span className="menu-item-icon">{icon}</span>
+      <span className="menu-item-label">{label}</span>
       <span className="menu-item-check">{active && <CheckIcon size={12} />}</span>
-      {label}
     </button>
   );
 }
@@ -56,7 +70,7 @@ export function AppMenu() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeName =
-    snap.tabs.find((t) => t.id === snap.activeTabId)?.name ?? "diagrama";
+    snap.tabs.find((t) => t.id === snap.activeTabId)?.name ?? "diagram";
   const filename = slugify(activeName);
 
   const close = () => setOpen(false);
@@ -68,16 +82,32 @@ export function AppMenu() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${filename}.archidraw.json`;
+    a.download = `${filename}.archidraw`;
     a.click();
     URL.revokeObjectURL(url);
-    toast("Workspace exported as JSON");
+    toast("Workspace exported");
     close();
   };
 
   const onImportFile = async (file: File | undefined) => {
     if (!file) return;
     const text = await file.text();
+    const name = file.name.toLowerCase();
+
+    // Try Excalidraw scene file first
+    if (name.endsWith(".excalidraw")) {
+      try {
+        const doc = parseExcalidrawScene(text);
+        editor.importDocument(doc);
+        toast(`"${file.name}" imported`);
+      } catch {
+        toast("Invalid .excalidraw file — import cancelled");
+      }
+      close();
+      return;
+    }
+
+    // ArchiDraw format (.archidraw or .archidraw.json)
     if (editor.restoreState(text)) {
       toast(`"${file.name}" imported`);
     } else {
@@ -103,9 +133,14 @@ export function AppMenu() {
           <div className="menu-backdrop" onClick={close} />
           <div className="menu-dropdown">
             <MenuSection title="File">
-              <MenuItem label="Import JSON…" onClick={() => fileInputRef.current?.click()} />
+              <MenuItem
+                label="Import…"
+                icon={<ImportIcon size={14} />}
+                onClick={() => fileInputRef.current?.click()}
+              />
               <MenuItem
                 label="Export PNG"
+                icon={<ExportIcon size={14} />}
                 onClick={() => {
                   exportPNG(snap.doc, filename).then((ok) =>
                     toast(ok ? "PNG exported" : "Empty canvas — nothing to export"),
@@ -115,20 +150,26 @@ export function AppMenu() {
               />
               <MenuItem
                 label="Export SVG"
+                icon={<ExportIcon size={14} />}
                 onClick={() => {
                   const ok = exportSVG(snap.doc, filename);
                   toast(ok ? "SVG exported" : "Empty canvas — nothing to export");
                   close();
                 }}
               />
-              <MenuItem label="Export JSON" onClick={exportJSON} />
+              <MenuItem
+                label="Export .archidraw"
+                icon={<ExportIcon size={14} />}
+                onClick={exportJSON}
+              />
             </MenuSection>
 
-            <MenuSection title="Theme">
+            <MenuSection title="Appearance">
               {THEME_OPTIONS.map((opt) => (
                 <MenuItem
                   key={opt.id}
                   label={opt.label}
+                  icon={opt.icon}
                   active={themePref === opt.id}
                   onClick={() => {
                     applyThemePref(opt.id);
@@ -138,11 +179,12 @@ export function AppMenu() {
               ))}
             </MenuSection>
 
-            <MenuSection title="Grid">
+            <MenuSection title="Canvas">
               {GRID_OPTIONS.map((opt) => (
                 <MenuItem
                   key={opt.id}
                   label={opt.label}
+                  icon={<GridIcon size={14} />}
                   active={gridMode === opt.id}
                   onClick={() => setGridMode(opt.id)}
                 />
@@ -151,7 +193,8 @@ export function AppMenu() {
 
             <MenuSection title="Help">
               <MenuItem
-                label="Keyboard shortcuts (?)"
+                label="Keyboard shortcuts"
+                icon={<KeyboardIcon size={14} />}
                 onClick={() => {
                   window.dispatchEvent(new Event("archidraw:shortcuts"));
                   close();
@@ -164,7 +207,7 @@ export function AppMenu() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,application/json"
+        accept=".archidraw,.archidraw.json,.excalidraw,.json,application/json"
         style={{ display: "none" }}
         data-testid="import-input"
         onChange={(e) => {

@@ -1,5 +1,5 @@
 /**
- * Architecture component catalog (AWS-focused).
+ * Architecture component catalog (AWS + Kubernetes).
  * Icons are SVG stroke-only paths in viewBox 24x24, drawn
  * on canvas (Path2D), in DOM (inline svg), and in SVG export.
  */
@@ -32,7 +32,6 @@ export const LIBRARY_CATEGORIES = [
   "Messaging",
   "Security",
   "Monitoring",
-  "Clients",
 ] as const;
 
 export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number];
@@ -284,25 +283,155 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
 
-  // ---- Clients -------------------------------------------------------------
+];
+
+// ---- Kubernetes ----------------------------------------------------------
+
+export const K8S_CATEGORIES = [
+  "Compute",
+  "Networking",
+  "Storage",
+  "Config",
+  "Cluster",
+] as const;
+
+export type K8sCategory = (typeof K8S_CATEGORIES)[number];
+
+export const LIBRARY_KUBERNETES: LibraryItem[] = [
+  // ---- Compute ----------------------------------------------------------
   {
-    id: "client",
-    name: "Client / Browser",
-    category: "Clients",
-    keywords: ["browser", "browser", "user", "web", "spa"],
-    icon: [
-      "M3.5 5 H20.5 V19 H3.5 Z",
-      "M3.5 9 H20.5",
-      circle(6.2, 7, 0.9),
-      circle(9, 7, 0.9),
-    ],
+    id: "k8s-pod",
+    name: "Pod",
+    category: "Compute",
+    keywords: ["pod", "container", "workload", "smallest", "deployable"],
   },
   {
-    id: "mobile",
-    name: "Mobile",
-    category: "Clients",
-    keywords: ["mobile", "app", "smartphone", "ios", "android"],
-    icon: ["M8.5 3.5 H15.5 V20.5 H8.5 Z", "M11 17.8 H13"],
+    id: "k8s-deployment",
+    name: "Deployment",
+    category: "Compute",
+    keywords: ["deployment", "rollout", "replica", "update", "workload"],
+  },
+  {
+    id: "k8s-statefulset",
+    name: "StatefulSet",
+    category: "Compute",
+    keywords: ["statefulset", "stateful", "ordered", "stable", "network", "workload"],
+  },
+  {
+    id: "k8s-daemonset",
+    name: "DaemonSet",
+    category: "Compute",
+    keywords: ["daemonset", "daemon", "node", "agent", "workload"],
+  },
+  {
+    id: "k8s-job",
+    name: "Job",
+    category: "Compute",
+    keywords: ["job", "batch", "one-off", "task", "workload"],
+  },
+  {
+    id: "k8s-cronjob",
+    name: "CronJob",
+    category: "Compute",
+    keywords: ["cronjob", "cron", "scheduled", "timer", "workload"],
+  },
+  {
+    id: "k8s-replicaset",
+    name: "ReplicaSet",
+    category: "Compute",
+    keywords: ["replicaset", "replica", "replication", "workload"],
+  },
+
+  // ---- Networking -------------------------------------------------------
+  {
+    id: "k8s-service",
+    name: "Service",
+    category: "Networking",
+    keywords: ["service", "clusterip", "nodeport", "loadbalancer", "networking"],
+  },
+  {
+    id: "k8s-ingress",
+    name: "Ingress",
+    category: "Networking",
+    keywords: ["ingress", "http", "routing", "loadbalancer", "networking"],
+  },
+  {
+    id: "k8s-networkpolicy",
+    name: "NetworkPolicy",
+    category: "Networking",
+    keywords: ["networkpolicy", "firewall", "policy", "ingress", "egress", "networking"],
+  },
+  {
+    id: "k8s-endpoint",
+    name: "Endpoint",
+    category: "Networking",
+    keywords: ["endpoint", "endpoints", "networking"],
+  },
+
+  // ---- Storage ----------------------------------------------------------
+  {
+    id: "k8s-persistentvolume",
+    name: "PersistentVolume",
+    category: "Storage",
+    keywords: ["persistentvolume", "pv", "volume", "storage"],
+  },
+  {
+    id: "k8s-persistentvolumeclaim",
+    name: "PersistentVolumeClaim",
+    category: "Storage",
+    keywords: ["persistentvolumeclaim", "pvc", "claim", "storage"],
+  },
+  {
+    id: "k8s-storageclass",
+    name: "StorageClass",
+    category: "Storage",
+    keywords: ["storageclass", "provisioning", "dynamic", "storage"],
+  },
+
+  // ---- Config -----------------------------------------------------------
+  {
+    id: "k8s-configmap",
+    name: "ConfigMap",
+    category: "Config",
+    keywords: ["configmap", "config", "configuration", "env", "data"],
+  },
+  {
+    id: "k8s-secret",
+    name: "Secret",
+    category: "Config",
+    keywords: ["secret", "secrets", "credentials", "passwords", "tls", "config"],
+  },
+
+  // ---- Cluster ----------------------------------------------------------
+  {
+    id: "k8s-namespace",
+    name: "Namespace",
+    category: "Cluster",
+    keywords: ["namespace", "ns", "isolation", "multi-tenancy", "cluster"],
+  },
+  {
+    id: "k8s-node",
+    name: "Node",
+    category: "Cluster",
+    keywords: ["node", "worker", "machine", "host", "cluster"],
+  },
+  {
+    id: "k8s-rbac",
+    name: "RBAC",
+    category: "Cluster",
+    keywords: ["rbac", "role", "clusterrole", "binding", "access", "authorization", "cluster"],
+  },
+  {
+    id: "k8s-serviceaccount",
+    name: "ServiceAccount",
+    category: "Cluster",
+    keywords: ["serviceaccount", "sa", "identity", "authentication", "cluster"],
+  },
+  {
+    id: "k8s-hpa",
+    name: "HorizontalPodAutoscaler",
+    category: "Cluster",
+    keywords: ["hpa", "autoscaler", "horizontal", "scale", "metrics", "cluster"],
   },
 ];
 
@@ -319,13 +448,17 @@ export function unregisterImportedLibraryItems(ids: string[]): void {
 }
 
 export function getLibraryItem(id: string): LibraryItem | undefined {
-  return LIBRARY.find((i) => i.id === id) ?? importedItems.get(id);
+  return (
+    LIBRARY.find((i) => i.id === id) ??
+    LIBRARY_KUBERNETES.find((i) => i.id === id) ??
+    importedItems.get(id)
+  );
 }
 
 /** Simple case-insensitive search by name, keywords, and category */
 export function searchLibrary(query: string): LibraryItem[] {
   const q = query.trim().toLowerCase();
-  const pool = [...LIBRARY, ...importedItems.values()];
+  const pool = [...LIBRARY, ...LIBRARY_KUBERNETES, ...importedItems.values()];
   if (!q) return pool;
   const terms = q.split(/\s+/);
   return pool.filter((item) => {

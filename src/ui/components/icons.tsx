@@ -226,3 +226,51 @@ export function ImageIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function ImportIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+export function ExportIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+export function GridIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+    </svg>
+  );
+}
+
+export function KeyboardIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
+      <line x1="6" y1="8" x2="6.01" y2="8" />
+      <line x1="10" y1="8" x2="10.01" y2="8" />
+      <line x1="14" y1="8" x2="14.01" y2="8" />
+      <line x1="18" y1="8" x2="18.01" y2="8" />
+      <line x1="6" y1="12" x2="6.01" y2="12" />
+      <line x1="10" y1="12" x2="10.01" y2="12" />
+      <line x1="14" y1="12" x2="14.01" y2="12" />
+      <line x1="18" y1="12" x2="18.01" y2="12" />
+      <line x1="8" y1="16" x2="16" y2="16" />
+    </svg>
+  );
+}

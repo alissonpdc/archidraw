@@ -62,8 +62,8 @@ test.describe("ui widgets", () => {
       await page.evaluate(() => localStorage.getItem("archidraw:grid")),
     ).toBe("lines");
 
-    // menu stays open after toggling; checkmark moved to "Lines" in the Grid section
-    const gridSection = page.locator(".menu-section", { hasText: "Grid" });
+    // menu stays open after toggling; checkmark moved to "Lines" in the Canvas section
+    const gridSection = page.locator(".menu-section", { hasText: "Canvas" });
     await expect(gridSection.locator(".menu-item.active")).toHaveText(/Lines/);
   });
 
@@ -110,7 +110,7 @@ test.describe("ui widgets", () => {
   test("export shows a toast", async ({ page }) => {
     await open(page);
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Export JSON" }).click();
+    await page.getByRole("button", { name: "Export .archidraw" }).click();
 
     await expect(page.locator(".toast")).toHaveText(/Workspace exported/);
   });

@@ -11,13 +11,13 @@ test.describe("export / import", () => {
     await createRect(page);
   });
 
-  test("export JSON downloads a valid workspace file", async ({ page }) => {
+  test("export .archidraw downloads a valid workspace file", async ({ page }) => {
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Export JSON" }).click();
+    await page.getByRole("button", { name: "Export .archidraw" }).click();
     const download = await downloadPromise;
 
-    expect(download.suggestedFilename()).toMatch(/\.archidraw\.json$/);
+    expect(download.suggestedFilename()).toMatch(/\.archidraw$/);
 
     const stream = await download.createReadStream();
     const chunks: Buffer[] = [];
@@ -30,11 +30,11 @@ test.describe("export / import", () => {
     expect(data.tabs[0].doc.elements[0].type).toBe("rectangle");
   });
 
-  test("import JSON restores a workspace round-trip", async ({ page }) => {
+  test("import .archidraw restores a workspace round-trip", async ({ page }) => {
     // export first
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Export JSON" }).click();
+    await page.getByRole("button", { name: "Export .archidraw" }).click();
     const download = await downloadPromise;
     const path = await download.path();
 
@@ -64,6 +64,92 @@ test.describe("export / import", () => {
         }),
       )
       .toEqual({ n: 1, type: "rectangle", tabs: 1 });
+  });
+
+  test("import .excalidraw file creates elements on canvas", async ({ page }) => {
+    // create an excalidraw scene file with a rectangle
+    const excalidrawFile = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "https://excalidraw.com",
+      elements: [
+        {
+          id: "exc_rect_1",
+          type: "rectangle",
+          x: 50,
+          y: 50,
+          width: 200,
+          height: 100,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "#a5d8ff",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 100,
+          roundness: { type: 3 },
+          seed: 1,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+        },
+      ],
+      appState: { gridSize: 20, viewBackgroundColor: "" },
+      files: {},
+    });
+
+    await page.setInputFiles('[data-testid="import-input"]', {
+      name: "test.excalidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(excalidrawFile),
+    });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const snap = window.__editor__.getSnapshot();
+          return {
+            n: snap.doc.elements.length,
+            type: snap.doc.elements[0]?.type,
+            x: snap.doc.elements[0]?.x,
+          };
+        }),
+      )
+      .toEqual({ n: 1, type: "rectangle", x: 50 });
+  });
+
+  test("import .archidraw.json (legacy extension) also works", async ({ page }) => {
+    const workspace = JSON.stringify({
+      schemaVersion: 2,
+      activeTabId: "t",
+      tabs: [{
+        id: "t",
+        name: "Legacy",
+        doc: { schemaVersion: 1, elements: [{ id: "l1", type: "ellipse", x: 10, y: 20, width: 30, height: 40, strokeColor: "#000", backgroundColor: "transparent", strokeWidth: 1, opacity: 1, strokeStyle: "solid", roughness: 0, borderRadius: 0 }] },
+        camera: { scrollX: 0, scrollY: 0, zoom: 1 },
+      }],
+    });
+
+    await page.setInputFiles('[data-testid="import-input"]', {
+      name: "legacy.archidraw.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(workspace),
+    });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const snap = window.__editor__.getSnapshot();
+          return {
+            n: snap.doc.elements.length,
+            type: snap.doc.elements[0]?.type,
+          };
+        }),
+      )
+      .toEqual({ n: 1, type: "ellipse" });
   });
 
   test("invalid JSON import is rejected without crashing", async ({ page }) => {

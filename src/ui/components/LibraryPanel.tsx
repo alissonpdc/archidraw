@@ -9,6 +9,8 @@ import { createPortal } from "react-dom";
 import {
   LIBRARY,
   LIBRARY_CATEGORIES,
+  LIBRARY_KUBERNETES,
+  K8S_CATEGORIES,
   getLibraryItem,
   getRecentComponents,
   pushRecentComponent,
@@ -172,6 +174,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("");
   const [recents, setRecents] = useState<string[]>(getRecentComponents);
   const [awsOpen, setAwsOpen] = useState(false);
+  const [k8sOpen, setK8sOpen] = useState(false);
   const [importedOpen, setImportedOpen] = useState(false);
   const [tip, setTip] = useState<TipState | null>(null);
   const [imported, setImported] = useState<ImportedLibrary[]>(getImportedLibraries);
@@ -211,12 +214,19 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
     () => [...LIBRARY].sort((a, b) => a.name.localeCompare(b.name)),
     [],
   );
+  const k8sItems = useMemo(
+    () => [...LIBRARY_KUBERNETES].sort((a, b) => a.name.localeCompare(b.name)),
+    [],
+  );
 
   const recentItems = useMemo(
     () =>
       !searching && recents.length > 0
         ? recents
-            .map((id) => LIBRARY.find((i) => i.id === id))
+            .map((id) =>
+              LIBRARY.find((i) => i.id === id) ??
+              LIBRARY_KUBERNETES.find((i) => i.id === id),
+            )
             .filter((i): i is LibraryItem => !!i)
             .slice(0, RECENTS_LIMIT)
         : [],
@@ -375,6 +385,29 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
               {awsOpen &&
                 LIBRARY_CATEGORIES.map((cat) => {
                   const items = awsItems.filter((i) => i.category === cat);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={cat} className="library-subgroup">
+                      <div className="panel-subtitle">{cat}</div>
+                      <div className="library-grid">
+                        {items.map((item) => (
+                          <Tile key={item.id} item={item} onInsert={insert} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+            </section>
+            <section className="library-section">
+              <SectionHeader
+                open={k8sOpen}
+                onToggle={() => setK8sOpen((v) => !v)}
+              >
+                Kubernetes
+              </SectionHeader>
+              {k8sOpen &&
+                K8S_CATEGORIES.map((cat) => {
+                  const items = k8sItems.filter((i) => i.category === cat);
                   if (items.length === 0) return null;
                   return (
                     <div key={cat} className="library-subgroup">

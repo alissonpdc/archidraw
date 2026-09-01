@@ -1178,6 +1178,31 @@ export function PropertiesPanel() {
               </button>
             </div>
           </Group>
+
+          <Group title="Distribute">
+            <div className="layer-btns">
+              <button className="size-btn" data-tip="Distribute horizontally" aria-label="Distribute horizontally"
+                disabled={selected.length < 3}
+                onClick={() => editor.distributeSelected("horizontal")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="1" y1="1" x2="1" y2="15" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="15" y1="1" x2="15" y2="15" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="5" y="3" width="2" height="10" rx="0.5" fill="currentColor" opacity="0.5"/>
+                  <rect x="9" y="3" width="2" height="10" rx="0.5" fill="currentColor" opacity="0.5"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Distribute vertically" aria-label="Distribute vertically"
+                disabled={selected.length < 3}
+                onClick={() => editor.distributeSelected("vertical")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="1" y1="1" x2="15" y2="1" stroke="currentColor" strokeWidth="2"/>
+                  <line x1="1" y1="15" x2="15" y2="15" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="3" y="5" width="10" height="2" rx="0.5" fill="currentColor" opacity="0.5"/>
+                  <rect x="3" y="9" width="10" height="2" rx="0.5" fill="currentColor" opacity="0.5"/>
+                </svg>
+              </button>
+            </div>
+          </Group>
       </div>
     </div>
   );
