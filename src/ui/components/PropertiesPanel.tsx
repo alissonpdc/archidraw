@@ -7,7 +7,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { editor, useEditor } from "../hooks/useEditor";
-import { DEFAULT_STROKE } from "../../core/types";
 
 /** 9 basic colors shared by stroke and fill */
 const BASE_COLORS: { name: string; color: string }[] = [
@@ -592,7 +591,6 @@ export function PropertiesPanel() {
             current={selected[0].strokeColor}
             onPick={(strokeColor) => apply({ strokeColor })}
             label="Stroke color"
-            auto={DEFAULT_STROKE}
           />
         </Group>
 

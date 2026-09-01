@@ -196,5 +196,5 @@ export interface Camera {
 
 export const DEFAULT_CAMERA: Camera = { scrollX: 0, scrollY: 0, zoom: 1 };
 
-export const DEFAULT_STROKE = "#1e1e1e";
+export const DEFAULT_STROKE = "#3d4248";
 export const DEFAULT_BG = "transparent";
