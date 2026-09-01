@@ -238,15 +238,14 @@ function PaletteGrid({
     }
   };
 
-  const AUTO_STROKES = ["#1e1e1e", "#e8e8e8"];
-  const isAutoColor = AUTO_STROKES.includes(current);
+  const isAutoColor = current === "";
 
   return (
     <div className="palette-wrap" ref={wrapRef}>
       <div className="swatch-row swatch-row-5">
         {auto !== undefined ? (
           <button
-            className={`swatch swatch-auto ${current === "" || isAutoColor ? "active" : ""}`}
+            className={`swatch swatch-auto ${isAutoColor ? "active" : ""}`}
             aria-label={`${label} Auto`}
             data-tip="Auto"
             onClick={() => {

@@ -12,7 +12,7 @@
 
   /* canvas-render colors (read by JS via getComputedStyle) */
   --selection-color: #6965db;
-  --element-stroke: #1e1e1e;
+  --element-stroke: #3d4248;
   --grid-dot: rgba(0, 0, 0, 0.14);
   --grid-line: rgba(0, 0, 0, 0.07);
 
@@ -62,7 +62,7 @@
     --accent-strong: #918ff0;
     --on-accent: #ffffff;
     --selection-color: #8c89f0;
-    --element-stroke: #e8e8e8;
+    --element-stroke: #eaebeb;
     --grid-dot: rgba(255, 255, 255, 0.16);
     --grid-line: rgba(255, 255, 255, 0.09);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -81,7 +81,7 @@
   --accent-strong: #918ff0;
   --on-accent: #ffffff;
   --selection-color: #8c89f0;
-  --element-stroke: #e8e8e8;
+  --element-stroke: #eaebeb;
   --grid-dot: rgba(255, 255, 255, 0.16);
   --grid-line: rgba(255, 255, 255, 0.09);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);

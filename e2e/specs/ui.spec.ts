@@ -81,7 +81,7 @@ test.describe("ui widgets", () => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[0].strokeColor;
     });
-    expect(stroke).toBe("#e8e8e8");
+    expect(stroke).toBe("#eaebeb");
 
     // back to light theme: new elements are dark again
     await page.evaluate(() => {
@@ -93,7 +93,7 @@ test.describe("ui widgets", () => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[1].strokeColor;
     });
-    expect(stroke2).toBe("#1e1e1e");
+    expect(stroke2).toBe("#3d4248");
   });
 
   test("empty state hint shows on empty canvas and hides after creating", async ({

@@ -3,13 +3,12 @@ import type { RenderColors } from "./renderer";
 
 const DEFAULT_FONT_FAMILY = '"Segoe UI", system-ui, sans-serif';
 const DEFAULT_LINE_HEIGHT = 1.25;
-const AUTO_STROKES = new Set(["#1e1e1e", "#e8e8e8"]);
 
 /** resolve the effective text color: element's textColor → strokeColor → theme */
-export function resolveTextColor(el: Element, colors: RenderColors): string {
+export function resolveTextColor(el: Element, _colors: RenderColors): string {
   const tc = el.textColor && el.textColor !== "" ? el.textColor : null;
   if (!tc) {
-    return AUTO_STROKES.has(el.strokeColor) ? colors.elementStroke : el.strokeColor;
+    return el.strokeColor === "" ? "transparent" : el.strokeColor;
   }
   return tc;
 }

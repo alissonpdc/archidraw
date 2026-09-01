@@ -44,12 +44,9 @@ export interface RenderState {
   hiddenTextId?: string | null;
 }
 
-/** default stroke colors that adapt to the active theme at render time */
-const AUTO_STROKES = new Set(["#1e1e1e", "#e8e8e8"]);
-
 const DEFAULT_COLORS: RenderColors = {
   selection: "#6965db",
-  elementStroke: "#1e1e1e",
+  elementStroke: "#3d4248",
   gridDot: "rgba(0,0,0,0.14)",
   gridLine: "rgba(0,0,0,0.07)",
   canvasBg: "#ffffff",
@@ -138,11 +135,9 @@ function drawArrowHead(
   ctx.stroke();
 }
 
-/** resolves the element stroke, adapting default colors to the theme */
-function resolveStroke(el: Element, colors: RenderColors): string {
-  return el.strokeColor === "" || AUTO_STROKES.has(el.strokeColor)
-    ? colors.elementStroke
-    : el.strokeColor;
+/** resolves the element stroke; empty / legacy auto values → transparent */
+function resolveStroke(el: Element, _colors: RenderColors): string {
+  return el.strokeColor === "" ? "transparent" : el.strokeColor;
 }
 
 /** deterministic pseudo-random in [-1, 1] from integer seed */
