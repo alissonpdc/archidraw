@@ -254,4 +254,88 @@ test.describe("path types for lines and arrows", () => {
     const el = await firstElement(page);
     expect(el.bendPoints).toBeUndefined();
   });
+
+  /** two rectangles + an auto arrow with both endpoints bound to them */
+  async function boundAutoArrow(page: import("@playwright/test").Page) {
+    await open(page);
+    await selectTool(page, "r");
+    await drag(page, { x: 100, y: 100 }, { x: 200, y: 200 });
+    await drag(page, { x: 400, y: 300 }, { x: 500, y: 400 });
+    await selectTool(page, "a");
+    await drag(page, { x: 250, y: 150 }, { x: 350, y: 350 });
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const arrow = ed.getSnapshot().doc.elements[2];
+      ed.updateElements([arrow.id], { lineType: "auto" });
+    });
+    await selectTool(page, "v");
+    // drag each endpoint onto a shape edge to bind it
+    await drag(page, { x: 250, y: 150 }, { x: 210, y: 150 });
+    await drag(page, { x: 350, y: 350 }, { x: 390, y: 350 });
+    const arrow = await page.evaluate(() => {
+      const s = (window as any).__editor__.getSnapshot();
+      return s.doc.elements[2];
+    });
+    expect(arrow.x).toBeCloseTo(200, 0);
+    expect(arrow.y).toBeCloseTo(150, 0);
+    expect(arrow.startBinding).toBeDefined();
+    expect(arrow.endBinding).toBeDefined();
+    return arrow;
+  }
+
+  test("auto arrow: segment drag keeps a margin from the start binding", async ({ page }) => {
+    await boundAutoArrow(page);
+    // drag the horizontal segment down 80px: first turn happens 16px after
+    // the binding point instead of riding on the shape outline
+    await drag(page, { x: 300, y: 150 }, { x: 300, y: 230 });
+    const el = await page.evaluate(() => {
+      const s = (window as any).__editor__.getSnapshot();
+      return s.doc.elements[2];
+    });
+    expect(el.bendPoints).toHaveLength(3);
+    expect(el.bendPoints[0].x).toBeCloseTo(216, 0); // 200 + margin 16
+    expect(el.bendPoints[0].y).toBeCloseTo(150, 0);
+    expect(el.bendPoints[1].x).toBeCloseTo(216, 0);
+    expect(el.bendPoints[1].y).toBeCloseTo(230, 0);
+    expect(el.bendPoints[2].x).toBeCloseTo(400, 0);
+    expect(el.bendPoints[2].y).toBeCloseTo(230, 0);
+  });
+
+  test("auto arrow: segment drag keeps a margin from the end binding", async ({ page }) => {
+    await boundAutoArrow(page);
+    // drag the vertical segment right 60px: the approach into the bound tip
+    // stays vertical for the last 16px before the anchor
+    await drag(page, { x: 400, y: 250 }, { x: 460, y: 250 });
+    const el = await page.evaluate(() => {
+      const s = (window as any).__editor__.getSnapshot();
+      return s.doc.elements[2];
+    });
+    expect(el.bendPoints).toHaveLength(3);
+    expect(el.bendPoints[0].x).toBeCloseTo(460, 0);
+    expect(el.bendPoints[0].y).toBeCloseTo(150, 0);
+    expect(el.bendPoints[1].x).toBeCloseTo(460, 0);
+    expect(el.bendPoints[1].y).toBeCloseTo(334, 0);
+    expect(el.bendPoints[2].x).toBeCloseTo(400, 0);
+    expect(el.bendPoints[2].y).toBeCloseTo(334, 0);
+  });
+
+  test("auto line: magnet snaps a dragged segment onto a parallel one", async ({ page }) => {
+    await open(page);
+    await selectTool(page, "l");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { lineType: "auto" });
+    });
+    await selectTool(page, "v");
+    await page.mouse.click(350, 200); // select
+    // drag the vertical segment until it is 4px off the start x: the magnet
+    // snaps it exactly onto x=200 and the path straightens
+    await drag(page, { x: 500, y: 300 }, { x: 204, y: 300 });
+    const el = await firstElement(page);
+    expect(el.bendPoints).toHaveLength(1);
+    expect(el.bendPoints[0].x).toBeCloseTo(200, 0);
+    expect(el.bendPoints[0].y).toBeCloseTo(400, 0);
+  });
 });

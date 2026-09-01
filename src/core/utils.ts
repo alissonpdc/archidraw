@@ -402,12 +402,19 @@ function simplifyPolyline(pts: Point[]): Point[] {
   return out;
 }
 
+/** lead-out margin (scene units) kept between a bound shape's anchor and
+ *  the first turn of a dragged auto path, so the routed line never rides
+ *  on the shape outline right at the binding point */
+const BOUND_ENDPOINT_MARGIN = 16;
+
 /**
  * bends for an auto-mode edge after dragging the polyline segment `index`
  * by `d` along its perpendicular axis, keeping the path orthogonal: the
  * dragged segment slides/stretches and perpendicular stubs reconnect it to
- * the untouched rest of the path (the edge endpoints never move). Returns
- * undefined when the result matches the default L-shaped routing.
+ * the untouched rest of the path. The edge endpoints never move; at a bound
+ * endpoint the turn happens `BOUND_ENDPOINT_MARGIN` away from the anchor,
+ * preserving the original exit/entry direction. Returns undefined when the
+ * result matches the default L-shaped routing.
  */
 export function autoDragSegmentBends(
   el: EdgeElement,
@@ -427,29 +434,118 @@ export function autoDragSegmentBends(
       (i === index || i === index + 1) && i > 0 && i < pts.length - 1,
   );
   const next = pts.map((p, i) => (isMoved[i] ? moved(p) : p));
+  const last = pts.length - 1;
+  const aligned = (a: Point, b: Point) =>
+    Math.abs(a.x - b.x) <= ORTHO_EPS || Math.abs(a.y - b.y) <= ORTHO_EPS;
   // reconnect the moved segment to the untouched path: each misaligned
   // junction gets a stub point so every segment stays horizontal/vertical
-  const withStubs: Point[] = [];
-  for (let i = 0; i < next.length; i++) {
-    const prev = withStubs[withStubs.length - 1];
+  const withStubs: Point[] = [next[0]];
+  for (let i = 1; i < next.length; i++) {
+    const prev = next[i - 1];
     const cur = next[i];
-    if (prev) {
-      const dx = Math.abs(cur.x - prev.x);
-      const dy = Math.abs(cur.y - prev.y);
-      if (dx > ORTHO_EPS && dy > ORTHO_EPS) {
-        // stub keeps the moved point's travel parallel to the dragged
-        // segment and closes the gap perpendicularly into the fixed one
-        if (isMoved[i]) {
-          withStubs.push(horiz ? { x: prev.x, y: cur.y } : { x: cur.x, y: prev.y });
-        } else if (isMoved[i - 1]) {
-          withStubs.push(horiz ? { x: cur.x, y: prev.y } : { x: prev.x, y: cur.y });
+    if (aligned(prev, cur)) {
+      withStubs.push(cur);
+      continue;
+    }
+    // bound endpoint: run the original exit/entry direction for a margin,
+    // then turn — instead of turning right at the anchor
+    if (i === 1 && el.startBinding) {
+      const dx = pts[1].x - pts[0].x;
+      const dy = pts[1].y - pts[0].y;
+      if (Math.abs(dx) <= ORTHO_EPS || Math.abs(dy) <= ORTHO_EPS) {
+        const m = Math.min(BOUND_ENDPOINT_MARGIN, Math.hypot(dx, dy));
+        const turn = {
+          x: pts[0].x + Math.sign(dx) * m,
+          y: pts[0].y + Math.sign(dy) * m,
+        };
+        withStubs.push(turn);
+        if (!aligned(turn, cur)) {
+          withStubs.push(
+            dx !== 0 ? { x: turn.x, y: cur.y } : { x: cur.x, y: turn.y },
+          );
         }
+        withStubs.push(cur);
+        continue;
       }
+    }
+    if (i === last && el.endBinding) {
+      const dx = pts[last].x - pts[last - 1].x;
+      const dy = pts[last].y - pts[last - 1].y;
+      if (Math.abs(dx) <= ORTHO_EPS || Math.abs(dy) <= ORTHO_EPS) {
+        const m = Math.min(BOUND_ENDPOINT_MARGIN, Math.hypot(dx, dy));
+        const turn = {
+          x: pts[last].x - Math.sign(dx) * m,
+          y: pts[last].y - Math.sign(dy) * m,
+        };
+        if (!aligned(prev, turn)) {
+          withStubs.push(
+            dx !== 0 ? { x: turn.x, y: prev.y } : { x: prev.x, y: turn.y },
+          );
+        }
+        withStubs.push(turn);
+        withStubs.push(cur);
+        continue;
+      }
+    }
+    // plain stub: keep the moved point's travel parallel to the dragged
+    // segment and close the gap perpendicularly into the fixed one
+    if (isMoved[i]) {
+      withStubs.push(horiz ? { x: prev.x, y: cur.y } : { x: cur.x, y: prev.y });
+    } else if (isMoved[i - 1]) {
+      withStubs.push(horiz ? { x: cur.x, y: prev.y } : { x: prev.x, y: cur.y });
     }
     withStubs.push(cur);
   }
   const bends = simplifyPolyline(withStubs).slice(1, -1);
   return bends.length > 0 ? bends : undefined;
+}
+
+/**
+ * magnet for a dragged auto-path segment: when the moving segment's axis
+ * coordinate gets within `threshold` of another segment's axis (or an
+ * endpoint coordinate) on the same path, the delta snaps so both align
+ * exactly and merge into a single segment. Returns the effective delta and
+ * the snapped axis value (null when free).
+ */
+export function snapSegmentDelta(
+  el: EdgeElement,
+  index: number,
+  rawD: number,
+  threshold: number,
+): { delta: number; target: number | null } {
+  const pts = edgePathPoints(el);
+  if (index < 0 || index >= pts.length - 1) {
+    return { delta: rawD, target: null };
+  }
+  const horiz =
+    Math.abs(pts[index + 1].y - pts[index].y) <=
+    Math.abs(pts[index + 1].x - pts[index].x);
+  const orig = horiz ? pts[index].y : pts[index].x;
+  const targets: number[] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    if (i === index) continue;
+    const ddx = Math.abs(pts[i + 1].x - pts[i].x);
+    const ddy = Math.abs(pts[i + 1].y - pts[i].y);
+    if (horiz) {
+      if (ddy <= ORTHO_EPS && ddx > ORTHO_EPS) targets.push(pts[i].y);
+    } else {
+      if (ddx <= ORTHO_EPS && ddy > ORTHO_EPS) targets.push(pts[i].x);
+    }
+  }
+  const tip = pts[pts.length - 1];
+  targets.push(horiz ? pts[0].y : pts[0].x, horiz ? tip.y : tip.x);
+  const moving = orig + rawD;
+  let best: number | null = null;
+  for (const t of targets) {
+    if (Math.abs(t - orig) <= ORTHO_EPS) continue; // never snap to itself
+    const diff = Math.abs(t - moving);
+    if (diff <= threshold && (best === null || diff < Math.abs(best - moving))) {
+      best = t;
+    }
+  }
+  return best === null
+    ? { delta: rawD, target: null }
+    : { delta: best - orig, target: best };
 }
 
 // ---- text measurement --------------------------------------------------

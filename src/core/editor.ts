@@ -39,6 +39,7 @@ import {
   curvedArrowControl,
   autoSegmentAt,
   autoDragSegmentBends,
+  snapSegmentDelta,
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
@@ -62,6 +63,9 @@ const HANDLE_CURSOR: Record<HandleId, string> = {
 
 /** handle hit tolerance in SCREEN pixels */
 const HANDLE_TOLERANCE_PX = 6;
+/** magnet radius (SCREEN pixels) aligning a dragged auto-path segment with
+ *  a parallel segment of the same path so both merge into one */
+const SEGMENT_SNAP_PX = 8;
 /** snap activation threshold in scene units */
 const SNAP_TOLERANCE = 4;
 /** 45° in radians, used by shift-constrained line/arrow angle snapping */
@@ -1615,22 +1619,38 @@ export class Editor {
       case "segment-drag": {
         // dragging an auto-mode path segment slides it perpendicularly and
         // rebuilds the orthogonal path around it (recomputed from the
-        // original element so the segment index stays valid)
+        // original element so the segment index stays valid); a magnet
+        // snaps the segment onto parallel segments of the same path
         const interaction = this.interaction;
         const el = this.doc.elements.find((e) => e.id === interaction.id);
         if (el && isEdge(el) && isEdge(interaction.original)) {
-          const d =
+          const rawD =
             interaction.axis === "x"
               ? scene.x - interaction.startScene.x
               : scene.y - interaction.startScene.y;
-          if (Math.abs(d) > 1e-6) interaction.moved = true;
-          const bends = autoDragSegmentBends(interaction.original, interaction.index, d);
+          if (Math.abs(rawD) > 1e-6) interaction.moved = true;
+          const snap = snapSegmentDelta(
+            interaction.original,
+            interaction.index,
+            rawD,
+            SEGMENT_SNAP_PX / this.camera.zoom,
+          );
+          const bends = autoDragSegmentBends(interaction.original, interaction.index, snap.delta);
           this.doc = {
             ...this.doc,
             elements: this.doc.elements.map((e) =>
               e.id === el.id ? { ...e, bendPoints: bends } : e,
             ),
           };
+          this.guides =
+            snap.target === null
+              ? null
+              : [
+                  {
+                    orientation: interaction.axis === "x" ? "v" : "h",
+                    pos: snap.target,
+                  },
+                ];
         }
         break;
       }
