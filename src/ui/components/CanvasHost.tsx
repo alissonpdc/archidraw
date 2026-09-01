@@ -365,12 +365,12 @@ export function CanvasHost() {
             <path d="M68 20 L 72 24 L 68 28" stroke="var(--accent)" strokeWidth="1.5" fill="none" />
             <rect x="38" y="52" width="44" height="16" rx="3" stroke="var(--text-muted)" strokeWidth="1.5" strokeDasharray="3 3" />
           </svg>
-          <div className="empty-title">Canvas vazio — clique e arraste para criar</div>
+          <div className="empty-title">Empty canvas — click and drag to create</div>
           <div className="empty-keys">
-            <span><kbd>R</kbd> retângulo</span>
-            <span><kbd>A</kbd> seta</span>
-            <span><kbd>T</kbd> texto</span>
-            <span><kbd>?</kbd> atalhos</span>
+            <span><kbd>R</kbd> rectangle</span>
+            <span><kbd>A</kbd> arrow</span>
+            <span><kbd>T</kbd> text</span>
+            <span><kbd>?</kbd> shortcuts</span>
           </div>
         </div>
       )}

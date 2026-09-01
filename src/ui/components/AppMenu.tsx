@@ -56,7 +56,7 @@ export function AppMenu() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeName =
-    snap.tabs.find((t) => t.id === snap.activeTabId)?.name ?? "diagrama";
+    snap.tabs.find((t) => t.id === snap.activeTabId)?.name ?? "diagram";
   const filename = slugify(activeName);
 
   const close = () => setOpen(false);
