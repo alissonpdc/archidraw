@@ -566,21 +566,6 @@ button {
   background-color: #fff;
 }
 
-/* "Auto" text color: stroke-color glyph on a neutral tile */
-.swatch.swatch-auto {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-surface);
-}
-
-.swatch-auto-glyph {
-  font-size: 13px;
-  font-weight: bold;
-  line-height: 1;
-  user-select: none;
-}
-
 /* sem transform/filter no hover: criaria stacking context e o tooltip
    ficaria atrás dos swatches vizinhos */
 .swatch:hover {

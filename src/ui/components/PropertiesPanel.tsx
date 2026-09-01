@@ -245,19 +245,15 @@ function PaletteGrid({
       <div className="swatch-row swatch-row-5">
         {auto !== undefined ? (
           <button
-            className={`swatch swatch-auto ${isAutoColor ? "active" : ""}`}
-            aria-label={`${label} Auto`}
-            data-tip="Auto"
+            className={`swatch transparent-checker ${isAutoColor ? "active" : ""}`}
+            aria-label={`${label} Transparent`}
+            data-tip="Transparent"
             onClick={() => {
               setExpanded(null);
               setPopPos(null);
               onPick("");
             }}
-          >
-            <span className="swatch-auto-glyph" style={{ color: auto }}>
-              A
-            </span>
-          </button>
+          />
         ) : (
           <button
             className={`swatch transparent-checker ${
