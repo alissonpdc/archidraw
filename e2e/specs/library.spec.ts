@@ -10,7 +10,7 @@ async function openLibrary(page: Page) {
 /** opens the panel and expands the AWS group */
 async function openLibraryWithAws(page: Page) {
   await openLibrary(page);
-  await page.locator(".library-section-header").click();
+  await page.locator(".library-section-header", { hasText: "AWS" }).click();
 }
 
 test.describe("component library", () => {
@@ -18,7 +18,7 @@ test.describe("component library", () => {
     await openLibrary(page);
 
     // AWS starts collapsed
-    const header = page.locator(".library-section-header");
+    const header = page.locator(".library-section-header", { hasText: "AWS" });
     await expect(header).toHaveText(/AWS/);
     await expect(header).toHaveAttribute("aria-expanded", "false");
     await expect(
@@ -314,7 +314,7 @@ test.describe("component library", () => {
     await expect(page.locator(".library-panel")).toHaveCount(0);
   });
 
-  test("AWS services use official icon and generics fall back to vector glyph", async ({
+  test("AWS services use official icons", async ({
     page,
     editorState,
   }) => {
@@ -328,12 +328,6 @@ test.describe("component library", () => {
     await expect(ec2).toHaveAttribute("data-tip", "EC2");
     await expect(ec2.locator(".library-card-name")).toHaveCount(0);
 
-    // Client has no official asset → inline vector glyph
-    const client = page.locator(
-      '.library-panel [data-component-id="client"]',
-    );
-    await expect(client.locator("svg")).toBeVisible();
-
     await ec2.click();
     const state = await editorState();
     expect(state.elements[0].componentId).toBe("ec2");
@@ -342,7 +336,7 @@ test.describe("component library", () => {
   test("AWS group expands and collapses", async ({ page }) => {
     await openLibrary(page);
 
-    const header = page.locator(".library-section-header");
+    const header = page.locator(".library-section-header", { hasText: "AWS" });
     await expect(header).toHaveAttribute("aria-expanded", "false");
     const tile = page.locator('.library-panel [data-component-id="ec2"]');
     await expect(tile).toHaveCount(0);

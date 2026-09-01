@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256px" height="256px" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <title>CronJob</title>
+    <defs>
+        <linearGradient id="bg" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop stop-color="#1A4B8E" offset="0%"/>
+            <stop stop-color="#326CE5" offset="100%"/>
+        </linearGradient>
+    </defs>
+    <rect fill="url(#bg)" width="256" height="256" rx="20"/>
+    <!-- Clock body -->
+    <circle cx="128" cy="128" r="72" fill="none" stroke="#FFF" stroke-width="6"/>
+    <!-- Clock tick marks -->
+    <line x1="128" y1="60" x2="128" y2="72" stroke="#FFF" stroke-width="5" stroke-linecap="round"/>
+    <line x1="128" y1="184" x2="128" y2="196" stroke="#FFF" stroke-width="5" stroke-linecap="round"/>
+    <line x1="60" y1="128" x2="72" y2="128" stroke="#FFF" stroke-width="5" stroke-linecap="round"/>
+    <line x1="184" y1="128" x2="196" y2="128" stroke="#FFF" stroke-width="5" stroke-linecap="round"/>
+    <!-- Clock hands -->
+    <line x1="128" y1="128" x2="128" y2="84" stroke="#FFF" stroke-width="6" stroke-linecap="round"/>
+    <line x1="128" y1="128" x2="162" y2="112" stroke="#FFF" stroke-width="5" stroke-linecap="round"/>
+    <!-- Clock center dot -->
+    <circle cx="128" cy="128" r="6" fill="#FFF"/>
+    <!-- Small document/job rectangle -->
+    <rect x="170" y="160" width="40" height="50" rx="4" fill="none" stroke="#FFF" stroke-width="4"/>
+    <line x1="178" y1="172" x2="202" y2="172" stroke="#FFF" stroke-width="3" stroke-linecap="round"/>
+    <line x1="178" y1="182" x2="196" y2="182" stroke="#FFF" stroke-width="3" stroke-linecap="round"/>
+    <line x1="178" y1="192" x2="200" y2="192" stroke="#FFF" stroke-width="3" stroke-linecap="round"/>
+</svg>

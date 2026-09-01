@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256px" height="256px" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <title>HPA</title>
+    <defs>
+        <linearGradient id="bg" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop stop-color="#1A4B8E" offset="0%"/>
+            <stop stop-color="#326CE5" offset="100%"/>
+        </linearGradient>
+    </defs>
+    <rect fill="url(#bg)" width="256" height="256" rx="20"/>
+    <!-- Diamond -->
+    <path d="M128 56l56 72-56 72-56-72z" fill="none" stroke="#FFF" stroke-width="6" stroke-linejoin="round"/>
+    <!-- Up arrow -->
+    <path d="M128 88l-16 16h10v24h12v-24h10l-16-16z" fill="#FFF"/>
+    <!-- Down arrow -->
+    <path d="M128 184l16-16h-10v-24h-12v24h-10l16 16z" fill="#FFF"/>
+</svg>
