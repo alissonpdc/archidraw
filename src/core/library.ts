@@ -32,7 +32,6 @@ export const LIBRARY_CATEGORIES = [
   "Messaging",
   "Security",
   "Monitoring",
-  "Clients",
 ] as const;
 
 export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number];
@@ -284,75 +283,21 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
 
-  // ---- Clients -------------------------------------------------------------
-  {
-    id: "client",
-    name: "Client / Browser",
-    category: "Clients",
-    keywords: ["browser", "browser", "user", "web", "spa"],
-    icon: [
-      "M3.5 5 H20.5 V19 H3.5 Z",
-      "M3.5 9 H20.5",
-      circle(6.2, 7, 0.9),
-      circle(9, 7, 0.9),
-    ],
-  },
-  {
-    id: "mobile",
-    name: "Mobile",
-    category: "Clients",
-    keywords: ["mobile", "app", "smartphone", "ios", "android"],
-    icon: ["M8.5 3.5 H15.5 V20.5 H8.5 Z", "M11 17.8 H13"],
-  },
 ];
 
 // ---- Kubernetes ----------------------------------------------------------
 
 export const K8S_CATEGORIES = [
-  "Control Plane",
   "Compute",
   "Networking",
   "Storage",
   "Config",
   "Cluster",
-  "Ecosystem",
 ] as const;
 
 export type K8sCategory = (typeof K8S_CATEGORIES)[number];
 
 export const LIBRARY_KUBERNETES: LibraryItem[] = [
-  // ---- Control Plane ----------------------------------------------------
-  {
-    id: "k8s-api-server",
-    name: "API Server",
-    category: "Control Plane",
-    keywords: ["apiserver", "api", "server", "kube-apiserver", "control plane"],
-  },
-  {
-    id: "k8s-etcd",
-    name: "etcd",
-    category: "Control Plane",
-    keywords: ["etcd", "key-value", "store", "state", "control plane"],
-  },
-  {
-    id: "k8s-scheduler",
-    name: "Scheduler",
-    category: "Control Plane",
-    keywords: ["scheduler", "kube-scheduler", "pod scheduling", "control plane"],
-  },
-  {
-    id: "k8s-controller-manager",
-    name: "Controller Manager",
-    category: "Control Plane",
-    keywords: ["controller", "kube-controller-manager", "control plane", "loops"],
-  },
-  {
-    id: "k8s-cloud-controller-manager",
-    name: "Cloud Controller Manager",
-    category: "Control Plane",
-    keywords: ["cloud", "controller", "cloud-controller-manager", "control plane"],
-  },
-
   // ---- Compute ----------------------------------------------------------
   {
     id: "k8s-pod",
@@ -422,12 +367,6 @@ export const LIBRARY_KUBERNETES: LibraryItem[] = [
     category: "Networking",
     keywords: ["endpoint", "endpoints", "networking"],
   },
-  {
-    id: "k8s-coredns",
-    name: "CoreDNS",
-    category: "Networking",
-    keywords: ["coredns", "dns", "service discovery", "networking"],
-  },
 
   // ---- Storage ----------------------------------------------------------
   {
@@ -493,50 +432,6 @@ export const LIBRARY_KUBERNETES: LibraryItem[] = [
     name: "HorizontalPodAutoscaler",
     category: "Cluster",
     keywords: ["hpa", "autoscaler", "horizontal", "scale", "metrics", "cluster"],
-  },
-  {
-    id: "k8s-vpa",
-    name: "VerticalPodAutoscaler",
-    category: "Cluster",
-    keywords: ["vpa", "autoscaler", "vertical", "resources", "cluster"],
-  },
-
-  // ---- Ecosystem --------------------------------------------------------
-  {
-    id: "k8s-helm",
-    name: "Helm",
-    category: "Ecosystem",
-    keywords: ["helm", "chart", "package", "manager", "tiller", "ecosystem"],
-  },
-  {
-    id: "k8s-kustomize",
-    name: "Kustomize",
-    category: "Ecosystem",
-    keywords: ["kustomize", "overlay", "patch", "configuration", "ecosystem"],
-  },
-  {
-    id: "k8s-argocd",
-    name: "ArgoCD",
-    category: "Ecosystem",
-    keywords: ["argocd", "gitops", "continuous", "delivery", "deployment", "ecosystem"],
-  },
-  {
-    id: "k8s-istio",
-    name: "Istio",
-    category: "Ecosystem",
-    keywords: ["istio", "service", "mesh", "proxy", "envoy", "traffic", "ecosystem"],
-  },
-  {
-    id: "k8s-cert-manager",
-    name: "Cert Manager",
-    category: "Ecosystem",
-    keywords: ["cert-manager", "certificate", "tls", "letsencrypt", "ecosystem"],
-  },
-  {
-    id: "k8s-prometheus-operator",
-    name: "Prometheus Operator",
-    category: "Ecosystem",
-    keywords: ["prometheus", "operator", "monitoring", "alerting", "metrics", "ecosystem"],
   },
 ];
 
