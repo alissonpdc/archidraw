@@ -1203,15 +1203,7 @@ function drawHandles(
       ctx.lineTo(cp.x, cp.y);
       ctx.stroke();
     }
-    // bend point handles for auto mode
-    if (lineType === "auto" && el.bendPoints && el.bendPoints.length > 0) {
-      for (const bp of el.bendPoints) {
-        ctx.beginPath();
-        ctx.arc(bp.x, bp.y, s / 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      }
-    }
+
   }
   ctx.restore();
 }

@@ -166,18 +166,6 @@ function controlPointHandleAt(scene: Point, el: Element, zoom: number): boolean 
   return Math.hypot(scene.x - cp.x, scene.y - cp.y) * zoom <= HANDLE_TOLERANCE_PX;
 }
 
-/** index of the bend point hit by the scene point, or -1 */
-function bendPointHitAt(scene: Point, el: Element, zoom: number): number {
-  if (!isEdge(el) || (el.lineType ?? "straight") !== "auto") return -1;
-  const bends = el.bendPoints ?? [];
-  for (let i = 0; i < bends.length; i++) {
-    if (Math.hypot(scene.x - bends[i].x, scene.y - bends[i].y) * zoom <= HANDLE_TOLERANCE_PX) {
-      return i;
-    }
-  }
-  return -1;
-}
-
 let _offCanvas: HTMLCanvasElement | null = null;
 let _offCtx: CanvasRenderingContext2D | null = null;
 function visualBounds(el: Element): Bounds {
@@ -1305,20 +1293,6 @@ export class Editor {
             break;
           }
         }
-        // bend-point handle (auto mode) of the single selected edge
-        if (this.selectedIds.size === 1) {
-          const selected = this.doc.elements.find((el) =>
-            this.selectedIds.has(el.id),
-          );
-          if (selected) {
-            const bIdx = bendPointHitAt(scene, selected, this.camera.zoom);
-            if (bIdx >= 0) {
-              this.commitHistory();
-              this.interaction = { kind: "bend-point", id: selected.id, index: bIdx, original: selected, startScene: scene };
-              break;
-            }
-          }
-        }
         // dragging a segment of the auto-mode path adjusts the L dimensions
         if (this.selectedIds.size === 1) {
           const selected = this.doc.elements.find((el) =>
@@ -1599,38 +1573,6 @@ export class Editor {
         }
         break;
       }
-      case "bend-point": {
-        // constrain to a single axis (horizontal OR vertical) so the path
-        // never leaves 90° angles: the axis is chosen by the first
-        // significant movement and then locked for the entire drag
-        const interaction = this.interaction;
-        if (!interaction.axis) {
-          const dx = scene.x - interaction.startScene.x;
-          const dy = scene.y - interaction.startScene.y;
-          if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-            interaction.axis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
-          }
-        }
-        const constrained: Point = interaction.axis
-          ? { x: interaction.axis === "x" ? scene.x : interaction.startScene.x,
-              y: interaction.axis === "y" ? scene.y : interaction.startScene.y }
-          : scene;
-        const el = this.doc.elements.find((e) => e.id === interaction.id);
-        if (el && isEdge(el)) {
-          const bends = [...(el.bendPoints ?? [])];
-          const idx = interaction.index;
-          if (idx < bends.length) {
-            bends[idx] = constrained;
-            this.doc = {
-              ...this.doc,
-              elements: this.doc.elements.map((e) =>
-                e.id === el.id ? { ...e, bendPoints: bends } : e,
-              ),
-            };
-          }
-        }
-        break;
-      }
       case "segment-drag": {
         const interaction = this.interaction;
         const el = this.doc.elements.find((e) => e.id === interaction.id);
@@ -1902,7 +1844,6 @@ export class Editor {
     const scene = screenToScene(screenPoint, this.camera);
     if (labelHandleAt(scene, selected, this.camera.zoom)) return "move";
     if (controlPointHandleAt(scene, selected, this.camera.zoom)) return "move";
-    if (bendPointHitAt(scene, selected, this.camera.zoom) >= 0) return "move";
     const handle = resizeHandleAt(
       scene,
       visualBounds(selected),
