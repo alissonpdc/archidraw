@@ -621,6 +621,54 @@ export class Editor {
     this.emit();
   }
 
+  distributeSelected(axis: "horizontal" | "vertical") {
+    if (this.selectedIds.size < 3) return;
+    this.commitHistory();
+    const selected = this.doc.elements.filter((el) => this.selectedIds.has(el.id));
+    const bounds = selected.map((el) => elementBounds(el));
+
+    const indexed = bounds
+      .map((b, i) => ({ b, i }))
+      .sort((a, b) =>
+        axis === "horizontal" ? a.b.x1 - b.b.x1 : a.b.y1 - b.b.y1,
+      );
+
+    const first = indexed[0];
+    const last = indexed[indexed.length - 1];
+
+    const totalSpan = axis === "horizontal"
+      ? last.b.x2 - first.b.x1
+      : last.b.y2 - first.b.y1;
+    const totalSize = indexed.reduce((s, { b }) =>
+      s + (axis === "horizontal" ? b.x2 - b.x1 : b.y2 - b.y1), 0);
+    const gap = (totalSpan - totalSize) / (indexed.length - 1);
+
+    const positions = new Map<string, { x?: number; y?: number }>();
+    let cursor = axis === "horizontal" ? first.b.x2 + gap : first.b.y2 + gap;
+    for (let idx = 1; idx < indexed.length - 1; idx++) {
+      const { b, i } = indexed[idx];
+      const id = selected[i].id;
+      if (axis === "horizontal") {
+        positions.set(id, { x: cursor });
+        cursor += (b.x2 - b.x1) + gap;
+      } else {
+        positions.set(id, { y: cursor });
+        cursor += (b.y2 - b.y1) + gap;
+      }
+    }
+
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) => {
+        const pos = positions.get(el.id);
+        if (!pos) return el;
+        if (axis === "horizontal") return { ...el, x: pos.x! } as Element;
+        return { ...el, y: pos.y! } as Element;
+      }),
+    };
+    this.emit();
+  }
+
   selectAll() {
     this.tool = "selection";
     this.selectedIds = new Set(this.doc.elements.map((el) => el.id));
