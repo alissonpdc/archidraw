@@ -1961,7 +1961,7 @@ export class Editor {
     this.tabs = data.tabs;
     this.activeTabId = this.tabs.some((t) => t.id === data.activeTabId)
       ? data.activeTabId
-      : data.tabs[0].id;
+      : this.tabs[0].id;
     this.histories.clear();
     this.selectedIds.clear();
     this.editingTextId = null;
@@ -1971,6 +1971,26 @@ export class Editor {
     this.interaction = { kind: "none" };
     this.emit();
     return true;
+  }
+
+  /** imports a Document into the current active tab (used by .excalidraw import) */
+  importDocument(doc: Document) {
+    const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
+    if (idx >= 0) {
+      this.tabs[idx] = { ...this.tabs[idx], doc };
+    } else {
+      const id = "tab_1";
+      this.tabs = [{ id, name: "Imported", doc, camera: { scrollX: 0, scrollY: 0, zoom: 1 } }];
+      this.activeTabId = id;
+    }
+    this.histories.clear();
+    this.selectedIds.clear();
+    this.editingTextId = null;
+    this.draft = null;
+    this.bindingPreview = null;
+    this.marquee = null;
+    this.interaction = { kind: "none" };
+    this.emit();
   }
 
   // ---- rendering -------------------------------------------------------

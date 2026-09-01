@@ -1,6 +1,8 @@
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
 import { exportPNG, exportSVG, slugify } from "../../core/exporter";
+import { exportExcalidraw } from "../../core/excalidrawExporter";
+import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
   applyThemePref,
   loadThemePref,
@@ -68,16 +70,45 @@ export function AppMenu() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${filename}.archidraw.json`;
+    a.download = `${filename}.archidraw`;
     a.click();
     URL.revokeObjectURL(url);
-    toast("Workspace exported as JSON");
+    toast("Workspace exported");
+    close();
+  };
+
+  const exportExcalidrawFile = () => {
+    const json = exportExcalidraw(snap.doc);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filename}.excalidraw`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Exported as .excalidraw");
     close();
   };
 
   const onImportFile = async (file: File | undefined) => {
     if (!file) return;
     const text = await file.text();
+    const name = file.name.toLowerCase();
+
+    // Try Excalidraw scene file first
+    if (name.endsWith(".excalidraw")) {
+      try {
+        const doc = parseExcalidrawScene(text);
+        editor.importDocument(doc);
+        toast(`"${file.name}" imported`);
+      } catch {
+        toast("Invalid .excalidraw file — import cancelled");
+      }
+      close();
+      return;
+    }
+
+    // ArchiDraw format (.archidraw or .archidraw.json)
     if (editor.restoreState(text)) {
       toast(`"${file.name}" imported`);
     } else {
@@ -103,7 +134,7 @@ export function AppMenu() {
           <div className="menu-backdrop" onClick={close} />
           <div className="menu-dropdown">
             <MenuSection title="File">
-              <MenuItem label="Import JSON…" onClick={() => fileInputRef.current?.click()} />
+              <MenuItem label="Import…" onClick={() => fileInputRef.current?.click()} />
               <MenuItem
                 label="Export PNG"
                 onClick={() => {
@@ -121,7 +152,8 @@ export function AppMenu() {
                   close();
                 }}
               />
-              <MenuItem label="Export JSON" onClick={exportJSON} />
+              <MenuItem label="Export .archidraw" onClick={exportJSON} />
+              <MenuItem label="Export .excalidraw" onClick={exportExcalidrawFile} />
             </MenuSection>
 
             <MenuSection title="Theme">
@@ -164,7 +196,7 @@ export function AppMenu() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,application/json"
+        accept=".archidraw,.archidraw.json,.excalidraw,.json,application/json"
         style={{ display: "none" }}
         data-testid="import-input"
         onChange={(e) => {
