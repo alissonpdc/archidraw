@@ -8,12 +8,14 @@ import { markSaved } from "./ui/saveStatus";
 import { applyThemePref, loadThemePref } from "./ui/theme";
 import { initImportedLibraries } from "./core/importedLibraries";
 import { initImportedImages } from "./core/importedImages";
-import { elementVisualBounds } from "./core/renderer";
+import { elementVisualBounds, detailsBadgeAnchor } from "./core/renderer";
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__editor__ = editor;
   (window as unknown as Record<string, unknown>).__elementVisualBounds__ =
     elementVisualBounds;
+  (window as unknown as Record<string, unknown>).__detailsBadgeAnchor__ =
+    detailsBadgeAnchor;
 }
 
 // restore theme preference before first render (no flash of wrong theme)

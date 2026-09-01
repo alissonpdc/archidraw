@@ -17,6 +17,8 @@ function readThemeColors(): RenderColors & { elementStroke: string } {
     gridLine: style.getPropertyValue("--grid-line").trim() || "rgba(0,0,0,0.07)",
     // label plates must always match the live canvas background
     canvasBg: style.getPropertyValue("--bg-canvas").trim() || "#ffffff",
+    // muted gray for the details badge ("i" icon)
+    muted: style.getPropertyValue("--text-muted").trim() || "#6b6b76",
   };
 }
 
@@ -128,6 +130,7 @@ export function CanvasHost() {
       gridDot: colors.gridDot,
       gridLine: colors.gridLine,
       canvasBg: colors.canvasBg,
+      muted: colors.muted,
     };
 
     let lastSelKey = "";

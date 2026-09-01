@@ -1,4 +1,4 @@
-import type { ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
+import type { ArrowBinding, ArrowElement, Bounds, Camera, ComponentElement, Document, Element, LineElement, Point } from "./types";
 import {
   arrowPoints,
   bindingPoint,
@@ -6,6 +6,7 @@ import {
   diamondVertices,
   edgeLabelAnchor,
   edgePathPoints,
+  edgePointAt,
   elementBounds,
   measureText,
 } from "./utils";
@@ -21,6 +22,8 @@ export interface RenderColors {
   elementStroke: string;
   /** canvas background color (plates behind edge labels must match it) */
   canvasBg: string;
+  /** muted gray used by the details badge ("i" icon) */
+  muted: string;
 }
 
 export interface RenderState {
@@ -50,6 +53,7 @@ const DEFAULT_COLORS: RenderColors = {
   gridDot: "rgba(0,0,0,0.14)",
   gridLine: "rgba(0,0,0,0.07)",
   canvasBg: "#ffffff",
+  muted: "#6b6b76",
 };
 
 function visibleSceneRect(cam: Camera, w: number, h: number) {
@@ -924,21 +928,72 @@ export const BADGE_RADIUS_PX = 7;
 const BADGE_INSET_PX = 12;
 /** screen px tolerance around the badge for hover/right-click hit */
 export const BADGE_HIT_PAD_PX = 4;
+/** screen px gap between edge labels and the badge placed below them */
+const BADGE_BELOW_GAP_PX = 4;
+
+/** vertical half-height of the edge label text block (scene units) */
+function edgeLabelHalfHeight(el: LineElement | ArrowElement): number {
+  const fontSize = el.fontSize ?? 20;
+  const lines = (el.label ?? "").split("\n");
+  const n = Math.max(1, lines.length);
+  const step = fontSize * lineHeight(el);
+  const v = el.textVAlign ?? "middle";
+  if (v === "top") return (n - 1) * step + fontSize / 2;
+  if (v === "bottom") return fontSize / 2;
+  return ((n - 1) * step) / 2 + fontSize / 2;
+}
 
 /**
  * scene position of the details badge ("i") for an element that has details.
  * shapes/text/components: bottom-right corner, offset diagonally inward so it
- * clears the `se` resize handle; lines/arrows: center of the element bounds.
+ * clears the `se` resize handle. lines/arrows: over the path — centered on it
+ * when there is no label, or right below the label text when there is one
+ * (follows the label handle, which moves the text along the stroke via labelT).
  * Returns null when the element has no details.
  */
 export function detailsBadgeAnchor(el: Element, zoom: number): Point | null {
   if (!el.details || el.details.trim() === "") return null;
-  const b = elementBounds(el);
   if (el.type === "line" || el.type === "arrow") {
-    return { x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 };
+    if (el.label) {
+      const anchor = edgeLabelAnchor(el)!;
+      const below =
+        edgeLabelHalfHeight(el) +
+        BADGE_BELOW_GAP_PX / zoom +
+        BADGE_RADIUS_PX / zoom;
+      return { x: anchor.x, y: anchor.y + below };
+    }
+    return edgePointAt(el, 0.5);
   }
+  const b = elementBounds(el);
   const inset = BADGE_INSET_PX / zoom;
   return { x: b.x2 - inset, y: b.y2 - inset };
+}
+
+/** information icon (circle with a dotted "i") in the given color */
+function drawInfoIcon(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  color: string,
+) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(1, 1.4 * (r / 7));
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  // dot of the "i"
+  ctx.beginPath();
+  ctx.arc(x, y - r * 0.3, r * 0.13, 0, Math.PI * 2);
+  ctx.fill();
+  // stem of the "i"
+  const stemW = r * 0.2;
+  ctx.beginPath();
+  ctx.roundRect(x - stemW / 2, y - r * 0.05, stemW, r * 0.52, stemW / 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 /** discrete "i" indicator over elements that carry additional information */
@@ -953,18 +1008,12 @@ function drawDetailsBadge(
   const r = BADGE_RADIUS_PX / zoom;
   ctx.save();
   ctx.globalAlpha = 1;
-  ctx.strokeStyle = colors.elementStroke;
+  // plate in the live canvas background keeps the icon readable over any fill
   ctx.fillStyle = colors.canvasBg || DEFAULT_COLORS.canvasBg;
-  ctx.lineWidth = Math.max(0.75, 1 / zoom);
   ctx.beginPath();
   ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
   ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = colors.elementStroke;
-  ctx.font = `${Math.round(BADGE_RADIUS_PX + 2) / zoom}px "Segoe UI", system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("i", a.x, a.y + 0.4 / zoom);
+  drawInfoIcon(ctx, a.x, a.y, r, colors.muted || DEFAULT_COLORS.muted);
   ctx.restore();
 }
 

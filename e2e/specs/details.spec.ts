@@ -87,4 +87,92 @@ test.describe("additional information (hover info box)", () => {
     await page.mouse.move(50, 600);
     await expect(box).toHaveCount(0);
   });
+
+  test("arrow without label: badge sits at the stroke midpoint", async ({
+    page,
+  }) => {
+    await open(page);
+    await selectTool(page, "a");
+    await drag(page, { x: 200, y: 300 }, { x: 500, y: 300 });
+    await selectTool(page, "v");
+
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed
+        .getSnapshot()
+        .doc.elements.find((e: any) => e.type === "arrow");
+      ed.updateElementDetails(el.id, "HTTP 200");
+    });
+    const pos = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const s = ed.getSnapshot();
+      const el = s.doc.elements.find((e: any) => e.type === "arrow");
+      const a = (window as any).__detailsBadgeAnchor__(el, s.camera.zoom);
+      return ed.getScreenPoint(a);
+    });
+    // straight arrow from (200,300) → (500,300): the midpoint badge is exactly
+    // at (350,300) on screen (zoom 1, no pan)
+    expect(pos.x).toBeCloseTo(350, 0);
+    // tip.y+1 guard on zero-height edges shifts the midpoint y by 0.5px
+    expect(Math.abs(pos.y - 300)).toBeLessThanOrEqual(1);
+
+    await page.mouse.move(pos.x, pos.y);
+    const box = page.getByTestId("hover-info-box");
+    await expect(box).toBeVisible();
+    await expect(box).toContainText("HTTP 200");
+  });
+
+  test("line with a label: badge sits below the text and follows the label handle", async ({
+    page,
+  }) => {
+    await open(page);
+    await selectTool(page, "l");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
+    await selectTool(page, "v");
+    await page.mouse.dblclick(350, 200); // stroke midpoint
+    await page.keyboard.type("API");
+    await page.keyboard.press("Escape");
+    await page.mouse.click(450, 200); // re-select the line
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed
+        .getSnapshot()
+        .doc.elements.find((e: any) => e.type === "line");
+      ed.updateElementDetails(el.id, "latency 120ms");
+    });
+
+    const pos = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const s = ed.getSnapshot();
+      const el = s.doc.elements.find((e: any) => e.type === "line");
+      const a = (window as any).__detailsBadgeAnchor__(el, s.camera.zoom);
+      return { ...ed.getScreenPoint(a), labelT: el.labelT ?? 0.5 };
+    });
+    expect(pos.labelT).toBeCloseTo(0.5, 5);
+    // same horizontal center as the label, right below it (midpoint y = 200)
+    expect(pos.x).toBeCloseTo(350, 0);
+    expect(pos.y).toBeGreaterThan(200);
+
+    await page.mouse.move(pos.x, pos.y);
+    await expect(page.getByTestId("hover-info-box")).toBeVisible();
+
+    // drag the circular label handle towards the start: badge must follow
+    await page.mouse.move(350, 200);
+    await page.mouse.down();
+    await page.mouse.move(240, 200, { steps: 5 });
+    await page.mouse.up();
+
+    const after = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const s = ed.getSnapshot();
+      const el = s.doc.elements.find((e: any) => e.type === "line");
+      const a = (window as any).__detailsBadgeAnchor__(el, s.camera.zoom);
+      return { ...ed.getScreenPoint(a), labelT: el.labelT ?? 0.5 };
+    });
+    expect(after.labelT).toBeLessThan(0.5);
+    expect(after.x).toBeLessThan(350);
+
+    await page.mouse.move(after.x, after.y);
+    await expect(page.getByTestId("hover-info-box")).toBeVisible();
+  });
 });
