@@ -1102,67 +1102,69 @@ export function PropertiesPanel() {
             </div>
           </Group>
 
-          {selected.length >= 2 && (
-            <Group title="Align horizontal">
-              <div className="layer-btns">
-                <button className="size-btn" data-tip="Align left" aria-label="Align left"
-                  onClick={() => editor.alignSelected("left")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="2" y1="1" x2="2" y2="15" stroke="currentColor" strokeWidth="2"/>
-                    <rect x="2" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="2" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-                <button className="size-btn" data-tip="Align center" aria-label="Align center"
-                  onClick={() => editor.alignSelected("center")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="8" y1="1" x2="8" y2="15" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
-                    <rect x="2" y="2" width="12" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="3" y="9" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-                <button className="size-btn" data-tip="Align right" aria-label="Align right"
-                  onClick={() => editor.alignSelected("right")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="14" y1="1" x2="14" y2="15" stroke="currentColor" strokeWidth="2"/>
-                    <rect x="4" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="7" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-              </div>
-            </Group>
-          )}
+          <Group title="Align horizontal">
+            <div className="layer-btns">
+              <button className="size-btn" data-tip="Align left" aria-label="Align left"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("left")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="2" y1="1" x2="2" y2="15" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="2" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="2" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Align center" aria-label="Align center"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("center")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="8" y1="1" x2="8" y2="15" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
+                  <rect x="2" y="2" width="12" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="3" y="9" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Align right" aria-label="Align right"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("right")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="14" y1="1" x2="14" y2="15" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="4" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="7" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+            </div>
+          </Group>
 
-          {selected.length >= 2 && (
-            <Group title="Align vertical">
-              <div className="layer-btns">
-                <button className="size-btn" data-tip="Align top" aria-label="Align top"
-                  onClick={() => editor.alignSelected("top")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="1" y1="2" x2="15" y2="2" stroke="currentColor" strokeWidth="2"/>
-                    <rect x="2" y="2" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="9" y="2" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-                <button className="size-btn" data-tip="Align middle" aria-label="Align middle"
-                  onClick={() => editor.alignSelected("middle")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
-                    <rect x="2" y="2" width="4" height="12" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="9" y="3" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-                <button className="size-btn" data-tip="Align bottom" aria-label="Align bottom"
-                  onClick={() => editor.alignSelected("bottom")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="1" y1="14" x2="15" y2="14" stroke="currentColor" strokeWidth="2"/>
-                    <rect x="2" y="4" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="9" y="7" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-              </div>
-            </Group>
-          )}
+          <Group title="Align vertical">
+            <div className="layer-btns">
+              <button className="size-btn" data-tip="Align top" aria-label="Align top"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("top")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="1" y1="2" x2="15" y2="2" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="2" y="2" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="9" y="2" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Align middle" aria-label="Align middle"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("middle")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
+                  <rect x="2" y="2" width="4" height="12" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="9" y="3" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Align bottom" aria-label="Align bottom"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("bottom")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="1" y1="14" x2="15" y2="14" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="2" y="4" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="9" y="7" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+            </div>
+          </Group>
       </div>
     </div>
   );
