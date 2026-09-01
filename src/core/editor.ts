@@ -1171,9 +1171,9 @@ export class Editor {
         } else if (this.tool === "ellipse") {
           el = { ...base, type: "ellipse", ...bbox } satisfies EllipseElement;
         } else if (this.tool === "line") {
-          el = { ...base, type: "line", ...bbox } satisfies LineElement;
+          el = { ...base, type: "line", strokeWidth: 1, ...bbox } satisfies LineElement;
         } else {
-          el = { ...base, type: "arrow", ...bbox } satisfies ArrowElement;
+          el = { ...base, type: "arrow", strokeWidth: 1, ...bbox } satisfies ArrowElement;
         }
         // drawing that starts over/near a shape binds and snaps the start
         // to the nearest outline point (or to a cardinal center nearby)
