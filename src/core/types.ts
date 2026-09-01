@@ -49,6 +49,10 @@ export interface BaseElement {
   /** id of the logical group this element belongs to, if any (no container element) */
   groupId?: string;
 
+  /** complementar technical details (payload, latency, notes...) hidden by
+   *  default and shown on demand via hover on the badge / context menu */
+  details?: string;
+
   // --- text styling (labels & text elements) ---
   fontFamily?: string;
   bold?: boolean;
@@ -103,6 +107,11 @@ export interface LineElement extends BaseElement {
   label?: string;
   /** label position along the stroke: 0 = start, 1 = end (default 0.5 = center) */
   labelT?: number;
+  lineType?: LineType;
+  /** control point for curved lines (scene units, absolute coordinates) */
+  controlPoint?: Point;
+  /** intermediate vertices for auto-routed lines (scene units, absolute coordinates) */
+  bendPoints?: Point[];
   startBinding?: ArrowBinding;
   endBinding?: ArrowBinding;
 }
@@ -127,8 +136,10 @@ export interface ArrowElement extends BaseElement {
   /** label position along the stroke: 0 = start, 1 = end (default 0.5 = center) */
   labelT?: number;
   lineType?: LineType;
-  /** control point for curved lines (relative to element center, scene units) */
+  /** control point for curved lines (scene units, absolute coordinates) */
   controlPoint?: Point;
+  /** intermediate vertices for auto-routed arrows (scene units, absolute coordinates) */
+  bendPoints?: Point[];
   startBinding?: ArrowBinding;
   endBinding?: ArrowBinding;
 }
@@ -185,5 +196,5 @@ export interface Camera {
 
 export const DEFAULT_CAMERA: Camera = { scrollX: 0, scrollY: 0, zoom: 1 };
 
-export const DEFAULT_STROKE = "#1e1e1e";
+export const DEFAULT_STROKE = "#3d4248";
 export const DEFAULT_BG = "transparent";

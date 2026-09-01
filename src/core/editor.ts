@@ -35,11 +35,21 @@ import {
   isEdge,
   bindingPoint,
   nearestOutlinePoint,
+  arrowPoints,
+  curvedArrowControl,
+  autoSegmentAt,
+  autoDragSegmentBends,
+  snapSegmentDelta,
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
 import { addImportedImage } from "./importedImages";
-import { elementVisualBounds } from "./renderer";
+import {
+  elementVisualBounds,
+  detailsBadgeAnchor,
+  BADGE_RADIUS_PX,
+  BADGE_HIT_PAD_PX,
+} from "./renderer";
 
 type HandleId = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
@@ -58,6 +68,9 @@ const HANDLE_CURSOR: Record<HandleId, string> = {
 
 /** handle hit tolerance in SCREEN pixels */
 const HANDLE_TOLERANCE_PX = 6;
+/** magnet radius (SCREEN pixels) aligning a dragged auto-path segment with
+ *  a parallel segment of the same path so both merge into one */
+const SEGMENT_SNAP_PX = 8;
 /** snap activation threshold in scene units */
 const SNAP_TOLERANCE = 4;
 /** 45° in radians, used by shift-constrained line/arrow angle snapping */
@@ -146,6 +159,15 @@ function labelHandleAt(scene: Point, el: Element, zoom: number): boolean {
     Math.hypot(scene.x - anchor.x, scene.y - anchor.y) * zoom <=
     HANDLE_TOLERANCE_PX
   );
+}
+
+/** true when the scene point hits the curved-mode control point handle */
+function controlPointHandleAt(scene: Point, el: Element, zoom: number): boolean {
+  if (!isEdge(el) || (el.lineType ?? "straight") !== "curved") return false;
+  const [a, b] = arrowPoints(el);
+  const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+  const cp = curvedArrowControl(el, a, tip);
+  return Math.hypot(scene.x - cp.x, scene.y - cp.y) * zoom <= HANDLE_TOLERANCE_PX;
 }
 
 let _offCanvas: HTMLCanvasElement | null = null;
@@ -254,7 +276,11 @@ function snapEdgeEndpoints(
       h = ap.y - y;
     }
   }
-  return { ...el, x, y, width: w, height: h };
+  const patch: Partial<LineElement | ArrowElement> = { x, y, width: w, height: h };
+  if ((el.lineType ?? "straight") === "auto" && el.bendPoints) {
+    patch.bendPoints = undefined;
+  }
+  return { ...el, ...patch };
 }
 
 type Interaction =
@@ -264,6 +290,17 @@ type Interaction =
   | { kind: "move"; startScene: Point; originals: Element[]; moved?: boolean }
   | { kind: "resize"; handle: HandleId; original: Element }
   | { kind: "label-move"; id: string; moved?: boolean }
+  | { kind: "control-point"; id: string; original: Element }
+  | { kind: "bend-point"; id: string; index: number; original: Element; startScene: Point; axis?: "x" | "y" }
+  | {
+      kind: "segment-drag";
+      id: string;
+      index: number;
+      axis: "x" | "y";
+      startScene: Point;
+      original: Element;
+      moved?: boolean;
+    }
   | { kind: "marquee"; startScene: Point };
 
 export interface TabInfo {
@@ -962,6 +999,7 @@ export class Editor {
       captionOffsetRight?: number;
       lineType?: LineType;
       controlPoint?: Point;
+      bendPoints?: Point[];
     },
   ) {
     this.doc = {
@@ -1140,6 +1178,10 @@ export class Editor {
     const stroke = modifiers.defaultStroke ?? DEFAULT_STROKE;
     this.lastDefaultStroke = stroke;
 
+    // right button belongs to the context menu (handled via `contextmenu`
+    // event, which fires after pointerdown) — never start a drag/draw on it
+    if (button === 2) return;
+
     if (button === 1 || this.tool === "hand" || this.spacePressed) {
       this.interaction = { kind: "pan", lastScreen: screenPoint };
       return;
@@ -1171,9 +1213,9 @@ export class Editor {
         } else if (this.tool === "ellipse") {
           el = { ...base, type: "ellipse", ...bbox } satisfies EllipseElement;
         } else if (this.tool === "line") {
-          el = { ...base, type: "line", ...bbox } satisfies LineElement;
+          el = { ...base, type: "line", strokeWidth: 1, ...bbox } satisfies LineElement;
         } else {
-          el = { ...base, type: "arrow", ...bbox } satisfies ArrowElement;
+          el = { ...base, type: "arrow", strokeWidth: 1, ...bbox } satisfies ArrowElement;
         }
         // drawing that starts over/near a shape binds and snaps the start
         // to the nearest outline point (or to a cardinal center nearby)
@@ -1246,6 +1288,50 @@ export class Editor {
               this.interaction = {
                 kind: "resize",
                 handle,
+                original: selected,
+              };
+              break;
+            }
+          }
+        }
+        // control-point handle (curved mode) of the single selected edge
+        if (this.selectedIds.size === 1) {
+          const selected = this.doc.elements.find((el) =>
+            this.selectedIds.has(el.id),
+          );
+          if (selected && controlPointHandleAt(scene, selected, this.camera.zoom)) {
+            this.commitHistory();
+            // initialize controlPoint from fallback if not yet explicit
+            if (isEdge(selected) && !selected.controlPoint) {
+              const [a, b] = arrowPoints(selected);
+              const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+              const cp = curvedArrowControl(selected, a, tip);
+              this.doc = {
+                ...this.doc,
+                elements: this.doc.elements.map((e) =>
+                  e.id === selected.id ? { ...e, controlPoint: cp } : e,
+                ),
+              };
+            }
+            this.interaction = { kind: "control-point", id: selected.id, original: selected };
+            break;
+          }
+        }
+        // dragging a segment of the auto-mode path adjusts the L dimensions
+        if (this.selectedIds.size === 1) {
+          const selected = this.doc.elements.find((el) =>
+            this.selectedIds.has(el.id),
+          );
+          if (selected && isEdge(selected)) {
+            const seg = autoSegmentAt(scene, selected);
+            if (seg && seg.dist * this.camera.zoom <= HANDLE_TOLERANCE_PX) {
+              this.commitHistory();
+              this.interaction = {
+                kind: "segment-drag",
+                id: selected.id,
+                index: seg.index,
+                axis: seg.axis,
+                startScene: scene,
                 original: selected,
               };
               break;
@@ -1498,6 +1584,44 @@ export class Editor {
         }
         break;
       }
+      case "control-point": {
+        const interaction = this.interaction;
+        const el = this.doc.elements.find((e) => e.id === interaction.id);
+        if (el && isEdge(el)) {
+          this.doc = {
+            ...this.doc,
+            elements: this.doc.elements.map((e) =>
+              e.id === el.id ? { ...e, controlPoint: { x: scene.x, y: scene.y } } : e,
+            ),
+          };
+        }
+        break;
+      }
+      case "segment-drag": {
+        const interaction = this.interaction;
+        const el = this.doc.elements.find((e) => e.id === interaction.id);
+        if (el && isEdge(el) && isEdge(interaction.original)) {
+          const rawD =
+            interaction.axis === "x"
+              ? scene.x - interaction.startScene.x
+              : scene.y - interaction.startScene.y;
+          if (Math.abs(rawD) > 1e-6) interaction.moved = true;
+          const snap = snapSegmentDelta(
+            interaction.original,
+            interaction.index,
+            rawD,
+            SEGMENT_SNAP_PX / this.camera.zoom,
+          );
+          const bends = autoDragSegmentBends(interaction.original, interaction.index, snap.delta);
+          this.doc = {
+            ...this.doc,
+            elements: this.doc.elements.map((e) =>
+              e.id === el.id ? { ...e, bendPoints: bends } : e,
+            ),
+          };
+        }
+        break;
+      }
       case "resize": {
         const o = elementBounds(this.interaction.original);
         const orig = this.interaction.original;
@@ -1725,6 +1849,9 @@ export class Editor {
     if (this.interaction.kind === "label-move" && !this.interaction.moved) {
       this.history.pop(); // handle grabbed without dragging: drop snapshot
     }
+    if (this.interaction.kind === "segment-drag" && !this.interaction.moved) {
+      this.history.pop(); // segment grabbed without dragging: drop snapshot
+    }
     this.marquee = null;
     this.guides = null;
     this.bindingPreview = null;
@@ -1740,13 +1867,23 @@ export class Editor {
     if (!selected || !hasResizeHandles(selected)) return null;
     const scene = screenToScene(screenPoint, this.camera);
     if (labelHandleAt(scene, selected, this.camera.zoom)) return "move";
+    if (controlPointHandleAt(scene, selected, this.camera.zoom)) return "move";
     const handle = resizeHandleAt(
       scene,
       visualBounds(selected),
       this.camera.zoom,
       handlesFor(selected),
     );
-    return handle ? HANDLE_CURSOR[handle] : null;
+    if (handle) return HANDLE_CURSOR[handle];
+    // auto-mode path segment: drag cursor follows the segment orientation
+    // (vertical segment drags horizontally, horizontal one vertically)
+    if (isEdge(selected)) {
+      const seg = autoSegmentAt(scene, selected);
+      if (seg && seg.dist * this.camera.zoom <= HANDLE_TOLERANCE_PX) {
+        return seg.axis === "x" ? "ew-resize" : "ns-resize";
+      }
+    }
+    return null;
   }
 
   wheel(screenPoint: Point, delta: { x: number; y: number }, ctrlOrMeta: boolean) {
@@ -1825,5 +1962,63 @@ export class Editor {
 
   getElement(id: string): Element | undefined {
     return this.doc.elements.find((el) => el.id === id);
+  }
+
+  /** topmost element under the screen point (reverse z-order, like clicks) */
+  elementAt(screenPoint: Point): Element | undefined {
+    const scene = screenToScene(screenPoint, this.camera);
+    return [...this.doc.elements]
+      .reverse()
+      .find((el) => hitTest(el, scene));
+  }
+
+  /** topmost element whose details badge is under the screen point */
+  badgeElementAt(screenPoint: Point): Element | undefined {
+    const scene = screenToScene(screenPoint, this.camera);
+    for (const el of [...this.doc.elements].reverse()) {
+      const a = detailsBadgeAnchor(el, this.camera.zoom);
+      if (!a) continue;
+      if (
+        Math.hypot(scene.x - a.x, scene.y - a.y) * this.camera.zoom <=
+        BADGE_RADIUS_PX + BADGE_HIT_PAD_PX
+      ) {
+        return el;
+      }
+    }
+    return undefined;
+  }
+
+  /** selects the element under the point (with group semantics) and returns it */
+  selectElementAt(screenPoint: Point): Element | undefined {
+    const el = this.elementAt(screenPoint);
+    if (!el) return undefined;
+    if (el.groupId) {
+      this.selectedIds = new Set(
+        this.doc.elements
+          .filter((e) => e.groupId === el.groupId)
+          .map((e) => e.id),
+      );
+    } else {
+      this.selectedIds = new Set([el.id]);
+    }
+    this.emit();
+    return el;
+  }
+
+  /** sets/clears the complementary details text (empty string removes it) */
+  updateElementDetails(id: string, details: string) {
+    this.commitHistory();
+    const trimmed = details.trim();
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) =>
+        el.id === id
+          ? trimmed === ""
+            ? { ...el, details: undefined }
+            : { ...el, details: trimmed }
+          : el,
+      ),
+    };
+    this.emit();
   }
 }

@@ -1,6 +1,6 @@
 import { render, componentIconLayout } from "./renderer";
 import type { Bounds, Document, Element } from "./types";
-import { arrowPoints, elementBounds } from "./utils";
+import { arrowPoints, curvedArrowControl, edgePathPoints, elementBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { componentAssetDataUri, waitForComponentImages } from "./componentAssets";
 
@@ -195,6 +195,21 @@ export function exportSVG(doc: Document, filename: string): boolean {
           );
         }
       }
+    } else if (el.type === "line") {
+      const [a, b] = arrowPoints(el);
+      const lineType = el.lineType ?? "straight";
+      const endY = b.y === a.y ? b.y + 1 : b.y;
+      const tip = { x: b.x, y: endY };
+      if (lineType === "curved") {
+        const cp = curvedArrowControl(el, a, tip);
+        parts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
+      } else if (lineType === "auto") {
+        const pts = edgePathPoints(el);
+        const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+        parts.push(`<path d="${d}" fill="none" ${stroke}${dash}${opacity}/>`);
+      } else {
+        parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
+      }
     } else if (el.type === "arrow") {
       const [a, b] = arrowPoints(el);
       const endY = b.y === a.y ? b.y + 1 : b.y;
@@ -208,9 +223,11 @@ export function exportSVG(doc: Document, filename: string): boolean {
         parts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
         parts.push(`<path d="${arrowHeadPoints(tip, cp)}" fill="none" ${stroke}${opacity}/>`);
       } else if (lineType === "auto") {
-        const mid = { x: tip.x, y: a.y };
-        parts.push(`<path d="M ${a.x} ${a.y} L ${mid.x} ${mid.y} L ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
-        parts.push(`<path d="${arrowHeadPoints(tip, mid)}" fill="none" ${stroke}${opacity}/>`);
+        const pts = edgePathPoints(el);
+        const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+        parts.push(`<path d="${d}" fill="none" ${stroke}${dash}${opacity}/>`);
+        const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
+        parts.push(`<path d="${arrowHeadPoints(tip, prevPt)}" fill="none" ${stroke}${opacity}/>`);
       } else {
         parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
         parts.push(`<path d="${arrowHeadPoints(tip, a)}" fill="none" ${stroke}${opacity}/>`);

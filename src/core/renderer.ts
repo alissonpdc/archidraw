@@ -1,10 +1,12 @@
-import type { ArrowBinding, Bounds, Camera, ComponentElement, Document, Element, Point } from "./types";
+import type { ArrowBinding, ArrowElement, Bounds, Camera, ComponentElement, Document, Element, LineElement, Point } from "./types";
 import {
   arrowPoints,
   bindingPoint,
   curvedArrowControl,
   diamondVertices,
   edgeLabelAnchor,
+  edgePathPoints,
+  edgePointAt,
   elementBounds,
   measureText,
 } from "./utils";
@@ -20,6 +22,8 @@ export interface RenderColors {
   elementStroke: string;
   /** canvas background color (plates behind edge labels must match it) */
   canvasBg: string;
+  /** muted gray used by the details badge ("i" icon) */
+  muted: string;
 }
 
 export interface RenderState {
@@ -40,15 +44,13 @@ export interface RenderState {
   hiddenTextId?: string | null;
 }
 
-/** default stroke colors that adapt to the active theme at render time */
-const AUTO_STROKES = new Set(["#1e1e1e", "#e8e8e8"]);
-
 const DEFAULT_COLORS: RenderColors = {
   selection: "#6965db",
-  elementStroke: "#1e1e1e",
+  elementStroke: "#3d4248",
   gridDot: "rgba(0,0,0,0.14)",
   gridLine: "rgba(0,0,0,0.07)",
   canvasBg: "#ffffff",
+  muted: "#6b6b76",
 };
 
 function visibleSceneRect(cam: Camera, w: number, h: number) {
@@ -133,9 +135,9 @@ function drawArrowHead(
   ctx.stroke();
 }
 
-/** resolves the element stroke, adapting default colors to the theme */
-function resolveStroke(el: Element, colors: RenderColors): string {
-  return AUTO_STROKES.has(el.strokeColor) ? colors.elementStroke : el.strokeColor;
+/** resolves the element stroke; empty / legacy auto values → transparent */
+function resolveStroke(el: Element, _colors: RenderColors): string {
+  return el.strokeColor === "" ? "transparent" : el.strokeColor;
 }
 
 /** deterministic pseudo-random in [-1, 1] from integer seed */
@@ -830,10 +832,28 @@ function drawElement(
     ctx.stroke();
   } else if (el.type === "line") {
     const [a, b] = arrowPoints(el);
+    const lineType = el.lineType ?? "straight";
+    const endY = b.y === a.y ? b.y + 1 : b.y;
+    const tip = { x: b.x, y: endY };
+
     ctx.beginPath();
-    sketchStroke(ctx, [[a, b]], el.roughness, seedOf(el.id));
-    applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke();
+    if (lineType === "straight") {
+      sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id));
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+    } else if (lineType === "curved") {
+      const cp = curvedArrowControl(el, a, tip);
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+    } else {
+      // auto: polyline through bend points (or L-shaped default)
+      const pts = edgePathPoints(el);
+      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id));
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+    }
   } else if (el.type === "arrow") {
     const [a, b] = arrowPoints(el);
     const lineType = el.lineType ?? "straight";
@@ -854,12 +874,13 @@ function drawElement(
       ctx.stroke();
       drawArrowHead(ctx, tip, cp, Math.max(12, el.strokeWidth * 4));
     } else {
-      // auto: L-shaped routing (horizontal then vertical)
-      const mid = { x: tip.x, y: a.y };
-      sketchStroke(ctx, [[a, mid, tip]], el.roughness, seedOf(el.id));
+      // auto: polyline through bend points (or L-shaped default)
+      const pts = edgePathPoints(el);
+      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id));
       applyDash(ctx, el, el.strokeWidth);
       ctx.stroke();
-      drawArrowHead(ctx, tip, mid, Math.max(12, el.strokeWidth * 4));
+      const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
+      drawArrowHead(ctx, tip, prevPt, Math.max(12, el.strokeWidth * 4));
     }
   } else if (el.type === "text") {
     ctx.fillStyle = resolveTextColor(el, colors);
@@ -895,6 +916,101 @@ function drawElement(
       }
     });
   }
+  ctx.restore();
+}
+
+/** screen px radius of the details badge */
+export const BADGE_RADIUS_PX = 7;
+/** diagonal inset (screen px) of the badge from the element corner */
+const BADGE_INSET_PX = 12;
+/** screen px tolerance around the badge for hover/right-click hit */
+export const BADGE_HIT_PAD_PX = 4;
+/** screen px gap between edge labels and the badge placed below them */
+const BADGE_BELOW_GAP_PX = 4;
+
+/** vertical half-height of the edge label text block (scene units) */
+function edgeLabelHalfHeight(el: LineElement | ArrowElement): number {
+  const fontSize = el.fontSize ?? 20;
+  const lines = (el.label ?? "").split("\n");
+  const n = Math.max(1, lines.length);
+  const step = fontSize * lineHeight(el);
+  const v = el.textVAlign ?? "middle";
+  if (v === "top") return (n - 1) * step + fontSize / 2;
+  if (v === "bottom") return fontSize / 2;
+  return ((n - 1) * step) / 2 + fontSize / 2;
+}
+
+/**
+ * scene position of the details badge ("i") for an element that has details.
+ * shapes/text/components: bottom-right corner, offset diagonally inward so it
+ * clears the `se` resize handle. lines/arrows: over the path — centered on it
+ * when there is no label, or right below the label text when there is one
+ * (follows the label handle, which moves the text along the stroke via labelT).
+ * Returns null when the element has no details.
+ */
+export function detailsBadgeAnchor(el: Element, zoom: number): Point | null {
+  if (!el.details || el.details.trim() === "") return null;
+  if (el.type === "line" || el.type === "arrow") {
+    if (el.label) {
+      const anchor = edgeLabelAnchor(el)!;
+      const below =
+        edgeLabelHalfHeight(el) +
+        BADGE_BELOW_GAP_PX / zoom +
+        BADGE_RADIUS_PX / zoom;
+      return { x: anchor.x, y: anchor.y + below };
+    }
+    return edgePointAt(el, 0.5);
+  }
+  const b = elementBounds(el);
+  const inset = BADGE_INSET_PX / zoom;
+  return { x: b.x2 - inset, y: b.y2 - inset };
+}
+
+/** information icon (circle with a dotted "i") in the given color */
+function drawInfoIcon(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  color: string,
+) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(1, 1.4 * (r / 7));
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  // dot of the "i"
+  ctx.beginPath();
+  ctx.arc(x, y - r * 0.3, r * 0.13, 0, Math.PI * 2);
+  ctx.fill();
+  // stem of the "i"
+  const stemW = r * 0.2;
+  ctx.beginPath();
+  ctx.roundRect(x - stemW / 2, y - r * 0.05, stemW, r * 0.52, stemW / 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** discrete "i" indicator over elements that carry additional information */
+function drawDetailsBadge(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  zoom: number,
+  colors: RenderColors,
+) {
+  const a = detailsBadgeAnchor(el, zoom);
+  if (!a) return;
+  const r = BADGE_RADIUS_PX / zoom;
+  ctx.save();
+  ctx.globalAlpha = 1;
+  // plate in the live canvas background keeps the icon readable over any fill
+  ctx.fillStyle = colors.canvasBg || DEFAULT_COLORS.canvasBg;
+  ctx.beginPath();
+  ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  drawInfoIcon(ctx, a.x, a.y, r, colors.muted || DEFAULT_COLORS.muted);
   ctx.restore();
 }
 
@@ -962,15 +1078,26 @@ function drawSelectionBox(
 ) {
   // arrows/lines: highlight the line itself instead of a misleading bbox rectangle
   if (el.type === "arrow" || el.type === "line") {
-    const [a, b] = arrowPoints(el);
+    const lineType = el.lineType ?? "straight";
     ctx.save();
     ctx.strokeStyle = color;
     ctx.globalAlpha = 0.22;
     ctx.lineWidth = el.strokeWidth + 4 / zoom;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
+    if (lineType === "curved") {
+      const [a, b] = arrowPoints(el);
+      const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+      const cp = curvedArrowControl(el, a, tip);
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+    } else {
+      const pts = edgePathPoints(el);
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+    }
     ctx.stroke();
     ctx.restore();
     return;
@@ -1154,6 +1281,25 @@ function drawHandles(
       ctx.fill();
       ctx.stroke();
     }
+    // control point handle for curved mode
+    const lineType = el.lineType ?? "straight";
+    if (lineType === "curved") {
+      const [a, b] = arrowPoints(el);
+      const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+      const cp = curvedArrowControl(el, a, tip);
+      ctx.beginPath();
+      ctx.arc(cp.x, cp.y, s / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // thin line from midpoint of chord to control point
+      const mx = (a.x + tip.x) / 2;
+      const my = (a.y + tip.y) / 2;
+      ctx.beginPath();
+      ctx.moveTo(mx, my);
+      ctx.lineTo(cp.x, cp.y);
+      ctx.stroke();
+    }
+
   }
   ctx.restore();
 }
@@ -1270,6 +1416,7 @@ export function render(
     // label is ALWAYS painted (even while its text is being edited) so the
     // invisible overlay textarea stays WYSIWYG with the final style
     drawLabel(ctx, el, colors);
+    drawDetailsBadge(ctx, el, cam.zoom, colors);
     if (state.selectedIds.has(el.id) && !isEditingThisLabel)
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }

@@ -12,11 +12,13 @@ function readThemeColors(): RenderColors & { elementStroke: string } {
   const style = getComputedStyle(document.documentElement);
   return {
     selection: style.getPropertyValue("--selection-color").trim() || "#6965db",
-    elementStroke: style.getPropertyValue("--element-stroke").trim() || "#1e1e1e",
+    elementStroke: style.getPropertyValue("--element-stroke").trim() || "#3d4248",
     gridDot: style.getPropertyValue("--grid-dot").trim() || "rgba(0,0,0,0.14)",
     gridLine: style.getPropertyValue("--grid-line").trim() || "rgba(0,0,0,0.07)",
     // label plates must always match the live canvas background
     canvasBg: style.getPropertyValue("--bg-canvas").trim() || "#ffffff",
+    // muted gray for the details badge ("i" icon)
+    muted: style.getPropertyValue("--text-muted").trim() || "#6b6b76",
   };
 }
 
@@ -128,6 +130,7 @@ export function CanvasHost() {
       gridDot: colors.gridDot,
       gridLine: colors.gridLine,
       canvasBg: colors.canvasBg,
+      muted: colors.muted,
     };
 
     let lastSelKey = "";

@@ -8,6 +8,7 @@ Antes de implementar UI/interações, consulte **`.agents/knowledge/*.md`** — 
 
 - `.agents/knowledge/tooltip-clipping.md` — tooltips cortados por contêineres com `overflow`/`transform`: quando usar tooltip portal/fixed em vez do pseudo-elemento CSS `[data-tip]::after`.
 - `.agents/knowledge/clipboard-paste.md` — colar com Cmd+V: via única é o evento nativo `paste`; nunca usar `navigator.clipboard.read()` no keydown (abre o menu nativo "Paste" no Chrome/macOS) e nunca `preventDefault` no keydown de V (suprime o `paste`).
+- `.agents/knowledge/context-menu.md` — menu de contexto custom no canvas: guard `button === 2` no `pointerDown` do editor (o `contextmenu` dispara depois do `pointerdown`), menu/tooltip sempre por portal + `position: fixed`, e `preventDefault` no `contextmenu` só dentro do host do canvas (nunca com textarea de edição focado).
 
 Ao corrigir um bug que enseje uma regra geral (algo que já deu problema mais de uma vez), registre uma nova entrada em `.agents/knowledge/` e referencie-a aqui.
 

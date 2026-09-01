@@ -1,6 +1,7 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -217,6 +218,11 @@ function PaletteGrid({
       ? shadesOf(BASE_COLORS[expanded - 1].color)
       : null;
 
+  const groupShades = useMemo(
+    () => BASE_COLORS.map((e) => shadesOf(e.color)),
+    [],
+  );
+
   const handleSwatchClick = (i: number, e: React.MouseEvent<HTMLButtonElement>) => {
     if (expanded === i + 1) {
       setExpanded(null);
@@ -232,24 +238,22 @@ function PaletteGrid({
     }
   };
 
+  const isAutoColor = current === "";
+
   return (
     <div className="palette-wrap" ref={wrapRef}>
       <div className="swatch-row swatch-row-5">
         {auto !== undefined ? (
           <button
-            className={`swatch swatch-auto ${current === "" ? "active" : ""}`}
-            aria-label={`${label} Auto`}
-            data-tip="Auto"
+            className={`swatch transparent-checker ${isAutoColor ? "active" : ""}`}
+            aria-label={`${label} Transparent`}
+            data-tip="Transparent"
             onClick={() => {
               setExpanded(null);
               setPopPos(null);
               onPick("");
             }}
-          >
-            <span className="swatch-auto-glyph" style={{ color: auto }}>
-              A
-            </span>
-          </button>
+          />
         ) : (
           <button
             className={`swatch transparent-checker ${
@@ -264,21 +268,20 @@ function PaletteGrid({
             }}
           />
         )}
-        {BASE_COLORS.map((entry, i) => (
-          <button
-            key={entry.name}
-            className={`swatch ${
-              current === entry.color ||
-              (expandedShades?.includes(current) && expanded === i + 1)
-                ? "active"
-                : ""
-            }`}
-            style={{ background: entry.color }}
-            aria-label={`${label} ${entry.name}`}
-            data-tip={entry.name}
-            onClick={(e) => handleSwatchClick(i, e)}
-          />
-        ))}
+        {BASE_COLORS.map((entry, i) => {
+          const isThisGroup =
+            current === entry.color || groupShades[i].includes(current);
+          return (
+            <button
+              key={entry.name}
+              className={`swatch ${isThisGroup ? "active" : ""}`}
+              style={{ background: isThisGroup ? current : entry.color }}
+              aria-label={`${label} ${entry.name}`}
+              data-tip={entry.name}
+              onClick={(e) => handleSwatchClick(i, e)}
+            />
+          );
+        })}
       </div>
       {expandedShades && popPos && createPortal(
         <div
@@ -316,16 +319,18 @@ function SpacingRow({
   onChange,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   onChange: (v: number) => void;
 }) {
+  const isMixed = value === null;
   return (
     <div className="spacing-row">
       <span className="spacing-label">{label}</span>
       <button
         className="spacing-btn"
         aria-label={`Decrease ${label}`}
-        onClick={() => onChange(Math.max(0, value - 1))}
+        disabled={isMixed}
+        onClick={() => onChange(Math.max(0, (value ?? 0) - 1))}
       >
         −
       </button>
@@ -334,7 +339,8 @@ function SpacingRow({
         type="number"
         min={0}
         max={50}
-        value={value}
+        placeholder={isMixed ? "-" : undefined}
+        value={isMixed ? "" : value}
         onChange={(e) => {
           const v = parseInt(e.target.value, 10);
           if (!isNaN(v)) onChange(Math.max(0, Math.min(50, v)));
@@ -343,7 +349,8 @@ function SpacingRow({
       <button
         className="spacing-btn"
         aria-label={`Increase ${label}`}
-        onClick={() => onChange(Math.min(50, value + 1))}
+        disabled={isMixed}
+        onClick={() => onChange(Math.min(50, (value ?? 0) + 1))}
       >
         +
       </button>
@@ -478,7 +485,7 @@ export function PropertiesPanel() {
   const allRoughness = (v: number) =>
     selected.every((el) => el.roughness === v);
   const allLineType = (v: string) =>
-    selected.every((el) => (el.type === "arrow" ? (el.lineType ?? "straight") : v) === v);
+    selected.every((el) => ((el.type === "arrow" || el.type === "line") ? (el.lineType ?? "straight") : v) === v);
   const allFont = (v: number) => {
     const textEls = selected.filter((el) => el.type === "text" || el.label);
     return (
@@ -530,6 +537,16 @@ export function PropertiesPanel() {
       : null;
   })();
 
+  // unified offset helpers: return value if all selected agree, null otherwise
+  const unifiedOffset = (key: string, fallback: number) => {
+    const first = ((selected[0] as any)[key] ?? fallback) as number;
+    return selected.every(
+      (el) => ((el as any)[key] ?? fallback) === first,
+    )
+      ? first
+      : null;
+  };
+
   return (
     <div
       className="properties-panel"
@@ -569,6 +586,7 @@ export function PropertiesPanel() {
             current={selected[0].strokeColor}
             onPick={(strokeColor) => apply({ strokeColor })}
             label="Stroke color"
+            auto="auto"
           />
         </Group>
 
@@ -686,7 +704,7 @@ export function PropertiesPanel() {
             </>
           )}
 
-          {hasArrow && (
+          {(hasArrow || selected.some((el) => el.type === "line")) && (
             <Group title="Path type">
               {([
                 { v: "straight", label: "Straight", icon: "M2 12 L18 4" },
@@ -937,85 +955,80 @@ export function PropertiesPanel() {
           </Group>
 
           {hasCaption && (
-            <>
-              <Group title="Caption position">
-                {CAPTION_POSITIONS.map((cp) => (
-                  <button
-                    key={cp.value}
-                    className={`size-btn ${allCaptionPos(cp.value) ? "active" : ""}`}
-                    aria-label={`Caption ${cp.label}`}
-                    data-tip={cp.label}
-                    onClick={() => apply({ captionPosition: cp.value })}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16">
-                      <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                      {cp.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
-                      {cp.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
-                      {cp.value === "left" && <rect x="2" y="7" width="6" height="2" rx="1" fill="currentColor" />}
-                      {cp.value === "right" && <rect x="8" y="7" width="6" height="2" rx="1" fill="currentColor" />}
-                    </svg>
-                  </button>
-                ))}
-              </Group>
+            <Group title="Caption position">
+              {CAPTION_POSITIONS.map((cp) => (
+                <button
+                  key={cp.value}
+                  className={`size-btn ${allCaptionPos(cp.value) ? "active" : ""}`}
+                  aria-label={`Caption ${cp.label}`}
+                  data-tip={cp.label}
+                  onClick={() => apply({ captionPosition: cp.value })}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16">
+                    <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                    {cp.value === "bottom" && <rect x="4" y="10" width="8" height="2" rx="1" fill="currentColor" />}
+                    {cp.value === "top" && <rect x="4" y="4" width="8" height="2" rx="1" fill="currentColor" />}
+                    {cp.value === "left" && <rect x="2" y="7" width="6" height="2" rx="1" fill="currentColor" />}
+                    {cp.value === "right" && <rect x="8" y="7" width="6" height="2" rx="1" fill="currentColor" />}
+                  </svg>
+                </button>
+              ))}
+            </Group>
+          )}
 
-              <Group title="Text offset (px)" vertical>
+          {(hasCaption || hasRectangle || hasDiamond || hasEllipse) && (
+            <Group title="Text offset (px)" vertical>
                 <SpacingRow
                   label="Global"
-                  value={selected[0].captionGap ?? 2}
-                  onChange={(v) => apply({ captionGap: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionGap" : "textOffsetGlobal", hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? 2 : 8)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionGap = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetGlobal = v;
+                    apply(patch);
+                  }}
                 />
                 <SpacingRow
                   label="Left"
-                  value={selected[0].captionOffsetLeft ?? 0}
-                  onChange={(v) => apply({ captionOffsetLeft: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetLeft" : "textOffsetLeft", 0)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionOffsetLeft = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetLeft = v;
+                    apply(patch);
+                  }}
                 />
                 <SpacingRow
                   label="Right"
-                  value={selected[0].captionOffsetRight ?? 0}
-                  onChange={(v) => apply({ captionOffsetRight: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetRight" : "textOffsetRight", 0)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionOffsetRight = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetRight = v;
+                    apply(patch);
+                  }}
                 />
                 <SpacingRow
                   label="Top"
-                  value={selected[0].captionOffsetTop ?? 0}
-                  onChange={(v) => apply({ captionOffsetTop: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetTop" : "textOffsetTop", 0)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionOffsetTop = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetTop = v;
+                    apply(patch);
+                  }}
                 />
                 <SpacingRow
                   label="Bottom"
-                  value={selected[0].captionOffsetBottom ?? 0}
-                  onChange={(v) => apply({ captionOffsetBottom: v })}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetBottom" : "textOffsetBottom", 0)}
+                  onChange={(v) => {
+                    const patch: Record<string, number> = {};
+                    if (hasCaption) patch.captionOffsetBottom = v;
+                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetBottom = v;
+                    apply(patch);
+                  }}
                 />
               </Group>
-            </>
-          )}
-
-          {(hasRectangle || hasDiamond || hasEllipse) && (
-            <Group title="Text offset (px)" vertical>
-              <SpacingRow
-                label="Global"
-                value={selected[0].textOffsetGlobal ?? 8}
-                onChange={(v) => apply({ textOffsetGlobal: v })}
-              />
-              <SpacingRow
-                label="Left"
-                value={selected[0].textOffsetLeft ?? 0}
-                onChange={(v) => apply({ textOffsetLeft: v })}
-              />
-              <SpacingRow
-                label="Right"
-                value={selected[0].textOffsetRight ?? 0}
-                onChange={(v) => apply({ textOffsetRight: v })}
-              />
-              <SpacingRow
-                label="Top"
-                value={selected[0].textOffsetTop ?? 0}
-                onChange={(v) => apply({ textOffsetTop: v })}
-              />
-              <SpacingRow
-                label="Bottom"
-                value={selected[0].textOffsetBottom ?? 0}
-                onChange={(v) => apply({ textOffsetBottom: v })}
-              />
-            </Group>
           )}
       </div>
       <div ref={layersRef} className={`panel-tab-content${effectiveTab === "layers" ? "" : " hidden"}`}>
@@ -1102,67 +1115,69 @@ export function PropertiesPanel() {
             </div>
           </Group>
 
-          {selected.length >= 2 && (
-            <Group title="Align horizontal">
-              <div className="layer-btns">
-                <button className="size-btn" data-tip="Align left" aria-label="Align left"
-                  onClick={() => editor.alignSelected("left")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="2" y1="1" x2="2" y2="15" stroke="currentColor" strokeWidth="2"/>
-                    <rect x="2" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="2" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-                <button className="size-btn" data-tip="Align center" aria-label="Align center"
-                  onClick={() => editor.alignSelected("center")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="8" y1="1" x2="8" y2="15" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
-                    <rect x="2" y="2" width="12" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="3" y="9" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-                <button className="size-btn" data-tip="Align right" aria-label="Align right"
-                  onClick={() => editor.alignSelected("right")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="14" y1="1" x2="14" y2="15" stroke="currentColor" strokeWidth="2"/>
-                    <rect x="4" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="7" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-              </div>
-            </Group>
-          )}
+          <Group title="Align horizontal">
+            <div className="layer-btns">
+              <button className="size-btn" data-tip="Align left" aria-label="Align left"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("left")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="2" y1="1" x2="2" y2="15" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="2" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="2" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Align center" aria-label="Align center"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("center")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="8" y1="1" x2="8" y2="15" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
+                  <rect x="2" y="2" width="12" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="3" y="9" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Align right" aria-label="Align right"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("right")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="14" y1="1" x2="14" y2="15" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="4" y="2" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="7" y="9" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+            </div>
+          </Group>
 
-          {selected.length >= 2 && (
-            <Group title="Align vertical">
-              <div className="layer-btns">
-                <button className="size-btn" data-tip="Align top" aria-label="Align top"
-                  onClick={() => editor.alignSelected("top")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="1" y1="2" x2="15" y2="2" stroke="currentColor" strokeWidth="2"/>
-                    <rect x="2" y="2" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="9" y="2" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-                <button className="size-btn" data-tip="Align middle" aria-label="Align middle"
-                  onClick={() => editor.alignSelected("middle")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
-                    <rect x="2" y="2" width="4" height="12" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="9" y="3" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-                <button className="size-btn" data-tip="Align bottom" aria-label="Align bottom"
-                  onClick={() => editor.alignSelected("bottom")}>
-                  <svg width="16" height="16" viewBox="0 0 16 16">
-                    <line x1="1" y1="14" x2="15" y2="14" stroke="currentColor" strokeWidth="2"/>
-                    <rect x="2" y="4" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
-                    <rect x="9" y="7" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
-                  </svg>
-                </button>
-              </div>
-            </Group>
-          )}
+          <Group title="Align vertical">
+            <div className="layer-btns">
+              <button className="size-btn" data-tip="Align top" aria-label="Align top"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("top")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="1" y1="2" x2="15" y2="2" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="2" y="2" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="9" y="2" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Align middle" aria-label="Align middle"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("middle")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2"/>
+                  <rect x="2" y="2" width="4" height="12" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="9" y="3" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Align bottom" aria-label="Align bottom"
+                disabled={selected.length < 2}
+                onClick={() => editor.alignSelected("bottom")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="1" y1="14" x2="15" y2="14" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="2" y="4" width="4" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+                  <rect x="9" y="7" width="4" height="7" rx="1" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </button>
+            </div>
+          </Group>
       </div>
     </div>
   );
