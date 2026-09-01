@@ -1522,7 +1522,9 @@ export class Editor {
 
         // smart snap guides against other elements
         const movingIds = new Set(this.interaction.originals.map((el) => el.id));
-        const others = this.doc.elements.filter((el) => !movingIds.has(el.id));
+        const others = this.doc.elements.filter(
+          (el) => !movingIds.has(el.id) && !isEdge(el),
+        );
         const movingBoxRaw = unionBounds(this.interaction.originals);
         if (movingBoxRaw && others.length > 0) {
           const mb = {
