@@ -918,6 +918,56 @@ function drawElement(
   ctx.restore();
 }
 
+/** screen px radius of the details badge */
+export const BADGE_RADIUS_PX = 7;
+/** diagonal inset (screen px) of the badge from the element corner */
+const BADGE_INSET_PX = 12;
+/** screen px tolerance around the badge for hover/right-click hit */
+export const BADGE_HIT_PAD_PX = 4;
+
+/**
+ * scene position of the details badge ("i") for an element that has details.
+ * shapes/text/components: bottom-right corner, offset diagonally inward so it
+ * clears the `se` resize handle; lines/arrows: center of the element bounds.
+ * Returns null when the element has no details.
+ */
+export function detailsBadgeAnchor(el: Element, zoom: number): Point | null {
+  if (!el.details || el.details.trim() === "") return null;
+  const b = elementBounds(el);
+  if (el.type === "line" || el.type === "arrow") {
+    return { x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 };
+  }
+  const inset = BADGE_INSET_PX / zoom;
+  return { x: b.x2 - inset, y: b.y2 - inset };
+}
+
+/** discrete "i" indicator over elements that carry additional information */
+function drawDetailsBadge(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  zoom: number,
+  colors: RenderColors,
+) {
+  const a = detailsBadgeAnchor(el, zoom);
+  if (!a) return;
+  const r = BADGE_RADIUS_PX / zoom;
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = colors.elementStroke;
+  ctx.fillStyle = colors.canvasBg || DEFAULT_COLORS.canvasBg;
+  ctx.lineWidth = Math.max(0.75, 1 / zoom);
+  ctx.beginPath();
+  ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = colors.elementStroke;
+  ctx.font = `${Math.round(BADGE_RADIUS_PX + 2) / zoom}px "Segoe UI", system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("i", a.x, a.y + 0.4 / zoom);
+  ctx.restore();
+}
+
 export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element): Bounds {
   const eb = elementBounds(el);
   let x1 = eb.x1;
@@ -1320,6 +1370,7 @@ export function render(
     // label is ALWAYS painted (even while its text is being edited) so the
     // invisible overlay textarea stays WYSIWYG with the final style
     drawLabel(ctx, el, colors);
+    drawDetailsBadge(ctx, el, cam.zoom, colors);
     if (state.selectedIds.has(el.id) && !isEditingThisLabel)
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }

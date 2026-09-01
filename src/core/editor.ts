@@ -44,7 +44,12 @@ import {
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
 import { addImportedImage } from "./importedImages";
-import { elementVisualBounds } from "./renderer";
+import {
+  elementVisualBounds,
+  detailsBadgeAnchor,
+  BADGE_RADIUS_PX,
+  BADGE_HIT_PAD_PX,
+} from "./renderer";
 
 type HandleId = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
@@ -1170,6 +1175,10 @@ export class Editor {
     const stroke = modifiers.defaultStroke ?? DEFAULT_STROKE;
     this.lastDefaultStroke = stroke;
 
+    // right button belongs to the context menu (handled via `contextmenu`
+    // event, which fires after pointerdown) — never start a drag/draw on it
+    if (button === 2) return;
+
     if (button === 1 || this.tool === "hand" || this.spacePressed) {
       this.interaction = { kind: "pan", lastScreen: screenPoint };
       return;
@@ -1938,5 +1947,63 @@ export class Editor {
 
   getElement(id: string): Element | undefined {
     return this.doc.elements.find((el) => el.id === id);
+  }
+
+  /** topmost element under the screen point (reverse z-order, like clicks) */
+  elementAt(screenPoint: Point): Element | undefined {
+    const scene = screenToScene(screenPoint, this.camera);
+    return [...this.doc.elements]
+      .reverse()
+      .find((el) => hitTest(el, scene));
+  }
+
+  /** topmost element whose details badge is under the screen point */
+  badgeElementAt(screenPoint: Point): Element | undefined {
+    const scene = screenToScene(screenPoint, this.camera);
+    for (const el of [...this.doc.elements].reverse()) {
+      const a = detailsBadgeAnchor(el, this.camera.zoom);
+      if (!a) continue;
+      if (
+        Math.hypot(scene.x - a.x, scene.y - a.y) * this.camera.zoom <=
+        BADGE_RADIUS_PX + BADGE_HIT_PAD_PX
+      ) {
+        return el;
+      }
+    }
+    return undefined;
+  }
+
+  /** selects the element under the point (with group semantics) and returns it */
+  selectElementAt(screenPoint: Point): Element | undefined {
+    const el = this.elementAt(screenPoint);
+    if (!el) return undefined;
+    if (el.groupId) {
+      this.selectedIds = new Set(
+        this.doc.elements
+          .filter((e) => e.groupId === el.groupId)
+          .map((e) => e.id),
+      );
+    } else {
+      this.selectedIds = new Set([el.id]);
+    }
+    this.emit();
+    return el;
+  }
+
+  /** sets/clears the complementary details text (empty string removes it) */
+  updateElementDetails(id: string, details: string) {
+    this.commitHistory();
+    const trimmed = details.trim();
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) =>
+        el.id === id
+          ? trimmed === ""
+            ? { ...el, details: undefined }
+            : { ...el, details: trimmed }
+          : el,
+      ),
+    };
+    this.emit();
   }
 }

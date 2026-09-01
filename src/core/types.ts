@@ -49,6 +49,10 @@ export interface BaseElement {
   /** id of the logical group this element belongs to, if any (no container element) */
   groupId?: string;
 
+  /** complementar technical details (payload, latency, notes...) hidden by
+   *  default and shown on demand via hover on the badge / context menu */
+  details?: string;
+
   // --- text styling (labels & text elements) ---
   fontFamily?: string;
   bold?: boolean;

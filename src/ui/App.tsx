@@ -11,6 +11,8 @@ import { StatusBar } from "./components/StatusBar";
 import { Toasts } from "./components/Toasts";
 import { ShortcutsModal } from "./components/ShortcutsModal";
 import { LibraryPanel } from "./components/LibraryPanel";
+import { ContextMenu } from "./components/ContextMenu";
+import { HoverInfoBox } from "./components/HoverInfoBox";
 
 const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
   v: "selection",
@@ -187,6 +189,8 @@ export function App() {
   return (
     <div className="app" data-library-open={libraryOpen || undefined}>
       <CanvasHost />
+      <ContextMenu />
+      <HoverInfoBox />
       <TabBar />
       <div className="top-right">
         <AppMenu />
