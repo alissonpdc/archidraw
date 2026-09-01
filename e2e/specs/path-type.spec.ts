@@ -153,4 +153,105 @@ test.describe("path types for lines and arrows", () => {
     const el = await firstElement(page);
     expect(el.label).toBe("c");
   });
+
+  test("auto line: hovering a segment shows a drag cursor per orientation", async ({ page }) => {
+    await open(page);
+    await selectTool(page, "l");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { lineType: "auto" });
+    });
+    await selectTool(page, "v");
+    await page.mouse.click(350, 200); // select the line
+    // horizontal segment (the L's top edge): vertical drag cursor
+    await page.mouse.move(350, 200);
+    let cursor = await page.evaluate(() =>
+      (window as any).__editor__.cursorOverrideAt({ x: 350, y: 200 }),
+    );
+    expect(cursor).toBe("ns-resize");
+    // vertical segment (the L's right edge): horizontal drag cursor
+    await page.mouse.move(500, 300);
+    cursor = await page.evaluate(() =>
+      (window as any).__editor__.cursorOverrideAt({ x: 500, y: 300 }),
+    );
+    expect(cursor).toBe("ew-resize");
+  });
+
+  test("auto line: clicking a segment without dragging adds no bend", async ({ page }) => {
+    await open(page);
+    await selectTool(page, "l");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { lineType: "auto" });
+    });
+    await selectTool(page, "v");
+    await page.mouse.click(350, 200); // select
+    await page.mouse.click(350, 200); // click the segment, no drag
+    const el = await firstElement(page);
+    expect(el.bendPoints).toBeUndefined();
+  });
+
+  test("auto line: dragging the horizontal segment adjusts the L height", async ({ page }) => {
+    await open(page);
+    await selectTool(page, "l");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { lineType: "auto" });
+    });
+    await selectTool(page, "v");
+    await page.mouse.click(350, 200); // select
+    // drag the horizontal segment down 60px: L becomes an orthogonal Z
+    await drag(page, { x: 350, y: 200 }, { x: 350, y: 260 });
+    const el = await firstElement(page);
+    expect(el.bendPoints).toHaveLength(2);
+    expect(el.bendPoints[0].x).toBeCloseTo(200, 0);
+    expect(el.bendPoints[0].y).toBeCloseTo(260, 0);
+    expect(el.bendPoints[1].x).toBeCloseTo(500, 0);
+    expect(el.bendPoints[1].y).toBeCloseTo(260, 0);
+  });
+
+  test("auto line: dragging the vertical segment adjusts the L width", async ({ page }) => {
+    await open(page);
+    await selectTool(page, "l");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { lineType: "auto" });
+    });
+    await selectTool(page, "v");
+    await page.mouse.click(500, 300); // select
+    // drag the vertical segment right 60px: vertical edge slides, horizontal
+    // stub reconnects to the tip
+    await drag(page, { x: 500, y: 300 }, { x: 560, y: 300 });
+    const el = await firstElement(page);
+    expect(el.bendPoints).toHaveLength(2);
+    expect(el.bendPoints[0].x).toBeCloseTo(560, 0);
+    expect(el.bendPoints[0].y).toBeCloseTo(200, 0);
+    expect(el.bendPoints[1].x).toBeCloseTo(560, 0);
+    expect(el.bendPoints[1].y).toBeCloseTo(400, 0);
+  });
+
+  test("auto line: undo reverts a segment drag", async ({ page }) => {
+    await open(page);
+    await selectTool(page, "l");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { lineType: "auto" });
+    });
+    await selectTool(page, "v");
+    await page.mouse.click(350, 200); // select
+    await drag(page, { x: 350, y: 200 }, { x: 350, y: 260 });
+    await page.keyboard.press("Control+z");
+    const el = await firstElement(page);
+    expect(el.bendPoints).toBeUndefined();
+  });
 });

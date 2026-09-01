@@ -337,6 +337,121 @@ export function findInsertPosition(
   return { index: bestIndex, point: bestPoint };
 }
 
+/** tolerance for treating auto-path coordinates as axis-aligned (scene units) */
+const ORTHO_EPS = 0.01;
+
+/**
+ * closest orthogonal segment of an auto-mode path to point p, with the drag
+ * axis it exposes: "x" for a vertical segment (drags horizontally), "y" for
+ * a horizontal one (drags vertically). Diagonal segments produced by free
+ * bend points are not draggable. Null for non-auto edges.
+ */
+export function autoSegmentAt(
+  p: Point,
+  el: EdgeElement,
+): { index: number; dist: number; axis: "x" | "y" } | null {
+  if ((el.lineType ?? "straight") !== "auto") return null;
+  const pts = edgePathPoints(el);
+  let best: { index: number; dist: number; axis: "x" | "y" } | null = null;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const dx = Math.abs(pts[i + 1].x - pts[i].x);
+    const dy = Math.abs(pts[i + 1].y - pts[i].y);
+    if (dx > ORTHO_EPS && dy > ORTHO_EPS) continue;
+    const d = distanceToSegment(p, pts[i], pts[i + 1]);
+    if (!best || d < best.dist) {
+      best = { index: i, dist: d, axis: dx < dy ? "x" : "y" };
+    }
+  }
+  return best;
+}
+
+/** drops duplicate and collinear middle points from a polyline */
+function simplifyPolyline(pts: Point[]): Point[] {
+  const dedup: Point[] = [];
+  for (const p of pts) {
+    const last = dedup[dedup.length - 1];
+    if (
+      last &&
+      Math.abs(last.x - p.x) < ORTHO_EPS &&
+      Math.abs(last.y - p.y) < ORTHO_EPS
+    ) {
+      continue;
+    }
+    dedup.push(p);
+  }
+  let out = dedup;
+  for (;;) {
+    let removed = false;
+    const next: Point[] = [];
+    for (let i = 0; i < out.length; i++) {
+      if (i > 0 && i < out.length - 1) {
+        const ax = out[i].x - out[i - 1].x;
+        const ay = out[i].y - out[i - 1].y;
+        const bx = out[i + 1].x - out[i].x;
+        const by = out[i + 1].y - out[i].y;
+        if (Math.abs(ax * by - ay * bx) < ORTHO_EPS) {
+          removed = true;
+          continue;
+        }
+      }
+      next.push(out[i]);
+    }
+    out = next;
+    if (!removed) break;
+  }
+  return out;
+}
+
+/**
+ * bends for an auto-mode edge after dragging the polyline segment `index`
+ * by `d` along its perpendicular axis, keeping the path orthogonal: the
+ * dragged segment slides/stretches and perpendicular stubs reconnect it to
+ * the untouched rest of the path (the edge endpoints never move). Returns
+ * undefined when the result matches the default L-shaped routing.
+ */
+export function autoDragSegmentBends(
+  el: EdgeElement,
+  index: number,
+  d: number,
+): Point[] | undefined {
+  if ((el.lineType ?? "straight") !== "auto") return el.bendPoints;
+  const pts = edgePathPoints(el);
+  if (index < 0 || index >= pts.length - 1) return el.bendPoints;
+  const horiz =
+    Math.abs(pts[index + 1].y - pts[index].y) <=
+    Math.abs(pts[index + 1].x - pts[index].x);
+  const moved = (p: Point): Point =>
+    horiz ? { x: p.x, y: p.y + d } : { x: p.x + d, y: p.y };
+  const isMoved = pts.map(
+    (_, i) =>
+      (i === index || i === index + 1) && i > 0 && i < pts.length - 1,
+  );
+  const next = pts.map((p, i) => (isMoved[i] ? moved(p) : p));
+  // reconnect the moved segment to the untouched path: each misaligned
+  // junction gets a stub point so every segment stays horizontal/vertical
+  const withStubs: Point[] = [];
+  for (let i = 0; i < next.length; i++) {
+    const prev = withStubs[withStubs.length - 1];
+    const cur = next[i];
+    if (prev) {
+      const dx = Math.abs(cur.x - prev.x);
+      const dy = Math.abs(cur.y - prev.y);
+      if (dx > ORTHO_EPS && dy > ORTHO_EPS) {
+        // stub keeps the moved point's travel parallel to the dragged
+        // segment and closes the gap perpendicularly into the fixed one
+        if (isMoved[i]) {
+          withStubs.push(horiz ? { x: prev.x, y: cur.y } : { x: cur.x, y: prev.y });
+        } else if (isMoved[i - 1]) {
+          withStubs.push(horiz ? { x: cur.x, y: prev.y } : { x: prev.x, y: cur.y });
+        }
+      }
+    }
+    withStubs.push(cur);
+  }
+  const bends = simplifyPolyline(withStubs).slice(1, -1);
+  return bends.length > 0 ? bends : undefined;
+}
+
 // ---- text measurement --------------------------------------------------
 
 const LINE_HEIGHT = 1.25;

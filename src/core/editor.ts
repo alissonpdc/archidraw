@@ -37,9 +37,8 @@ import {
   nearestOutlinePoint,
   arrowPoints,
   curvedArrowControl,
-  findInsertPosition,
-  edgePathPoints,
-  distanceToPolyline,
+  autoSegmentAt,
+  autoDragSegmentBends,
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
@@ -174,14 +173,6 @@ function bendPointHitAt(scene: Point, el: Element, zoom: number): number {
   return -1;
 }
 
-/** true when the scene point is near the auto-mode path (for adding a bend point) */
-function edgePathHitAt(scene: Point, el: Element, zoom: number): boolean {
-  if (!isEdge(el) || (el.lineType ?? "straight") !== "auto") return false;
-  const pts = edgePathPoints(el);
-  const dist = distanceToPolyline(scene, pts);
-  return dist * zoom <= HANDLE_TOLERANCE_PX;
-}
-
 let _offCanvas: HTMLCanvasElement | null = null;
 let _offCtx: CanvasRenderingContext2D | null = null;
 function visualBounds(el: Element): Bounds {
@@ -300,7 +291,15 @@ type Interaction =
   | { kind: "label-move"; id: string; moved?: boolean }
   | { kind: "control-point"; id: string; original: Element }
   | { kind: "bend-point"; id: string; index: number; original: Element }
-  | { kind: "bend-add"; id: string }
+  | {
+      kind: "segment-drag";
+      id: string;
+      index: number;
+      axis: "x" | "y";
+      startScene: Point;
+      original: Element;
+      moved?: boolean;
+    }
   | { kind: "marquee"; startScene: Point };
 
 export interface TabInfo {
@@ -1315,27 +1314,25 @@ export class Editor {
             }
           }
         }
-        // clicking near an auto-mode path adds a new bend point
+        // dragging a segment of the auto-mode path adjusts the L dimensions
         if (this.selectedIds.size === 1) {
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (selected && edgePathHitAt(scene, selected, this.camera.zoom)) {
-            this.commitHistory();
-            const el = selected as LineElement | ArrowElement;
-            const pts = edgePathPoints(el);
-            const { index, point } = findInsertPosition(scene, pts);
-            const bends = [...(el.bendPoints ?? [])];
-            bends.splice(index - 1, 0, point);
-            this.doc = {
-              ...this.doc,
-              elements: this.doc.elements.map((e) =>
-                e.id === el.id ? { ...e, bendPoints: bends } : e,
-              ),
-            };
-            this.interaction = { kind: "bend-add", id: el.id };
-            this.emit();
-            break;
+          if (selected && isEdge(selected)) {
+            const seg = autoSegmentAt(scene, selected);
+            if (seg && seg.dist * this.camera.zoom <= HANDLE_TOLERANCE_PX) {
+              this.commitHistory();
+              this.interaction = {
+                kind: "segment-drag",
+                id: selected.id,
+                index: seg.index,
+                axis: seg.axis,
+                startScene: scene,
+                original: selected,
+              };
+              break;
+            }
           }
         }
 
@@ -1615,21 +1612,25 @@ export class Editor {
         }
         break;
       }
-      case "bend-add": {
-        // dragging after adding a bend point moves the newly added point
+      case "segment-drag": {
+        // dragging an auto-mode path segment slides it perpendicularly and
+        // rebuilds the orthogonal path around it (recomputed from the
+        // original element so the segment index stays valid)
         const interaction = this.interaction;
         const el = this.doc.elements.find((e) => e.id === interaction.id);
-        if (el && isEdge(el)) {
-          const bends = [...(el.bendPoints ?? [])];
-          if (bends.length > 0) {
-            bends[bends.length - 1] = { x: scene.x, y: scene.y };
-            this.doc = {
-              ...this.doc,
-              elements: this.doc.elements.map((e) =>
-                e.id === el.id ? { ...e, bendPoints: bends } : e,
-              ),
-            };
-          }
+        if (el && isEdge(el) && isEdge(interaction.original)) {
+          const d =
+            interaction.axis === "x"
+              ? scene.x - interaction.startScene.x
+              : scene.y - interaction.startScene.y;
+          if (Math.abs(d) > 1e-6) interaction.moved = true;
+          const bends = autoDragSegmentBends(interaction.original, interaction.index, d);
+          this.doc = {
+            ...this.doc,
+            elements: this.doc.elements.map((e) =>
+              e.id === el.id ? { ...e, bendPoints: bends } : e,
+            ),
+          };
         }
         break;
       }
@@ -1860,6 +1861,9 @@ export class Editor {
     if (this.interaction.kind === "label-move" && !this.interaction.moved) {
       this.history.pop(); // handle grabbed without dragging: drop snapshot
     }
+    if (this.interaction.kind === "segment-drag" && !this.interaction.moved) {
+      this.history.pop(); // segment grabbed without dragging: drop snapshot
+    }
     this.marquee = null;
     this.guides = null;
     this.bindingPreview = null;
@@ -1883,7 +1887,16 @@ export class Editor {
       this.camera.zoom,
       handlesFor(selected),
     );
-    return handle ? HANDLE_CURSOR[handle] : null;
+    if (handle) return HANDLE_CURSOR[handle];
+    // auto-mode path segment: drag cursor follows the segment orientation
+    // (vertical segment drags horizontally, horizontal one vertically)
+    if (isEdge(selected)) {
+      const seg = autoSegmentAt(scene, selected);
+      if (seg && seg.dist * this.camera.zoom <= HANDLE_TOLERANCE_PX) {
+        return seg.axis === "x" ? "ew-resize" : "ns-resize";
+      }
+    }
+    return null;
   }
 
   wheel(screenPoint: Point, delta: { x: number; y: number }, ctrlOrMeta: boolean) {
