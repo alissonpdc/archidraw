@@ -277,7 +277,11 @@ function snapEdgeEndpoints(
       h = ap.y - y;
     }
   }
-  return { ...el, x, y, width: w, height: h };
+  const patch: Partial<LineElement | ArrowElement> = { x, y, width: w, height: h };
+  if ((el.lineType ?? "straight") === "auto" && el.bendPoints) {
+    patch.bendPoints = undefined;
+  }
+  return { ...el, ...patch };
 }
 
 type Interaction =

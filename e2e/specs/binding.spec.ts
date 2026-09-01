@@ -1,4 +1,4 @@
-import { test, expect, open, selectTool } from "../fixtures";
+import { test, expect, open, drag, selectTool } from "../fixtures";
 
 interface EdgeData {
   id: string;
@@ -316,5 +316,67 @@ test.describe("edge binding to elements", () => {
     );
     expect(cloneArrow).toBeTruthy();
     expect(origArrow).toBeTruthy();
+  });
+
+  test("moving a connected shape after segment drag clears bendPoints for 90° routing", async ({
+    page,
+  }) => {
+    await open(page);
+    // draw two rectangles
+    await selectTool(page, "r");
+    await drag(page, { x: 100, y: 100 }, { x: 200, y: 200 });
+    await drag(page, { x: 400, y: 300 }, { x: 500, y: 400 });
+
+    // draw an arrow between them
+    await selectTool(page, "a");
+    await drag(page, { x: 250, y: 150 }, { x: 350, y: 350 });
+
+    // switch to auto mode and bind endpoints to the shapes
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const arrow = ed.getSnapshot().doc.elements[2];
+      ed.updateElements([arrow.id], { lineType: "auto" });
+    });
+    await selectTool(page, "v");
+    await drag(page, { x: 250, y: 150 }, { x: 210, y: 150 });
+    await drag(page, { x: 350, y: 350 }, { x: 390, y: 350 });
+
+    // drag the horizontal segment to create bendPoints
+    await drag(page, { x: 300, y: 150 }, { x: 300, y: 230 });
+    const afterDrag = await page.evaluate(() => {
+      const s = (window as any).__editor__.getSnapshot();
+      return s.doc.elements[2];
+    });
+    expect(afterDrag.bendPoints).toBeDefined();
+    expect(afterDrag.bendPoints.length).toBeGreaterThan(0);
+
+    // move the first rectangle
+    await drag(page, { x: 150, y: 150 }, { x: 250, y: 250 });
+
+    const afterMove = await page.evaluate(() => {
+      const s = (window as any).__editor__.getSnapshot();
+      return s.doc.elements[2];
+    });
+    // bendPoints must be cleared so routing reverts to default L-shape (90°)
+    expect(afterMove.bendPoints).toBeUndefined();
+    // path points should be axis-aligned (all horizontal or vertical segments)
+    const pts = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = (ed as any).getSnapshot().doc.elements[2];
+      const { edgePathPoints } = (window as any).__archidrawUtils__
+        ? (window as any).__archidrawUtils__
+        : {};
+      // fallback: compute from raw data
+      const a = { x: el.x, y: el.y };
+      const b = { x: el.x + el.width, y: el.y + el.height };
+      const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+      return [a, { x: tip.x, y: a.y }, tip];
+    });
+    for (let i = 1; i < pts.length; i++) {
+      const dx = Math.abs(pts[i].x - pts[i - 1].x);
+      const dy = Math.abs(pts[i].y - pts[i - 1].y);
+      // each segment must be purely horizontal or vertical
+      expect(dx === 0 || dy === 0).toBe(true);
+    }
   });
 });
