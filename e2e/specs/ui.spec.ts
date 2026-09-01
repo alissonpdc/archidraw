@@ -110,7 +110,7 @@ test.describe("ui widgets", () => {
   test("export shows a toast", async ({ page }) => {
     await open(page);
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Export JSON" }).click();
+    await page.getByRole("button", { name: "Export .archidraw" }).click();
 
     await expect(page.locator(".toast")).toHaveText(/Workspace exported/);
   });
