@@ -1185,9 +1185,9 @@ function drawHandles(
       ctx.fill();
       ctx.stroke();
     }
-    // control point handle for curved mode
+    // control point handle for curved mode (only when explicitly set)
     const lineType = el.lineType ?? "straight";
-    if (lineType === "curved") {
+    if (lineType === "curved" && el.controlPoint) {
       const [a, b] = arrowPoints(el);
       const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
       const cp = curvedArrowControl(el, a, tip);

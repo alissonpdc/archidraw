@@ -159,6 +159,7 @@ function labelHandleAt(scene: Point, el: Element, zoom: number): boolean {
 /** true when the scene point hits the curved-mode control point handle */
 function controlPointHandleAt(scene: Point, el: Element, zoom: number): boolean {
   if (!isEdge(el) || (el.lineType ?? "straight") !== "curved") return false;
+  if (!el.controlPoint) return false;
   const [a, b] = arrowPoints(el);
   const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
   const cp = curvedArrowControl(el, a, tip);
@@ -294,7 +295,7 @@ type Interaction =
   | { kind: "resize"; handle: HandleId; original: Element }
   | { kind: "label-move"; id: string; moved?: boolean }
   | { kind: "control-point"; id: string; original: Element }
-  | { kind: "bend-point"; id: string; index: number; original: Element }
+  | { kind: "bend-point"; id: string; index: number; original: Element; startScene: Point; axis?: "x" | "y" }
   | {
       kind: "segment-drag";
       id: string;
@@ -1313,7 +1314,7 @@ export class Editor {
             const bIdx = bendPointHitAt(scene, selected, this.camera.zoom);
             if (bIdx >= 0) {
               this.commitHistory();
-              this.interaction = { kind: "bend-point", id: selected.id, index: bIdx, original: selected };
+              this.interaction = { kind: "bend-point", id: selected.id, index: bIdx, original: selected, startScene: scene };
               break;
             }
           }
@@ -1599,13 +1600,27 @@ export class Editor {
         break;
       }
       case "bend-point": {
+        // constrain to a single axis (horizontal OR vertical) so the path
+        // never leaves 90° angles: the axis is chosen by the first
+        // significant movement and then locked for the entire drag
         const interaction = this.interaction;
+        if (!interaction.axis) {
+          const dx = scene.x - interaction.startScene.x;
+          const dy = scene.y - interaction.startScene.y;
+          if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+            interaction.axis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+          }
+        }
+        const constrained: Point = interaction.axis
+          ? { x: interaction.axis === "x" ? scene.x : interaction.startScene.x,
+              y: interaction.axis === "y" ? scene.y : interaction.startScene.y }
+          : scene;
         const el = this.doc.elements.find((e) => e.id === interaction.id);
         if (el && isEdge(el)) {
           const bends = [...(el.bendPoints ?? [])];
           const idx = interaction.index;
           if (idx < bends.length) {
-            bends[idx] = { x: scene.x, y: scene.y };
+            bends[idx] = constrained;
             this.doc = {
               ...this.doc,
               elements: this.doc.elements.map((e) =>
@@ -1617,10 +1632,6 @@ export class Editor {
         break;
       }
       case "segment-drag": {
-        // dragging an auto-mode path segment slides it perpendicularly and
-        // rebuilds the orthogonal path around it (recomputed from the
-        // original element so the segment index stays valid); a magnet
-        // snaps the segment onto parallel segments of the same path
         const interaction = this.interaction;
         const el = this.doc.elements.find((e) => e.id === interaction.id);
         if (el && isEdge(el) && isEdge(interaction.original)) {
@@ -1642,15 +1653,6 @@ export class Editor {
               e.id === el.id ? { ...e, bendPoints: bends } : e,
             ),
           };
-          this.guides =
-            snap.target === null
-              ? null
-              : [
-                  {
-                    orientation: interaction.axis === "x" ? "v" : "h",
-                    pos: snap.target,
-                  },
-                ];
         }
         break;
       }
