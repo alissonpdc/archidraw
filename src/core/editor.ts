@@ -164,7 +164,6 @@ function labelHandleAt(scene: Point, el: Element, zoom: number): boolean {
 /** true when the scene point hits the curved-mode control point handle */
 function controlPointHandleAt(scene: Point, el: Element, zoom: number): boolean {
   if (!isEdge(el) || (el.lineType ?? "straight") !== "curved") return false;
-  if (!el.controlPoint) return false;
   const [a, b] = arrowPoints(el);
   const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
   const cp = curvedArrowControl(el, a, tip);
@@ -1302,6 +1301,18 @@ export class Editor {
           );
           if (selected && controlPointHandleAt(scene, selected, this.camera.zoom)) {
             this.commitHistory();
+            // initialize controlPoint from fallback if not yet explicit
+            if (isEdge(selected) && !selected.controlPoint) {
+              const [a, b] = arrowPoints(selected);
+              const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+              const cp = curvedArrowControl(selected, a, tip);
+              this.doc = {
+                ...this.doc,
+                elements: this.doc.elements.map((e) =>
+                  e.id === selected.id ? { ...e, controlPoint: cp } : e,
+                ),
+              };
+            }
             this.interaction = { kind: "control-point", id: selected.id, original: selected };
             break;
           }
