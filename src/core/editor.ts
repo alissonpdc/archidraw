@@ -35,6 +35,11 @@ import {
   isEdge,
   bindingPoint,
   nearestOutlinePoint,
+  arrowPoints,
+  curvedArrowControl,
+  findInsertPosition,
+  edgePathPoints,
+  distanceToPolyline,
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { getLibraryItem } from "./library";
@@ -146,6 +151,35 @@ function labelHandleAt(scene: Point, el: Element, zoom: number): boolean {
     Math.hypot(scene.x - anchor.x, scene.y - anchor.y) * zoom <=
     HANDLE_TOLERANCE_PX
   );
+}
+
+/** true when the scene point hits the curved-mode control point handle */
+function controlPointHandleAt(scene: Point, el: Element, zoom: number): boolean {
+  if (!isEdge(el) || (el.lineType ?? "straight") !== "curved") return false;
+  const [a, b] = arrowPoints(el);
+  const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+  const cp = curvedArrowControl(el, a, tip);
+  return Math.hypot(scene.x - cp.x, scene.y - cp.y) * zoom <= HANDLE_TOLERANCE_PX;
+}
+
+/** index of the bend point hit by the scene point, or -1 */
+function bendPointHitAt(scene: Point, el: Element, zoom: number): number {
+  if (!isEdge(el) || (el.lineType ?? "straight") !== "auto") return -1;
+  const bends = el.bendPoints ?? [];
+  for (let i = 0; i < bends.length; i++) {
+    if (Math.hypot(scene.x - bends[i].x, scene.y - bends[i].y) * zoom <= HANDLE_TOLERANCE_PX) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/** true when the scene point is near the auto-mode path (for adding a bend point) */
+function edgePathHitAt(scene: Point, el: Element, zoom: number): boolean {
+  if (!isEdge(el) || (el.lineType ?? "straight") !== "auto") return false;
+  const pts = edgePathPoints(el);
+  const dist = distanceToPolyline(scene, pts);
+  return dist * zoom <= HANDLE_TOLERANCE_PX;
 }
 
 let _offCanvas: HTMLCanvasElement | null = null;
@@ -264,6 +298,9 @@ type Interaction =
   | { kind: "move"; startScene: Point; originals: Element[]; moved?: boolean }
   | { kind: "resize"; handle: HandleId; original: Element }
   | { kind: "label-move"; id: string; moved?: boolean }
+  | { kind: "control-point"; id: string; original: Element }
+  | { kind: "bend-point"; id: string; index: number; original: Element }
+  | { kind: "bend-add"; id: string }
   | { kind: "marquee"; startScene: Point };
 
 export interface TabInfo {
@@ -962,6 +999,7 @@ export class Editor {
       captionOffsetRight?: number;
       lineType?: LineType;
       controlPoint?: Point;
+      bendPoints?: Point[];
     },
   ) {
     this.doc = {
@@ -1252,6 +1290,54 @@ export class Editor {
             }
           }
         }
+        // control-point handle (curved mode) of the single selected edge
+        if (this.selectedIds.size === 1) {
+          const selected = this.doc.elements.find((el) =>
+            this.selectedIds.has(el.id),
+          );
+          if (selected && controlPointHandleAt(scene, selected, this.camera.zoom)) {
+            this.commitHistory();
+            this.interaction = { kind: "control-point", id: selected.id, original: selected };
+            break;
+          }
+        }
+        // bend-point handle (auto mode) of the single selected edge
+        if (this.selectedIds.size === 1) {
+          const selected = this.doc.elements.find((el) =>
+            this.selectedIds.has(el.id),
+          );
+          if (selected) {
+            const bIdx = bendPointHitAt(scene, selected, this.camera.zoom);
+            if (bIdx >= 0) {
+              this.commitHistory();
+              this.interaction = { kind: "bend-point", id: selected.id, index: bIdx, original: selected };
+              break;
+            }
+          }
+        }
+        // clicking near an auto-mode path adds a new bend point
+        if (this.selectedIds.size === 1) {
+          const selected = this.doc.elements.find((el) =>
+            this.selectedIds.has(el.id),
+          );
+          if (selected && edgePathHitAt(scene, selected, this.camera.zoom)) {
+            this.commitHistory();
+            const el = selected as LineElement | ArrowElement;
+            const pts = edgePathPoints(el);
+            const { index, point } = findInsertPosition(scene, pts);
+            const bends = [...(el.bendPoints ?? [])];
+            bends.splice(index - 1, 0, point);
+            this.doc = {
+              ...this.doc,
+              elements: this.doc.elements.map((e) =>
+                e.id === el.id ? { ...e, bendPoints: bends } : e,
+              ),
+            };
+            this.interaction = { kind: "bend-add", id: el.id };
+            this.emit();
+            break;
+          }
+        }
 
         const hitEl = [...this.doc.elements]
           .reverse()
@@ -1492,6 +1578,55 @@ export class Editor {
               ...this.doc,
               elements: this.doc.elements.map((e) =>
                 e.id === el.id ? { ...e, labelT: t } : e,
+              ),
+            };
+          }
+        }
+        break;
+      }
+      case "control-point": {
+        const interaction = this.interaction;
+        const el = this.doc.elements.find((e) => e.id === interaction.id);
+        if (el && isEdge(el)) {
+          this.doc = {
+            ...this.doc,
+            elements: this.doc.elements.map((e) =>
+              e.id === el.id ? { ...e, controlPoint: { x: scene.x, y: scene.y } } : e,
+            ),
+          };
+        }
+        break;
+      }
+      case "bend-point": {
+        const interaction = this.interaction;
+        const el = this.doc.elements.find((e) => e.id === interaction.id);
+        if (el && isEdge(el)) {
+          const bends = [...(el.bendPoints ?? [])];
+          const idx = interaction.index;
+          if (idx < bends.length) {
+            bends[idx] = { x: scene.x, y: scene.y };
+            this.doc = {
+              ...this.doc,
+              elements: this.doc.elements.map((e) =>
+                e.id === el.id ? { ...e, bendPoints: bends } : e,
+              ),
+            };
+          }
+        }
+        break;
+      }
+      case "bend-add": {
+        // dragging after adding a bend point moves the newly added point
+        const interaction = this.interaction;
+        const el = this.doc.elements.find((e) => e.id === interaction.id);
+        if (el && isEdge(el)) {
+          const bends = [...(el.bendPoints ?? [])];
+          if (bends.length > 0) {
+            bends[bends.length - 1] = { x: scene.x, y: scene.y };
+            this.doc = {
+              ...this.doc,
+              elements: this.doc.elements.map((e) =>
+                e.id === el.id ? { ...e, bendPoints: bends } : e,
               ),
             };
           }
@@ -1740,6 +1875,8 @@ export class Editor {
     if (!selected || !hasResizeHandles(selected)) return null;
     const scene = screenToScene(screenPoint, this.camera);
     if (labelHandleAt(scene, selected, this.camera.zoom)) return "move";
+    if (controlPointHandleAt(scene, selected, this.camera.zoom)) return "move";
+    if (bendPointHitAt(scene, selected, this.camera.zoom) >= 0) return "move";
     const handle = resizeHandleAt(
       scene,
       visualBounds(selected),

@@ -5,6 +5,7 @@ import {
   curvedArrowControl,
   diamondVertices,
   edgeLabelAnchor,
+  edgePathPoints,
   elementBounds,
   measureText,
 } from "./utils";
@@ -830,10 +831,28 @@ function drawElement(
     ctx.stroke();
   } else if (el.type === "line") {
     const [a, b] = arrowPoints(el);
+    const lineType = el.lineType ?? "straight";
+    const endY = b.y === a.y ? b.y + 1 : b.y;
+    const tip = { x: b.x, y: endY };
+
     ctx.beginPath();
-    sketchStroke(ctx, [[a, b]], el.roughness, seedOf(el.id));
-    applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke();
+    if (lineType === "straight") {
+      sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id));
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+    } else if (lineType === "curved") {
+      const cp = curvedArrowControl(el, a, tip);
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+    } else {
+      // auto: polyline through bend points (or L-shaped default)
+      const pts = edgePathPoints(el);
+      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id));
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+    }
   } else if (el.type === "arrow") {
     const [a, b] = arrowPoints(el);
     const lineType = el.lineType ?? "straight";
@@ -854,12 +873,13 @@ function drawElement(
       ctx.stroke();
       drawArrowHead(ctx, tip, cp, Math.max(12, el.strokeWidth * 4));
     } else {
-      // auto: L-shaped routing (horizontal then vertical)
-      const mid = { x: tip.x, y: a.y };
-      sketchStroke(ctx, [[a, mid, tip]], el.roughness, seedOf(el.id));
+      // auto: polyline through bend points (or L-shaped default)
+      const pts = edgePathPoints(el);
+      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id));
       applyDash(ctx, el, el.strokeWidth);
       ctx.stroke();
-      drawArrowHead(ctx, tip, mid, Math.max(12, el.strokeWidth * 4));
+      const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
+      drawArrowHead(ctx, tip, prevPt, Math.max(12, el.strokeWidth * 4));
     }
   } else if (el.type === "text") {
     ctx.fillStyle = resolveTextColor(el, colors);
@@ -962,15 +982,26 @@ function drawSelectionBox(
 ) {
   // arrows/lines: highlight the line itself instead of a misleading bbox rectangle
   if (el.type === "arrow" || el.type === "line") {
-    const [a, b] = arrowPoints(el);
+    const lineType = el.lineType ?? "straight";
     ctx.save();
     ctx.strokeStyle = color;
     ctx.globalAlpha = 0.22;
     ctx.lineWidth = el.strokeWidth + 4 / zoom;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
+    if (lineType === "curved") {
+      const [a, b] = arrowPoints(el);
+      const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+      const cp = curvedArrowControl(el, a, tip);
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+    } else {
+      const pts = edgePathPoints(el);
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+    }
     ctx.stroke();
     ctx.restore();
     return;
@@ -1153,6 +1184,33 @@ function drawHandles(
       ctx.arc(anchor.x, anchor.y, s / 2, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+    }
+    // control point handle for curved mode
+    const lineType = el.lineType ?? "straight";
+    if (lineType === "curved") {
+      const [a, b] = arrowPoints(el);
+      const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+      const cp = curvedArrowControl(el, a, tip);
+      ctx.beginPath();
+      ctx.arc(cp.x, cp.y, s / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // thin line from midpoint of chord to control point
+      const mx = (a.x + tip.x) / 2;
+      const my = (a.y + tip.y) / 2;
+      ctx.beginPath();
+      ctx.moveTo(mx, my);
+      ctx.lineTo(cp.x, cp.y);
+      ctx.stroke();
+    }
+    // bend point handles for auto mode
+    if (lineType === "auto" && el.bendPoints && el.bendPoints.length > 0) {
+      for (const bp of el.bendPoints) {
+        ctx.beginPath();
+        ctx.arc(bp.x, bp.y, s / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
     }
   }
   ctx.restore();

@@ -74,20 +74,20 @@ export type EdgeElement = LineElement | ArrowElement;
 export const isEdge = (el: Element): el is EdgeElement =>
   el.type === "line" || el.type === "arrow";
 
-/** control point used when drawing curved arrows (shared default) */
+/** control point used when drawing curved edges (shared default) */
 export function curvedArrowControl(el: EdgeElement, a: Point, tip: Point): Point {
   const fallback = {
     x: (a.x + tip.x) / 2,
     y: (a.y + tip.y) / 2 - Math.abs(tip.x - a.x) * 0.3,
   };
-  return el.type === "arrow" ? (el.controlPoint ?? fallback) : fallback;
+  return el.controlPoint ?? fallback;
 }
 
-/** polyline approximation of an edge path (curved arrows are sampled) */
+/** polyline approximation of an edge path (curved edges are sampled) */
 export function edgePathPoints(el: EdgeElement, samples = 32): Point[] {
   const [a, b] = arrowPoints(el);
   const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
-  const lineType = el.type === "arrow" ? (el.lineType ?? "straight") : "straight";
+  const lineType = el.lineType ?? "straight";
   if (lineType === "curved") {
     const cp = curvedArrowControl(el, a, tip);
     const pts: Point[] = [];
@@ -102,8 +102,12 @@ export function edgePathPoints(el: EdgeElement, samples = 32): Point[] {
     return pts;
   }
   if (lineType === "auto") {
-    // L-shaped routing (horizontal then vertical)
-    return [a, { x: tip.x, y: a.y }, tip];
+    const bends = el.bendPoints ?? [];
+    if (bends.length === 0) {
+      // default L-shaped routing (horizontal then vertical)
+      return [a, { x: tip.x, y: a.y }, tip];
+    }
+    return [a, ...bends, tip];
   }
   return [a, tip];
 }
@@ -182,7 +186,18 @@ export function diamondVertices(el: Element): Point[] {
 }
 
 export function translateElement(el: Element, dx: number, dy: number): Element {
-  return { ...el, x: el.x + dx, y: el.y + dy };
+  const next = { ...el, x: el.x + dx, y: el.y + dy };
+  // translate absolute control/bend points for edges
+  if ((el.type === "line" || el.type === "arrow")) {
+    const e = el as LineElement | ArrowElement;
+    if (e.controlPoint) {
+      (next as LineElement | ArrowElement).controlPoint = { x: e.controlPoint.x + dx, y: e.controlPoint.y + dy };
+    }
+    if (e.bendPoints) {
+      (next as LineElement | ArrowElement).bendPoints = e.bendPoints.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+    }
+  }
+  return next;
 }
 
 /** absolute point of a binding (normalized position within element bounds) */
@@ -248,6 +263,78 @@ export function unionBounds(elements: Element[]): Bounds | null {
     y2 = Math.max(y2, b.y2);
   }
   return { x1, y1, x2, y2 };
+}
+
+// ---- edge hit-testing helpers -------------------------------------------
+
+/** minimum distance from point p to a polyline defined by pts */
+export function distanceToPolyline(p: Point, pts: Point[]): number {
+  let min = Infinity;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const d = distanceToSegment(p, pts[i], pts[i + 1]);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+/** approximate minimum distance from point p to a quadratic Bézier curve a→tip via cp */
+export function distanceToQuadraticBezier(p: Point, a: Point, cp: Point, tip: Point, samples = 32): number {
+  let min = Infinity;
+  for (let i = 0; i < samples; i++) {
+    const t0 = i / samples;
+    const t1 = (i + 1) / samples;
+    const u0 = 1 - t0;
+    const u1 = 1 - t1;
+    const p0 = {
+      x: u0 * u0 * a.x + 2 * u0 * t0 * cp.x + t0 * t0 * tip.x,
+      y: u0 * u0 * a.y + 2 * u0 * t0 * cp.y + t0 * t0 * tip.y,
+    };
+    const p1 = {
+      x: u1 * u1 * a.x + 2 * u1 * t1 * cp.x + t1 * t1 * tip.x,
+      y: u1 * u1 * a.y + 2 * u1 * t1 * cp.y + t1 * t1 * tip.y,
+    };
+    const d = distanceToSegment(p, p0, p1);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+/** min distance from point p to the actual path of an edge element */
+export function edgeDistance(el: EdgeElement, p: Point): number {
+  const [a, b] = arrowPoints(el);
+  const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+  const lineType = el.lineType ?? "straight";
+  if (lineType === "curved") {
+    const cp = curvedArrowControl(el, a, tip);
+    return distanceToQuadraticBezier(p, a, cp, tip);
+  }
+  return distanceToPolyline(p, edgePathPoints(el));
+}
+
+/** find the closest segment of a polyline to point p and return the
+ *  insertion index (1..pts.length-2) and the projected point on that segment */
+export function findInsertPosition(
+  p: Point,
+  pts: Point[],
+): { index: number; point: Point } {
+  let bestDist = Infinity;
+  let bestIndex = 1;
+  let bestPoint = pts[0];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const dx = pts[i + 1].x - pts[i].x;
+    const dy = pts[i + 1].y - pts[i].y;
+    const lenSq = dx * dx + dy * dy;
+    let t = lenSq === 0 ? 0 : ((p.x - pts[i].x) * dx + (p.y - pts[i].y) * dy) / lenSq;
+    t = clamp(t, 0, 1);
+    const proj = { x: pts[i].x + t * dx, y: pts[i].y + t * dy };
+    const d = Math.hypot(p.x - proj.x, p.y - proj.y);
+    if (d < bestDist) {
+      bestDist = d;
+      bestIndex = i + 1;
+      bestPoint = proj;
+    }
+  }
+  return { index: bestIndex, point: bestPoint };
 }
 
 // ---- text measurement --------------------------------------------------

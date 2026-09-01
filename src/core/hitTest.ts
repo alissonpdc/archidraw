@@ -1,8 +1,10 @@
 import type { Element } from "./types";
 import {
   arrowPoints,
+  curvedArrowControl,
   diamondVertices,
   distanceToSegment,
+  edgePathPoints,
   elementBounds,
   boundsContain,
 } from "./utils";
@@ -23,14 +25,48 @@ function pointInPolygon(p: { x: number; y: number }, poly: { x: number; y: numbe
   return inside;
 }
 
+/** bounding box of a quadratic Bézier curve a→tip via cp */
+function quadraticBounds(a: { x: number; y: number }, cp: { x: number; y: number }, tip: { x: number; y: number }) {
+  const xs = [a.x, cp.x, tip.x];
+  const ys = [a.y, cp.y, tip.y];
+  return {
+    x1: Math.min(...xs), y1: Math.min(...ys),
+    x2: Math.max(...xs), y2: Math.max(...ys),
+  };
+}
+
 export function hitTest(el: Element, p: { x: number; y: number }): boolean {
   const b = elementBounds(el);
   if (el.type === "arrow" || el.type === "line") {
-    const [a, c] = arrowPoints(el);
-    return (
-      distanceToSegment(p, a, c) <=
-      ARROW_HIT_TOLERANCE + el.strokeWidth / 2
-    );
+    const lineType = el.lineType ?? "straight";
+    if (lineType === "straight") {
+      const [a, c] = arrowPoints(el);
+      return (
+        distanceToSegment(p, a, c) <=
+        ARROW_HIT_TOLERANCE + el.strokeWidth / 2
+      );
+    }
+    // curved: check distance to the actual Bézier curve
+    if (lineType === "curved") {
+      const [a, bb] = arrowPoints(el);
+      const tip = { x: bb.x, y: bb.y === a.y ? bb.y + 1 : bb.y };
+      const cp = curvedArrowControl(el, a, tip);
+      // use the bounding box of the curve for a generous hit area
+      const cb = quadraticBounds(a, cp, tip);
+      const pad = ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
+      return (
+        p.x >= cb.x1 - pad && p.x <= cb.x2 + pad &&
+        p.y >= cb.y1 - pad && p.y <= cb.y2 + pad
+      );
+    }
+    // auto: check distance to the polyline
+    const pts = edgePathPoints(el);
+    let minDist = Infinity;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const d = distanceToSegment(p, pts[i], pts[i + 1]);
+      if (d < minDist) minDist = d;
+    }
+    return minDist <= ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
   }
   if (el.type === "diamond") {
     return pointInPolygon(p, diamondVertices(el));

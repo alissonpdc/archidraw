@@ -482,7 +482,7 @@ export function PropertiesPanel() {
   const allRoughness = (v: number) =>
     selected.every((el) => el.roughness === v);
   const allLineType = (v: string) =>
-    selected.every((el) => (el.type === "arrow" ? (el.lineType ?? "straight") : v) === v);
+    selected.every((el) => ((el.type === "arrow" || el.type === "line") ? (el.lineType ?? "straight") : v) === v);
   const allFont = (v: number) => {
     const textEls = selected.filter((el) => el.type === "text" || el.label);
     return (
@@ -700,7 +700,7 @@ export function PropertiesPanel() {
             </>
           )}
 
-          {hasArrow && (
+          {(hasArrow || selected.some((el) => el.type === "line")) && (
             <Group title="Path type">
               {([
                 { v: "straight", label: "Straight", icon: "M2 12 L18 4" },

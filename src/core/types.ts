@@ -103,6 +103,11 @@ export interface LineElement extends BaseElement {
   label?: string;
   /** label position along the stroke: 0 = start, 1 = end (default 0.5 = center) */
   labelT?: number;
+  lineType?: LineType;
+  /** control point for curved lines (scene units, absolute coordinates) */
+  controlPoint?: Point;
+  /** intermediate vertices for auto-routed lines (scene units, absolute coordinates) */
+  bendPoints?: Point[];
   startBinding?: ArrowBinding;
   endBinding?: ArrowBinding;
 }
@@ -127,8 +132,10 @@ export interface ArrowElement extends BaseElement {
   /** label position along the stroke: 0 = start, 1 = end (default 0.5 = center) */
   labelT?: number;
   lineType?: LineType;
-  /** control point for curved lines (relative to element center, scene units) */
+  /** control point for curved lines (scene units, absolute coordinates) */
   controlPoint?: Point;
+  /** intermediate vertices for auto-routed arrows (scene units, absolute coordinates) */
+  bendPoints?: Point[];
   startBinding?: ArrowBinding;
   endBinding?: ArrowBinding;
 }
