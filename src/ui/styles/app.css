@@ -1237,7 +1237,7 @@ button {
 .shortcuts-body {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 var(--space-4);
+  gap: 0 var(--space-5);
   padding: var(--space-3) var(--space-4);
 }
 
@@ -1246,15 +1246,20 @@ button {
   flex-direction: column;
 }
 
+.shortcuts-column + .shortcuts-column {
+  border-left: 1px solid var(--border);
+  padding-left: var(--space-4);
+}
+
 .shortcuts-section {
   display: flex;
   flex-direction: column;
 }
 
-.shortcuts-column:first-child .shortcuts-section {
-  padding-bottom: var(--space-3);
-  margin-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border);
+.shortcuts-section + .shortcuts-section {
+  padding-top: var(--space-3);
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--border);
 }
 
 .shortcuts-section-title {
