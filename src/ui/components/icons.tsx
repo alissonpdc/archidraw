@@ -269,6 +269,14 @@ export function PaletteIcon({ size = 16 }: IconProps) {
   );
 }
 
+export function DropletIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M12 2.7c3 3.1 5.5 6.2 5.5 9.3a5.5 5.5 0 0 1-11 0c0-3.1 2.5-6.2 5.5-9.3z" />
+    </svg>
+  );
+}
+
 export function KeyboardIcon({ size = 16 }: IconProps) {
   return (
     <svg {...base(size)}>

@@ -1,10 +1,23 @@
 export type ThemePref = "system" | "light" | "dark";
-export type SkinPref = "default" | "midnight" | "blueprint";
+export type SkinPref =
+  | "default"
+  | "midnight"
+  | "blueprint"
+  | "precision"
+  | "warm"
+  | "swiss";
 
 const KEY = "archidraw:theme";
 const SKIN_KEY = "archidraw:skin";
 const PREFS: ThemePref[] = ["system", "light", "dark"];
-const SKINS: SkinPref[] = ["default", "midnight", "blueprint"];
+const SKINS: SkinPref[] = [
+  "default",
+  "midnight",
+  "blueprint",
+  "precision",
+  "warm",
+  "swiss",
+];
 
 export function loadThemePref(): ThemePref {
   try {

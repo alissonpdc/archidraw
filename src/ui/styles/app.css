@@ -1633,3 +1633,89 @@ button {
 :root[data-skin="midnight"] .zoom-level {
   font-family: var(--font-mono-ui);
 }
+
+/* ---- Warm Studio skin: active panel tab uses hover bg (per mock 02) ---- */
+:root[data-skin="warm"] .panel-tab.active {
+  background: var(--bg-surface-hover);
+}
+
+/* ---- Swiss Ink skin chrome: brutalist, per design/ui-options/05 ---- */
+/* widgets: 2px ink borders, zero radius, hard offset shadow */
+:root[data-skin="swiss"] .toolbar,
+:root[data-skin="swiss"] .tabbar,
+:root[data-skin="swiss"] .properties-panel,
+:root[data-skin="swiss"] .menu-btn,
+:root[data-skin="swiss"] .menu-dropdown,
+:root[data-skin="swiss"] .zoom-widget,
+:root[data-skin="swiss"] .color-popover,
+:root[data-skin="swiss"] .context-menu,
+:root[data-skin="swiss"] .hover-info-box,
+:root[data-skin="swiss"] .panel-tooltip,
+:root[data-skin="swiss"] .toast,
+:root[data-skin="swiss"] .shortcuts-modal,
+:root[data-skin="swiss"] .tab-confirm,
+:root[data-skin="swiss"] .details-modal,
+:root[data-skin="swiss"] .library-panel {
+  border: 2px solid var(--text-primary);
+  border-radius: 0;
+  box-shadow: var(--shadow-md);
+}
+
+:root[data-skin="swiss"] .menu-btn.active {
+  border-color: var(--text-primary);
+  background: var(--text-primary);
+  color: var(--bg-surface);
+}
+
+:root[data-skin="swiss"] .zoom-btn,
+:root[data-skin="swiss"] .tool-btn {
+  border-radius: 0;
+}
+
+/* active states invert to ink instead of accent */
+:root[data-skin="swiss"] .tool-btn.active,
+:root[data-skin="swiss"] .tabbar-seg.active {
+  background: var(--text-primary);
+  color: var(--bg-surface);
+}
+
+:root[data-skin="swiss"] .toolbar-sep {
+  width: 2px;
+  height: 26px;
+  background: var(--text-primary);
+}
+
+:root[data-skin="swiss"] .swatch,
+:root[data-skin="swiss"] .size-btn {
+  border: 1.5px solid var(--text-primary);
+  border-radius: 0;
+}
+
+:root[data-skin="swiss"] .size-btn.active {
+  background: var(--text-primary);
+  color: var(--bg-surface);
+  border-color: var(--text-primary);
+  box-shadow: none;
+}
+
+/* active panel tab: accent underline bar, uppercase label */
+:root[data-skin="swiss"] .panel-tab.active {
+  background: transparent;
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+:root[data-skin="swiss"] .panel-tab,
+:root[data-skin="swiss"] .tabbar-seg,
+:root[data-skin="swiss"] .menu-section-title,
+:root[data-skin="swiss"] .panel-subtitle,
+:root[data-skin="swiss"] .hover-info-title,
+:root[data-skin="swiss"] .status-bar {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+:root[data-skin="swiss"] .zoom-level {
+  font-weight: 700;
+  color: var(--text-primary);
+}

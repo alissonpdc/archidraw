@@ -13,6 +13,7 @@ import {
 import { getGridMode, setGridMode, subscribeGrid, type GridMode } from "../viewPrefs";
 import {
   CheckIcon,
+  DropletIcon,
   ExportIcon,
   GridIcon,
   ImportIcon,
@@ -22,6 +23,7 @@ import {
   MoonIcon,
   PaletteIcon,
   SunIcon,
+  TargetIcon,
 } from "./icons";
 import { toast } from "../toasts";
 
@@ -29,6 +31,9 @@ const SKIN_OPTIONS: { id: SkinPref; label: string; icon: ReactNode }[] = [
   { id: "default", label: "Default", icon: <PaletteIcon size={14} /> },
   { id: "midnight", label: "Midnight", icon: <MoonIcon size={14} /> },
   { id: "blueprint", label: "Blueprint", icon: <GridIcon size={14} /> },
+  { id: "precision", label: "Precision Slate", icon: <TargetIcon size={14} /> },
+  { id: "warm", label: "Warm Studio", icon: <SunIcon size={14} /> },
+  { id: "swiss", label: "Swiss Ink", icon: <DropletIcon size={14} /> },
 ];
 
 const THEME_OPTIONS: { id: ThemePref; label: string; icon: ReactNode }[] = [

@@ -122,6 +122,76 @@ test.describe("ui widgets", () => {
     }, initial);
   });
 
+  test("precision/warm/swiss skins apply their chrome style and persist", async ({
+    page,
+  }) => {
+    await open(page);
+    const initial = await page.evaluate(() =>
+      localStorage.getItem("archidraw:skin"),
+    );
+
+    // precision slate: flat (no shadow) with tight 4px radius
+    await page.click('[data-testid="app-menu-button"]');
+    await page.getByRole("button", { name: "Precision Slate" }).click();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.getAttribute("data-skin"),
+      ),
+    ).toBe("precision");
+    const precisionToolbar = await page.evaluate(() => {
+      const s = getComputedStyle(document.querySelector(".toolbar")!);
+      return { shadow: s.boxShadow, radius: s.borderRadius };
+    });
+    expect(precisionToolbar.shadow).toBe("none");
+    expect(precisionToolbar.radius).toBe("4px");
+
+    // warm studio: rounded 12px widgets
+    await page.getByRole("button", { name: "Warm Studio" }).click();
+    const warmToolbar = await page.evaluate(
+      () => getComputedStyle(document.querySelector(".toolbar")!).borderRadius,
+    );
+    expect(warmToolbar).toBe("12px");
+
+    // swiss ink: brutalist 2px ink border, zero radius, hard shadow
+    await page.getByRole("button", { name: "Swiss Ink" }).click();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.getAttribute("data-skin"),
+      ),
+    ).toBe("swiss");
+    const swissToolbar = await page.evaluate(() => {
+      const s = getComputedStyle(document.querySelector(".toolbar")!);
+      return {
+        borderColor: s.borderColor,
+        borderWidth: s.borderTopWidth,
+        radius: s.borderRadius,
+        shadow: s.boxShadow,
+      };
+    });
+    expect(swissToolbar.borderColor).toBe("rgb(17, 17, 17)");
+    expect(swissToolbar.borderWidth).toBe("2px");
+    expect(swissToolbar.radius).toBe("0px");
+    expect(swissToolbar.shadow).toBe("rgb(17, 17, 17) 3px 3px 0px 0px");
+
+    // swiss active states invert to ink (not accent); retry until the
+    // 120ms background transition settles
+    await page.keyboard.press("v");
+    const activeTool = page.locator(".toolbar .tool-btn.active");
+    await expect(activeTool).toHaveCSS("background-color", "rgb(17, 17, 17)");
+    await expect(activeTool).toHaveCSS("color", "rgb(255, 255, 255)");
+
+    // persisted
+    expect(
+      await page.evaluate(() => localStorage.getItem("archidraw:skin")),
+    ).toBe("swiss");
+
+    // restore initial pref
+    await page.evaluate((c) => {
+      if (c === null) localStorage.removeItem("archidraw:skin");
+      else localStorage.setItem("archidraw:skin", c);
+    }, initial);
+  });
+
   test("grid defaults to none and switching persists", async ({ page }) => {
     await open(page);
 
