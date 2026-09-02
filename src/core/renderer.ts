@@ -50,7 +50,7 @@ const DEFAULT_COLORS: RenderColors = {
   elementStroke: "#3d4248",
   gridDot: "rgba(0,0,0,0.14)",
   gridLine: "rgba(0,0,0,0.07)",
-  gridLineMaster: "rgba(0,0,0,0.18)",
+  gridLineMaster: "rgba(0,0,0,0.13)",
   canvasBg: "#ffffff",
   muted: "#6b6b76",
 };
