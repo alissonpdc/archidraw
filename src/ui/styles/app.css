@@ -892,8 +892,8 @@ button {
 }
 
 .radius-slider {
-  /* same width as 4 size-btn squares (4 × 28px) + 3 gaps (3 × 4px) */
-  width: 124px;
+  /* same width as palette: 5 × 24px swatches + 4 × 4px gaps */
+  width: 136px;
   accent-color: var(--accent);
 }
 
