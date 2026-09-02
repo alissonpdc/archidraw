@@ -48,9 +48,9 @@ export interface RenderState {
 const DEFAULT_COLORS: RenderColors = {
   selection: "#6965db",
   elementStroke: "#3d4248",
-  gridDot: "rgba(0,0,0,0.10)",
-  gridLine: "rgba(0,0,0,0.07)",
-  gridLineMaster: "rgba(0,0,0,0.10)",
+  gridDot: "rgba(0,0,0,0.07)",
+  gridLine: "rgba(0,0,0,0.04)",
+  gridLineMaster: "rgba(0,0,0,0.07)",
   canvasBg: "#ffffff",
   muted: "#6b6b76",
 };
