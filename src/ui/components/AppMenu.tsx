@@ -307,7 +307,7 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
 
             <MenuSection title="Help">
               <MenuItem
-                label="Keyboard shortcuts"
+                label="Shortcuts"
                 icon={<KeyboardIcon size={14} />}
                 onClick={() => {
                   window.dispatchEvent(new Event("archidraw:shortcuts"));
