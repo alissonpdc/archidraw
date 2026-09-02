@@ -233,8 +233,8 @@ export function AppMenu({
             </MenuSection>
 
             <MenuSection title="Appearance">
-              <div className="menu-mode-row">
-                <span className="menu-mode-label">Mode</span>
+              <div className="menu-mode-wrap">
+                <div className="menu-mode-label">Mode</div>
                 <div className="menu-mode-icons">
                   {THEME_OPTIONS.map((opt) => (
                     <button

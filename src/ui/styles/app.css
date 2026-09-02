@@ -381,21 +381,20 @@ button {
 }
 
 /* ---- mode row (Appearance > Mode) ---- */
-.menu-mode-row {
-  display: flex;
-  align-items: center;
+.menu-mode-wrap {
   padding: var(--space-1) var(--space-3) var(--space-2);
 }
 
 .menu-mode-label {
   font-size: var(--font-size-sm);
   color: var(--text-muted);
+  margin-bottom: var(--space-1);
 }
 
 .menu-mode-icons {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  margin-left: auto;
 }
 
 .menu-mode-icon {
