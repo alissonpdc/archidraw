@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256px" height="256px" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <title>NetworkPolicy</title>
+    <defs>
+        <linearGradient id="bg" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop stop-color="#1A4B8E" offset="0%"/>
+            <stop stop-color="#326CE5" offset="100%"/>
+        </linearGradient>
+    </defs>
+    <rect fill="url(#bg)" width="256" height="256" rx="20"/>
+    <!-- Shield shape -->
+    <path d="M128,36 L196,72 L196,140 C196,180 164,212 128,228 C92,212 60,180 60,140 L60,72 Z" fill="none" stroke="#FFF" stroke-width="6" stroke-linejoin="round"/>
+    <!-- Network nodes -->
+    <circle cx="128" cy="120" r="10" fill="#FFF"/>
+    <circle cx="100" cy="148" r="8" fill="#FFF"/>
+    <circle cx="156" cy="148" r="8" fill="#FFF"/>
+    <circle cx="112" cy="176" r="7" fill="#FFF"/>
+    <circle cx="144" cy="176" r="7" fill="#FFF"/>
+    <!-- Network connections -->
+    <line x1="128" y1="120" x2="100" y2="148" stroke="#FFF" stroke-width="2.5"/>
+    <line x1="128" y1="120" x2="156" y2="148" stroke="#FFF" stroke-width="2.5"/>
+    <line x1="100" y1="148" x2="112" y2="176" stroke="#FFF" stroke-width="2.5"/>
+    <line x1="156" y1="148" x2="144" y2="176" stroke="#FFF" stroke-width="2.5"/>
+    <line x1="112" y1="176" x2="144" y2="176" stroke="#FFF" stroke-width="2.5"/>
+    <!-- Lock icon at bottom -->
+    <rect x="116" y="192" width="24" height="18" rx="3" fill="#FFF"/>
+    <path d="M122,192 L122,184 C122,178 134,178 134,184 L134,192" fill="none" stroke="#FFF" stroke-width="3" stroke-linecap="round"/>
+</svg>

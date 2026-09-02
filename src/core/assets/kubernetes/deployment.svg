@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256px" height="256px" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <title>Kubernetes Deployment</title>
+    <defs>
+        <linearGradient id="bg" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop stop-color="#1A4B8E" offset="0%"/>
+            <stop stop-color="#326CE5" offset="100%"/>
+        </linearGradient>
+    </defs>
+    <rect fill="url(#bg)" width="256" height="256" rx="20"/>
+    <!-- Diamond/rhombus -->
+    <polygon points="128,36 228,128 128,220 28,128" fill="none" stroke="#FFF" stroke-width="6" stroke-linejoin="round"/>
+</svg>
