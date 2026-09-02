@@ -372,9 +372,9 @@ export function CanvasHost() {
           </svg>
           <div className="empty-title">Empty canvas — click and drag to create</div>
           <div className="empty-keys">
-            <span><kbd>R</kbd> rectangle</span>
-            <span><kbd>A</kbd> arrow</span>
-            <span><kbd>T</kbd> text</span>
+            <span><kbd>2</kbd> rectangle</span>
+            <span><kbd>6</kbd> arrow</span>
+            <span><kbd>7</kbd> text</span>
             <span><kbd>?</kbd> shortcuts</span>
           </div>
         </div>

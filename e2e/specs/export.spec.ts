@@ -1,7 +1,7 @@
 import { test, expect, drag, selectTool, open } from "../fixtures";
 
 async function createRect(page: import("@playwright/test").Page) {
-  await selectTool(page, "r");
+  await selectTool(page, "2");
   await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
 }
 

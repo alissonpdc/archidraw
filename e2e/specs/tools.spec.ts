@@ -3,14 +3,14 @@ import { test, expect, drag, selectTool, open } from "../fixtures";
 test.describe("tools", () => {
   test.beforeEach(async ({ page }) => {
     await open(page);
-    await selectTool(page, "v"); // ensure clean state
+    await selectTool(page, "1"); // ensure clean state
   });
 
   test("drag with rectangle tool creates a rectangle", async ({
     page,
     editorState,
   }) => {
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 200, y: 200 }, { x: 350, y: 320 });
 
     const s = await editorState();
@@ -22,7 +22,7 @@ test.describe("tools", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 200, y: 200 }, { x: 201, y: 201 });
 
     const s = await editorState();
@@ -33,7 +33,7 @@ test.describe("tools", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await drag(page, { x: 400, y: 300 }, { x: 600, y: 450 });
 
     const s = await editorState();
@@ -45,7 +45,7 @@ test.describe("tools", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "d");
+    await selectTool(page, "3");
     await drag(page, { x: 200, y: 200 }, { x: 350, y: 320 });
 
     const s = await editorState();
@@ -58,7 +58,7 @@ test.describe("tools", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "e");
+    await selectTool(page, "4");
     await drag(page, { x: 200, y: 200 }, { x: 350, y: 320 });
 
     const s = await editorState();
@@ -71,7 +71,7 @@ test.describe("tools", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 400, y: 300 }, { x: 600, y: 450 });
 
     const s = await editorState();
@@ -84,11 +84,11 @@ test.describe("tools", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "e");
+    await selectTool(page, "4");
     await drag(page, { x: 200, y: 200 }, { x: 400, y: 400 });
-    await selectTool(page, "d");
+    await selectTool(page, "3");
     await drag(page, { x: 500, y: 200 }, { x: 700, y: 400 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     // ellipse corner (inside bbox, outside the circle) should not select it
     await page.mouse.click(210, 210);
@@ -110,7 +110,7 @@ test.describe("tools", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "t");
+    await selectTool(page, "7");
     await page.mouse.click(250, 250);
 
     let s = await editorState();
@@ -131,7 +131,7 @@ test.describe("tools", () => {
   });
 
   test("empty text is discarded on Escape", async ({ page, editorState }) => {
-    await selectTool(page, "t");
+    await selectTool(page, "7");
     await page.mouse.click(250, 250);
     await page.keyboard.press("Escape");
 
@@ -143,7 +143,7 @@ test.describe("tools", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "t");
+    await selectTool(page, "7");
     await page.mouse.click(300, 300);
     await page.keyboard.type("Hello");
     await page.keyboard.press("Escape");

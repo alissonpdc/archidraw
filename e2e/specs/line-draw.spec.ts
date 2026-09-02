@@ -18,7 +18,7 @@ async function readDraft(page: import("@playwright/test").Page) {
 test.describe("line/arrow drawing anchors the start point", () => {
   test("line start stays anchored when drawing down-right", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await page.mouse.move(400, 400);
     await page.mouse.down();
     await page.mouse.move(500, 460, { steps: 3 });
@@ -29,7 +29,7 @@ test.describe("line/arrow drawing anchors the start point", () => {
 
   test("line start stays anchored when drawing up-left", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await page.mouse.move(600, 520);
     await page.mouse.down();
     await page.mouse.move(500, 460, { steps: 3 });
@@ -47,7 +47,7 @@ test.describe("line/arrow drawing anchors the start point", () => {
 
   test("arrow tip follows the mouse in any direction", async ({ page }) => {
     await open(page);
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await page.mouse.move(600, 520);
     await page.mouse.down();
     await page.mouse.move(500, 460, { steps: 3 });
@@ -61,13 +61,13 @@ test.describe("line/arrow drawing anchors the start point", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     // draw a line from (600,520) up-left to (500,460)
     await page.mouse.move(600, 520);
     await page.mouse.down();
     await page.mouse.move(500, 460, { steps: 3 });
     await page.mouse.up();
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     // grab the start endpoint (at 600,520) and drag it; end (500,460) must stay
     await page.mouse.move(600, 520);
@@ -92,7 +92,7 @@ test.describe("line/arrow drawing anchors the start point", () => {
   }) => {
     await open(page);
     // rectangle A at (100,100)-(220,180)
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await page.mouse.move(100, 100);
     await page.mouse.down();
     await page.mouse.move(220, 180, { steps: 3 });
@@ -106,7 +106,7 @@ test.describe("line/arrow drawing anchors the start point", () => {
 
     // arrow from B's left anchor (400,330) to A's right anchor (220,140):
     // start binds to B, end binds to A
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await page.mouse.move(402, 330);
     await page.mouse.down();
     await page.mouse.move(218, 150, { steps: 5 });
@@ -124,7 +124,7 @@ test.describe("line/arrow drawing anchors the start point", () => {
     });
 
     // move rectangle B (the bound start) by dragging its interior
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.move(450, 330);
     await page.mouse.down();
     await page.mouse.move(550, 380, { steps: 5 });

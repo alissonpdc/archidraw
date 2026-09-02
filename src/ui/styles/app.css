@@ -518,6 +518,18 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.tool-key {
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--text-muted);
+  pointer-events: none;
+  font-weight: 500;
 }
 
 .tool-btn:hover {
@@ -538,6 +550,11 @@ button {
 .tool-btn.active {
   background: var(--accent);
   color: var(--on-accent);
+}
+
+.tool-btn.active .tool-key {
+  color: var(--on-accent);
+  opacity: 0.7;
 }
 
 .toolbar-sep {

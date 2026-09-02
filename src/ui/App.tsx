@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { editor } from "./hooks/useEditor";
 import { CanvasHost } from "./components/CanvasHost";
 import { Toolbar } from "./components/Toolbar";
@@ -17,14 +17,14 @@ import { ContextMenu } from "./components/ContextMenu";
 import { HoverInfoBox } from "./components/HoverInfoBox";
 
 const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
-  v: "selection",
+  "1": "selection",
   h: "hand",
-  r: "rectangle",
-  d: "diamond",
-  e: "ellipse",
-  l: "line",
-  a: "arrow",
-  t: "text",
+  "2": "rectangle",
+  "3": "diamond",
+  "4": "ellipse",
+  "5": "line",
+  "6": "arrow",
+  "7": "text",
 };
 
 export function App() {
@@ -33,6 +33,7 @@ export function App() {
   const [focusMode, setFocusMode] = useState(false);
   const [exportImageOpen, setExportImageOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsub = editor.subscribe(() => {
@@ -128,9 +129,14 @@ export function App() {
         return;
       }
       if (!mod) {
-        if (e.key.toLowerCase() === "b") {
+        if (e.key.toLowerCase() === "l") {
           e.preventDefault();
           setLibraryOpen((v) => !v);
+          return;
+        }
+        if (e.key.toLowerCase() === "i") {
+          e.preventDefault();
+          imageInputRef.current?.click();
           return;
         }
         const tool = TOOL_KEYS[e.key.toLowerCase()];
@@ -216,6 +222,19 @@ export function App() {
           <Toolbar
             libraryOpen={libraryOpen}
             onToggleLibrary={() => setLibraryOpen((v) => !v)}
+            imageInputRef={imageInputRef}
+          />
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            data-testid="image-input"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) editor.insertImage(file);
+              e.target.value = "";
+            }}
           />
           {libraryOpen && (
             <LibraryPanel onClose={() => setLibraryOpen(false)} />

@@ -44,7 +44,7 @@ async function readShape(
 
 /** draws rectangles A (100,100)-(220,180) and B (400,300)-(500,360) */
 async function drawTwoRects(page: import("@playwright/test").Page) {
-  await selectTool(page, "r");
+  await selectTool(page, "2");
   await page.mouse.move(100, 100);
   await page.mouse.down();
   await page.mouse.move(220, 180, { steps: 3 });
@@ -68,7 +68,7 @@ test.describe("edge binding to elements", () => {
 
     // arrow from over B's left edge to over A's right edge: the endpoints
     // snap to the nearest outline point of each shape
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await page.mouse.move(402, 330);
     await page.mouse.down();
     await page.mouse.move(218, 150, { steps: 5 });
@@ -100,7 +100,7 @@ test.describe("edge binding to elements", () => {
 
     // arrow end near A's right edge center (220,140): draws at (218,142) and
     // must be captured to the exact vertical/horizontal center midpoint
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await page.mouse.move(600, 500);
     await page.mouse.down();
     await page.mouse.move(218, 142, { steps: 5 });
@@ -138,7 +138,7 @@ test.describe("edge binding to elements", () => {
     const a = await readShape(page, 0);
     const b = await readShape(page, 1);
 
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await page.mouse.move(402, 330);
     await page.mouse.down();
     await page.mouse.move(218, 150, { steps: 5 });
@@ -149,7 +149,7 @@ test.describe("edge binding to elements", () => {
     expect(before.endBinding?.elementId).toBe(a.id);
 
     // move rect A by (+100,+50): line end follows its bound outline position
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.move(160, 140);
     await page.mouse.down();
     await page.mouse.move(260, 190, { steps: 5 });
@@ -174,14 +174,14 @@ test.describe("edge binding to elements", () => {
     const b = await readShape(page, 1);
 
     // arrow from A's right anchor to empty space (only start binds)
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await page.mouse.move(222, 140);
     await page.mouse.down();
     await page.mouse.move(350, 400, { steps: 5 });
     await page.mouse.up();
 
     // select the arrow by clicking its midpoint
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(286, 270);
 
     // grab the free end (350,400) and drag it over B: the shape must be
@@ -216,14 +216,14 @@ test.describe("edge binding to elements", () => {
     await drawTwoRects(page);
 
     // arrow starting at B's left anchor, free end in empty space
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await page.mouse.move(402, 330);
     await page.mouse.down();
     await page.mouse.move(300, 200, { steps: 5 });
     await page.mouse.up();
 
     // select the arrow and drag the bound start to empty space
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(350, 265);
     await page.mouse.move(400, 330);
     await page.mouse.down();
@@ -248,14 +248,14 @@ test.describe("edge binding to elements", () => {
     await drawTwoRects(page);
 
     // arrow ending on A's right anchor (220,140)
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await page.mouse.move(300, 200);
     await page.mouse.down();
     await page.mouse.move(218, 142, { steps: 5 });
     await page.mouse.up();
 
     // select rect A and drag its east handle (220,140) to (320,140)
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(160, 140);
     await page.mouse.move(220, 140);
     await page.mouse.down();
@@ -279,7 +279,7 @@ test.describe("edge binding to elements", () => {
     await drawTwoRects(page);
     const b = await readShape(page, 1);
 
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await page.mouse.move(402, 330);
     await page.mouse.down();
     await page.mouse.move(218, 150, { steps: 5 });
@@ -323,12 +323,12 @@ test.describe("edge binding to elements", () => {
   }) => {
     await open(page);
     // draw two rectangles
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 200, y: 200 });
     await drag(page, { x: 400, y: 300 }, { x: 500, y: 400 });
 
     // draw an arrow between them
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await drag(page, { x: 250, y: 150 }, { x: 350, y: 350 });
 
     // switch to auto mode and bind endpoints to the shapes
@@ -337,7 +337,7 @@ test.describe("edge binding to elements", () => {
       const arrow = ed.getSnapshot().doc.elements[2];
       ed.updateElements([arrow.id], { lineType: "auto" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await drag(page, { x: 250, y: 150 }, { x: 210, y: 150 });
     await drag(page, { x: 350, y: 350 }, { x: 390, y: 350 });
 

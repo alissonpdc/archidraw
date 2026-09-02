@@ -3,9 +3,9 @@ import { test, expect, drag, selectTool, open } from "../fixtures";
 test.describe("additional information (hover info box)", () => {
   test.beforeEach(async ({ page }) => {
     await open(page);
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 220, y: 100 }, { x: 340, y: 180 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
   });
 
   test("right-click on an element opens the ArchiDraw context menu", async ({
@@ -92,9 +92,9 @@ test.describe("additional information (hover info box)", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await drag(page, { x: 200, y: 300 }, { x: 500, y: 300 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
@@ -126,9 +126,9 @@ test.describe("additional information (hover info box)", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.dblclick(350, 200); // stroke midpoint
     await page.keyboard.type("API");
     await page.keyboard.press("Escape");
