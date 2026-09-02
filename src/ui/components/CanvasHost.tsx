@@ -13,7 +13,7 @@ function readThemeColors(): RenderColors & { elementStroke: string } {
   return {
     selection: style.getPropertyValue("--selection-color").trim() || "#6965db",
     elementStroke: style.getPropertyValue("--element-stroke").trim() || "#3d4248",
-    gridDot: style.getPropertyValue("--grid-dot").trim() || "rgba(0,0,0,0.14)",
+    gridDot: style.getPropertyValue("--grid-dot").trim() || "rgba(0,0,0,0.10)",
     gridLine: style.getPropertyValue("--grid-line").trim() || "rgba(0,0,0,0.07)",
     gridLineMaster: style.getPropertyValue("--grid-line-master").trim() || "rgba(0,0,0,0.10)",
     // label plates must always match the live canvas background
