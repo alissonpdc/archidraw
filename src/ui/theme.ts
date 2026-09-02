@@ -50,6 +50,7 @@ export function applySkinPref(skin: SkinPref) {
   } catch {
     // best-effort
   }
+  window.dispatchEvent(new Event("archidraw:skin"));
 }
 
 export function cycleThemePref(current: ThemePref): ThemePref {

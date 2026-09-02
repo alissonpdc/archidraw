@@ -1566,3 +1566,70 @@ button {
   word-break: break-word;
   line-height: 1.45;
 }
+
+/* ---- Blueprint skin chrome: rigid look, per design/ui-options/04 ---- */
+/* widgets get ink-colored 1.5px borders + hard offset shadow (no blur) */
+:root[data-skin="blueprint"] .toolbar,
+:root[data-skin="blueprint"] .tabbar,
+:root[data-skin="blueprint"] .properties-panel,
+:root[data-skin="blueprint"] .menu-btn,
+:root[data-skin="blueprint"] .menu-dropdown,
+:root[data-skin="blueprint"] .zoom-widget,
+:root[data-skin="blueprint"] .color-popover,
+:root[data-skin="blueprint"] .context-menu,
+:root[data-skin="blueprint"] .hover-info-box,
+:root[data-skin="blueprint"] .panel-tooltip,
+:root[data-skin="blueprint"] .toast,
+:root[data-skin="blueprint"] .shortcuts-modal,
+:root[data-skin="blueprint"] .tab-confirm,
+:root[data-skin="blueprint"] .details-modal,
+:root[data-skin="blueprint"] .library-panel {
+  border: 1.5px solid var(--text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+:root[data-skin="blueprint"] .menu-btn.active {
+  border-color: var(--accent);
+}
+
+:root[data-skin="blueprint"] .toolbar-sep {
+  width: 1.5px;
+}
+
+:root[data-skin="blueprint"] .swatch {
+  border: 1.5px solid var(--text-primary);
+}
+
+:root[data-skin="blueprint"] .size-btn {
+  border: 1.5px solid var(--border);
+}
+
+/* active panel tab: dashed accent outline on hover bg (no accent wash) */
+:root[data-skin="blueprint"] .panel-tab.active {
+  background: var(--bg-surface-hover);
+  border: 1px dashed var(--accent);
+}
+
+:root[data-skin="blueprint"] .panel-subtitle,
+:root[data-skin="blueprint"] .menu-section-title,
+:root[data-skin="blueprint"] .hover-info-title {
+  font-weight: 700;
+}
+
+:root[data-skin="blueprint"] .tabbar-seg,
+:root[data-skin="blueprint"] .zoom-level,
+:root[data-skin="blueprint"] .status-bar {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* ---- Midnight skin chrome: mono micro-labels, per design/ui-options/03 ---- */
+:root[data-skin="midnight"] .panel-subtitle,
+:root[data-skin="midnight"] .menu-section-title,
+:root[data-skin="midnight"] .hover-info-title,
+:root[data-skin="midnight"] .status-bar,
+:root[data-skin="midnight"] .tabbar-seg,
+:root[data-skin="midnight"] .zoom-level {
+  font-family: var(--font-mono-ui);
+}

@@ -3,22 +3,32 @@ import { useSyncExternalStore } from "react";
 export type GridMode = "none" | "dots" | "lines";
 
 const KEY = "archidraw:grid";
-const MODES: GridMode[] = ["none", "dots", "lines"];
 
-function load(): GridMode {
+function load(): GridMode | null {
   try {
     const v = localStorage.getItem(KEY);
-    return MODES.includes(v as GridMode) ? (v as GridMode) : "none";
+    return v === "none" || v === "dots" || v === "lines" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+// null = "auto": follow the active skin's natural grid (blueprint = lines)
+let current: GridMode | null = load();
+const listeners = new Set<() => void>();
+
+function autoGridForSkin(): GridMode {
+  try {
+    return document.documentElement.dataset.skin === "blueprint"
+      ? "lines"
+      : "none";
   } catch {
     return "none";
   }
 }
 
-let current: GridMode = load();
-const listeners = new Set<() => void>();
-
 export function getGridMode(): GridMode {
-  return current;
+  return current ?? autoGridForSkin();
 }
 
 export function setGridMode(mode: GridMode) {
@@ -34,7 +44,12 @@ export function setGridMode(mode: GridMode) {
 
 export function subscribeGrid(cb: () => void) {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  // skin switches change the "auto" grid; re-emit so subscribers re-read
+  window.addEventListener("archidraw:skin", cb);
+  return () => {
+    listeners.delete(cb);
+    window.removeEventListener("archidraw:skin", cb);
+  };
 }
 
 export function useGridMode(): GridMode {

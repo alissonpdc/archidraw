@@ -92,6 +92,25 @@ test.describe("ui widgets", () => {
     });
     expect(await bg()).toBe("#101d2e");
 
+    // blueprint chrome is rigid: widgets use ink-colored 1.5px borders
+    // (dark ink #dbe7f5) instead of the soft gray border
+    const toolbarBorder = await page.evaluate(() =>
+      getComputedStyle(document.querySelector(".toolbar")!).borderColor,
+    );
+    expect(toolbarBorder).toBe("rgb(219, 231, 245)");
+
+    // blueprint defaults the canvas grid to lines (paper look); menu is
+    // already open after picking the skin
+    const canvasSection = page.locator(".menu-section", { hasText: "Canvas" });
+    await expect(canvasSection.locator(".menu-item.active")).toHaveText(
+      /Lines/,
+    );
+    // ...without persisting a choice
+    expect(
+      await page.evaluate(() => localStorage.getItem("archidraw:grid")),
+    ).toBe(null);
+    await page.locator(".menu-backdrop").click({ position: { x: 5, y: 5 } });
+
     expect(
       await page.evaluate(() => localStorage.getItem("archidraw:skin")),
     ).toBe("blueprint");
