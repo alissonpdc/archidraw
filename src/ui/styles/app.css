@@ -260,7 +260,9 @@ button {
   position: relative;
 }
 
-.menu-btn {
+/* specificity acima de .tool-btn (background transparent + border:none) para o
+   hamburger manter o aspecto de widget: fundo surface, borda e sombra */
+.tool-btn.menu-btn {
   width: 36px;
   height: 34px;
   padding: 0;
@@ -594,11 +596,12 @@ button {
 }
 
 /* ---- panel tabs (Style / Text) ---- */
+/* divisor com o mesmo respiro padronizado dos demais (--space-2 abaixo da
+   borda, via gap do .properties-panel); sem margin própria para não somar */
 .panel-tabs {
   display: flex;
   gap: 2px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: var(--space-1);
 }
 
 .panel-tab {
@@ -1386,8 +1389,9 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  /* usable screen height: vertical scroll only beyond this */
-  max-height: calc(100% - 108px);
+  /* para na altura do .bottom-right (zoom/focus/history): topo 60px + folga
+     de ~12px acima dos controles (H - 48), isto é, H - 60 desde o topo */
+  max-height: calc(100% - 120px);
   overflow: hidden;
 }
 
@@ -1469,6 +1473,8 @@ button {
 }
 
 .library-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden; /* never a horizontal scrollbar */
   scrollbar-width: thin;
