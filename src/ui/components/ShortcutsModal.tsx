@@ -20,6 +20,14 @@ const TOOLS: ShortcutGroup = {
   ],
 };
 
+const FILE: ShortcutGroup = {
+  title: "File",
+  items: [
+    { keys: `${MOD}+S`, desc: "Save" },
+    { keys: `${MOD}+O`, desc: "Open" },
+  ],
+};
+
 const CANVAS: ShortcutGroup = {
   title: "Canvas",
   items: [
@@ -88,6 +96,7 @@ export function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () =
         <div className="shortcuts-body">
           <div className="shortcuts-column">
             <Section group={TOOLS} />
+            <Section group={FILE} />
           </div>
           <div className="shortcuts-column">
             <Section group={CANVAS} />

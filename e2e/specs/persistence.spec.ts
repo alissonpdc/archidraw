@@ -3,7 +3,7 @@ import { test, expect, drag, selectTool, open } from "../fixtures";
 test.describe("persistence", () => {
   test("elements survive a page reload", async ({ page, editorState }) => {
     await open(page);
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
 
     // wait for the debounced autosave to flush
@@ -93,12 +93,12 @@ test.describe("persistence", () => {
     editorState,
   }) => {
     await open(page);
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
     await page.waitForTimeout(700);
 
     // delete and let autosave flush again
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(160, 140);
     await page.keyboard.press("Delete");
     await page.waitForTimeout(700);

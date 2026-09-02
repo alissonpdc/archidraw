@@ -13,9 +13,9 @@ test.describe("edge labels (line/arrow)", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     await page.mouse.dblclick(350, 200); // stroke midpoint
     const overlay = page.locator(".label-overlay");
@@ -34,9 +34,9 @@ test.describe("edge labels (line/arrow)", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await drag(page, { x: 200, y: 300 }, { x: 500, y: 300 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     await page.mouse.dblclick(350, 300);
     await page.keyboard.type("sync");
@@ -51,9 +51,9 @@ test.describe("edge labels (line/arrow)", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.dblclick(350, 200);
     await page.keyboard.type("API");
     await page.keyboard.press("Escape");
@@ -74,9 +74,9 @@ test.describe("edge labels (line/arrow)", () => {
 
   test("dragging the label handle is undoable", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.dblclick(350, 200);
     await page.keyboard.type("API");
     await page.keyboard.press("Escape");
@@ -98,9 +98,9 @@ test.describe("edge labels (line/arrow)", () => {
   }) => {
     await open(page);
     // vertical stroke: the line crosses the plate at the label anchor
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 200, y: 460 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.dblclick(200, 330);
     // two rows with a space at the center: the anchor column (x=200) has no
     // glyph ink, so the pixel between the rows is pure plate over the stroke
@@ -134,7 +134,7 @@ test.describe("edge labels (line/arrow)", () => {
 
   test("label follows the curved path of a curved arrow", async ({ page }) => {
     await open(page);
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await drag(page, { x: 200, y: 300 }, { x: 500, y: 300 });
     // switch the arrow to a curved line type
     await page.evaluate(() => {
@@ -142,7 +142,7 @@ test.describe("edge labels (line/arrow)", () => {
       const el = ed.getSnapshot().doc.elements[0];
       ed.updateElements([el.id], { lineType: "curved" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     // dblclick on the chord midpoint (hit-testing follows the chord);
     // the label renders at the curve midpoint (B(0.5) = (A + 2*CP + B)/4)

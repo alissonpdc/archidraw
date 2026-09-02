@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { editor } from "../hooks/useEditor";
 import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
@@ -117,9 +117,11 @@ function MenuSubmenu({
 export function AppMenu({
   onExportImage,
   onSave,
+  fileInputRef,
 }: {
   onExportImage: () => void;
   onSave: () => void;
+  fileInputRef: RefObject<HTMLInputElement | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
@@ -128,7 +130,6 @@ export function AppMenu({
   const bgColor = useSyncExternalStore(subscribeBgColor, getBgColor);
   const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
   const [gridSubmenuOpen, setGridSubmenuOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // resolve the actual theme when pref is "system"
   const resolvedIsDark =

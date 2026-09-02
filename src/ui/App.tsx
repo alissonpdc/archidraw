@@ -34,6 +34,7 @@ export function App() {
   const [exportImageOpen, setExportImageOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsub = editor.subscribe(() => {
@@ -122,6 +123,16 @@ export function App() {
         } else {
           editor.groupSelected();
         }
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        setSaveOpen(true);
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        fileInputRef.current?.click();
         return;
       }
       if (e.shiftKey && e.code === "Digit1") {
@@ -217,6 +228,7 @@ export function App() {
             <AppMenu
               onExportImage={() => setExportImageOpen(true)}
               onSave={() => setSaveOpen(true)}
+              fileInputRef={fileInputRef}
             />
           </div>
           <Toolbar

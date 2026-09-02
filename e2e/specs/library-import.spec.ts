@@ -3,7 +3,7 @@ import { type Page, test, expect, open } from "../fixtures";
 /** opens the library panel; groups start collapsed */
 async function openLibrary(page: Page) {
   await open(page);
-  await page.keyboard.press("b");
+  await page.keyboard.press("l");
   await expect(page.locator(".library-panel")).toBeVisible();
 }
 
@@ -216,7 +216,7 @@ test.describe("excalidraw library import", () => {
 
     await page.reload();
     await open(page);
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
 
     const group = page.locator('[data-testid="library-imported-group"]');
     await expect(group).toHaveCount(1);
@@ -248,7 +248,7 @@ test.describe("excalidraw library import", () => {
 
     await page.reload();
     await open(page);
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
     await expect(
       page.locator('[data-testid="library-imported-group"]'),
     ).toHaveCount(0);

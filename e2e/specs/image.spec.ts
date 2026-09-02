@@ -516,7 +516,7 @@ test.describe("image features", () => {
     await open(page);
     await insertImage(page);
 
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
     const group = page.locator('[data-testid="library-imported-images"]');
     await expect(group).toBeVisible();
     // collapsible group like AWS: header + chevron, starts collapsed
@@ -545,7 +545,7 @@ test.describe("image features", () => {
     await insertImage(page);
     const componentId = (await editorState()).elements[0].componentId;
 
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
     await page
       .locator('[data-testid="library-imported-images"] .library-section-header')
       .click();
@@ -592,7 +592,7 @@ test.describe("image features", () => {
       )
       .toBe(2);
 
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
     const group = page.locator('[data-testid="library-imported-images"]');
     await group.locator(".library-section-header").click();
     await expect(group.locator(".library-tile")).toHaveCount(1);
@@ -605,7 +605,7 @@ test.describe("image features", () => {
     await open(page);
     await insertImage(page);
 
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
     const group = page.locator('[data-testid="library-imported-images"]');
     await group.locator(".library-section-header").click();
     await group.locator(".library-tile").hover();
@@ -622,7 +622,7 @@ test.describe("image features", () => {
     await insertImage(page);
 
     // remove o item do grupo Imported (palette)
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
     const group = page.locator('[data-testid="library-imported-images"]');
     await group.locator(".library-section-header").click();
     await group.locator(".library-tile").hover();
@@ -668,7 +668,7 @@ test.describe("image features", () => {
     await insertImage(page);
 
     // remove da lib e salva (autosave)
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
     const group = page.locator('[data-testid="library-imported-images"]');
     await group.locator(".library-section-header").click();
     await group.locator(".library-tile").hover();
@@ -707,7 +707,7 @@ test.describe("image features", () => {
 
     await page.reload();
     await open(page);
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
 
     const group = page.locator('[data-testid="library-imported-images"]');
     await expect(group).toBeVisible();

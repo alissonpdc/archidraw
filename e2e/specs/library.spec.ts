@@ -3,7 +3,7 @@ import { type Page, test, expect, open } from "../fixtures";
 /** opens the library panel; groups start collapsed */
 async function openLibrary(page: Page) {
   await open(page);
-  await page.keyboard.press("b");
+  await page.keyboard.press("l");
   await expect(page.locator(".library-panel")).toBeVisible();
 }
 
@@ -14,7 +14,7 @@ async function openLibraryWithAws(page: Page) {
 }
 
 test.describe("component library", () => {
-  test("opens via B shortcut with groups collapsed", async ({ page }) => {
+  test("opens via L shortcut with groups collapsed", async ({ page }) => {
     await openLibrary(page);
 
     // AWS starts collapsed
@@ -301,7 +301,7 @@ test.describe("component library", () => {
     await page.keyboard.press("Escape");
     await expect(page.locator(".library-panel")).toHaveCount(0);
 
-    await page.keyboard.press("b");
+    await page.keyboard.press("l");
     await page.locator(".library-close").click();
     await expect(page.locator(".library-panel")).toHaveCount(0);
   });

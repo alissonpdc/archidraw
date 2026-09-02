@@ -19,7 +19,7 @@ test.describe("shift constraints", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await page.keyboard.down("Shift");
     await drag(page, { x: 200, y: 200 }, { x: 350, y: 320 });
     await page.keyboard.up("Shift");
@@ -35,7 +35,7 @@ test.describe("shift constraints", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "e");
+    await selectTool(page, "4");
     await page.keyboard.down("Shift");
     await drag(page, { x: 200, y: 200 }, { x: 320, y: 350 });
     await page.keyboard.up("Shift");
@@ -50,7 +50,7 @@ test.describe("shift constraints", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "d");
+    await selectTool(page, "3");
     await page.keyboard.down("Shift");
     await drag(page, { x: 200, y: 200 }, { x: 360, y: 280 });
     await page.keyboard.up("Shift");
@@ -65,7 +65,7 @@ test.describe("shift constraints", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await page.keyboard.down("Shift");
     await drag(page, { x: 200, y: 200 }, { x: 340, y: 280 });
     await page.keyboard.up("Shift");
@@ -81,7 +81,7 @@ test.describe("shift constraints", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await page.keyboard.down("Shift");
     await drag(page, { x: 200, y: 200 }, { x: 350, y: 212 });
     await page.keyboard.up("Shift");
@@ -96,7 +96,7 @@ test.describe("shift constraints", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await page.keyboard.down("Shift");
     await drag(page, { x: 200, y: 200 }, { x: 345, y: 325 });
     await page.keyboard.up("Shift");
@@ -112,9 +112,9 @@ test.describe("shift constraints", () => {
   }) => {
     await open(page);
     // rect 120x80 at (100,100)
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     await page.keyboard.down("Shift");
     // grab E handle (220,140) and pull right: h follows w * (80/120)
@@ -131,9 +131,9 @@ test.describe("shift constraints", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     await page.keyboard.down("Shift");
     // grab N handle (160,100) and pull up: w follows h * (120/80)
@@ -150,9 +150,9 @@ test.describe("shift constraints", () => {
     page,
   }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 100, y: 100 }, { x: 200, y: 150 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     await page.keyboard.down("Shift");
     // grab SE endpoint (200,150); fixed point is (100,100):
@@ -168,7 +168,7 @@ test.describe("shift constraints", () => {
 
   test("without shift, drawing stays unconstrained", async ({ page }) => {
     await open(page);
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 200, y: 200 }, { x: 350, y: 320 });
 
     const el = await lastElement(page);

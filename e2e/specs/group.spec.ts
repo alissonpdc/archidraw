@@ -2,10 +2,10 @@ import { test, expect, drag, selectTool, open, type Page } from "../fixtures";
 
 /** creates two rectangles and switches back to selection tool */
 async function createRects(page: Page) {
-  await selectTool(page, "r");
+  await selectTool(page, "2");
   await drag(page, { x: 100, y: 100 }, { x: 180, y: 160 });
   await drag(page, { x: 260, y: 100 }, { x: 340, y: 160 });
-  await selectTool(page, "v");
+  await selectTool(page, "1");
 }
 
 /** marquee-selects both rectangles */
