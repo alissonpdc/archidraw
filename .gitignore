@@ -25,3 +25,5 @@ dist-ssr
 
 ui-audit/
 .worktrees
+
+test-results

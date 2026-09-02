@@ -1,52 +1,47 @@
-# ArchiDraw — Guia de Desenvolvimento
+# AGENTS.md
 
-Webapp canvas (estilo Excalidraw/draw.io) para desenho de arquiteturas e system design. Ver `PRD.md` para visão de produto.
+ArchiDraw: React 19 + Vite + TypeScript canvas app for drawing software architecture. No unit tests — verification is E2E-only (Playwright).
 
-## Diretrizes (Knowledge Base)
+Full conventions: see `CONTRIBUTING.md` (branch/PR flow, release pipeline, code style). This file covers what agents most often get wrong.
 
-Antes de implementar UI/interações, consulte **`.agents/knowledge/*.md`** — são lições registradas de bugs recorrentes, com regras obrigatórias e snippets prontos:
+## Verification (Definition of Done)
 
-- `.agents/knowledge/tooltip-clipping.md` — tooltips cortados por contêineres com `overflow`/`transform`: quando usar tooltip portal/fixed em vez do pseudo-elemento CSS `[data-tip]::after`.
-- `.agents/knowledge/clipboard-paste.md` — colar com Cmd+V: via única é o evento nativo `paste`; nunca usar `navigator.clipboard.read()` no keydown (abre o menu nativo "Paste" no Chrome/macOS) e nunca `preventDefault` no keydown de V (suprime o `paste`).
-- `.agents/knowledge/context-menu.md` — menu de contexto custom no canvas: guard `button === 2` no `pointerDown` do editor (o `contextmenu` dispara depois do `pointerdown`), menu/tooltip sempre por portal + `position: fixed`, e `preventDefault` no `contextmenu` só dentro do host do canvas (nunca com textarea de edição focado).
-- `.agents/knowledge/skin-from-mock-full-style.md` — skins/temas a partir de mocks (`design/ui-options/`): diff de **estilo completo** (borda, sombra, raio, fonte, estados ativos, grid), não só paleta; tudo que varia por skin deve ser token ou override por skin.
-
-Ao corrigir um bug que enseje uma regra geral (algo que já deu problema mais de uma vez), registre uma nova entrada em `.agents/knowledge/` e referencie-a aqui.
-
-## Comandos
+Run the full GATE before reporting any task complete:
 
 ```bash
-npm run dev          # dev server (Vite)
-npm run build        # typecheck + build de produção
-npm run lint         # oxlint
-npm run test:e2e     # testes Playwright (builda em modo test + preview + roda specs)
-npm run test:e2e:ui  # UI interativa do Playwright
+npm run lint && npm run build && npm run test:e2e
 ```
 
-## Arquitetura
+- `npm run build` includes typecheck (`tsc -b`). There is no separate typecheck script.
+- Run a single E2E spec: `npx playwright test e2e/specs/history.spec.ts`
+- First run requires: `npm install && npx playwright install chromium`
+- Node 22+ required (CI runs Node 22).
 
-- **`src/core/`** — puro, sem React: modelo do documento (`types.ts`), câmera/transformações (`utils.ts`), hit-testing, histórico undo/redo (`history.ts`), renderer Canvas 2D (`renderer.ts`) e máquina de estados/interações (`editor.ts`, classe `Editor`).
-- **`src/ui/`** — casca fina React. O estado flui via `useSyncExternalStore(editor.subscribe, editor.getSnapshot)`.
-- **Regra crítica:** o `Editor.getSnapshot()` retorna referência **estável** (cache invalidado apenas no `emit()`). Criar objeto novo a cada chamada causa loop infinito de render no `useSyncExternalStore`.
+## E2E gotchas
 
-## Testes E2E (Playwright)
+- Playwright's `webServer` builds in **test mode** and previews on port 4173 with `reuseExistingServer: false` — it will fail if something else holds that port, and a plain `npm run dev` server won't be used. A test build (`build:test`) is what exposes `window.__editor__`.
+- Always import `test`/`expect` from `e2e/fixtures.ts`, never `@playwright/test` directly. The fixture fails the test if **any** `console.error`/`console.warning`/`pageerror` occurs — React key warnings etc. will break CI.
+- Use `open(page)` to navigate and wait for hydration (`__appReady__`); read editor state via the `editorState()` fixture (`window.__editor__.getSnapshot()`).
+- Never simulate paste with `Control+v`/`Meta+v` (platform-dependent in headless); use the `pressPaste()` helper (synthetic `ClipboardEvent` dispatch).
+- Tests run with `workers: 1` and no retries.
 
-- Config: `playwright.config.ts` — Chromium only; o `webServer` roda `npm run build:test && vite preview` (build real).
-- **Fixture** (`e2e/fixtures.ts`): toda página é monitorada — qualquer `console.error/warning` ou `pageerror` **falha o teste** (teria pego o bug de render loop). Use a fixture `test` de `e2e/fixtures.ts`, nunca a do `@playwright/test` direto.
-- Helper `open(page)`: navega e espera hidratação (`__appReady__`). Sempre use-o antes de interagir.
-- Estado interno: `window.__editor__` exposto apenas em builds dev/test (`src/main.tsx`). Leia via fixture `editorState()`.
-- Specs em `e2e/specs/`: smoke, tools, selection, history, viewport.
+## Architecture rules
 
-## Definition of Done (obrigatório)
+- `src/core/` is pure, framework-free logic (document model, `Editor` state machine, renderer, history, hit-testing). `src/ui/` is a thin React presentation shell; state/interaction must live in core.
+- `Editor.getSnapshot()` must return a **stable reference** (only invalidated on `emit()`). Allocating a new object per call causes an infinite render loop with `useSyncExternalStore`.
 
-Uma atividade só pode ser considerada **done** quando **ambas** as condições forem atendidas:
+## Read `.agents/knowledge/` before UI work
 
-1. **GATE de testes:** a execução completa de `npm run lint && npm run build && npm run test:e2e` passou sem erros. Sem essa execução verde, a atividade NÃO está done — não relate conclusão, não pule etapas e não presuma que "deve funcionar".
-2. **Commit local:** ao final da implementação validada, commitar localmente com mensagem no padrão **Conventional Commits** (ex.: `feat: adicionar zoom com ctrl+scroll`, `fix: corrigir tooltip cortado no toolbar`). Nunca commitar sem os testes terem passado antes.
+Recurring-bug rules with mandatory patterns — check them before implementing canvas/UI interactions:
+- `clipboard-paste.md` — paste only via the native `paste` event; never `navigator.clipboard.read()` in mod+V keydown, never `preventDefault()` there.
+- `context-menu.md` — right-click (`button === 2`) must early-return in `pointerDown`; portal-based menus with viewport clamping.
+- `tooltip-clipping.md` — tooltips inside `overflow-*`/`transform` ancestors must use portal + `position: fixed`, not CSS `::after`.
 
-### Ao adicionar features
+When fixing a recurring bug, add a new entry there and reference it in `AGENTS.md`.
 
-1. Implemente em `src/core/` quando for estado/interação; `src/ui/` só para apresentação.
-2. Adicione/ajuste spec cobrindo o novo comportamento.
-3. Rode o GATE completo (`npm run lint && npm run build && npm run test:e2e`) — obrigatório.
-4. Commite localmente com Conventional Commit — obrigatório.
+## Workflow constraints
+
+- Branch names must use a conventional prefix (`feat/`, `fix/`, `chore/`, …) — **other prefixes don't trigger CI**. On green CI, a PR to `main` is opened automatically.
+- Commits follow Conventional Commits (pt-BR or English); the message type drives automatic semver on merge (`feat` → minor, `!:`/`BREAKING CHANGE` → major, else patch).
+- Lint is oxlint (`.oxlintrc.json`); it ignores `e2e/**`.
+- No code comments unless strictly necessary.
