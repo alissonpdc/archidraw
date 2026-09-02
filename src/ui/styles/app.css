@@ -388,9 +388,8 @@ button {
 
 .menu-mode-icons {
   display: flex;
-  flex: 1;
-  justify-content: space-evenly;
-  margin-left: var(--space-3);
+  gap: 4px;
+  margin-left: auto;
 }
 
 .menu-mode-icon {
@@ -448,7 +447,7 @@ button {
   justify-content: center;
   color: var(--text-muted);
   flex-shrink: 0;
-  transform: scaleX(-1);
+  order: -1;
 }
 
 /* ---- background palette (Appearance > Background) ---- */

@@ -105,12 +105,12 @@ function MenuSubmenu({
 }) {
   return (
     <div className={`menu-submenu ${open ? "open" : ""}`}>
-      <button className="menu-item" onClick={onToggle}>
-        <span className="menu-item-icon">{icon}</span>
-        <span className="menu-item-label">{label}</span>
+      <button className="menu-item menu-item--submenu" onClick={onToggle}>
         <span className="menu-item-arrow">
           <ChevronRightIcon size={12} />
         </span>
+        <span className="menu-item-icon">{icon}</span>
+        <span className="menu-item-label">{label}</span>
       </button>
       {open && <div className="menu-submenu-panel">{children}</div>}
     </div>
@@ -249,6 +249,23 @@ export function AppMenu() {
                 </div>
               </div>
 
+              <div className="menu-bg-palette">
+                <div className="menu-bg-label">Background</div>
+                <div className="menu-bg-grid">
+                  {(themePref === "dark" ? BG_PALETTE_DARK : BG_PALETTE_LIGHT).map(
+                    (c) => (
+                      <button
+                        key={c.id}
+                        className={`menu-bg-swatch ${bgColor === c.id ? "active" : ""}`}
+                        style={{ backgroundColor: c.id }}
+                        title={c.label}
+                        onClick={() => setBgColor(bgColor === c.id ? null : c.id)}
+                      />
+                    ),
+                  )}
+                </div>
+              </div>
+
               <MenuSubmenu
                 label="Theme"
                 icon={<PaletteIcon size={14} />}
@@ -271,23 +288,6 @@ export function AppMenu() {
                   />
                 ))}
               </MenuSubmenu>
-
-              <div className="menu-bg-palette">
-                <div className="menu-bg-label">Background</div>
-                <div className="menu-bg-grid">
-                  {(themePref === "dark" ? BG_PALETTE_DARK : BG_PALETTE_LIGHT).map(
-                    (c) => (
-                      <button
-                        key={c.id}
-                        className={`menu-bg-swatch ${bgColor === c.id ? "active" : ""}`}
-                        style={{ backgroundColor: c.id }}
-                        title={c.label}
-                        onClick={() => setBgColor(bgColor === c.id ? null : c.id)}
-                      />
-                    ),
-                  )}
-                </div>
-              </div>
 
               <MenuSubmenu
                 label="Grid"
