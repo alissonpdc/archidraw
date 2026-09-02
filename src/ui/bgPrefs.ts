@@ -25,15 +25,9 @@ export const BG_PALETTE_DARK: BgPaletteEntry[] = BG_PALETTE.map((e) => ({
   pair: e.id,
 }));
 
-function findPair(color: BgColor): BgColor | null {
-  for (const entry of BG_PALETTE) {
-    if (entry.id === color) return entry.pair;
-    if (entry.pair === color) return entry.id;
-  }
-  return null;
-}
+export const DEFAULT_BG: BgColor = "#f6f7f8"; // Cool Gray
 
-function load(): BgColor | null {
+function loadFromStorage(): BgColor | null {
   try {
     const v = localStorage.getItem(KEY);
     return v && v.startsWith("#") ? v : null;
@@ -42,31 +36,31 @@ function load(): BgColor | null {
   }
 }
 
-let current: BgColor | null = load();
+let current: BgColor = loadFromStorage() ?? DEFAULT_BG;
 const listeners = new Set<() => void>();
 
 function applyToDom(color: BgColor | null) {
   const root = document.documentElement;
-  if (color) {
+  if (color && color !== DEFAULT_BG) {
     root.style.setProperty("--bg-canvas", color);
   } else {
     root.style.removeProperty("--bg-canvas");
   }
 }
 
-// apply on module load
-applyToDom(current);
+// apply on module load (only if user has an explicit choice)
+applyToDom(loadFromStorage());
 
-export function getBgColor(): BgColor | null {
+export function getBgColor(): BgColor {
   return current;
 }
 
-export function setBgColor(color: BgColor | null) {
+export function setBgColor(color: BgColor) {
   if (color === current) return;
   current = color;
   applyToDom(color);
   try {
-    if (color) {
+    if (color !== DEFAULT_BG) {
       localStorage.setItem(KEY, color);
     } else {
       localStorage.removeItem(KEY);
@@ -78,11 +72,46 @@ export function setBgColor(color: BgColor | null) {
   window.dispatchEvent(new Event("archidraw:bg-change"));
 }
 
-/** Switch the canvas background to the paired color in the opposite mode. */
-export function switchBgPair() {
-  if (!current) return;
-  const paired = findPair(current);
-  if (paired) setBgColor(paired);
+function resolvedThemeIsDark(): boolean {
+  if (document.documentElement.dataset.theme === "dark") return true;
+  if (document.documentElement.dataset.theme === "light") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+/** Switch the canvas background to match the target theme mode. */
+export function switchBgForTheme(targetPref: "system" | "light" | "dark") {
+  const targetDark =
+    targetPref === "dark" || (targetPref === "system" && resolvedThemeIsDark());
+  const palette = targetDark
+    ? BG_PALETTE.map((e) => e.pair)
+    : BG_PALETTE.map((e) => e.id);
+  // only干预 if the user explicitly chose a bg that's now invalid
+  const stored = loadFromStorage();
+  if (stored && !palette.includes(stored)) {
+    setBgColor(targetDark ? BG_PALETTE[0].pair : DEFAULT_BG);
+  }
+}
+
+// Auto-switch bg when data-theme changes (media query or manual set)
+{
+  let lastDark = resolvedThemeIsDark();
+  const obs = new MutationObserver(() => {
+    const isDark = resolvedThemeIsDark();
+    if (isDark === lastDark) return;
+    lastDark = isDark;
+    const stored = loadFromStorage();
+    if (!stored) return; // no explicit choice → let CSS handle it
+    const palette = isDark
+      ? BG_PALETTE.map((e) => e.pair)
+      : BG_PALETTE.map((e) => e.id);
+    if (!palette.includes(stored)) {
+      setBgColor(isDark ? BG_PALETTE[0].pair : DEFAULT_BG);
+    }
+  });
+  obs.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
 }
 
 export function subscribeBgColor(cb: () => void) {
@@ -92,6 +121,6 @@ export function subscribeBgColor(cb: () => void) {
   };
 }
 
-export function useBgColor(): BgColor | null {
+export function useBgColor(): BgColor {
   return useSyncExternalStore(subscribeBgColor, getBgColor);
 }

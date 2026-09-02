@@ -17,11 +17,11 @@ import {
   getBgColor,
   setBgColor,
   subscribeBgColor,
-  switchBgPair,
+  switchBgForTheme,
 } from "../bgPrefs";
 import {
   CheckIcon,
-  ChevronRightIcon,
+  ChevronLeftIcon,
   DropletIcon,
   ExportIcon,
   GridIcon,
@@ -107,7 +107,7 @@ function MenuSubmenu({
     <div className={`menu-submenu ${open ? "open" : ""}`}>
       <button className="menu-item menu-item--submenu" onClick={onToggle}>
         <span className="menu-item-arrow">
-          <ChevronRightIcon size={12} />
+          <ChevronLeftIcon size={12} />
         </span>
         <span className="menu-item-icon">{icon}</span>
         <span className="menu-item-label">{label}</span>
@@ -240,7 +240,7 @@ export function AppMenu() {
                         if (themePref === opt.id) return;
                         applyThemePref(opt.id);
                         setThemePref(opt.id);
-                        switchBgPair();
+                        switchBgForTheme(opt.id);
                       }}
                     >
                       {opt.icon}
@@ -259,7 +259,7 @@ export function AppMenu() {
                         className={`menu-bg-swatch ${bgColor === c.id ? "active" : ""}`}
                         style={{ backgroundColor: c.id }}
                         title={c.label}
-                        onClick={() => setBgColor(bgColor === c.id ? null : c.id)}
+                        onClick={() => setBgColor(c.id)}
                       />
                     ),
                   )}

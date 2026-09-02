@@ -423,6 +423,11 @@ button {
   position: relative;
 }
 
+.menu-item--submenu {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .menu-submenu-panel {
   position: absolute;
   right: calc(100% + 2px);
