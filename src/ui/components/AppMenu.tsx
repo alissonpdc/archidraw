@@ -127,6 +127,15 @@ export function AppMenu() {
   const [gridSubmenuOpen, setGridSubmenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // resolve the actual theme when pref is "system"
+  const resolvedIsDark =
+    themePref === "dark" ||
+    (themePref === "system" &&
+      (document.documentElement.dataset.theme === "dark" ||
+        (document.documentElement.dataset.theme !== "light" &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches)));
+  const bgPalette = resolvedIsDark ? BG_PALETTE_DARK : BG_PALETTE_LIGHT;
+
   const activeName =
     snap.tabs.find((t) => t.id === snap.activeTabId)?.name ?? "diagram";
   const filename = slugify(activeName);
@@ -250,7 +259,7 @@ export function AppMenu() {
               <div className="menu-bg-palette">
                 <div className="menu-bg-label">Background</div>
                 <div className="menu-bg-grid">
-                  {(themePref === "dark" ? BG_PALETTE_DARK : BG_PALETTE_LIGHT).map(
+                  {bgPalette.map(
                     (c) => (
                       <button
                         key={c.id}
