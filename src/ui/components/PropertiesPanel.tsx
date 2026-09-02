@@ -470,12 +470,6 @@ export function PropertiesPanel() {
     );
   };
 
-  const opacityValue = (() => {
-    const first = Math.round(selected[0].opacity * 100);
-    return selected.every((el) => Math.round(el.opacity * 100) === first)
-      ? first
-      : null;
-  })();
   const strokeOpacityValue = (() => {
     const first = Math.round(selected[0].strokeOpacity * 100);
     return selected.every((el) => Math.round(el.strokeOpacity * 100) === first)
@@ -572,6 +566,8 @@ export function PropertiesPanel() {
             onPick={(strokeColor) => apply({ strokeColor })}
             label="Stroke color"
           />
+        </Group>
+        <div className="palette-opacity-row">
           <MiniSlider
             value={strokeOpacityValue ?? 100}
             min={0}
@@ -580,36 +576,29 @@ export function PropertiesPanel() {
             ariaLabel="Stroke opacity"
             onChange={(v) => apply({ strokeOpacity: v / 100 })}
           />
-        </Group>
+        </div>
 
           {hasFillable && (
-            <Group title="Fill">
-              <PaletteGrid
-                current={selected[0].backgroundColor}
-                onPick={(backgroundColor) => apply({ backgroundColor })}
-                label="Fill"
-              />
-              <MiniSlider
-                value={fillOpacityValue ?? 100}
-                min={0}
-                max={100}
-                step={5}
-                ariaLabel="Fill opacity"
-                onChange={(v) => apply({ fillOpacity: v / 100 })}
-              />
-            </Group>
+            <>
+              <Group title="Fill">
+                <PaletteGrid
+                  current={selected[0].backgroundColor}
+                  onPick={(backgroundColor) => apply({ backgroundColor })}
+                  label="Fill"
+                />
+              </Group>
+              <div className="palette-opacity-row">
+                <MiniSlider
+                  value={fillOpacityValue ?? 100}
+                  min={0}
+                  max={100}
+                  step={5}
+                  ariaLabel="Fill opacity"
+                  onChange={(v) => apply({ fillOpacity: v / 100 })}
+                />
+              </div>
+            </>
           )}
-
-          <Group title="Opacity">
-            <MiniSlider
-              value={opacityValue ?? 100}
-              min={0}
-              max={100}
-              step={5}
-              ariaLabel="Opacity"
-              onChange={(v) => apply({ opacity: v / 100 })}
-            />
-          </Group>
 
           {hasShape && (
             <>
@@ -796,19 +785,6 @@ export function PropertiesPanel() {
               label="Text color"
             />
           </Group>
-
-          {isOnlyText && (
-            <Group title="Opacity">
-              <MiniSlider
-                value={opacityValue ?? 100}
-                min={0}
-                max={100}
-                step={5}
-                ariaLabel="Opacity"
-                onChange={(v) => apply({ opacity: v / 100 })}
-              />
-            </Group>
-          )}
 
           <Group title="Size">
             {FONT_SIZES.map((f) => (

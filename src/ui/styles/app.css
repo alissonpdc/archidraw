@@ -672,6 +672,12 @@ button {
   gap: var(--space-1);
 }
 
+.palette-opacity-row {
+  margin-top: -4px;
+  margin-bottom: var(--space-2);
+  width: 100%;
+}
+
 .color-popover {
   position: fixed;
   display: flex;

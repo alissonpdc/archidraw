@@ -293,7 +293,7 @@ test.describe("ui widgets", () => {
     await expect(page.locator(".shortcuts-modal")).toHaveCount(0);
   });
 
-  test("properties panel offers stroke width and opacity for shapes", async ({
+  test("properties panel offers stroke width and stroke opacity for shapes", async ({
     page,
   }) => {
     await open(page);
@@ -305,11 +305,11 @@ test.describe("ui widgets", () => {
     await page.keyboard.press("v");
 
     await page.getByRole("button", { name: "Thickness 4" }).click();
-    await page.getByRole("slider", { name: "Opacity", exact: true }).fill("50");
+    await page.getByRole("slider", { name: "Stroke opacity" }).fill("50");
 
     const el = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
-      return { w: s.doc.elements[0].strokeWidth, o: s.doc.elements[0].opacity };
+      return { w: s.doc.elements[0].strokeWidth, o: s.doc.elements[0].strokeOpacity };
     });
     expect(el.w).toBe(4);
     expect(el.o).toBe(0.5);
