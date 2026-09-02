@@ -49,7 +49,7 @@ const DEFAULT_COLORS: RenderColors = {
   selection: "#6965db",
   elementStroke: "#3d4248",
   gridDot: "rgba(0,0,0,0.07)",
-  gridLine: "rgba(0,0,0,0.04)",
+  gridLine: "rgba(0,0,0,0.05)",
   gridLineMaster: "rgba(0,0,0,0.07)",
   canvasBg: "#ffffff",
   muted: "#6b6b76",
@@ -95,7 +95,7 @@ function drawGridLines(
 
   // micro lines (dashed)
   ctx.strokeStyle = colorMicro;
-  ctx.lineWidth = 0.5;
+  ctx.lineWidth = 0.7;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
   for (let x = Math.floor(vx1 / step) * step; x <= vx2; x += step) {
@@ -112,7 +112,7 @@ function drawGridLines(
 
   // master lines (solid, thicker)
   ctx.strokeStyle = colorMaster;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 0.9;
   ctx.setLineDash([]);
   ctx.beginPath();
   for (let x = Math.floor(vx1 / step) * step; x <= vx2; x += step) {
