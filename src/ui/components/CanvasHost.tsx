@@ -15,7 +15,7 @@ function readThemeColors(): RenderColors & { elementStroke: string } {
     elementStroke: style.getPropertyValue("--element-stroke").trim() || "#3d4248",
     gridDot: style.getPropertyValue("--grid-dot").trim() || "rgba(0,0,0,0.14)",
     gridLine: style.getPropertyValue("--grid-line").trim() || "rgba(0,0,0,0.07)",
-    gridLineMaster: style.getPropertyValue("--grid-line-master").trim() || "rgba(0,0,0,0.13)",
+    gridLineMaster: style.getPropertyValue("--grid-line-master").trim() || "rgba(0,0,0,0.10)",
     // label plates must always match the live canvas background
     canvasBg: style.getPropertyValue("--bg-canvas").trim() || "#ffffff",
     // muted gray for the details badge ("i" icon)
