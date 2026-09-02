@@ -203,10 +203,13 @@ test.describe("ui widgets", () => {
     await expect(gridSubmenu.locator(".menu-item.active")).toHaveText(/Lines/);
   });
 
-  test("new elements use theme-aware stroke color", async ({ page }) => {
+  test("new elements keep a stable default stroke that adapts to the theme", async ({
+    page,
+  }) => {
     await open(page);
 
-    // force dark theme, create a rectangle, check its stroke
+    // force dark theme, create a rectangle — stored color is the sentinel,
+    // the renderer re-resolves it to the active theme at paint time
     await page.evaluate(() => {
       document.documentElement.dataset.theme = "dark";
     });
@@ -217,9 +220,9 @@ test.describe("ui widgets", () => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[0].strokeColor;
     });
-    expect(stroke).toBe("#e2e7ee");
+    expect(stroke).toBe("#3d4248");
 
-    // back to light theme: new elements are dark again
+    // back to light theme: storage is still theme-independent
     await page.evaluate(() => {
       document.documentElement.dataset.theme = "light";
     });
@@ -229,7 +232,7 @@ test.describe("ui widgets", () => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[1].strokeColor;
     });
-    expect(stroke2).toBe("#1a2028");
+    expect(stroke2).toBe("#3d4248");
   });
 
   test("empty state hint shows on empty canvas and hides after creating", async ({

@@ -13,6 +13,7 @@ import {
 import { getLibraryItem } from "./library";
 import { getComponentImage } from "./componentAssets";
 import { resolveFont, resolveTextColor, lineHeight } from "./textStyle";
+import { themeColor } from "./color";
 
 export interface RenderColors {
   selection: string;
@@ -151,8 +152,8 @@ function drawArrowHead(
 }
 
 /** resolves the element stroke; empty / legacy auto values → transparent */
-function resolveStroke(el: Element, _colors: RenderColors): string {
-  return el.strokeColor === "" ? "transparent" : el.strokeColor;
+function resolveStroke(el: Element, colors: RenderColors): string {
+  return themeColor(el.strokeColor, colors.elementStroke, colors.canvasBg);
 }
 
 /** deterministic pseudo-random in [-1, 1] from integer seed */

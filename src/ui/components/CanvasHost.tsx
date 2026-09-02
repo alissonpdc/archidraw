@@ -333,9 +333,10 @@ export function CanvasHost() {
           // click creates a text element (otherwise it blurs the new overlay)
           if (snap.tool === "text") e.preventDefault();
           e.currentTarget.setPointerCapture(e.pointerId);
+          // no `defaultStroke`: new shapes keep the DEFAULT_STROKE sentinel so
+          // the renderer re-resolves them to the active theme's element stroke
           editor.pointerDown(toPoint(e), e.button, {
             shift: e.shiftKey,
-            defaultStroke: colors.elementStroke,
           });
         }}
         onPointerMove={(e) => {
