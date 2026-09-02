@@ -44,6 +44,8 @@ export interface RenderState {
   hiddenLabelId?: string | null;
   /** free text element being edited (suppresses resize handles) */
   hiddenTextId?: string | null;
+  /** animation clock for flowing-dash arrow strokes (cycle value in scene units) */
+  animationPhase?: number;
 }
 
 const DEFAULT_COLORS: RenderColors = {
@@ -135,19 +137,20 @@ function drawArrowHead(
   tip: Point,
   tail: Point,
   size: number,
+  roughness: number,
+  seed: number,
 ) {
   const angle = Math.atan2(tip.y - tail.y, tip.x - tail.x);
+  const p1 = {
+    x: tip.x - size * Math.cos(angle - Math.PI / 6),
+    y: tip.y - size * Math.sin(angle - Math.PI / 6),
+  };
+  const p2 = {
+    x: tip.x - size * Math.cos(angle + Math.PI / 6),
+    y: tip.y - size * Math.sin(angle + Math.PI / 6),
+  };
   ctx.beginPath();
-  ctx.moveTo(tip.x, tip.y);
-  ctx.lineTo(
-    tip.x - size * Math.cos(angle - Math.PI / 6),
-    tip.y - size * Math.sin(angle - Math.PI / 6),
-  );
-  ctx.moveTo(tip.x, tip.y);
-  ctx.lineTo(
-    tip.x - size * Math.cos(angle + Math.PI / 6),
-    tip.y - size * Math.sin(angle + Math.PI / 6),
-  );
+  sketchStroke(ctx, [[tip, p1], [tip, p2]], roughness, seed);
   ctx.stroke();
 }
 
@@ -573,20 +576,33 @@ function applyDash(
   ctx: CanvasRenderingContext2D,
   el: Element,
   strokeWidth: number,
+  phase: number = 0,
+  animated: boolean = false,
 ) {
+  let pattern: number[] | null = null;
   if (el.strokeStyle === "dashed") {
-    ctx.setLineDash([strokeWidth * 5, strokeWidth * 4]);
+    pattern = [strokeWidth * 5, strokeWidth * 4];
   } else if (el.strokeStyle === "dotted") {
-    ctx.setLineDash([strokeWidth * 0.01 + 0.01, strokeWidth * 2.6]);
+    pattern = [strokeWidth * 0.01 + 0.01, strokeWidth * 2.6];
     ctx.lineCap = "round";
   } else if (el.strokeStyle === "dashdot") {
-    ctx.setLineDash([
+    pattern = [
       strokeWidth * 5,
       strokeWidth * 3,
       strokeWidth * 0.01 + 0.01,
       strokeWidth * 3,
-    ]);
+    ];
     ctx.lineCap = "round";
+  } else if (animated) {
+    // solid stroke that still flows: a long dash followed by a long gap
+    // so the user keeps a continuous-looking line that pulses forward
+    const on = Math.max(80, strokeWidth * 40);
+    const off = Math.max(40, strokeWidth * 30);
+    pattern = [on, off];
+  }
+  if (pattern) {
+    if (animated) ctx.lineDashOffset = -phase;
+    ctx.setLineDash(pattern);
   }
 }
 
@@ -761,6 +777,7 @@ function drawElement(
   ctx: CanvasRenderingContext2D,
   el: Element,
   colors: RenderColors,
+  animationPhase: number = 0,
 ) {
   ctx.save();
   ctx.strokeStyle = resolveStroke(el, colors);
@@ -895,30 +912,32 @@ function drawElement(
     const lineType = el.lineType ?? "straight";
     const endY = b.y === a.y ? b.y + 1 : b.y;
     const tip = { x: b.x, y: endY };
+    const headSize = Math.max(12, el.strokeWidth * 4) * 1.2;
+    const headSeed = seedOf(el.id) + 7;
 
     ctx.save();
     ctx.globalAlpha = el.strokeOpacity;
     ctx.beginPath();
     if (lineType === "straight") {
       sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id));
-      applyDash(ctx, el, el.strokeWidth);
+      applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
-      drawArrowHead(ctx, tip, a, Math.max(12, el.strokeWidth * 4));
+      drawArrowHead(ctx, tip, a, headSize, el.roughness, headSeed);
     } else if (lineType === "curved") {
       const cp = curvedArrowControl(el, a, tip);
       ctx.moveTo(a.x, a.y);
       ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
-      applyDash(ctx, el, el.strokeWidth);
+      applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
-      drawArrowHead(ctx, tip, cp, Math.max(12, el.strokeWidth * 4));
+      drawArrowHead(ctx, tip, cp, headSize, el.roughness, headSeed);
     } else {
       // auto: polyline through bend points (or L-shaped default)
       const pts = edgePathPoints(el);
       sketchStroke(ctx, [pts], el.roughness, seedOf(el.id));
-      applyDash(ctx, el, el.strokeWidth);
+      applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
       const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
-      drawArrowHead(ctx, tip, prevPt, Math.max(12, el.strokeWidth * 4));
+      drawArrowHead(ctx, tip, prevPt, headSize, el.roughness, headSeed);
     }
     ctx.restore();
   } else if (el.type === "text") {
@@ -1461,7 +1480,7 @@ export function render(
   for (const el of state.doc.elements) {
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
-    drawElement(ctx, el, colors);
+    drawElement(ctx, el, colors, state.animationPhase ?? 0);
     // label is ALWAYS painted (even while its text is being edited) so the
     // invisible overlay textarea stays WYSIWYG with the final style
     drawLabel(ctx, el, colors);
@@ -1494,7 +1513,7 @@ export function render(
   }
 
   if (state.draft) {
-    drawElement(ctx, state.draft, colors);
+    drawElement(ctx, state.draft, colors, state.animationPhase ?? 0);
     drawLabel(ctx, state.draft, colors);
     drawSelectionBox(ctx, state.draft, cam.zoom, colors.selection);
   }

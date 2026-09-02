@@ -1068,6 +1068,7 @@ export class Editor {
       lineType?: LineType;
       controlPoint?: Point;
       bendPoints?: Point[];
+      animated?: boolean;
     },
   ) {
     this.doc = {
@@ -2070,6 +2071,7 @@ export class Editor {
         hiddenLabelId:
           this.editingKind === "label" ? this.editingTextId : null,
         hiddenTextId: this.editingKind === "text" ? this.editingTextId : null,
+        animationPhase: performance.now() / 60,
       },
       w,
       h,

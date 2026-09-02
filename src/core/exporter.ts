@@ -128,8 +128,12 @@ function escapeXml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function arrowHeadPoints(tip: { x: number; y: number }, tail: { x: number; y: number }): string {
-  const size = 12;
+function arrowHeadPoints(
+  tip: { x: number; y: number },
+  tail: { x: number; y: number },
+  strokeWidth: number,
+): string {
+  const size = Math.max(12, strokeWidth * 4) * 1.2;
   const angle = Math.atan2(tip.y - tail.y, tip.x - tail.x);
   const p1 = {
     x: tip.x - size * Math.cos(angle - Math.PI / 6),
@@ -221,16 +225,16 @@ export function exportSVG(doc: Document, filename: string): boolean {
           y: (a.y + tip.y) / 2 - Math.abs(tip.x - a.x) * 0.3,
         };
         parts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
-        parts.push(`<path d="${arrowHeadPoints(tip, cp)}" fill="none" ${stroke}${opacity}/>`);
+        parts.push(`<path d="${arrowHeadPoints(tip, cp, el.strokeWidth)}" fill="none" ${stroke}${opacity}/>`);
       } else if (lineType === "auto") {
         const pts = edgePathPoints(el);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
         parts.push(`<path d="${d}" fill="none" ${stroke}${dash}${opacity}/>`);
         const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
-        parts.push(`<path d="${arrowHeadPoints(tip, prevPt)}" fill="none" ${stroke}${opacity}/>`);
+        parts.push(`<path d="${arrowHeadPoints(tip, prevPt, el.strokeWidth)}" fill="none" ${stroke}${opacity}/>`);
       } else {
         parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
-        parts.push(`<path d="${arrowHeadPoints(tip, a)}" fill="none" ${stroke}${opacity}/>`);
+        parts.push(`<path d="${arrowHeadPoints(tip, a, el.strokeWidth)}" fill="none" ${stroke}${opacity}/>`);
       }
     } else if (el.type === "text") {
       const lines = el.text.split("\n");

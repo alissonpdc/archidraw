@@ -144,6 +144,8 @@ export interface ArrowElement extends BaseElement {
   bendPoints?: Point[];
   startBinding?: ArrowBinding;
   endBinding?: ArrowBinding;
+  /** when true, the arrow stroke renders with a flowing dash pattern */
+  animated?: boolean;
 }
 
 export interface TextElement extends BaseElement {

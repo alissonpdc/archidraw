@@ -78,6 +78,7 @@ type Patch = Partial<{
   captionOffsetLeft: number;
   captionOffsetRight: number;
   lineType: "straight" | "curved" | "auto";
+  animated: boolean;
 }>;
 
 // ---- color helpers -----------------------------------------------------
@@ -475,6 +476,15 @@ export function PropertiesPanel() {
     selected.every((el) => el.roughness === v);
   const allLineType = (v: string) =>
     selected.every((el) => ((el.type === "arrow" || el.type === "line") ? (el.lineType ?? "straight") : v) === v);
+  const allAnimated = selected.every(
+    (el) => el.type !== "arrow" || !!el.animated,
+  );
+  /** animation is meaningful only on curved / auto arrows — a perfectly
+   *  straight arrow has no traveling head, so the toggle is disabled in
+   *  that scenario. */
+  const animationDisabled = selected.every(
+    (el) => el.type !== "arrow" || (el.lineType ?? "straight") === "straight",
+  );
   const allFont = (v: number) => {
     const textEls = selected.filter((el) => el.type === "text" || el.label);
     return (
@@ -791,6 +801,43 @@ export function PropertiesPanel() {
                   />
                 )}
               </div>
+            </Group>
+          )}
+
+          {hasArrow && (
+            <Group title="Animation">
+              <button
+                className={`size-btn text-btn ${allAnimated ? "active" : ""}`}
+                aria-label="Animate arrow"
+                data-tip={
+                  animationDisabled
+                    ? "Animation requires a curved or auto path"
+                    : "Flowing dashes along the arrow"
+                }
+                disabled={animationDisabled}
+                onClick={() => apply({ animated: !allAnimated })}
+              >
+                <svg width="20" height="14" viewBox="0 0 20 14">
+                  <line
+                    x1="2"
+                    y1="7"
+                    x2="14"
+                    y2="7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="3 2"
+                  />
+                  <path
+                    d="M14 4 L18 7 L14 10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </Group>
           )}
       </div>
