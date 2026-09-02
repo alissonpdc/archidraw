@@ -18,6 +18,7 @@ export interface RenderColors {
   selection: string;
   gridDot: string;
   gridLine: string;
+  gridLineMaster: string;
   /** theme-appropriate stroke for elements using the default color */
   elementStroke: string;
   /** canvas background color (plates behind edge labels must match it) */
@@ -49,33 +50,23 @@ const DEFAULT_COLORS: RenderColors = {
   elementStroke: "#3d4248",
   gridDot: "rgba(0,0,0,0.14)",
   gridLine: "rgba(0,0,0,0.07)",
+  gridLineMaster: "rgba(0,0,0,0.18)",
   canvasBg: "#ffffff",
   muted: "#6b6b76",
 };
 
-function visibleSceneRect(cam: Camera, w: number, h: number) {
-  const vx1 = -cam.scrollX / cam.zoom;
-  const vy1 = -cam.scrollY / cam.zoom;
-  return { vx1, vy1, vx2: vx1 + w / cam.zoom, vy2: vy1 + h / cam.zoom };
-}
-
-function gridStep(cam: Camera): number {
-  let step = 20;
-  while (step * cam.zoom < 14) step *= 2;
-  while (step * cam.zoom > 56) step /= 2;
-  return step;
-}
+const GRID_STEP = 20;
 
 function drawGridDots(
   ctx: CanvasRenderingContext2D,
-  cam: Camera,
-  w: number,
-  h: number,
+  vx1: number,
+  vy1: number,
+  vx2: number,
+  vy2: number,
   color: string,
 ) {
-  const { vx1, vy1, vx2, vy2 } = visibleSceneRect(cam, w, h);
-  const step = gridStep(cam);
-  const r = Math.max(1, 1.3 / cam.zoom);
+  const step = GRID_STEP;
+  const r = 1.3;
   ctx.save();
   ctx.fillStyle = color;
   ctx.beginPath();
@@ -91,22 +82,46 @@ function drawGridDots(
 
 function drawGridLines(
   ctx: CanvasRenderingContext2D,
-  cam: Camera,
-  w: number,
-  h: number,
-  color: string,
+  vx1: number,
+  vy1: number,
+  vx2: number,
+  vy2: number,
+  colorMicro: string,
+  colorMaster: string,
 ) {
-  const { vx1, vy1, vx2, vy2 } = visibleSceneRect(cam, w, h);
-  const step = gridStep(cam);
+  const step = GRID_STEP;
+  const masterEvery = 5;
   ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = Math.max(1 / cam.zoom, 0.5);
+
+  // micro lines (dashed)
+  ctx.strokeStyle = colorMicro;
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([4, 4]);
   ctx.beginPath();
   for (let x = Math.floor(vx1 / step) * step; x <= vx2; x += step) {
+    if (Math.round(x / step) % masterEvery === 0) continue;
     ctx.moveTo(x, vy1);
     ctx.lineTo(x, vy2);
   }
   for (let y = Math.floor(vy1 / step) * step; y <= vy2; y += step) {
+    if (Math.round(y / step) % masterEvery === 0) continue;
+    ctx.moveTo(vx1, y);
+    ctx.lineTo(vx2, y);
+  }
+  ctx.stroke();
+
+  // master lines (solid, thicker)
+  ctx.strokeStyle = colorMaster;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  for (let x = Math.floor(vx1 / step) * step; x <= vx2; x += step) {
+    if (Math.round(x / step) % masterEvery !== 0) continue;
+    ctx.moveTo(x, vy1);
+    ctx.lineTo(x, vy2);
+  }
+  for (let y = Math.floor(vy1 / step) * step; y <= vy2; y += step) {
+    if (Math.round(y / step) % masterEvery !== 0) continue;
     ctx.moveTo(vx1, y);
     ctx.lineTo(vx2, y);
   }
@@ -1425,15 +1440,22 @@ export function render(
   ctx.save();
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-  if (state.gridMode === "dots") {
-    drawGridDots(ctx, cam, canvasWidth, canvasHeight, colors.gridDot);
-  } else if (state.gridMode === "lines") {
-    drawGridLines(ctx, cam, canvasWidth, canvasHeight, colors.gridLine);
-  }
-
-  // scene transform
+  // scene transform (applied first so grid + elements share the same space)
   ctx.translate(cam.scrollX, cam.scrollY);
   ctx.scale(cam.zoom, cam.zoom);
+
+  // grid in scene coordinates – scales naturally with zoom
+  if (state.gridMode === "dots" || state.gridMode === "lines") {
+    const vx1 = -cam.scrollX / cam.zoom;
+    const vy1 = -cam.scrollY / cam.zoom;
+    const vx2 = vx1 + canvasWidth / cam.zoom;
+    const vy2 = vy1 + canvasHeight / cam.zoom;
+    if (state.gridMode === "dots") {
+      drawGridDots(ctx, vx1, vy1, vx2, vy2, colors.gridDot);
+    } else {
+      drawGridLines(ctx, vx1, vy1, vx2, vy2, colors.gridLine, colors.gridLineMaster);
+    }
+  }
 
   for (const el of state.doc.elements) {
     const isEditingThisLabel =

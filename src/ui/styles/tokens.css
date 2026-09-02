@@ -17,6 +17,7 @@
   --element-stroke: #1c2229;
   --grid-dot: rgba(28, 34, 41, 0.14);
   --grid-line: rgba(28, 34, 41, 0.07);
+  --grid-line-master: rgba(28, 34, 41, 0.22);
 
   /* ---- elevation ---- */
   --shadow-sm: none;
@@ -69,6 +70,7 @@
     --element-stroke: #dde3e9;
     --grid-dot: rgba(255, 255, 255, 0.12);
     --grid-line: rgba(255, 255, 255, 0.06);
+    --grid-line-master: rgba(255, 255, 255, 0.18);
   }
 }
 
@@ -87,6 +89,7 @@
   --element-stroke: #dde3e9;
   --grid-dot: rgba(255, 255, 255, 0.12);
   --grid-line: rgba(255, 255, 255, 0.06);
+  --grid-line-master: rgba(255, 255, 255, 0.18);
 }
 
 /* ---- Warm Studio skin (design/ui-options/02-warm-studio.html) ---- */
@@ -110,6 +113,7 @@
   --element-stroke: #332e28;
   --grid-dot: rgba(120, 90, 40, 0.18);
   --grid-line: rgba(120, 90, 40, 0.09);
+  --grid-line-master: rgba(120, 90, 40, 0.28);
   --shadow-sm: 0 2px 6px rgba(90, 70, 40, 0.08);
   --shadow-md:
     0 2px 6px rgba(90, 70, 40, 0.08), 0 8px 24px rgba(90, 70, 40, 0.08);
@@ -130,6 +134,7 @@
     --element-stroke: #f0e8db;
     --grid-dot: rgba(240, 220, 180, 0.14);
     --grid-line: rgba(240, 220, 180, 0.07);
+    --grid-line-master: rgba(240, 220, 180, 0.22);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.35);
   }
@@ -149,6 +154,7 @@
   --element-stroke: #f0e8db;
   --grid-dot: rgba(240, 220, 180, 0.14);
   --grid-line: rgba(240, 220, 180, 0.07);
+  --grid-line-master: rgba(240, 220, 180, 0.22);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.35);
 }
@@ -174,6 +180,7 @@
   --element-stroke: #111111;
   --grid-dot: rgba(17, 17, 17, 0.18);
   --grid-line: rgba(17, 17, 17, 0.09);
+  --grid-line-master: rgba(17, 17, 17, 0.28);
   --shadow-sm: 2px 2px 0 var(--text-primary);
   --shadow-md: 3px 3px 0 var(--text-primary);
 }
@@ -193,6 +200,7 @@
     --element-stroke: #f2f2f0;
     --grid-dot: rgba(255, 255, 255, 0.16);
     --grid-line: rgba(255, 255, 255, 0.08);
+    --grid-line-master: rgba(255, 255, 255, 0.24);
   }
 }
 :root[data-skin="swiss"][data-theme="dark"] {
@@ -210,6 +218,7 @@
   --element-stroke: #f2f2f0;
   --grid-dot: rgba(255, 255, 255, 0.16);
   --grid-line: rgba(255, 255, 255, 0.08);
+  --grid-line-master: rgba(255, 255, 255, 0.24);
 }
 
 /* ---- Midnight skin (design/ui-options/03-midnight-ops*.html) ---- */
@@ -229,6 +238,7 @@
   --element-stroke: #e2e7ee;
   --grid-dot: rgba(255, 255, 255, 0.09);
   --grid-line: rgba(255, 255, 255, 0.05);
+  --grid-line-master: rgba(255, 255, 255, 0.16);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.55);
 }
@@ -248,6 +258,7 @@
     --element-stroke: #1a2028;
     --grid-dot: rgba(26, 32, 40, 0.13);
     --grid-line: rgba(26, 32, 40, 0.07);
+    --grid-line-master: rgba(26, 32, 40, 0.22);
     --shadow-sm: 0 1px 3px rgba(20, 30, 40, 0.08);
     --shadow-md: 0 2px 10px rgba(20, 30, 40, 0.1);
   }
@@ -267,6 +278,7 @@
   --element-stroke: #1a2028;
   --grid-dot: rgba(26, 32, 40, 0.13);
   --grid-line: rgba(26, 32, 40, 0.07);
+  --grid-line-master: rgba(26, 32, 40, 0.22);
   --shadow-sm: 0 1px 3px rgba(20, 30, 40, 0.08);
   --shadow-md: 0 2px 10px rgba(20, 30, 40, 0.1);
 }
@@ -292,6 +304,7 @@
   --element-stroke: #17334f;
   --grid-dot: rgba(30, 90, 168, 0.12);
   --grid-line: rgba(30, 90, 168, 0.07);
+  --grid-line-master: rgba(30, 90, 168, 0.22);
   --shadow-sm: 2px 2px 0 rgba(30, 90, 168, 0.1);
   --shadow-md: 3px 3px 0 rgba(30, 90, 168, 0.12);
 }
@@ -311,6 +324,7 @@
     --element-stroke: #dbe7f5;
     --grid-dot: rgba(91, 163, 232, 0.15);
     --grid-line: rgba(91, 163, 232, 0.08);
+    --grid-line-master: rgba(91, 163, 232, 0.25);
     --shadow-sm: 2px 2px 0 rgba(91, 163, 232, 0.14);
     --shadow-md: 3px 3px 0 rgba(91, 163, 232, 0.18);
   }
@@ -330,6 +344,7 @@
   --element-stroke: #dbe7f5;
   --grid-dot: rgba(91, 163, 232, 0.15);
   --grid-line: rgba(91, 163, 232, 0.08);
+  --grid-line-master: rgba(91, 163, 232, 0.25);
   --shadow-sm: 2px 2px 0 rgba(91, 163, 232, 0.14);
   --shadow-md: 3px 3px 0 rgba(91, 163, 232, 0.18);
 }
