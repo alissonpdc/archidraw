@@ -28,6 +28,11 @@ export function serialize(tabs: TabData[], activeTabId: string): string {
   return JSON.stringify(data);
 }
 
+/** serializes a single tab as a one-tab workspace */
+export function serializeSingleTab(tab: TabData): string {
+  return serialize([tab], tab.id);
+}
+
 function isValidCamera(c: unknown): c is Camera {
   return (
     typeof c === "object" &&

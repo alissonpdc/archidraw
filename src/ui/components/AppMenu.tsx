@@ -1,6 +1,5 @@
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { editor, useEditor } from "../hooks/useEditor";
-import { slugify } from "../../core/exporter";
+import { editor } from "../hooks/useEditor";
 import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
   applySkinPref,
@@ -115,8 +114,13 @@ function MenuSubmenu({
   );
 }
 
-export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
-  const snap = useEditor();
+export function AppMenu({
+  onExportImage,
+  onSave,
+}: {
+  onExportImage: () => void;
+  onSave: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
   const [skinPref, setSkinPref] = useState<SkinPref>(() => loadSkinPref());
@@ -135,28 +139,10 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
           window.matchMedia("(prefers-color-scheme: dark)").matches)));
   const bgPalette = resolvedIsDark ? BG_PALETTE_DARK : BG_PALETTE_LIGHT;
 
-  const activeName =
-    snap.tabs.find((t) => t.id === snap.activeTabId)?.name ?? "diagram";
-  const filename = slugify(activeName);
-
   const close = () => {
     setOpen(false);
     setThemeSubmenuOpen(false);
     setGridSubmenuOpen(false);
-  };
-
-  const exportJSON = () => {
-    const blob = new Blob([editor.serializeState()], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename}.archidraw`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast("Workspace exported");
-    close();
   };
 
   const onImportFile = async (file: File | undefined) => {
@@ -168,8 +154,9 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
     if (name.endsWith(".excalidraw")) {
       try {
         const doc = parseExcalidrawScene(text);
-        editor.importDocument(doc);
-        toast(`"${file.name}" imported`);
+        const baseName = file.name.replace(/\.excalidraw$/i, "");
+        editor.importDocumentAsNewDiagram(doc, baseName);
+        toast(`"${baseName}" imported`);
       } catch {
         toast("Invalid .excalidraw file — import cancelled");
       }
@@ -178,8 +165,16 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
     }
 
     // ArchiDraw format (.archidraw or .archidraw.json)
-    if (editor.restoreState(text)) {
-      toast(`"${file.name}" imported`);
+    const count = editor.importAsNewDiagrams(text);
+    if (count > 0) {
+      const baseName = file.name.replace(/\.archidraw(\.json)?$/i, "");
+      // rename the first imported tab to the filename if it was the default name
+      const snap = editor.getSnapshot();
+      const first = snap.tabs.find((t) => t.id === snap.activeTabId);
+      if (first && /^Diagram \d+$/.test(first.name)) {
+        editor.renameTab(first.id, baseName);
+      }
+      toast(`${count} diagram(s) imported`);
     } else {
       toast("Invalid file — import cancelled");
     }
@@ -209,9 +204,12 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
                 onClick={() => fileInputRef.current?.click()}
               />
               <MenuItem
-                label="Save"
+                label="Save…"
                 icon={<SaveIcon size={14} />}
-                onClick={exportJSON}
+                onClick={() => {
+                  onSave();
+                  close();
+                }}
               />
               <MenuItem
                 label="Export Image…"

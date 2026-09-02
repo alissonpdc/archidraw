@@ -11,6 +11,7 @@ import { StatusBar } from "./components/StatusBar";
 import { Toasts } from "./components/Toasts";
 import { ShortcutsModal } from "./components/ShortcutsModal";
 import { ExportImageModal } from "./components/ExportImageModal";
+import { SaveModal } from "./components/SaveModal";
 import { LibraryPanel } from "./components/LibraryPanel";
 import { ContextMenu } from "./components/ContextMenu";
 import { HoverInfoBox } from "./components/HoverInfoBox";
@@ -31,6 +32,7 @@ export function App() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [exportImageOpen, setExportImageOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
 
   useEffect(() => {
     const unsub = editor.subscribe(() => {
@@ -206,7 +208,10 @@ export function App() {
         <>
           <TabBar />
           <div className="top-right">
-            <AppMenu onExportImage={() => setExportImageOpen(true)} />
+            <AppMenu
+              onExportImage={() => setExportImageOpen(true)}
+              onSave={() => setSaveOpen(true)}
+            />
           </div>
           <Toolbar
             libraryOpen={libraryOpen}
@@ -232,6 +237,10 @@ export function App() {
       <ExportImageModal
         open={exportImageOpen}
         onClose={() => setExportImageOpen(false)}
+      />
+      <SaveModal
+        open={saveOpen}
+        onClose={() => setSaveOpen(false)}
       />
     </div>
   );

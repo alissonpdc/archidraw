@@ -246,9 +246,11 @@ test.describe("ui widgets", () => {
   test("export shows a toast", async ({ page }) => {
     await open(page);
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save…" }).click();
+    await page.getByRole("button", { name: "Save All" }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
 
-    await expect(page.locator(".toast")).toHaveText(/Workspace exported/);
+    await expect(page.locator(".toast")).toHaveText(/Workspace saved/);
   });
 
   test("status bar shows shortcuts link", async ({ page }) => {
@@ -273,7 +275,7 @@ test.describe("ui widgets", () => {
     await expect(page.locator(".shortcuts-modal")).toHaveCount(0);
 
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: /Keyboard shortcuts/ }).click();
+    await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
     await expect(page.locator(".shortcuts-modal")).toBeVisible();
     await page.locator(".modal-backdrop").click({ position: { x: 5, y: 5 } });
     await expect(page.locator(".shortcuts-modal")).toHaveCount(0);

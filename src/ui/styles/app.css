@@ -1718,6 +1718,7 @@ button {
 :root[data-skin="blueprint"] .tab-confirm,
 :root[data-skin="blueprint"] .details-modal,
 :root[data-skin="blueprint"] .export-image-modal,
+:root[data-skin="blueprint"] .save-modal,
 :root[data-skin="blueprint"] .library-panel {
   border: 1.5px solid var(--text-primary);
   border-radius: var(--radius-md);
@@ -1792,6 +1793,7 @@ button {
 :root[data-skin="swiss"] .tab-confirm,
 :root[data-skin="swiss"] .details-modal,
 :root[data-skin="swiss"] .export-image-modal,
+:root[data-skin="swiss"] .save-modal,
 :root[data-skin="swiss"] .library-panel {
   border: 2px solid var(--text-primary);
   border-radius: 0;
@@ -1981,4 +1983,89 @@ button {
 
 .btn-primary:hover {
   opacity: 0.9;
+}
+
+/* ---- save modal -------------------------------------------------------- */
+
+.save-modal {
+  width: min(380px, calc(100vw - 48px));
+  max-height: min(400px, calc(100vh - 48px));
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.save-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.save-modal-body {
+  padding: var(--space-4);
+}
+
+.save-modal-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-3);
+}
+
+.save-modal-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.save-modal-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.save-modal-option:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.save-modal-option.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.save-modal-option-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.save-modal-option-desc {
+  font-size: 11px;
+  opacity: 0.7;
+  text-align: center;
+}
+
+.save-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
 }
