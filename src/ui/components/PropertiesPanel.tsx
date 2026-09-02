@@ -479,12 +479,14 @@ export function PropertiesPanel() {
   const allAnimated = selected.every(
     (el) => el.type !== "arrow" || !!el.animated,
   );
-  /** animation is meaningful only on curved / auto arrows — a perfectly
-   *  straight arrow has no traveling head, so the toggle is disabled in
-   *  that scenario. */
-  const animationDisabled = selected.every(
-    (el) => el.type !== "arrow" || (el.lineType ?? "straight") === "straight",
+  /** animation marches the dash pattern; solid strokes have no dashes to
+   *  move, so the toggle is disabled unless an arrow is dashed, dotted or
+   *  dash-dot (any path type: straight, curved or auto). Switching an
+   *  animated arrow back to solid clears `animated`, so this stays true. */
+  const hasAnimatableArrow = selected.some(
+    (el) => el.type === "arrow" && (el.strokeStyle ?? "solid") !== "solid",
   );
+  const animationDisabled = !hasAnimatableArrow;
   const allFont = (v: number) => {
     const textEls = selected.filter((el) => el.type === "text" || el.label);
     return (
@@ -811,7 +813,7 @@ export function PropertiesPanel() {
                 aria-label="Animate arrow"
                 data-tip={
                   animationDisabled
-                    ? "Animation requires a curved or auto path"
+                    ? "Animation needs a dashed, dotted or dash-dot stroke"
                     : "Flowing dashes along the arrow"
                 }
                 disabled={animationDisabled}

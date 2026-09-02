@@ -1075,7 +1075,11 @@ export class Editor {
       ...this.doc,
       elements: this.doc.elements.map((el) => {
         if (!ids.includes(el.id)) return el;
-        const next = { ...el, ...patch } as Element;
+        let next = { ...el, ...patch } as Element;
+        // a solid stroke has no dashes to march — switching to it must
+        // clear the flowing-dash animation
+        if (next.type === "arrow" && next.strokeStyle === "solid")
+          next = { ...next, animated: false };
         // recalculate text dimensions when font-related props change
         if (next.type === "text" && (patch.fontSize !== undefined || patch.fontFamily !== undefined || patch.bold !== undefined || patch.italic !== undefined || patch.lineSpacing !== undefined)) {
           const te = next as TextElement;

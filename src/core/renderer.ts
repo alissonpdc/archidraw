@@ -149,8 +149,11 @@ function drawArrowHead(
     x: tip.x - size * Math.cos(angle + Math.PI / 6),
     y: tip.y - size * Math.sin(angle + Math.PI / 6),
   };
+  // the head never inherits the shaft dash pattern — wings stay solid
+  ctx.setLineDash([]);
+  ctx.lineDashOffset = 0;
   ctx.beginPath();
-  sketchStroke(ctx, [[tip, p1], [tip, p2]], roughness, seed);
+  sketchStroke(ctx, [[tip, p1], [tip, p2]], roughness, seed, 1, true);
   ctx.stroke();
 }
 
@@ -190,6 +193,8 @@ function roughPolyline(
   roughness: number,
   seed: number,
   waveScale = 1,
+  clampStart = false,
+  clampEnd = false,
 ) {
   if (points.length < 2) return;
   let s = seed;
@@ -351,7 +356,16 @@ function roughPolyline(
     let sx: number;
     let sy: number;
     if (tipStart) {
-      const p = tipPt(points[i - 1].x, points[i - 1].y, dir[i - 1].x, dir[i - 1].y);
+      // clamped start: keep the anchor point EXACT (used by the arrowhead,
+      // so its wings never detach from the tip or overshoot past it)
+      const p = clampStart
+        ? { x: points[i - 1].x, y: points[i - 1].y }
+        : tipPt(
+            points[i - 1].x,
+            points[i - 1].y,
+            dir[i - 1].x,
+            dir[i - 1].y,
+          );
       sx = p.x;
       sy = p.y;
     } else if (liftStart) {
@@ -372,7 +386,11 @@ function roughPolyline(
       ex = D[e].x - dir[e - 1].x * g;
       ey = D[e].y - dir[e - 1].y * g;
     } else if (tipEnd) {
-      const p = tipPt(points[e].x, points[e].y, dir[e - 1].x, dir[e - 1].y);
+      // clamped end: terminate exactly on the geometry (arrow shaft tip must
+      // not run past the arrowhead and push the animated dashes beyond it)
+      const p = clampEnd
+        ? { x: points[e].x, y: points[e].y }
+        : tipPt(points[e].x, points[e].y, dir[e - 1].x, dir[e - 1].y);
       ex = p.x;
       ey = p.y;
     } else {
@@ -438,6 +456,8 @@ function sketchStroke(
   roughness: number,
   seedBase: number,
   waveScale = 1,
+  clampStart = false,
+  clampEnd = false,
 ) {
   const passes = roughness === 0 ? 1 : roughness === 3 ? 3 : 2;
   for (let p = 0; p < passes; p++) {
@@ -453,6 +473,8 @@ function sketchStroke(
           roughness,
           seedBase + p * 131 + pts.length,
           waveScale,
+          clampStart,
+          clampEnd,
         );
       }
     }
@@ -593,12 +615,6 @@ function applyDash(
       strokeWidth * 3,
     ];
     ctx.lineCap = "round";
-  } else if (animated) {
-    // solid stroke that still flows: a long dash followed by a long gap
-    // so the user keeps a continuous-looking line that pulses forward
-    const on = Math.max(80, strokeWidth * 40);
-    const off = Math.max(40, strokeWidth * 30);
-    pattern = [on, off];
   }
   if (pattern) {
     if (animated) ctx.lineDashOffset = -phase;
@@ -919,7 +935,9 @@ function drawElement(
     ctx.globalAlpha = el.strokeOpacity;
     ctx.beginPath();
     if (lineType === "straight") {
-      sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id));
+      // clamp the head-side end so the sketched shaft never runs past the
+      // arrowhead (animated dashes would otherwise march beyond the arrow)
+      sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id), 1, false, true);
       applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
       drawArrowHead(ctx, tip, a, headSize, el.roughness, headSeed);
@@ -933,7 +951,7 @@ function drawElement(
     } else {
       // auto: polyline through bend points (or L-shaped default)
       const pts = edgePathPoints(el);
-      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id));
+      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id), 1, false, true);
       applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
       const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
