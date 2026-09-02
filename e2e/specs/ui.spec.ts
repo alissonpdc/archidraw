@@ -123,7 +123,7 @@ test.describe("ui widgets", () => {
     }, initial);
   });
 
-  test("precision/warm/swiss skins apply their chrome style and persist", async ({
+  test("warm/swiss skins apply their chrome style and persist", async ({
     page,
   }) => {
     await open(page);
@@ -131,24 +131,10 @@ test.describe("ui widgets", () => {
       localStorage.getItem("archidraw:skin"),
     );
 
-    // precision slate: flat (no shadow) with tight 4px radius
+    // warm studio: rounded 12px widgets
     await page.click('[data-testid="app-menu-button"]');
     // Open the Theme submenu inside Appearance
     await page.getByRole("button", { name: "Theme" }).click();
-    await page.getByRole("button", { name: "Precision" }).click();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.getAttribute("data-skin"),
-      ),
-    ).toBe("precision");
-    const precisionToolbar = await page.evaluate(() => {
-      const s = getComputedStyle(document.querySelector(".toolbar")!);
-      return { shadow: s.boxShadow, radius: s.borderRadius };
-    });
-    expect(precisionToolbar.shadow).toBe("none");
-    expect(precisionToolbar.radius).toBe("4px");
-
-    // warm studio: rounded 12px widgets
     await page.getByRole("button", { name: "Warm", exact: true }).click();
     const warmToolbar = await page.evaluate(
       () => getComputedStyle(document.querySelector(".toolbar")!).borderRadius,
@@ -231,7 +217,7 @@ test.describe("ui widgets", () => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[0].strokeColor;
     });
-    expect(stroke).toBe("#dde3e9");
+    expect(stroke).toBe("#e2e7ee");
 
     // back to light theme: new elements are dark again
     await page.evaluate(() => {
@@ -243,7 +229,7 @@ test.describe("ui widgets", () => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[1].strokeColor;
     });
-    expect(stroke2).toBe("#1c2229");
+    expect(stroke2).toBe("#1a2028");
   });
 
   test("empty state hint shows on empty canvas and hides after creating", async ({

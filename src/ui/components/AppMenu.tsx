@@ -31,12 +31,10 @@ import {
   MoonIcon,
   PaletteIcon,
   SunIcon,
-  TargetIcon,
 } from "./icons";
 import { toast } from "../toasts";
 
 const SKIN_OPTIONS: { id: SkinPref; label: string; icon: ReactNode }[] = [
-  { id: "precision", label: "Precision", icon: <TargetIcon size={14} /> },
   { id: "midnight", label: "Midnight", icon: <MoonIcon size={14} /> },
   { id: "blueprint", label: "Blueprint", icon: <GridIcon size={14} /> },
   { id: "warm", label: "Warm", icon: <SunIcon size={14} /> },
