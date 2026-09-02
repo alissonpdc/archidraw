@@ -14,7 +14,7 @@ test.describe("export / import", () => {
   test("export .archidraw downloads a valid workspace file", async ({ page }) => {
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Export .archidraw" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
     const download = await downloadPromise;
 
     expect(download.suggestedFilename()).toMatch(/\.archidraw$/);
@@ -34,7 +34,7 @@ test.describe("export / import", () => {
     // export first
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Export .archidraw" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
     const download = await downloadPromise;
     const path = await download.path();
 
@@ -169,7 +169,9 @@ test.describe("export / import", () => {
   test("export PNG downloads a non-empty image", async ({ page }) => {
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Export PNG" }).click();
+    await page.getByRole("button", { name: "Export Image…" }).click();
+    await page.getByRole("button", { name: "PNG" }).click();
+    await page.getByRole("button", { name: "Export" }).click();
     const download = await downloadPromise;
 
     expect(download.suggestedFilename()).toMatch(/\.png$/);
@@ -185,7 +187,9 @@ test.describe("export / import", () => {
   test("export SVG downloads valid markup containing shapes", async ({ page }) => {
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Export SVG" }).click();
+    await page.getByRole("button", { name: "Export Image…" }).click();
+    await page.getByRole("button", { name: "SVG" }).click();
+    await page.getByRole("button", { name: "Export" }).click();
     const download = await downloadPromise;
 
     expect(download.suggestedFilename()).toMatch(/\.svg$/);
@@ -207,7 +211,9 @@ test.describe("export / import", () => {
 
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Export SVG" }).click();
+    await page.getByRole("button", { name: "Export Image…" }).click();
+    await page.getByRole("button", { name: "SVG" }).click();
+    await page.getByRole("button", { name: "Export" }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe("my-architecture.svg");
   });
@@ -218,7 +224,9 @@ test.describe("export / import", () => {
       ed.closeTab(ed.getSnapshot().activeTabId); // fresh empty tab
     });
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Export PNG" }).click();
+    await page.getByRole("button", { name: "Export Image…" }).click();
+    await page.getByRole("button", { name: "PNG" }).click();
+    await page.getByRole("button", { name: "Export" }).click();
 
     // menu closes, app still alive, nothing downloaded
     await expect(page.locator(".menu-dropdown")).toHaveCount(0);

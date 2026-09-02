@@ -1,6 +1,6 @@
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
-import { exportPNG, exportSVG, slugify } from "../../core/exporter";
+import { slugify } from "../../core/exporter";
 import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
   applySkinPref,
@@ -22,14 +22,15 @@ import {
   CheckIcon,
   ChevronLeftIcon,
   DropletIcon,
-  ExportIcon,
   GridIcon,
-  ImportIcon,
+  ImageIcon,
   KeyboardIcon,
   MenuIcon,
   MonitorIcon,
   MoonIcon,
+  OpenIcon,
   PaletteIcon,
+  SaveIcon,
   SunIcon,
 } from "./icons";
 import { toast } from "../toasts";
@@ -114,7 +115,7 @@ function MenuSubmenu({
   );
 }
 
-export function AppMenu() {
+export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
   const snap = useEditor();
   const [open, setOpen] = useState(false);
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
@@ -203,33 +204,22 @@ export function AppMenu() {
           <div className="menu-dropdown">
             <MenuSection title="File">
               <MenuItem
-                label="Import…"
-                icon={<ImportIcon size={14} />}
+                label="Open"
+                icon={<OpenIcon size={14} />}
                 onClick={() => fileInputRef.current?.click()}
               />
               <MenuItem
-                label="Export PNG"
-                icon={<ExportIcon size={14} />}
-                onClick={() => {
-                  exportPNG(snap.doc, filename).then((ok) =>
-                    toast(ok ? "PNG exported" : "Empty canvas — nothing to export"),
-                  );
-                  close();
-                }}
-              />
-              <MenuItem
-                label="Export SVG"
-                icon={<ExportIcon size={14} />}
-                onClick={() => {
-                  const ok = exportSVG(snap.doc, filename);
-                  toast(ok ? "SVG exported" : "Empty canvas — nothing to export");
-                  close();
-                }}
-              />
-              <MenuItem
-                label="Export .archidraw"
-                icon={<ExportIcon size={14} />}
+                label="Save"
+                icon={<SaveIcon size={14} />}
                 onClick={exportJSON}
+              />
+              <MenuItem
+                label="Export Image…"
+                icon={<ImageIcon size={14} />}
+                onClick={() => {
+                  onExportImage();
+                  close();
+                }}
               />
             </MenuSection>
 
@@ -317,7 +307,7 @@ export function AppMenu() {
 
             <MenuSection title="Help">
               <MenuItem
-                label="Keyboard shortcuts"
+                label="Shortcuts"
                 icon={<KeyboardIcon size={14} />}
                 onClick={() => {
                   window.dispatchEvent(new Event("archidraw:shortcuts"));
