@@ -204,7 +204,7 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
           <div className="menu-dropdown">
             <MenuSection title="File">
               <MenuItem
-                label="Open…"
+                label="Open"
                 icon={<OpenIcon size={14} />}
                 onClick={() => fileInputRef.current?.click()}
               />
