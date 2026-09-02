@@ -351,9 +351,25 @@ function MiniSlider({
   displayValue?: number;
   onChange: (v: number) => void;
 }) {
-  const pct = ((value - min) / (max - min)) * 100;
+  const ref = useRef<HTMLDivElement>(null);
+  const [thumbLeft, setThumbLeft] = useState<number>(0);
+
+  const updatePosition = () => {
+    const wrap = ref.current;
+    if (!wrap) return;
+    const input = wrap.querySelector("input");
+    if (!input) return;
+    const pct = (value - min) / (max - min);
+    const trackWidth = input.offsetWidth;
+    const thumbW = 14;
+    const left = pct * (trackWidth - thumbW) + thumbW / 2;
+    setThumbLeft(left);
+  };
+
+  useEffect(updatePosition, [value, min, max]);
+
   return (
-    <div className="radius-slider-wrap">
+    <div className="radius-slider-wrap" ref={ref}>
       <input
         type="range"
         min={min}
@@ -366,7 +382,7 @@ function MiniSlider({
       />
       <span
         className="radius-bubble"
-        style={{ left: `${pct}%` }}
+        style={{ left: thumbLeft, transform: "translateX(-50%)" }}
       >
         {displayValue ?? value}
         {suffix}
