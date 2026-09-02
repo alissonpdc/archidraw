@@ -596,12 +596,17 @@ button {
 }
 
 /* ---- panel tabs (Style / Text) ---- */
-/* divisor com o mesmo respiro padronizado dos demais (--space-2 abaixo da
-   borda, via gap do .properties-panel); sem margin própria para não somar */
+/* abas são só o seletor; a separação pra configs fica num divisor próprio
+   (.panel-divider), breathing symmetric via gap do .properties-panel */
 .panel-tabs {
   display: flex;
   gap: 2px;
-  border-bottom: 1px solid var(--border);
+}
+
+.panel-divider {
+  height: 1px;
+  flex-shrink: 0;
+  background: var(--border);
 }
 
 .panel-tab {
