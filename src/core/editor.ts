@@ -323,6 +323,7 @@ export interface EditorSnapshot {
   tabs: readonly TabInfo[];
   activeTabId: string;
   hasDraft: boolean;
+  focusMode: boolean;
 }
 
 let tabSeq = 0;
@@ -351,6 +352,7 @@ export class Editor {
   private lastStrokeStyle: StrokeStyle = "solid";
   private lastRoughness: Roughness = 0;
   private lastBorderRadius = 0;
+  private focusMode = false;
 
   private listeners = new Set<() => void>();
   private snapshotCache: EditorSnapshot | null = null;
@@ -408,6 +410,7 @@ export class Editor {
         tabs: this.tabs.map(({ id, name }) => ({ id, name })),
         activeTabId: this.activeTabId,
         hasDraft: this.draft !== null,
+        focusMode: this.focusMode,
       };
     }
     return this.snapshotCache;
@@ -422,6 +425,17 @@ export class Editor {
   setTool(tool: Tool) {
     this.tool = tool;
     if (tool !== "selection") this.selectedIds.clear();
+    this.emit();
+  }
+
+  toggleFocusMode() {
+    this.focusMode = !this.focusMode;
+    this.emit();
+  }
+
+  exitFocusMode() {
+    if (!this.focusMode) return;
+    this.focusMode = false;
     this.emit();
   }
 

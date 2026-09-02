@@ -18,6 +18,7 @@ export interface EditorSnapshotLike {
   elementCount: number;
   tabs: { id: string; name: string }[];
   activeTabId: string;
+  focusMode: boolean;
   elements: {
     id: string;
     type: string;
@@ -66,6 +67,7 @@ export const test = base.extend<TestFixtures>({
           elementCount: s.doc.elements.length,
           tabs: s.tabs.map((t) => ({ ...t })),
           activeTabId: s.activeTabId,
+          focusMode: s.focusMode,
           elements: s.doc.elements.map((el: any) => ({
             id: el.id,
             type: el.type,

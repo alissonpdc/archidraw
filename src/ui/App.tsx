@@ -5,7 +5,7 @@ import { Toolbar } from "./components/Toolbar";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { TabBar } from "./components/TabBar";
 import { AppMenu } from "./components/AppMenu";
-import { ZoomWidget } from "./components/ZoomWidget";
+import { ZoomWidget, FocusWidget } from "./components/ZoomWidget";
 import { HistoryWidget } from "./components/HistoryWidget";
 import { StatusBar } from "./components/StatusBar";
 import { Toasts } from "./components/Toasts";
@@ -28,6 +28,14 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
 export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+
+  useEffect(() => {
+    const unsub = editor.subscribe(() => {
+      setFocusMode(editor.getSnapshot().focusMode);
+    });
+    return () => { unsub(); };
+  }, []);
 
   useEffect(() => {
     const openShortcuts = () => setShortcutsOpen(true);
@@ -45,6 +53,7 @@ export function App() {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
+      editor.exitFocusMode();
       if (e.key === "Shift") {
         editor.onShiftDown();
         return;
@@ -191,23 +200,28 @@ export function App() {
       <CanvasHost />
       <ContextMenu />
       <HoverInfoBox />
-      <TabBar />
-      <div className="top-right">
-        <AppMenu />
-      </div>
-      <Toolbar
-        libraryOpen={libraryOpen}
-        onToggleLibrary={() => setLibraryOpen((v) => !v)}
-      />
-      {libraryOpen && (
-        <LibraryPanel onClose={() => setLibraryOpen(false)} />
+      {!focusMode && (
+        <>
+          <TabBar />
+          <div className="top-right">
+            <AppMenu />
+          </div>
+          <Toolbar
+            libraryOpen={libraryOpen}
+            onToggleLibrary={() => setLibraryOpen((v) => !v)}
+          />
+          {libraryOpen && (
+            <LibraryPanel onClose={() => setLibraryOpen(false)} />
+          )}
+          <PropertiesPanel />
+          <div className="bottom-right">
+            <FocusWidget />
+            <ZoomWidget />
+            <HistoryWidget />
+          </div>
+          <StatusBar />
+        </>
       )}
-      <PropertiesPanel />
-      <div className="bottom-right">
-        <ZoomWidget />
-        <HistoryWidget />
-      </div>
-      <StatusBar />
       <Toasts />
       <ShortcutsModal
         open={shortcutsOpen}

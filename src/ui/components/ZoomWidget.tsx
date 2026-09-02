@@ -1,5 +1,5 @@
 import { editor, useEditor } from "../hooks/useEditor";
-import { FitIcon, MinusIcon, PlusIcon, TargetIcon } from "./icons";
+import { FitIcon, FocusIcon, MinusIcon, PlusIcon, TargetIcon } from "./icons";
 
 export function ZoomWidget() {
   const snap = useEditor();
@@ -43,6 +43,21 @@ export function ZoomWidget() {
         onClick={() => editor.zoomToFit()}
       >
         <TargetIcon size={14} />
+      </button>
+    </div>
+  );
+}
+
+export function FocusWidget() {
+  return (
+    <div className="focus-widget">
+      <button
+        className="zoom-btn tip-up"
+        data-tip="Focus (hide UI)"
+        aria-label="Focus"
+        onClick={() => editor.toggleFocusMode()}
+      >
+        <FocusIcon size={14} />
       </button>
     </div>
   );
