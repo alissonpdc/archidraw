@@ -17,6 +17,7 @@ import {
   getBgColor,
   setBgColor,
   subscribeBgColor,
+  switchBgPair,
 } from "../bgPrefs";
 import {
   CheckIcon,
@@ -236,8 +237,10 @@ export function AppMenu() {
                       className={`menu-mode-icon ${themePref === opt.id ? "active" : ""}`}
                       title={opt.label}
                       onClick={() => {
+                        if (themePref === opt.id) return;
                         applyThemePref(opt.id);
                         setThemePref(opt.id);
+                        switchBgPair();
                       }}
                     >
                       {opt.icon}

@@ -378,7 +378,6 @@ button {
 .menu-mode-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
   padding: var(--space-1) var(--space-3) var(--space-2);
 }
 
@@ -389,7 +388,9 @@ button {
 
 .menu-mode-icons {
   display: flex;
-  gap: 4px;
+  flex: 1;
+  justify-content: space-evenly;
+  margin-left: var(--space-3);
 }
 
 .menu-mode-icon {
@@ -425,7 +426,7 @@ button {
 
 .menu-submenu-panel {
   position: absolute;
-  left: calc(100% + 2px);
+  right: calc(100% + 2px);
   top: -2px;
   min-width: 150px;
   padding: var(--space-1);
@@ -447,6 +448,7 @@ button {
   justify-content: center;
   color: var(--text-muted);
   flex-shrink: 0;
+  transform: scaleX(-1);
 }
 
 /* ---- background palette (Appearance > Background) ---- */

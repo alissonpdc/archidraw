@@ -4,21 +4,34 @@ export type BgColor = string; // hex like "#ffffff"
 
 const KEY = "archidraw:bg-color";
 
-export const BG_PALETTE_LIGHT: { id: BgColor; label: string }[] = [
-  { id: "#ffffff", label: "White" },
-  { id: "#f6f7f8", label: "Cool Gray" },
-  { id: "#f7f2ea", label: "Cream" },
-  { id: "#edf1f7", label: "Ice Blue" },
-  { id: "#f0f0ee", label: "Parchment" },
+export interface BgPaletteEntry {
+  id: BgColor;
+  label: string;
+  pair: BgColor; // the paired color in the opposite mode
+}
+
+export const BG_PALETTE: BgPaletteEntry[] = [
+  { id: "#ffffff", label: "White", pair: "#1d2126" },
+  { id: "#f6f7f8", label: "Cool Gray", pair: "#15181c" },
+  { id: "#f7f2ea", label: "Cream", pair: "#0b0d11" },
+  { id: "#edf1f7", label: "Ice Blue", pair: "#1a1d22" },
+  { id: "#f0f0ee", label: "Parchment", pair: "#262b31" },
 ];
 
-export const BG_PALETTE_DARK: { id: BgColor; label: string }[] = [
-  { id: "#1d2126", label: "Dark" },
-  { id: "#15181c", label: "Charcoal" },
-  { id: "#0b0d11", label: "Jet" },
-  { id: "#1a1d22", label: "Slate" },
-  { id: "#262b31", label: "Graphite" },
-];
+export const BG_PALETTE_LIGHT = BG_PALETTE;
+export const BG_PALETTE_DARK: BgPaletteEntry[] = BG_PALETTE.map((e) => ({
+  id: e.pair,
+  label: e.label,
+  pair: e.id,
+}));
+
+function findPair(color: BgColor): BgColor | null {
+  for (const entry of BG_PALETTE) {
+    if (entry.id === color) return entry.pair;
+    if (entry.pair === color) return entry.id;
+  }
+  return null;
+}
 
 function load(): BgColor | null {
   try {
@@ -63,6 +76,13 @@ export function setBgColor(color: BgColor | null) {
   }
   for (const cb of listeners) cb();
   window.dispatchEvent(new Event("archidraw:bg-change"));
+}
+
+/** Switch the canvas background to the paired color in the opposite mode. */
+export function switchBgPair() {
+  if (!current) return;
+  const paired = findPair(current);
+  if (paired) setBgColor(paired);
 }
 
 export function subscribeBgColor(cb: () => void) {
