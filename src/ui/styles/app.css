@@ -987,6 +987,16 @@ button {
   box-shadow: var(--shadow-sm);
 }
 
+.focus-widget {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
 .zoom-btn {
   width: 28px;
   height: 28px;
@@ -1698,6 +1708,7 @@ button {
 :root[data-skin="blueprint"] .menu-btn,
 :root[data-skin="blueprint"] .menu-dropdown,
 :root[data-skin="blueprint"] .zoom-widget,
+:root[data-skin="blueprint"] .focus-widget,
 :root[data-skin="blueprint"] .color-popover,
 :root[data-skin="blueprint"] .context-menu,
 :root[data-skin="blueprint"] .hover-info-box,
@@ -1770,6 +1781,7 @@ button {
 :root[data-skin="swiss"] .menu-btn,
 :root[data-skin="swiss"] .menu-dropdown,
 :root[data-skin="swiss"] .zoom-widget,
+:root[data-skin="swiss"] .focus-widget,
 :root[data-skin="swiss"] .color-popover,
 :root[data-skin="swiss"] .context-menu,
 :root[data-skin="swiss"] .hover-info-box,
