@@ -17,7 +17,6 @@ import {
   getBgColor,
   setBgColor,
   subscribeBgColor,
-  switchBgForTheme,
 } from "../bgPrefs";
 import {
   CheckIcon,
@@ -240,7 +239,6 @@ export function AppMenu() {
                         if (themePref === opt.id) return;
                         applyThemePref(opt.id);
                         setThemePref(opt.id);
-                        switchBgForTheme(opt.id);
                       }}
                     >
                       {opt.icon}

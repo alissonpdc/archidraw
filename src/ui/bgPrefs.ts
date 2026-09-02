@@ -78,18 +78,50 @@ function resolvedThemeIsDark(): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+/** Find the paired color for `color` in the opposite palette. */
+function findPair(color: string, targetDark: boolean): BgColor | null {
+  if (targetDark) {
+    const entry = BG_PALETTE.find((e) => e.id === color);
+    return entry?.pair ?? null;
+  }
+  const entry = BG_PALETTE.find((e) => e.pair === color);
+  return entry?.id ?? null;
+}
+
+/**
+ * Resolve the background for a theme switch:
+ * - If the stored color is valid in the target palette, keep it.
+ * - If it has a paired color in the target palette, switch to that.
+ * - Otherwise, remove the inline override and let CSS handle it.
+ */
+function resolveThemeSwitch(targetDark: boolean) {
+  const palette = targetDark
+    ? BG_PALETTE.map((e) => e.pair)
+    : BG_PALETTE.map((e) => e.id);
+  const stored = loadFromStorage();
+  if (stored && palette.includes(stored)) return; // already valid
+  const paired = stored ? findPair(stored, targetDark) : null;
+  if (paired) {
+    setBgColor(paired);
+  } else {
+    // no stored choice or no pair → remove inline override, let CSS cascade
+    current = DEFAULT_BG;
+    applyToDom(null);
+    try {
+      localStorage.removeItem(KEY);
+    } catch {
+      // best-effort
+    }
+    for (const cb of listeners) cb();
+    window.dispatchEvent(new Event("archidraw:bg-change"));
+  }
+}
+
 /** Switch the canvas background to match the target theme mode. */
 export function switchBgForTheme(targetPref: "system" | "light" | "dark") {
   const targetDark =
     targetPref === "dark" || (targetPref === "system" && resolvedThemeIsDark());
-  const palette = targetDark
-    ? BG_PALETTE.map((e) => e.pair)
-    : BG_PALETTE.map((e) => e.id);
-  // only干预 if the user explicitly chose a bg that's now invalid
-  const stored = loadFromStorage();
-  if (stored && !palette.includes(stored)) {
-    setBgColor(targetDark ? BG_PALETTE[0].pair : DEFAULT_BG);
-  }
+  resolveThemeSwitch(targetDark);
 }
 
 // Auto-switch bg when data-theme changes (media query or manual set)
@@ -99,14 +131,7 @@ export function switchBgForTheme(targetPref: "system" | "light" | "dark") {
     const isDark = resolvedThemeIsDark();
     if (isDark === lastDark) return;
     lastDark = isDark;
-    const stored = loadFromStorage();
-    if (!stored) return; // no explicit choice → let CSS handle it
-    const palette = isDark
-      ? BG_PALETTE.map((e) => e.pair)
-      : BG_PALETTE.map((e) => e.id);
-    if (!palette.includes(stored)) {
-      setBgColor(isDark ? BG_PALETTE[0].pair : DEFAULT_BG);
-    }
+    resolveThemeSwitch(isDark);
   });
   obs.observe(document.documentElement, {
     attributes: true,
