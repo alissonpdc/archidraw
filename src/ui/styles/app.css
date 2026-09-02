@@ -374,6 +374,105 @@ button {
   flex-shrink: 0;
 }
 
+/* ---- mode button group (Appearance > Mode) ---- */
+.menu-mode-group {
+  display: flex;
+  gap: 2px;
+  padding: var(--space-1) var(--space-3);
+}
+
+.menu-mode-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.menu-mode-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.menu-mode-btn.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+/* ---- submenu flyout ---- */
+.menu-submenu {
+  position: relative;
+}
+
+.menu-submenu-panel {
+  position: absolute;
+  left: calc(100% + 2px);
+  top: -2px;
+  min-width: 150px;
+  padding: var(--space-1);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  animation: menu-in 120ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.menu-item-arrow {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ---- background palette (Appearance > Background) ---- */
+.menu-bg-palette {
+  padding: var(--space-1) var(--space-3) var(--space-2);
+}
+
+.menu-bg-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.menu-bg-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.menu-bg-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--transition-fast);
+}
+
+.menu-bg-swatch:hover {
+  transform: scale(1.15);
+}
+
+.menu-bg-swatch.active {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* ---- toolbar ---- */
 .toolbar {
   position: absolute;

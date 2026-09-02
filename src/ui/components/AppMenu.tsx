@@ -12,7 +12,14 @@ import {
 } from "../theme";
 import { getGridMode, setGridMode, subscribeGrid, type GridMode } from "../viewPrefs";
 import {
+  BG_PALETTE,
+  getBgColor,
+  setBgColor,
+  subscribeBgColor,
+} from "../bgPrefs";
+import {
   CheckIcon,
+  ChevronRightIcon,
   DropletIcon,
   ExportIcon,
   GridIcon,
@@ -21,6 +28,7 @@ import {
   MenuIcon,
   MonitorIcon,
   MoonIcon,
+  PaletteIcon,
   SunIcon,
   TargetIcon,
 } from "./icons";
@@ -35,9 +43,9 @@ const SKIN_OPTIONS: { id: SkinPref; label: string; icon: ReactNode }[] = [
 ];
 
 const THEME_OPTIONS: { id: ThemePref; label: string; icon: ReactNode }[] = [
+  { id: "system", label: "System", icon: <MonitorIcon size={14} /> },
   { id: "light", label: "Light", icon: <SunIcon size={14} /> },
   { id: "dark", label: "Dark", icon: <MoonIcon size={14} /> },
-  { id: "system", label: "System", icon: <MonitorIcon size={14} /> },
 ];
 
 const GRID_OPTIONS: { id: GridMode; label: string }[] = [
@@ -60,18 +68,50 @@ function MenuItem({
   icon,
   active = false,
   onClick,
+  className,
 }: {
   label: string;
   icon?: ReactNode;
   active?: boolean;
   onClick: () => void;
+  className?: string;
 }) {
   return (
-    <button className={`menu-item ${active ? "active" : ""}`} onClick={onClick}>
+    <button
+      className={`menu-item ${active ? "active" : ""} ${className ?? ""}`}
+      onClick={onClick}
+    >
       <span className="menu-item-icon">{icon}</span>
       <span className="menu-item-label">{label}</span>
       <span className="menu-item-check">{active && <CheckIcon size={12} />}</span>
     </button>
+  );
+}
+
+function MenuSubmenu({
+  label,
+  icon,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string;
+  icon?: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`menu-submenu ${open ? "open" : ""}`}>
+      <button className="menu-item" onClick={onToggle}>
+        <span className="menu-item-icon">{icon}</span>
+        <span className="menu-item-label">{label}</span>
+        <span className="menu-item-arrow">
+          <ChevronRightIcon size={12} />
+        </span>
+      </button>
+      {open && <div className="menu-submenu-panel">{children}</div>}
+    </div>
   );
 }
 
@@ -81,13 +121,20 @@ export function AppMenu() {
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
   const [skinPref, setSkinPref] = useState<SkinPref>(() => loadSkinPref());
   const gridMode = useSyncExternalStore(subscribeGrid, getGridMode);
+  const bgColor = useSyncExternalStore(subscribeBgColor, getBgColor);
+  const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
+  const [gridSubmenuOpen, setGridSubmenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeName =
     snap.tabs.find((t) => t.id === snap.activeTabId)?.name ?? "diagram";
   const filename = slugify(activeName);
 
-  const close = () => setOpen(false);
+  const close = () => {
+    setOpen(false);
+    setThemeSubmenuOpen(false);
+    setGridSubmenuOpen(false);
+  };
 
   const exportJSON = () => {
     const blob = new Blob([editor.serializeState()], {
@@ -178,46 +225,80 @@ export function AppMenu() {
               />
             </MenuSection>
 
-            <MenuSection title="Themes">
-              {SKIN_OPTIONS.map((opt) => (
-                <MenuItem
-                  key={opt.id}
-                  label={opt.label}
-                  icon={opt.icon}
-                  active={skinPref === opt.id}
-                  onClick={() => {
-                    applySkinPref(opt.id);
-                    setSkinPref(opt.id);
-                  }}
-                />
-              ))}
-            </MenuSection>
+            <MenuSection title="Appearance">
+              <div className="menu-mode-group">
+                {THEME_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    className={`menu-mode-btn ${themePref === opt.id ? "active" : ""}`}
+                    title={opt.label}
+                    onClick={() => {
+                      applyThemePref(opt.id);
+                      setThemePref(opt.id);
+                    }}
+                  >
+                    {opt.icon}
+                  </button>
+                ))}
+              </div>
 
-            <MenuSection title="Mode">
-              {THEME_OPTIONS.map((opt) => (
-                <MenuItem
-                  key={opt.id}
-                  label={opt.label}
-                  icon={opt.icon}
-                  active={themePref === opt.id}
-                  onClick={() => {
-                    applyThemePref(opt.id);
-                    setThemePref(opt.id);
-                  }}
-                />
-              ))}
-            </MenuSection>
+              <MenuSubmenu
+                label="Theme"
+                icon={<PaletteIcon size={14} />}
+                open={themeSubmenuOpen}
+                onToggle={() => {
+                  setThemeSubmenuOpen((v) => !v);
+                  setGridSubmenuOpen(false);
+                }}
+              >
+                {SKIN_OPTIONS.map((opt) => (
+                  <MenuItem
+                    key={opt.id}
+                    label={opt.label}
+                    icon={opt.icon}
+                    active={skinPref === opt.id}
+                    onClick={() => {
+                      applySkinPref(opt.id);
+                      setSkinPref(opt.id);
+                    }}
+                  />
+                ))}
+              </MenuSubmenu>
 
-            <MenuSection title="Canvas">
-              {GRID_OPTIONS.map((opt) => (
-                <MenuItem
-                  key={opt.id}
-                  label={opt.label}
-                  icon={<GridIcon size={14} />}
-                  active={gridMode === opt.id}
-                  onClick={() => setGridMode(opt.id)}
-                />
-              ))}
+              <div className="menu-bg-palette">
+                <div className="menu-bg-label">Background</div>
+                <div className="menu-bg-grid">
+                  {BG_PALETTE.map((c) => (
+                    <button
+                      key={c.id}
+                      className={`menu-bg-swatch ${bgColor === c.id ? "active" : ""}`}
+                      style={{ backgroundColor: c.id }}
+                      title={c.label}
+                      onClick={() => setBgColor(bgColor === c.id ? null : c.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <MenuSubmenu
+                label="Grid"
+                icon={<GridIcon size={14} />}
+                open={gridSubmenuOpen}
+                onToggle={() => {
+                  setGridSubmenuOpen((v) => !v);
+                  setThemeSubmenuOpen(false);
+                }}
+              >
+                {GRID_OPTIONS.map((opt) => (
+                  <MenuItem
+                    key={opt.id}
+                    label={opt.label}
+                    icon={<GridIcon size={14} />}
+                    active={gridMode === opt.id}
+                    onClick={() => setGridMode(opt.id)}
+                  />
+                ))}
+              </MenuSubmenu>
             </MenuSection>
 
             <MenuSection title="Help">

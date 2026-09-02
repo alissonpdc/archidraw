@@ -63,6 +63,8 @@ test.describe("ui widgets", () => {
       );
 
     await page.click('[data-testid="app-menu-button"]');
+    // Open the Theme submenu inside Appearance
+    await page.getByRole("button", { name: "Theme" }).click();
     await page.getByRole("button", { name: "Midnight" }).click();
 
     expect(
@@ -99,12 +101,11 @@ test.describe("ui widgets", () => {
     );
     expect(toolbarBorder).toBe("rgb(219, 231, 245)");
 
-    // blueprint defaults the canvas grid to lines (paper look); menu is
-    // already open after picking the skin
-    const canvasSection = page.locator(".menu-section", { hasText: "Canvas" });
-    await expect(canvasSection.locator(".menu-item.active")).toHaveText(
-      /Lines/,
-    );
+    // blueprint defaults the canvas grid to lines (paper look); open the
+    // Grid submenu inside Appearance to verify the active grid mode
+    await page.getByRole("button", { name: "Grid" }).click();
+    const gridSubmenu = page.locator(".menu-submenu.open .menu-submenu-panel");
+    await expect(gridSubmenu.locator(".menu-item.active")).toHaveText(/Lines/);
     // ...without persisting a choice
     expect(
       await page.evaluate(() => localStorage.getItem("archidraw:grid")),
@@ -132,6 +133,8 @@ test.describe("ui widgets", () => {
 
     // precision slate: flat (no shadow) with tight 4px radius
     await page.click('[data-testid="app-menu-button"]');
+    // Open the Theme submenu inside Appearance
+    await page.getByRole("button", { name: "Theme" }).click();
     await page.getByRole("button", { name: "Precision" }).click();
     expect(
       await page.evaluate(
@@ -146,7 +149,7 @@ test.describe("ui widgets", () => {
     expect(precisionToolbar.radius).toBe("4px");
 
     // warm studio: rounded 12px widgets
-    await page.getByRole("button", { name: "Warm" }).click();
+    await page.getByRole("button", { name: "Warm", exact: true }).click();
     const warmToolbar = await page.evaluate(
       () => getComputedStyle(document.querySelector(".toolbar")!).borderRadius,
     );
@@ -201,15 +204,17 @@ test.describe("ui widgets", () => {
     expect(storedBefore).toBe(null); // default "none" is not written
 
     await page.click('[data-testid="app-menu-button"]');
+    // Open the Grid submenu inside Appearance
+    await page.getByRole("button", { name: "Grid" }).click();
     await page.getByRole("button", { name: "Lines" }).click();
 
     expect(
       await page.evaluate(() => localStorage.getItem("archidraw:grid")),
     ).toBe("lines");
 
-    // menu stays open after toggling; checkmark moved to "Lines" in the Canvas section
-    const gridSection = page.locator(".menu-section", { hasText: "Canvas" });
-    await expect(gridSection.locator(".menu-item.active")).toHaveText(/Lines/);
+    // menu stays open after toggling; checkmark moved to "Lines" in the Grid submenu
+    const gridSubmenu = page.locator(".menu-submenu.open .menu-submenu-panel");
+    await expect(gridSubmenu.locator(".menu-item.active")).toHaveText(/Lines/);
   });
 
   test("new elements use theme-aware stroke color", async ({ page }) => {
