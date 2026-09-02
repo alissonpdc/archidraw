@@ -10,6 +10,7 @@ import { HistoryWidget } from "./components/HistoryWidget";
 import { StatusBar } from "./components/StatusBar";
 import { Toasts } from "./components/Toasts";
 import { ShortcutsModal } from "./components/ShortcutsModal";
+import { ExportImageModal } from "./components/ExportImageModal";
 import { LibraryPanel } from "./components/LibraryPanel";
 import { ContextMenu } from "./components/ContextMenu";
 import { HoverInfoBox } from "./components/HoverInfoBox";
@@ -28,6 +29,7 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
 export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [exportImageOpen, setExportImageOpen] = useState(false);
 
   useEffect(() => {
     const openShortcuts = () => setShortcutsOpen(true);
@@ -193,7 +195,7 @@ export function App() {
       <HoverInfoBox />
       <TabBar />
       <div className="top-right">
-        <AppMenu />
+        <AppMenu onExportImage={() => setExportImageOpen(true)} />
       </div>
       <Toolbar
         libraryOpen={libraryOpen}
@@ -212,6 +214,10 @@ export function App() {
       <ShortcutsModal
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
+      />
+      <ExportImageModal
+        open={exportImageOpen}
+        onClose={() => setExportImageOpen(false)}
       />
     </div>
   );
