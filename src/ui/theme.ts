@@ -1,9 +1,8 @@
 export type ThemePref = "system" | "light" | "dark";
 export type SkinPref =
-  | "default"
+  | "precision"
   | "midnight"
   | "blueprint"
-  | "precision"
   | "warm"
   | "swiss";
 
@@ -11,10 +10,9 @@ const KEY = "archidraw:theme";
 const SKIN_KEY = "archidraw:skin";
 const PREFS: ThemePref[] = ["system", "light", "dark"];
 const SKINS: SkinPref[] = [
-  "default",
+  "precision",
   "midnight",
   "blueprint",
-  "precision",
   "warm",
   "swiss",
 ];
@@ -31,9 +29,9 @@ export function loadThemePref(): ThemePref {
 export function loadSkinPref(): SkinPref {
   try {
     const v = localStorage.getItem(SKIN_KEY);
-    return SKINS.includes(v as SkinPref) ? (v as SkinPref) : "default";
+    return SKINS.includes(v as SkinPref) ? (v as SkinPref) : "precision";
   } catch {
-    return "default";
+    return "precision";
   }
 }
 
@@ -53,11 +51,7 @@ export function applyThemePref(pref: ThemePref) {
 
 export function applySkinPref(skin: SkinPref) {
   const root = document.documentElement;
-  if (skin === "default") {
-    delete root.dataset.skin;
-  } else {
-    root.dataset.skin = skin;
-  }
+  root.dataset.skin = skin;
   try {
     localStorage.setItem(SKIN_KEY, skin);
   } catch {

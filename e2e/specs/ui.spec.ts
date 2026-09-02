@@ -132,7 +132,7 @@ test.describe("ui widgets", () => {
 
     // precision slate: flat (no shadow) with tight 4px radius
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Precision Slate" }).click();
+    await page.getByRole("button", { name: "Precision" }).click();
     expect(
       await page.evaluate(
         () => document.documentElement.getAttribute("data-skin"),
@@ -146,14 +146,14 @@ test.describe("ui widgets", () => {
     expect(precisionToolbar.radius).toBe("4px");
 
     // warm studio: rounded 12px widgets
-    await page.getByRole("button", { name: "Warm Studio" }).click();
+    await page.getByRole("button", { name: "Warm" }).click();
     const warmToolbar = await page.evaluate(
       () => getComputedStyle(document.querySelector(".toolbar")!).borderRadius,
     );
     expect(warmToolbar).toBe("12px");
 
     // swiss ink: brutalist 2px ink border, zero radius, hard shadow
-    await page.getByRole("button", { name: "Swiss Ink" }).click();
+    await page.getByRole("button", { name: "Ink" }).click();
     expect(
       await page.evaluate(
         () => document.documentElement.getAttribute("data-skin"),
@@ -226,7 +226,7 @@ test.describe("ui widgets", () => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[0].strokeColor;
     });
-    expect(stroke).toBe("#eaebeb");
+    expect(stroke).toBe("#dde3e9");
 
     // back to light theme: new elements are dark again
     await page.evaluate(() => {
@@ -238,7 +238,7 @@ test.describe("ui widgets", () => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[1].strokeColor;
     });
-    expect(stroke2).toBe("#3d4248");
+    expect(stroke2).toBe("#1c2229");
   });
 
   test("empty state hint shows on empty canvas and hides after creating", async ({

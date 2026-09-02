@@ -16,10 +16,9 @@ function load(): GridMode | null {
 // null = "auto": follow the active skin's natural grid
 // (blueprint = millimeter paper lines; mocks 01/02/05 = dotted canvas)
 const SKIN_AUTO_GRID: Record<string, GridMode> = {
-  default: "none",
+  precision: "dots",
   midnight: "none",
   blueprint: "lines",
-  precision: "dots",
   warm: "dots",
   swiss: "dots",
 };
@@ -30,7 +29,7 @@ const listeners = new Set<() => void>();
 function autoGridForSkin(): GridMode {
   try {
     return (
-      SKIN_AUTO_GRID[document.documentElement.dataset.skin ?? "default"] ??
+      SKIN_AUTO_GRID[document.documentElement.dataset.skin ?? "precision"] ??
       "none"
     );
   } catch {
