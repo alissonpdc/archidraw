@@ -706,6 +706,8 @@ export class Editor {
       // no border and no label by default: just the icon
       strokeWidth: 0,
       opacity: 1,
+      strokeOpacity: 1,
+      fillOpacity: 1,
       strokeStyle: "solid",
       roughness: 0,
       borderRadius: 20,
@@ -991,6 +993,8 @@ export class Editor {
       backgroundColor: DEFAULT_BG,
       strokeWidth: 1,
       opacity: 1,
+      strokeOpacity: 1,
+      fillOpacity: 1,
       strokeStyle: "solid",
       roughness: 0,
       borderRadius: 0,
@@ -1022,6 +1026,8 @@ export class Editor {
       backgroundColor?: string;
       strokeWidth?: number;
       opacity?: number;
+      strokeOpacity?: number;
+      fillOpacity?: number;
       fontSize?: number;
       strokeStyle?: StrokeStyle;
       roughness?: Roughness;
@@ -1248,6 +1254,8 @@ export class Editor {
           backgroundColor: DEFAULT_BG,
           strokeWidth: 2,
           opacity: 1,
+          strokeOpacity: 1,
+          fillOpacity: 1,
           strokeStyle: this.lastStrokeStyle,
           roughness: this.lastRoughness,
           borderRadius: this.lastBorderRadius,
@@ -1298,6 +1306,8 @@ export class Editor {
           backgroundColor: DEFAULT_BG,
           strokeWidth: 1,
           opacity: 1,
+          strokeOpacity: 1,
+          fillOpacity: 1,
           strokeStyle: this.lastStrokeStyle,
           roughness: this.lastRoughness,
           borderRadius: 0,

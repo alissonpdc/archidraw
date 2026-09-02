@@ -672,6 +672,12 @@ button {
   gap: var(--space-1);
 }
 
+.palette-opacity-row {
+  margin-top: -4px;
+  margin-bottom: var(--space-2);
+  width: 100%;
+}
+
 .color-popover {
   position: fixed;
   display: flex;
@@ -886,8 +892,8 @@ button {
 }
 
 .radius-slider {
-  /* same width as 4 size-btn squares (4 × 28px) + 3 gaps (3 × 4px) */
-  width: 124px;
+  /* same width as palette: 5 × 24px swatches + 4 × 4px gaps */
+  width: 136px;
   accent-color: var(--accent);
 }
 

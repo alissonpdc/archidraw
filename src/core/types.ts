@@ -40,6 +40,8 @@ export interface BaseElement {
   backgroundColor: string;
   strokeWidth: number;
   opacity: number;
+  strokeOpacity: number;
+  fillOpacity: number;
   strokeStyle: StrokeStyle;
   /** 0 = clean, 1 = draft, 2 = sketchy, 3 = chaos */
   roughness: Roughness;

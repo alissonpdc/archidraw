@@ -279,7 +279,7 @@ test.describe("ui widgets", () => {
     await expect(page.locator(".shortcuts-modal")).toHaveCount(0);
   });
 
-  test("properties panel offers stroke width and opacity for shapes", async ({
+  test("properties panel offers stroke width and stroke opacity for shapes", async ({
     page,
   }) => {
     await open(page);
@@ -291,11 +291,11 @@ test.describe("ui widgets", () => {
     await page.keyboard.press("v");
 
     await page.getByRole("button", { name: "Thickness 4" }).click();
-    await page.getByRole("slider", { name: "Opacity" }).fill("50");
+    await page.getByRole("slider", { name: "Stroke opacity" }).fill("50");
 
     const el = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
-      return { w: s.doc.elements[0].strokeWidth, o: s.doc.elements[0].opacity };
+      return { w: s.doc.elements[0].strokeWidth, o: s.doc.elements[0].strokeOpacity };
     });
     expect(el.w).toBe(4);
     expect(el.o).toBe(0.5);
@@ -360,7 +360,7 @@ test.describe("ui widgets", () => {
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
     await page.keyboard.press("v");
 
-    // palette has exactly 10 options: transparent + 9 base colors
+    // palette has exactly 10 base colors
     const swatches = page.locator(".panel-group").first().locator(".swatch");
     await expect(swatches).toHaveCount(10);
 

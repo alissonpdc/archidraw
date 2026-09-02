@@ -120,13 +120,17 @@ function normalizeDoc(doc: Document): Document {
       if (
         el.strokeStyle === undefined ||
         el.roughness === undefined ||
-        el.borderRadius === undefined
+        el.borderRadius === undefined ||
+        (el as any).strokeOpacity === undefined ||
+        (el as any).fillOpacity === undefined
       ) {
         next = {
           ...el,
           strokeStyle: el.strokeStyle ?? ("solid" as const),
           roughness: el.roughness ?? (0 as const),
           borderRadius: el.borderRadius ?? 0,
+          strokeOpacity: (el as any).strokeOpacity ?? 1,
+          fillOpacity: (el as any).fillOpacity ?? 1,
         };
       }
       const bindings = next as Element & WithBindings;
