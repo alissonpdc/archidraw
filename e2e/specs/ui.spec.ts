@@ -47,6 +47,62 @@ test.describe("ui widgets", () => {
     }, initial);
   });
 
+  test("skin selectable via app menu, theme-aware and persisted", async ({
+    page,
+  }) => {
+    await open(page);
+    const initial = await page.evaluate(() =>
+      localStorage.getItem("archidraw:skin"),
+    );
+
+    const bg = () =>
+      page.evaluate(() =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--bg-canvas")
+          .trim(),
+      );
+
+    await page.click('[data-testid="app-menu-button"]');
+    await page.getByRole("button", { name: "Midnight" }).click();
+
+    expect(
+      await page.evaluate(
+        () => document.documentElement.getAttribute("data-skin"),
+      ),
+    ).toBe("midnight");
+    expect(
+      await page.evaluate(() => localStorage.getItem("archidraw:skin")),
+    ).toBe("midnight");
+
+    // midnight is dark-first: dark canvas even with system light
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = "dark";
+    });
+    expect(await bg()).toBe("#0b0d11");
+    // ...and light mode switches to the midnight-light palette
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = "light";
+    });
+    expect(await bg()).toBe("#f4f6f8");
+
+    // blueprint with dark mode uses the blueprint-dark palette
+    await page.getByRole("button", { name: "Blueprint" }).click();
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = "dark";
+    });
+    expect(await bg()).toBe("#101d2e");
+
+    expect(
+      await page.evaluate(() => localStorage.getItem("archidraw:skin")),
+    ).toBe("blueprint");
+
+    // restore initial pref
+    await page.evaluate((c) => {
+      if (c === null) localStorage.removeItem("archidraw:skin");
+      else localStorage.setItem("archidraw:skin", c);
+    }, initial);
+  });
+
   test("grid defaults to none and switching persists", async ({ page }) => {
     await open(page);
 

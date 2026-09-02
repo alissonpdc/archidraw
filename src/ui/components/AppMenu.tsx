@@ -3,8 +3,11 @@ import { editor, useEditor } from "../hooks/useEditor";
 import { exportPNG, exportSVG, slugify } from "../../core/exporter";
 import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
+  applySkinPref,
   applyThemePref,
+  loadSkinPref,
   loadThemePref,
+  type SkinPref,
   type ThemePref,
 } from "../theme";
 import { getGridMode, setGridMode, subscribeGrid, type GridMode } from "../viewPrefs";
@@ -17,14 +20,21 @@ import {
   MenuIcon,
   MonitorIcon,
   MoonIcon,
+  PaletteIcon,
   SunIcon,
 } from "./icons";
 import { toast } from "../toasts";
 
+const SKIN_OPTIONS: { id: SkinPref; label: string; icon: ReactNode }[] = [
+  { id: "default", label: "Default", icon: <PaletteIcon size={14} /> },
+  { id: "midnight", label: "Midnight", icon: <MoonIcon size={14} /> },
+  { id: "blueprint", label: "Blueprint", icon: <GridIcon size={14} /> },
+];
+
 const THEME_OPTIONS: { id: ThemePref; label: string; icon: ReactNode }[] = [
-  { id: "system", label: "System", icon: <MonitorIcon size={14} /> },
   { id: "light", label: "Light", icon: <SunIcon size={14} /> },
   { id: "dark", label: "Dark", icon: <MoonIcon size={14} /> },
+  { id: "system", label: "System", icon: <MonitorIcon size={14} /> },
 ];
 
 const GRID_OPTIONS: { id: GridMode; label: string }[] = [
@@ -66,6 +76,7 @@ export function AppMenu() {
   const snap = useEditor();
   const [open, setOpen] = useState(false);
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
+  const [skinPref, setSkinPref] = useState<SkinPref>(() => loadSkinPref());
   const gridMode = useSyncExternalStore(subscribeGrid, getGridMode);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -164,7 +175,22 @@ export function AppMenu() {
               />
             </MenuSection>
 
-            <MenuSection title="Appearance">
+            <MenuSection title="Themes">
+              {SKIN_OPTIONS.map((opt) => (
+                <MenuItem
+                  key={opt.id}
+                  label={opt.label}
+                  icon={opt.icon}
+                  active={skinPref === opt.id}
+                  onClick={() => {
+                    applySkinPref(opt.id);
+                    setSkinPref(opt.id);
+                  }}
+                />
+              ))}
+            </MenuSection>
+
+            <MenuSection title="Mode">
               {THEME_OPTIONS.map((opt) => (
                 <MenuItem
                   key={opt.id}

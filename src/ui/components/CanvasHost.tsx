@@ -31,12 +31,12 @@ export function CanvasHost() {
   const gridMode = useGridMode();
   const [colors, setColors] = useState(readThemeColors);
 
-  // re-read canvas colors when theme changes
+  // re-read canvas colors when theme/skin changes
   useEffect(() => {
     const obs = new MutationObserver(() => setColors(readThemeColors()));
     obs.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["data-theme"],
+      attributeFilter: ["data-theme", "data-skin"],
     });
     return () => obs.disconnect();
   }, []);

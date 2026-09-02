@@ -258,6 +258,17 @@ export function GridIcon({ size = 16 }: IconProps) {
   );
 }
 
+export function PaletteIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M12 21a9 9 0 1 1 9-9c0 2.5-2 3-3.5 3H16a2 2 0 0 0-1.5 3.3c.4.5.5 1.2 0 1.7-.5.6-1.4 1-2.5 1z" />
+      <circle cx="7.5" cy="11.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="7.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="7.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function KeyboardIcon({ size = 16 }: IconProps) {
   return (
     <svg {...base(size)}>

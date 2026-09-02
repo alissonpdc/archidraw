@@ -5,7 +5,12 @@ import { App } from "./ui/App";
 import { editor } from "./ui/hooks/useEditor";
 import { attachAutosave, loadFromStorage } from "./core/storage";
 import { markSaved } from "./ui/saveStatus";
-import { applyThemePref, loadThemePref } from "./ui/theme";
+import {
+  applySkinPref,
+  applyThemePref,
+  loadSkinPref,
+  loadThemePref,
+} from "./ui/theme";
 import { initImportedLibraries } from "./core/importedLibraries";
 import { initImportedImages } from "./core/importedImages";
 import { elementVisualBounds, detailsBadgeAnchor } from "./core/renderer";
@@ -20,6 +25,7 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
 
 // restore theme preference before first render (no flash of wrong theme)
 applyThemePref(loadThemePref());
+applySkinPref(loadSkinPref());
 
 // re-registra bibliotecas .excalidrawlib importadas e imagens importadas
 // ANTES do restore (elementos salvos podem referenciar seus componentIds)
