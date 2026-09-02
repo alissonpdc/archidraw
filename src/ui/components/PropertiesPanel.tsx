@@ -366,7 +366,7 @@ function MiniSlider({
       />
       <span
         className="radius-bubble"
-        style={{ left: `calc(${pct}% + ${(0.5 - pct / 100) * 12}px)` }}
+        style={{ left: `${pct}%` }}
       >
         {displayValue ?? value}
         {suffix}
