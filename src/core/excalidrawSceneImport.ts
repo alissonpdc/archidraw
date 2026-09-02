@@ -126,6 +126,8 @@ function convertElement(
     backgroundColor: el.backgroundColor ?? "transparent",
     strokeWidth: el.strokeWidth ?? 2,
     opacity: typeof el.opacity === "number" ? el.opacity / 100 : 1,
+    strokeOpacity: 1,
+    fillOpacity: 1,
     strokeStyle: mapStrokeStyle(el.strokeStyle),
     roughness: mapRoughness(el.roughness),
     borderRadius: el.roundness

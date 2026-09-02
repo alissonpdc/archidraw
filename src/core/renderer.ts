@@ -747,7 +747,6 @@ function drawElement(
   colors: RenderColors,
 ) {
   ctx.save();
-  ctx.globalAlpha = el.opacity;
   ctx.strokeStyle = resolveStroke(el, colors);
   ctx.fillStyle = el.backgroundColor;
   ctx.lineWidth = el.strokeWidth;
@@ -757,12 +756,17 @@ function drawElement(
   if (el.type === "rectangle" || el.type === "component") {
     // fill always uses a clean closed shape so it never breaks
     if (el.backgroundColor !== "transparent") {
+      ctx.save();
+      ctx.globalAlpha = el.fillOpacity;
       ctx.beginPath();
       ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
       ctx.fill();
+      ctx.restore();
     }
     // strokeWidth 0 = borderless (library components)
     if (el.strokeWidth > 0) {
+      ctx.save();
+      ctx.globalAlpha = el.strokeOpacity;
       ctx.beginPath();
       if (el.roughness === 0) {
         ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
@@ -785,18 +789,24 @@ function drawElement(
       }
       applyDash(ctx, el, el.strokeWidth);
       ctx.stroke();
+      ctx.restore();
     }
 
     if (el.type === "component") drawComponentIcon(ctx, el);
   } else if (el.type === "diamond") {
     const v = diamondVertices(el);
     if (el.backgroundColor !== "transparent") {
+      ctx.save();
+      ctx.globalAlpha = el.fillOpacity;
       ctx.beginPath();
       ctx.moveTo(v[0].x, v[0].y);
       for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
       ctx.closePath();
       ctx.fill();
+      ctx.restore();
     }
+    ctx.save();
+    ctx.globalAlpha = el.strokeOpacity;
     ctx.beginPath();
     if (el.roughness === 0) {
       ctx.moveTo(v[0].x, v[0].y);
@@ -807,16 +817,22 @@ function drawElement(
     }
     applyDash(ctx, el, el.strokeWidth);
     ctx.stroke();
+    ctx.restore();
   } else if (el.type === "ellipse") {
     const rx = Math.abs(el.width) / 2;
     const ry = Math.abs(el.height) / 2;
     const cx = el.x + el.width / 2;
     const cy = el.y + el.height / 2;
     if (el.backgroundColor !== "transparent") {
+      ctx.save();
+      ctx.globalAlpha = el.fillOpacity;
       ctx.beginPath();
       ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
     }
+    ctx.save();
+    ctx.globalAlpha = el.strokeOpacity;
     ctx.beginPath();
     if (el.roughness === 0) {
       ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
@@ -830,12 +846,15 @@ function drawElement(
     }
     applyDash(ctx, el, el.strokeWidth);
     ctx.stroke();
+    ctx.restore();
   } else if (el.type === "line") {
     const [a, b] = arrowPoints(el);
     const lineType = el.lineType ?? "straight";
     const endY = b.y === a.y ? b.y + 1 : b.y;
     const tip = { x: b.x, y: endY };
 
+    ctx.save();
+    ctx.globalAlpha = el.strokeOpacity;
     ctx.beginPath();
     if (lineType === "straight") {
       sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id));
@@ -854,12 +873,15 @@ function drawElement(
       applyDash(ctx, el, el.strokeWidth);
       ctx.stroke();
     }
+    ctx.restore();
   } else if (el.type === "arrow") {
     const [a, b] = arrowPoints(el);
     const lineType = el.lineType ?? "straight";
     const endY = b.y === a.y ? b.y + 1 : b.y;
     const tip = { x: b.x, y: endY };
 
+    ctx.save();
+    ctx.globalAlpha = el.strokeOpacity;
     ctx.beginPath();
     if (lineType === "straight") {
       sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id));
@@ -882,7 +904,10 @@ function drawElement(
       const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
       drawArrowHead(ctx, tip, prevPt, Math.max(12, el.strokeWidth * 4));
     }
+    ctx.restore();
   } else if (el.type === "text") {
+    ctx.save();
+    ctx.globalAlpha = el.opacity;
     ctx.fillStyle = resolveTextColor(el, colors);
     ctx.font = resolveFont(el);
     ctx.textBaseline = "top";
@@ -915,6 +940,7 @@ function drawElement(
         }
       }
     });
+    ctx.restore();
   }
   ctx.restore();
 }

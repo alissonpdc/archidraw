@@ -8,7 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import { editor, useEditor } from "../hooks/useEditor";
 
-/** 9 basic colors shared by stroke and fill */
+/** 10 basic colors shared by stroke and fill */
 const BASE_COLORS: { name: string; color: string }[] = [
   { name: "Grey", color: "#868e96" },
   { name: "Red", color: "#e03131" },
@@ -19,6 +19,7 @@ const BASE_COLORS: { name: string; color: string }[] = [
   { name: "Blue", color: "#1971c2" },
   { name: "Purple", color: "#6741d9" },
   { name: "Pink", color: "#d6336c" },
+  { name: "Brown", color: "#a65e3f" },
 ];
 
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
@@ -51,6 +52,8 @@ type Patch = Partial<{
   backgroundColor: string;
   strokeWidth: number;
   opacity: number;
+  strokeOpacity: number;
+  fillOpacity: number;
   fontSize: number;
   strokeStyle: "solid" | "dashed" | "dotted" | "dashdot";
   roughness: 0 | 1 | 2 | 3;
@@ -191,13 +194,10 @@ function PaletteGrid({
   current,
   onPick,
   label,
-  auto,
 }: {
   current: string;
   onPick: (color: string) => void;
   label: string;
-  /** when set, the first swatch is "Auto" picking "" instead of Transparent */
-  auto?: string;
 }) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -238,36 +238,9 @@ function PaletteGrid({
     }
   };
 
-  const isAutoColor = current === "";
-
   return (
     <div className="palette-wrap" ref={wrapRef}>
       <div className="swatch-row swatch-row-5">
-        {auto !== undefined ? (
-          <button
-            className={`swatch transparent-checker ${isAutoColor ? "active" : ""}`}
-            aria-label={`${label} Transparent`}
-            data-tip="Transparent"
-            onClick={() => {
-              setExpanded(null);
-              setPopPos(null);
-              onPick("");
-            }}
-          />
-        ) : (
-          <button
-            className={`swatch transparent-checker ${
-              current === "transparent" ? "active" : ""
-            }`}
-            aria-label={`${label} Transparent`}
-            data-tip="Transparent"
-            onClick={() => {
-              setExpanded(null);
-              setPopPos(null);
-              onPick("transparent");
-            }}
-          />
-        )}
         {BASE_COLORS.map((entry, i) => {
           const isThisGroup =
             current === entry.color || groupShades[i].includes(current);
@@ -503,6 +476,18 @@ export function PropertiesPanel() {
       ? first
       : null;
   })();
+  const strokeOpacityValue = (() => {
+    const first = Math.round(selected[0].strokeOpacity * 100);
+    return selected.every((el) => Math.round(el.strokeOpacity * 100) === first)
+      ? first
+      : null;
+  })();
+  const fillOpacityValue = (() => {
+    const first = Math.round(selected[0].fillOpacity * 100);
+    return selected.every((el) => Math.round(el.fillOpacity * 100) === first)
+      ? first
+      : null;
+  })();
   const radiusValue = (() => {
     const rects = selected.filter((el) => el.type === "rectangle");
     if (rects.length === 0) return null;
@@ -586,7 +571,14 @@ export function PropertiesPanel() {
             current={selected[0].strokeColor}
             onPick={(strokeColor) => apply({ strokeColor })}
             label="Stroke color"
-            auto="auto"
+          />
+          <MiniSlider
+            value={strokeOpacityValue ?? 100}
+            min={0}
+            max={100}
+            step={5}
+            ariaLabel="Stroke opacity"
+            onChange={(v) => apply({ strokeOpacity: v / 100 })}
           />
         </Group>
 
@@ -596,6 +588,14 @@ export function PropertiesPanel() {
                 current={selected[0].backgroundColor}
                 onPick={(backgroundColor) => apply({ backgroundColor })}
                 label="Fill"
+              />
+              <MiniSlider
+                value={fillOpacityValue ?? 100}
+                min={0}
+                max={100}
+                step={5}
+                ariaLabel="Fill opacity"
+                onChange={(v) => apply({ fillOpacity: v / 100 })}
               />
             </Group>
           )}
@@ -794,7 +794,6 @@ export function PropertiesPanel() {
               current={textColorValue ?? "\u0000"}
               onPick={(textColor) => apply({ textColor })}
               label="Text color"
-              auto={selected[0].strokeColor}
             />
           </Group>
 
