@@ -33,6 +33,7 @@ import {
   SunIcon,
 } from "./icons";
 import { toast } from "../toasts";
+import { MOD } from "../platform";
 
 const SKIN_OPTIONS: { id: SkinPref; label: string; icon: ReactNode }[] = [
   { id: "midnight", label: "Midnight", icon: <MoonIcon size={14} /> },
@@ -68,12 +69,14 @@ function MenuItem({
   active = false,
   onClick,
   className,
+  shortcut,
 }: {
   label: string;
   icon?: ReactNode;
   active?: boolean;
   onClick: () => void;
   className?: string;
+  shortcut?: string;
 }) {
   return (
     <button
@@ -82,7 +85,12 @@ function MenuItem({
     >
       <span className="menu-item-icon">{icon}</span>
       <span className="menu-item-label">{label}</span>
-      <span className="menu-item-check">{active && <CheckIcon size={12} />}</span>
+      {shortcut && <span className="menu-item-shortcut">{shortcut}</span>}
+      {active && (
+        <span className="menu-item-check">
+          <CheckIcon size={12} />
+        </span>
+      )}
     </button>
   );
 }
@@ -202,11 +210,13 @@ export function AppMenu({
               <MenuItem
                 label="Open"
                 icon={<OpenIcon size={14} />}
+                shortcut={`${MOD}+O`}
                 onClick={() => fileInputRef.current?.click()}
               />
               <MenuItem
                 label="Save…"
                 icon={<SaveIcon size={14} />}
+                shortcut={`${MOD}+S`}
                 onClick={() => {
                   onSave();
                   close();

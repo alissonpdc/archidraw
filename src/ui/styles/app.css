@@ -364,6 +364,12 @@ button {
   flex: 1;
 }
 
+.menu-item-shortcut {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
 .menu-item-check {
   width: 14px;
   height: 14px;
