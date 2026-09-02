@@ -12,7 +12,8 @@ import {
 } from "../theme";
 import { getGridMode, setGridMode, subscribeGrid, type GridMode } from "../viewPrefs";
 import {
-  BG_PALETTE,
+  BG_PALETTE_LIGHT,
+  BG_PALETTE_DARK,
   getBgColor,
   setBgColor,
   subscribeBgColor,
@@ -226,20 +227,23 @@ export function AppMenu() {
             </MenuSection>
 
             <MenuSection title="Appearance">
-              <div className="menu-mode-group">
-                {THEME_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    className={`menu-mode-btn ${themePref === opt.id ? "active" : ""}`}
-                    title={opt.label}
-                    onClick={() => {
-                      applyThemePref(opt.id);
-                      setThemePref(opt.id);
-                    }}
-                  >
-                    {opt.icon}
-                  </button>
-                ))}
+              <div className="menu-mode-row">
+                <span className="menu-mode-label">Mode</span>
+                <div className="menu-mode-icons">
+                  {THEME_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      className={`menu-mode-icon ${themePref === opt.id ? "active" : ""}`}
+                      title={opt.label}
+                      onClick={() => {
+                        applyThemePref(opt.id);
+                        setThemePref(opt.id);
+                      }}
+                    >
+                      {opt.icon}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <MenuSubmenu
@@ -268,15 +272,17 @@ export function AppMenu() {
               <div className="menu-bg-palette">
                 <div className="menu-bg-label">Background</div>
                 <div className="menu-bg-grid">
-                  {BG_PALETTE.map((c) => (
-                    <button
-                      key={c.id}
-                      className={`menu-bg-swatch ${bgColor === c.id ? "active" : ""}`}
-                      style={{ backgroundColor: c.id }}
-                      title={c.label}
-                      onClick={() => setBgColor(bgColor === c.id ? null : c.id)}
-                    />
-                  ))}
+                  {(themePref === "dark" ? BG_PALETTE_DARK : BG_PALETTE_LIGHT).map(
+                    (c) => (
+                      <button
+                        key={c.id}
+                        className={`menu-bg-swatch ${bgColor === c.id ? "active" : ""}`}
+                        style={{ backgroundColor: c.id }}
+                        title={c.label}
+                        onClick={() => setBgColor(bgColor === c.id ? null : c.id)}
+                      />
+                    ),
+                  )}
                 </div>
               </div>
 

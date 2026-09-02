@@ -4,17 +4,20 @@ export type BgColor = string; // hex like "#ffffff"
 
 const KEY = "archidraw:bg-color";
 
-export const BG_PALETTE: { id: BgColor; label: string }[] = [
+export const BG_PALETTE_LIGHT: { id: BgColor; label: string }[] = [
   { id: "#ffffff", label: "White" },
   { id: "#f6f7f8", label: "Cool Gray" },
-  { id: "#f7f2ea", label: "Warm Cream" },
+  { id: "#f7f2ea", label: "Cream" },
   { id: "#edf1f7", label: "Ice Blue" },
   { id: "#f0f0ee", label: "Parchment" },
-  { id: "#e8e8e6", label: "Silver" },
-  { id: "#d4d4d4", label: "Ash" },
-  { id: "#15181c", label: "Charcoal" },
+];
+
+export const BG_PALETTE_DARK: { id: BgColor; label: string }[] = [
   { id: "#1d2126", label: "Dark" },
+  { id: "#15181c", label: "Charcoal" },
   { id: "#0b0d11", label: "Jet" },
+  { id: "#1a1d22", label: "Slate" },
+  { id: "#262b31", label: "Graphite" },
 ];
 
 function load(): BgColor | null {

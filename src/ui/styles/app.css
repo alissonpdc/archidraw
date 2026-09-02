@@ -374,33 +374,45 @@ button {
   flex-shrink: 0;
 }
 
-/* ---- mode button group (Appearance > Mode) ---- */
-.menu-mode-group {
+/* ---- mode row (Appearance > Mode) ---- */
+.menu-mode-row {
   display: flex;
-  gap: 2px;
-  padding: var(--space-1) var(--space-3);
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-2);
 }
 
-.menu-mode-btn {
-  flex: 1;
+.menu-mode-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.menu-mode-icons {
+  display: flex;
+  gap: 4px;
+}
+
+.menu-mode-icon {
+  width: 20px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 28px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
   border-radius: var(--radius-sm);
   cursor: pointer;
+  padding: 0;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.menu-mode-btn:hover {
+.menu-mode-icon:hover {
   background: var(--bg-surface-hover);
   color: var(--text-primary);
 }
 
-.menu-mode-btn.active {
+.menu-mode-icon.active {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
