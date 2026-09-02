@@ -3,9 +3,9 @@ import { test, expect, drag, selectTool, open } from "../fixtures";
 test.describe("history", () => {
   test.beforeEach(async ({ page }) => {
     await open(page);
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 200 });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
   });
 
   test("undo removes created element", async ({ page, editorState }) => {

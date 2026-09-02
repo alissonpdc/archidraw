@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 
 ui-audit/
+.worktrees

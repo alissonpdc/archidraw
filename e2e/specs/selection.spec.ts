@@ -3,7 +3,7 @@ import { test, expect, drag, selectTool, open } from "../fixtures";
 async function createRectangles(page: any) {
   // rect A sits right of the properties panel strip (x < ~200), which
   // overlays the left side of the canvas while a shape is selected
-  await selectTool(page, "r");
+  await selectTool(page, "2");
   await drag(page, { x: 220, y: 100 }, { x: 340, y: 180 }); // rect A
   await drag(page, { x: 300, y: 300 }, { x: 420, y: 400 }); // rect B
 }
@@ -12,7 +12,7 @@ test.describe("selection", () => {
   test.beforeEach(async ({ page }) => {
     await open(page);
     await createRectangles(page);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
   });
 
   test("click selects an element", async ({ page, editorState }) => {

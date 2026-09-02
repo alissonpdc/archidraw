@@ -164,7 +164,7 @@ test.describe("ui widgets", () => {
 
     // swiss active states invert to ink (not accent); retry until the
     // 120ms background transition settles
-    await page.keyboard.press("v");
+    await page.keyboard.press("1");
     const activeTool = page.locator(".toolbar .tool-btn.active");
     await expect(activeTool).toHaveCSS("background-color", "rgb(17, 17, 17)");
     await expect(activeTool).toHaveCSS("color", "rgb(255, 255, 255)");
@@ -203,33 +203,36 @@ test.describe("ui widgets", () => {
     await expect(gridSubmenu.locator(".menu-item.active")).toHaveText(/Lines/);
   });
 
-  test("new elements use theme-aware stroke color", async ({ page }) => {
+  test("new elements keep a stable default stroke that adapts to the theme", async ({
+    page,
+  }) => {
     await open(page);
 
-    // force dark theme, create a rectangle, check its stroke
+    // force dark theme, create a rectangle — stored color is the sentinel,
+    // the renderer re-resolves it to the active theme at paint time
     await page.evaluate(() => {
       document.documentElement.dataset.theme = "dark";
     });
-    await page.keyboard.press("r");
+    await page.keyboard.press("2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
 
     const stroke = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[0].strokeColor;
     });
-    expect(stroke).toBe("#e2e7ee");
+    expect(stroke).toBe("#3d4248");
 
-    // back to light theme: new elements are dark again
+    // back to light theme: storage is still theme-independent
     await page.evaluate(() => {
       document.documentElement.dataset.theme = "light";
     });
-    await page.keyboard.press("a");
+    await page.keyboard.press("6");
     await drag(page, { x: 300, y: 300 }, { x: 420, y: 400 });
     const stroke2 = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
       return s.doc.elements[1].strokeColor;
     });
-    expect(stroke2).toBe("#1a2028");
+    expect(stroke2).toBe("#3d4248");
   });
 
   test("empty state hint shows on empty canvas and hides after creating", async ({
@@ -238,7 +241,7 @@ test.describe("ui widgets", () => {
     await open(page);
     await expect(page.locator(".empty-state")).toBeVisible();
 
-    await page.keyboard.press("r");
+    await page.keyboard.press("2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
     await expect(page.locator(".empty-state")).toHaveCount(0);
   });
@@ -246,9 +249,11 @@ test.describe("ui widgets", () => {
   test("export shows a toast", async ({ page }) => {
     await open(page);
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save…" }).click();
+    await page.getByRole("button", { name: "Save All" }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
 
-    await expect(page.locator(".toast")).toHaveText(/Workspace exported/);
+    await expect(page.locator(".toast")).toHaveText(/Workspace saved/);
   });
 
   test("status bar shows shortcuts link", async ({ page }) => {
@@ -273,7 +278,7 @@ test.describe("ui widgets", () => {
     await expect(page.locator(".shortcuts-modal")).toHaveCount(0);
 
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: /Keyboard shortcuts/ }).click();
+    await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
     await expect(page.locator(".shortcuts-modal")).toBeVisible();
     await page.locator(".modal-backdrop").click({ position: { x: 5, y: 5 } });
     await expect(page.locator(".shortcuts-modal")).toHaveCount(0);
@@ -283,12 +288,12 @@ test.describe("ui widgets", () => {
     page,
   }) => {
     await open(page);
-    await page.keyboard.press("r");
+    await page.keyboard.press("2");
     await page.mouse.move(100, 100);
     await page.mouse.down();
     await page.mouse.move(220, 180, { steps: 5 });
     await page.mouse.up();
-    await page.keyboard.press("v");
+    await page.keyboard.press("1");
 
     await page.getByRole("button", { name: "Thickness 4" }).click();
     await page.getByRole("slider", { name: "Stroke opacity" }).fill("50");
@@ -305,9 +310,9 @@ test.describe("ui widgets", () => {
     page,
   }) => {
     await open(page);
-    await page.keyboard.press("r");
+    await page.keyboard.press("2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
-    await page.keyboard.press("v");
+    await page.keyboard.press("1");
 
     await page
       .getByRole("button", { name: "Roughness Draft", exact: true })
@@ -334,9 +339,9 @@ test.describe("ui widgets", () => {
 
   test("custom border preset shows a radius slider", async ({ page }) => {
     await open(page);
-    await page.keyboard.press("r");
+    await page.keyboard.press("2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
-    await page.keyboard.press("v");
+    await page.keyboard.press("1");
 
     // no slider until the custom preset is activated
     await expect(page.getByRole("slider", { name: "Custom rounding" })).toHaveCount(0);
@@ -356,9 +361,9 @@ test.describe("ui widgets", () => {
     page,
   }) => {
     await open(page);
-    await page.keyboard.press("r");
+    await page.keyboard.press("2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
-    await page.keyboard.press("v");
+    await page.keyboard.press("1");
 
     // palette has exactly 10 base colors
     const swatches = page.locator(".panel-group").first().locator(".swatch");
@@ -384,7 +389,7 @@ test.describe("ui widgets", () => {
     page,
   }) => {
     await open(page);
-    await page.keyboard.press("t");
+    await page.keyboard.press("7");
     await page.mouse.click(250, 250);
     const overlay = page.locator(".text-overlay:not(.label-overlay)");
     await overlay.waitFor();
@@ -401,7 +406,7 @@ test.describe("ui widgets", () => {
 
     // shape-only selection: Text tab still shows font size (labels), but
     // verify the panel switches correctly
-    await page.keyboard.press("r");
+    await page.keyboard.press("2");
     await drag(page, { x: 500, y: 500 }, { x: 600, y: 580 });
     await page.locator(".panel-tab", { hasText: "Text" }).click();
     await expect(

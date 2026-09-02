@@ -14,7 +14,7 @@ async function createRect(
   x2: number,
   y2: number,
 ) {
-  await selectTool(page, "r");
+  await selectTool(page, "2");
   await drag(page, { x: x1, y: y1 }, { x: x2, y: y2 });
 }
 
@@ -22,7 +22,7 @@ test.describe("resize handles", () => {
   test("corner handle keeps aspect ratio", async ({ page }) => {
     await open(page);
     await createRect(page, 100, 100, 220, 180);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     // grab SE handle at (220,180) and pull out diagonally
     await drag(page, { x: 220, y: 180 }, { x: 260, y: 215 });
@@ -39,7 +39,7 @@ test.describe("resize handles", () => {
   test("edge handle resizes on a single axis only", async ({ page }) => {
     await open(page);
     await createRect(page, 100, 100, 220, 180);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     // grab E handle (220,140) and pull right+down: width grows, height unchanged
     await drag(page, { x: 220, y: 140 }, { x: 280, y: 200 });
@@ -95,7 +95,7 @@ test.describe("resize handles", () => {
   test("resize is undoable", async ({ page }) => {
     await open(page);
     await createRect(page, 100, 100, 220, 180);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await drag(page, { x: 220, y: 180 }, { x: 260, y: 180 });
     await page.keyboard.press("Control+z");
 
@@ -114,7 +114,7 @@ test.describe("snap guides", () => {
     // overlays the left side of the canvas while a shape is selected
     await createRect(page, 220, 100, 340, 180); // A: centerY 140
     await createRect(page, 300, 300, 420, 400); // B: centerY 350
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(280, 140); // select A
 
     // drop A so its centerY lands 3px above B's (within 4px snap tolerance)
@@ -132,7 +132,7 @@ test.describe("snap guides", () => {
     await open(page);
     await createRect(page, 220, 100, 340, 180);
     await createRect(page, 300, 300, 420, 400);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(280, 140);
 
     await drag(page, { x: 280, y: 140 }, { x: 280, y: 500 });
@@ -150,7 +150,7 @@ test.describe("labels", () => {
     await open(page);
     // right of the properties panel strip (see snap guides note)
     await createRect(page, 220, 100, 340, 180);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     await page.mouse.dblclick(280, 140);
     const overlay = page.locator(".label-overlay");
@@ -170,7 +170,7 @@ test.describe("labels", () => {
     await open(page);
     // right of the properties panel strip (see snap guides note)
     await createRect(page, 220, 100, 340, 180);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.dblclick(280, 140);
     await page.keyboard.type("Temp");
     await page.keyboard.press("Escape");
@@ -190,7 +190,7 @@ test.describe("labels", () => {
 
   test("double-click on empty canvas creates free text", async ({ page }) => {
     await open(page);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.dblclick(600, 600);
     const overlay = page.locator(".text-overlay:not(.label-overlay)");
     await expect(overlay).toBeVisible();
@@ -209,7 +209,7 @@ test.describe("clipboard", () => {
   test("copy/paste duplicates elements", async ({ page }) => {
     await open(page);
     await createRect(page, 100, 100, 220, 180);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(150, 140);
 
     await page.keyboard.press("Control+c");
@@ -235,7 +235,7 @@ test.describe("clipboard", () => {
   test("cut removes and paste restores", async ({ page }) => {
     await open(page);
     await createRect(page, 100, 100, 220, 180);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(150, 140);
 
     await page.keyboard.press("Control+x");
@@ -253,7 +253,7 @@ test.describe("clipboard", () => {
   test("paste works across tabs", async ({ page }) => {
     await open(page);
     await createRect(page, 100, 100, 220, 180);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(150, 140);
     await page.keyboard.press("Control+c");
 

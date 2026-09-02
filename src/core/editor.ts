@@ -1,6 +1,6 @@
 import { History } from "./history";
 import { hitTest, elementsInBounds } from "./hitTest";
-import { parse, serialize } from "./storage";
+import { parse, serialize, serializeSingleTab } from "./storage";
 import { render, type RenderColors } from "./renderer";
 import type {
   ArrowBinding,
@@ -1978,6 +1978,11 @@ export class Editor {
     return serialize(this.tabs, this.activeTabId);
   }
 
+  /** serializes only the active tab as a single-tab workspace */
+  serializeActiveTab(): string {
+    return serializeSingleTab(this.tab);
+  }
+
   /** restores workspace (all tabs) from serialized data; returns false if invalid */
   restoreState(json: string): boolean {
     const data = parse(json);
@@ -1995,6 +2000,23 @@ export class Editor {
     this.interaction = { kind: "none" };
     this.emit();
     return true;
+  }
+
+  /**
+   * Parses a workspace file and adds all its tabs as new diagrams.
+   * Never replaces existing tabs — always additive.
+   * Returns the number of diagrams added, or 0 if the file was invalid.
+   */
+  importAsNewDiagrams(json: string): number {
+    const data = parse(json);
+    if (!data) return 0;
+    const newTabs = data.tabs.map((t) => ({
+      ...t,
+      id: `tab_${Date.now().toString(36)}_${++tabSeq}`,
+    }));
+    this.tabs = [...this.tabs, ...newTabs];
+    this.activateTab(newTabs[0].id);
+    return newTabs.length;
   }
 
   /** imports a Document into the current active tab (used by .excalidraw import) */
@@ -2015,6 +2037,15 @@ export class Editor {
     this.marquee = null;
     this.interaction = { kind: "none" };
     this.emit();
+  }
+
+  /** imports a Document as a new diagram tab (never replaces existing) */
+  importDocumentAsNewDiagram(doc: Document, name: string): string {
+    const id = `tab_${Date.now().toString(36)}_${++tabSeq}`;
+    const tab = { id, name, doc, camera: { scrollX: 0, scrollY: 0, zoom: 1 } };
+    this.tabs = [...this.tabs, tab];
+    this.activateTab(id);
+    return id;
   }
 
   // ---- rendering -------------------------------------------------------

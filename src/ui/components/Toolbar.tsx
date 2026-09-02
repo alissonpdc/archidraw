@@ -1,5 +1,6 @@
 import type { Tool } from "../../core/types";
-import { Fragment, useRef } from "react";
+import type { RefObject } from "react";
+import { Fragment } from "react";
 import { editor, useEditor } from "../hooks/useEditor";
 import {
   ArrowIcon,
@@ -15,25 +16,26 @@ import {
 } from "./icons";
 
 const TOOLS: { id: Tool; label: string; key: string; Icon: typeof SelectionIcon }[] = [
-  { id: "selection", label: "Selection", key: "V", Icon: SelectionIcon },
+  { id: "selection", label: "Selection", key: "1", Icon: SelectionIcon },
   { id: "hand", label: "Hand", key: "H", Icon: HandIcon },
-  { id: "rectangle", label: "Rectangle", key: "R", Icon: RectIcon },
-  { id: "diamond", label: "Diamond", key: "D", Icon: DiamondIcon },
-  { id: "ellipse", label: "Ellipse", key: "E", Icon: EllipseIcon },
-  { id: "line", label: "Line", key: "L", Icon: LineIcon },
-  { id: "arrow", label: "Arrow", key: "A", Icon: ArrowIcon },
-  { id: "text", label: "Text", key: "T", Icon: TextIcon },
+  { id: "rectangle", label: "Rectangle", key: "2", Icon: RectIcon },
+  { id: "diamond", label: "Diamond", key: "3", Icon: DiamondIcon },
+  { id: "ellipse", label: "Ellipse", key: "4", Icon: EllipseIcon },
+  { id: "line", label: "Line", key: "5", Icon: LineIcon },
+  { id: "arrow", label: "Arrow", key: "6", Icon: ArrowIcon },
+  { id: "text", label: "Text", key: "7", Icon: TextIcon },
 ];
 
 export function Toolbar({
   libraryOpen = false,
   onToggleLibrary,
+  imageInputRef,
 }: {
   libraryOpen?: boolean;
   onToggleLibrary?: () => void;
+  imageInputRef: RefObject<HTMLInputElement | null>;
 }) {
   const snap = useEditor();
-  const imageInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="toolbar">
@@ -47,38 +49,29 @@ export function Toolbar({
             onClick={() => editor.setTool(id)}
           >
             <Icon size={18} />
+            <span className="tool-key">{key}</span>
           </button>
         </Fragment>
       ))}
       <div className="toolbar-sep" />
       <button
         className="tool-btn"
-        data-tip="Import Image"
+        data-tip="Import Image (I)"
         aria-label="Import Image"
         onClick={() => imageInputRef.current?.click()}
       >
         <ImageIcon size={18} />
+        <span className="tool-key">I</span>
       </button>
       <button
         className={`tool-btn ${libraryOpen ? "active" : ""}`}
-        data-tip="Component Library (B)"
+        data-tip="Component Library (L)"
         aria-label="Component Library"
         onClick={() => onToggleLibrary?.()}
       >
         <LibraryIcon size={18} />
+        <span className="tool-key">L</span>
       </button>
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        data-testid="image-input"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) editor.insertImage(file);
-          e.target.value = "";
-        }}
-      />
     </div>
   );
 }

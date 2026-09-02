@@ -1,7 +1,7 @@
 import { test, expect, drag, selectTool, open } from "../fixtures";
 
 async function createThreeRectangles(page: any) {
-  await selectTool(page, "r");
+  await selectTool(page, "2");
   // Rect A: x ~220-340
   await drag(page, { x: 220, y: 100 }, { x: 340, y: 180 });
   // Rect B: x ~420-540 (gap from A)
@@ -28,7 +28,7 @@ test.describe("distribute", () => {
   test.beforeEach(async ({ page }) => {
     await open(page);
     await createThreeRectangles(page);
-    await selectTool(page, "v");
+    await selectTool(page, "1");
   });
 
   test("horizontal distribute spaces elements evenly", async ({ page }) => {
@@ -75,11 +75,11 @@ test.describe("distribute", () => {
       ed.deleteSelected();
     });
 
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 300, y: 50 }, { x: 420, y: 130 });   // top
     await drag(page, { x: 300, y: 250 }, { x: 420, y: 330 });  // middle
     await drag(page, { x: 300, y: 500 }, { x: 420, y: 580 });  // bottom
-    await selectTool(page, "v");
+    await selectTool(page, "1");
 
     // Select all 3 via marquee (tight around them)
     await drag(page, { x: 290, y: 40 }, { x: 430, y: 590 });

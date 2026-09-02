@@ -260,7 +260,9 @@ button {
   position: relative;
 }
 
-.menu-btn {
+/* specificity acima de .tool-btn (background transparent + border:none) para o
+   hamburger manter o aspecto de widget: fundo surface, borda e sombra */
+.tool-btn.menu-btn {
   width: 36px;
   height: 34px;
   padding: 0;
@@ -364,6 +366,12 @@ button {
   flex: 1;
 }
 
+.menu-item-shortcut {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
 .menu-item-check {
   width: 14px;
   height: 14px;
@@ -375,21 +383,20 @@ button {
 }
 
 /* ---- mode row (Appearance > Mode) ---- */
-.menu-mode-row {
-  display: flex;
-  align-items: center;
+.menu-mode-wrap {
   padding: var(--space-1) var(--space-3) var(--space-2);
 }
 
 .menu-mode-label {
   font-size: var(--font-size-sm);
   color: var(--text-muted);
+  margin-bottom: var(--space-1);
 }
 
 .menu-mode-icons {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  margin-left: auto;
 }
 
 .menu-mode-icon {
@@ -518,6 +525,18 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.tool-key {
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--text-muted);
+  pointer-events: none;
+  font-weight: 500;
 }
 
 .tool-btn:hover {
@@ -538,6 +557,11 @@ button {
 .tool-btn.active {
   background: var(--accent);
   color: var(--on-accent);
+}
+
+.tool-btn.active .tool-key {
+  color: var(--on-accent);
+  opacity: 0.7;
 }
 
 .toolbar-sep {
@@ -572,11 +596,17 @@ button {
 }
 
 /* ---- panel tabs (Style / Text) ---- */
+/* abas são só o seletor; a separação pra configs fica num divisor próprio
+   (.panel-divider), breathing symmetric via gap do .properties-panel */
 .panel-tabs {
   display: flex;
   gap: 2px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--space-1);
+}
+
+.panel-divider {
+  height: 1px;
+  flex-shrink: 0;
+  background: var(--border);
 }
 
 .panel-tab {
@@ -1215,7 +1245,7 @@ button {
 .shortcuts-body {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 var(--space-4);
+  gap: 0 var(--space-5);
   padding: var(--space-3) var(--space-4);
 }
 
@@ -1224,15 +1254,20 @@ button {
   flex-direction: column;
 }
 
+.shortcuts-column + .shortcuts-column {
+  border-left: 1px solid var(--border);
+  padding-left: var(--space-4);
+}
+
 .shortcuts-section {
   display: flex;
   flex-direction: column;
 }
 
-.shortcuts-column:first-child .shortcuts-section {
-  padding-bottom: var(--space-3);
-  margin-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border);
+.shortcuts-section + .shortcuts-section {
+  padding-top: var(--space-3);
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--border);
 }
 
 .shortcuts-section-title {
@@ -1359,8 +1394,9 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  /* usable screen height: vertical scroll only beyond this */
-  max-height: calc(100% - 108px);
+  /* para na altura do .bottom-right (zoom/focus/history): topo 60px + folga
+     de ~12px acima dos controles (H - 48), isto é, H - 60 desde o topo */
+  max-height: calc(100% - 120px);
   overflow: hidden;
 }
 
@@ -1442,6 +1478,8 @@ button {
 }
 
 .library-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden; /* never a horizontal scrollbar */
   scrollbar-width: thin;
@@ -1718,6 +1756,7 @@ button {
 :root[data-skin="blueprint"] .tab-confirm,
 :root[data-skin="blueprint"] .details-modal,
 :root[data-skin="blueprint"] .export-image-modal,
+:root[data-skin="blueprint"] .save-modal,
 :root[data-skin="blueprint"] .library-panel {
   border: 1.5px solid var(--text-primary);
   border-radius: var(--radius-md);
@@ -1792,6 +1831,7 @@ button {
 :root[data-skin="swiss"] .tab-confirm,
 :root[data-skin="swiss"] .details-modal,
 :root[data-skin="swiss"] .export-image-modal,
+:root[data-skin="swiss"] .save-modal,
 :root[data-skin="swiss"] .library-panel {
   border: 2px solid var(--text-primary);
   border-radius: 0;
@@ -1981,4 +2021,89 @@ button {
 
 .btn-primary:hover {
   opacity: 0.9;
+}
+
+/* ---- save modal -------------------------------------------------------- */
+
+.save-modal {
+  width: min(380px, calc(100vw - 48px));
+  max-height: min(400px, calc(100vh - 48px));
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.save-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.save-modal-body {
+  padding: var(--space-4);
+}
+
+.save-modal-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-3);
+}
+
+.save-modal-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.save-modal-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.save-modal-option:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.save-modal-option.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.save-modal-option-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.save-modal-option-desc {
+  font-size: 11px;
+  opacity: 0.7;
+  text-align: center;
+}
+
+.save-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
 }

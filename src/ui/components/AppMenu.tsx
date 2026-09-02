@@ -1,6 +1,5 @@
-import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { editor, useEditor } from "../hooks/useEditor";
-import { slugify } from "../../core/exporter";
+import { useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { editor } from "../hooks/useEditor";
 import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
   applySkinPref,
@@ -34,6 +33,7 @@ import {
   SunIcon,
 } from "./icons";
 import { toast } from "../toasts";
+import { MOD } from "../platform";
 
 const SKIN_OPTIONS: { id: SkinPref; label: string; icon: ReactNode }[] = [
   { id: "midnight", label: "Midnight", icon: <MoonIcon size={14} /> },
@@ -69,12 +69,14 @@ function MenuItem({
   active = false,
   onClick,
   className,
+  shortcut,
 }: {
   label: string;
   icon?: ReactNode;
   active?: boolean;
   onClick: () => void;
   className?: string;
+  shortcut?: string;
 }) {
   return (
     <button
@@ -83,7 +85,12 @@ function MenuItem({
     >
       <span className="menu-item-icon">{icon}</span>
       <span className="menu-item-label">{label}</span>
-      <span className="menu-item-check">{active && <CheckIcon size={12} />}</span>
+      {shortcut && <span className="menu-item-shortcut">{shortcut}</span>}
+      {active && (
+        <span className="menu-item-check">
+          <CheckIcon size={12} />
+        </span>
+      )}
     </button>
   );
 }
@@ -115,8 +122,15 @@ function MenuSubmenu({
   );
 }
 
-export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
-  const snap = useEditor();
+export function AppMenu({
+  onExportImage,
+  onSave,
+  fileInputRef,
+}: {
+  onExportImage: () => void;
+  onSave: () => void;
+  fileInputRef: RefObject<HTMLInputElement | null>;
+}) {
   const [open, setOpen] = useState(false);
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
   const [skinPref, setSkinPref] = useState<SkinPref>(() => loadSkinPref());
@@ -124,7 +138,6 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
   const bgColor = useSyncExternalStore(subscribeBgColor, getBgColor);
   const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
   const [gridSubmenuOpen, setGridSubmenuOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // resolve the actual theme when pref is "system"
   const resolvedIsDark =
@@ -135,28 +148,10 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
           window.matchMedia("(prefers-color-scheme: dark)").matches)));
   const bgPalette = resolvedIsDark ? BG_PALETTE_DARK : BG_PALETTE_LIGHT;
 
-  const activeName =
-    snap.tabs.find((t) => t.id === snap.activeTabId)?.name ?? "diagram";
-  const filename = slugify(activeName);
-
   const close = () => {
     setOpen(false);
     setThemeSubmenuOpen(false);
     setGridSubmenuOpen(false);
-  };
-
-  const exportJSON = () => {
-    const blob = new Blob([editor.serializeState()], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename}.archidraw`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast("Workspace exported");
-    close();
   };
 
   const onImportFile = async (file: File | undefined) => {
@@ -168,8 +163,9 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
     if (name.endsWith(".excalidraw")) {
       try {
         const doc = parseExcalidrawScene(text);
-        editor.importDocument(doc);
-        toast(`"${file.name}" imported`);
+        const baseName = file.name.replace(/\.excalidraw$/i, "");
+        editor.importDocumentAsNewDiagram(doc, baseName);
+        toast(`"${baseName}" imported`);
       } catch {
         toast("Invalid .excalidraw file — import cancelled");
       }
@@ -178,8 +174,16 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
     }
 
     // ArchiDraw format (.archidraw or .archidraw.json)
-    if (editor.restoreState(text)) {
-      toast(`"${file.name}" imported`);
+    const count = editor.importAsNewDiagrams(text);
+    if (count > 0) {
+      const baseName = file.name.replace(/\.archidraw(\.json)?$/i, "");
+      // rename the first imported tab to the filename if it was the default name
+      const snap = editor.getSnapshot();
+      const first = snap.tabs.find((t) => t.id === snap.activeTabId);
+      if (first && /^Diagram \d+$/.test(first.name)) {
+        editor.renameTab(first.id, baseName);
+      }
+      toast(`${count} diagram(s) imported`);
     } else {
       toast("Invalid file — import cancelled");
     }
@@ -206,12 +210,17 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
               <MenuItem
                 label="Open"
                 icon={<OpenIcon size={14} />}
+                shortcut={`${MOD}+O`}
                 onClick={() => fileInputRef.current?.click()}
               />
               <MenuItem
-                label="Save"
+                label="Save…"
                 icon={<SaveIcon size={14} />}
-                onClick={exportJSON}
+                shortcut={`${MOD}+S`}
+                onClick={() => {
+                  onSave();
+                  close();
+                }}
               />
               <MenuItem
                 label="Export Image…"
@@ -224,8 +233,8 @@ export function AppMenu({ onExportImage }: { onExportImage: () => void }) {
             </MenuSection>
 
             <MenuSection title="Appearance">
-              <div className="menu-mode-row">
-                <span className="menu-mode-label">Mode</span>
+              <div className="menu-mode-wrap">
+                <div className="menu-mode-label">Mode</div>
                 <div className="menu-mode-icons">
                   {THEME_OPTIONS.map((opt) => (
                     <button

@@ -23,7 +23,7 @@ test.describe("focus mode", () => {
     await page.getByRole("button", { name: "Focus" }).click();
     await expect(page.locator(".toolbar")).toHaveCount(0);
 
-    await page.keyboard.press("a");
+    await page.keyboard.press("1");
 
     // UI controls reappear
     await expect(page.locator(".toolbar")).toBeVisible();
@@ -47,12 +47,12 @@ test.describe("focus mode", () => {
     editorState,
   }) => {
     // create a rectangle first
-    await page.keyboard.press("r");
+    await page.keyboard.press("2");
     await page.mouse.move(200, 200);
     await page.mouse.down();
     await page.mouse.move(300, 280, { steps: 5 });
     await page.mouse.up();
-    await page.keyboard.press("v");
+    await page.keyboard.press("1");
 
     const before = await editorState();
     expect(before.elementCount).toBe(1);

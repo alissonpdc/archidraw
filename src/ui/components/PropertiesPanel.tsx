@@ -574,6 +574,7 @@ export function PropertiesPanel() {
           Layers
         </button>
       </div>
+      <div className="panel-divider" />
 
       <div ref={styleRef} className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
         <Group title="Stroke">

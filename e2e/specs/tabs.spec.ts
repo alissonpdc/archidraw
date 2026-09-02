@@ -13,7 +13,7 @@ test.describe("tabs", () => {
   });
 
   test("addTab creates and activates a new tab", async ({ page, editorState }) => {
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
 
     await page.evaluate(() => window.__editor__.addTab());
@@ -27,7 +27,7 @@ test.describe("tabs", () => {
 
   test("elements are isolated per tab", async ({ page, editorState }) => {
     // tab 1: one rectangle
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
 
     const first = await editorState();
@@ -35,7 +35,7 @@ test.describe("tabs", () => {
 
     // tab 2: one arrow
     await page.evaluate(() => window.__editor__.addTab());
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await drag(page, { x: 300, y: 300 }, { x: 450, y: 400 });
 
     let s = await editorState();
@@ -143,7 +143,7 @@ test.describe("tabs", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
     await page.click('[data-testid="tab-close-Diagram 1"]');
 
@@ -171,7 +171,7 @@ test.describe("tabs", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
     await page.evaluate(() => {
       const ed = window.__editor__;
@@ -187,7 +187,7 @@ test.describe("tabs", () => {
     page,
     editorState,
   }) => {
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 }); // rect in tab 1
     await page.click('[data-testid="tab-add"]'); // Diagram 2 active
 

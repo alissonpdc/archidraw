@@ -13,8 +13,9 @@ function readThemeColors(): RenderColors & { elementStroke: string } {
   return {
     selection: style.getPropertyValue("--selection-color").trim() || "#6965db",
     elementStroke: style.getPropertyValue("--element-stroke").trim() || "#3d4248",
-    gridDot: style.getPropertyValue("--grid-dot").trim() || "rgba(0,0,0,0.14)",
-    gridLine: style.getPropertyValue("--grid-line").trim() || "rgba(0,0,0,0.07)",
+    gridDot: style.getPropertyValue("--grid-dot").trim() || "rgba(0,0,0,0.07)",
+    gridLine: style.getPropertyValue("--grid-line").trim() || "rgba(0,0,0,0.05)",
+    gridLineMaster: style.getPropertyValue("--grid-line-master").trim() || "rgba(0,0,0,0.07)",
     // label plates must always match the live canvas background
     canvasBg: style.getPropertyValue("--bg-canvas").trim() || "#ffffff",
     // muted gray for the details badge ("i" icon)
@@ -134,6 +135,7 @@ export function CanvasHost() {
       elementStroke: colors.elementStroke,
       gridDot: colors.gridDot,
       gridLine: colors.gridLine,
+      gridLineMaster: colors.gridLineMaster,
       canvasBg: colors.canvasBg,
       muted: colors.muted,
     };
@@ -331,9 +333,10 @@ export function CanvasHost() {
           // click creates a text element (otherwise it blurs the new overlay)
           if (snap.tool === "text") e.preventDefault();
           e.currentTarget.setPointerCapture(e.pointerId);
+          // no `defaultStroke`: new shapes keep the DEFAULT_STROKE sentinel so
+          // the renderer re-resolves them to the active theme's element stroke
           editor.pointerDown(toPoint(e), e.button, {
             shift: e.shiftKey,
-            defaultStroke: colors.elementStroke,
           });
         }}
         onPointerMove={(e) => {
@@ -372,9 +375,9 @@ export function CanvasHost() {
           </svg>
           <div className="empty-title">Empty canvas — click and drag to create</div>
           <div className="empty-keys">
-            <span><kbd>R</kbd> rectangle</span>
-            <span><kbd>A</kbd> arrow</span>
-            <span><kbd>T</kbd> text</span>
+            <span><kbd>2</kbd> rectangle</span>
+            <span><kbd>6</kbd> arrow</span>
+            <span><kbd>7</kbd> text</span>
             <span><kbd>?</kbd> shortcuts</span>
           </div>
         </div>

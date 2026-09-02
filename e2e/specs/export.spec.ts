@@ -1,7 +1,7 @@
 import { test, expect, drag, selectTool, open } from "../fixtures";
 
 async function createRect(page: import("@playwright/test").Page) {
-  await selectTool(page, "r");
+  await selectTool(page, "2");
   await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
 }
 
@@ -14,7 +14,9 @@ test.describe("export / import", () => {
   test("export .archidraw downloads a valid workspace file", async ({ page }) => {
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save…" }).click();
+    await page.getByRole("button", { name: "Save Diagram" }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     const download = await downloadPromise;
 
     expect(download.suggestedFilename()).toMatch(/\.archidraw$/);
@@ -34,7 +36,9 @@ test.describe("export / import", () => {
     // export first
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save…" }).click();
+    await page.getByRole("button", { name: "Save Diagram" }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     const download = await downloadPromise;
     const path = await download.path();
 
@@ -63,7 +67,7 @@ test.describe("export / import", () => {
           };
         }),
       )
-      .toEqual({ n: 1, type: "rectangle", tabs: 1 });
+      .toEqual({ n: 1, type: "rectangle", tabs: 2 });
   });
 
   test("import .excalidraw file creates elements on canvas", async ({ page }) => {

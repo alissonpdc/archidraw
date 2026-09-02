@@ -10,7 +10,7 @@ async function firstElement(page: import("@playwright/test").Page) {
 test.describe("path types for lines and arrows", () => {
   test("line defaults to straight", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
     const el = await firstElement(page);
     expect(el.lineType ?? "straight").toBe("straight");
@@ -18,7 +18,7 @@ test.describe("path types for lines and arrows", () => {
 
   test("arrow defaults to straight", async ({ page }) => {
     await open(page);
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await drag(page, { x: 200, y: 300 }, { x: 500, y: 300 });
     const el = await firstElement(page);
     expect(el.lineType ?? "straight").toBe("straight");
@@ -26,7 +26,7 @@ test.describe("path types for lines and arrows", () => {
 
   test("line can be switched to curved via updateElements", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
@@ -39,7 +39,7 @@ test.describe("path types for lines and arrows", () => {
 
   test("line can be switched to auto via updateElements", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
@@ -52,14 +52,14 @@ test.describe("path types for lines and arrows", () => {
 
   test("curved line renders with a control point", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 300 }, { x: 500, y: 300 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
       ed.updateElements([el.id], { lineType: "curved" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     // select the line
     await page.mouse.click(350, 300);
     // the control point handle should be visible; cursor should be "move" near it
@@ -80,7 +80,7 @@ test.describe("path types for lines and arrows", () => {
 
   test("curved arrow persists control point after reload", async ({ page }) => {
     await open(page);
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await drag(page, { x: 200, y: 300 }, { x: 500, y: 300 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
@@ -101,7 +101,7 @@ test.describe("path types for lines and arrows", () => {
 
   test("auto line with bend points persists after reload", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
@@ -122,10 +122,10 @@ test.describe("path types for lines and arrows", () => {
 
   test("undo reverts path type change via UI", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
     // select the line
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(350, 200);
     // change path type via the UI button (curved)
     const curvedBtn = page.locator('button[aria-label="Line Curved"]');
@@ -139,14 +139,14 @@ test.describe("path types for lines and arrows", () => {
 
   test("label follows curved path of a line", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 300 }, { x: 500, y: 300 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
       ed.updateElements([el.id], { lineType: "curved" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.dblclick(350, 300);
     await page.keyboard.type("c");
     await page.keyboard.press("Escape");
@@ -156,14 +156,14 @@ test.describe("path types for lines and arrows", () => {
 
   test("auto line: hovering a segment shows a drag cursor per orientation", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
       ed.updateElements([el.id], { lineType: "auto" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(350, 200); // select the line
     // horizontal segment (the L's top edge): vertical drag cursor
     await page.mouse.move(350, 200);
@@ -181,14 +181,14 @@ test.describe("path types for lines and arrows", () => {
 
   test("auto line: clicking a segment without dragging adds no bend", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
       ed.updateElements([el.id], { lineType: "auto" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(350, 200); // select
     await page.mouse.click(350, 200); // click the segment, no drag
     const el = await firstElement(page);
@@ -197,14 +197,14 @@ test.describe("path types for lines and arrows", () => {
 
   test("auto line: dragging the horizontal segment adjusts the L height", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
       ed.updateElements([el.id], { lineType: "auto" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(350, 200); // select
     // drag the horizontal segment down 60px: L becomes an orthogonal Z
     await drag(page, { x: 350, y: 200 }, { x: 350, y: 260 });
@@ -218,14 +218,14 @@ test.describe("path types for lines and arrows", () => {
 
   test("auto line: dragging the vertical segment adjusts the L width", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
       ed.updateElements([el.id], { lineType: "auto" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(500, 300); // select
     // drag the vertical segment right 60px: vertical edge slides, horizontal
     // stub reconnects to the tip
@@ -240,14 +240,14 @@ test.describe("path types for lines and arrows", () => {
 
   test("auto line: undo reverts a segment drag", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
       ed.updateElements([el.id], { lineType: "auto" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(350, 200); // select
     await drag(page, { x: 350, y: 200 }, { x: 350, y: 260 });
     await page.keyboard.press("Control+z");
@@ -258,17 +258,17 @@ test.describe("path types for lines and arrows", () => {
   /** two rectangles + an auto arrow with both endpoints bound to them */
   async function boundAutoArrow(page: import("@playwright/test").Page) {
     await open(page);
-    await selectTool(page, "r");
+    await selectTool(page, "2");
     await drag(page, { x: 100, y: 100 }, { x: 200, y: 200 });
     await drag(page, { x: 400, y: 300 }, { x: 500, y: 400 });
-    await selectTool(page, "a");
+    await selectTool(page, "6");
     await drag(page, { x: 250, y: 150 }, { x: 350, y: 350 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const arrow = ed.getSnapshot().doc.elements[2];
       ed.updateElements([arrow.id], { lineType: "auto" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     // drag each endpoint onto a shape edge to bind it
     await drag(page, { x: 250, y: 150 }, { x: 210, y: 150 });
     await drag(page, { x: 350, y: 350 }, { x: 390, y: 350 });
@@ -321,14 +321,14 @@ test.describe("path types for lines and arrows", () => {
 
   test("auto line: magnet snaps a dragged segment onto a parallel one", async ({ page }) => {
     await open(page);
-    await selectTool(page, "l");
+    await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements[0];
       ed.updateElements([el.id], { lineType: "auto" });
     });
-    await selectTool(page, "v");
+    await selectTool(page, "1");
     await page.mouse.click(350, 200); // select
     // drag the vertical segment until it is 4px off the start x: the magnet
     // snaps it exactly onto x=200 and the path straightens

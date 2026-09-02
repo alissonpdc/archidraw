@@ -1,16 +1,20 @@
 import type { Element } from "./types";
 import type { RenderColors } from "./renderer";
+import { themeColor } from "./color";
 
 const DEFAULT_FONT_FAMILY = '"Segoe UI", system-ui, sans-serif';
 const DEFAULT_LINE_HEIGHT = 1.25;
 
 /** resolve the effective text color: element's textColor → strokeColor → theme */
-export function resolveTextColor(el: Element, _colors: RenderColors): string {
+export function resolveTextColor(el: Element, colors: RenderColors): string {
   const tc = el.textColor && el.textColor !== "" ? el.textColor : null;
+  let color: string;
   if (!tc) {
-    return el.strokeColor === "" ? "transparent" : el.strokeColor;
+    color = el.strokeColor === "" ? "transparent" : el.strokeColor;
+  } else {
+    color = tc;
   }
-  return tc;
+  return themeColor(color, colors.elementStroke, colors.canvasBg);
 }
 
 /** build a CSS font string from element text props */

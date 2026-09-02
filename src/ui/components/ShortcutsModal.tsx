@@ -7,15 +7,24 @@ type ShortcutGroup = { title: string; items: ShortcutItem[] };
 const TOOLS: ShortcutGroup = {
   title: "Tools",
   items: [
-    { keys: "V", desc: "Selection" },
+    { keys: "1", desc: "Selection" },
     { keys: "H", desc: "Hand" },
-    { keys: "R", desc: "Rectangle" },
-    { keys: "D", desc: "Diamond" },
-    { keys: "E", desc: "Ellipse" },
-    { keys: "L", desc: "Line" },
-    { keys: "A", desc: "Arrow" },
-    { keys: "T", desc: "Text" },
-    { keys: "B", desc: "Library" },
+    { keys: "2", desc: "Rectangle" },
+    { keys: "3", desc: "Diamond" },
+    { keys: "4", desc: "Ellipse" },
+    { keys: "5", desc: "Line" },
+    { keys: "6", desc: "Arrow" },
+    { keys: "7", desc: "Text" },
+    { keys: "I", desc: "Import image" },
+    { keys: "L", desc: "Library" },
+  ],
+};
+
+const FILE: ShortcutGroup = {
+  title: "File",
+  items: [
+    { keys: `${MOD}+S`, desc: "Save" },
+    { keys: `${MOD}+O`, desc: "Open" },
   ],
 };
 
@@ -87,6 +96,7 @@ export function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () =
         <div className="shortcuts-body">
           <div className="shortcuts-column">
             <Section group={TOOLS} />
+            <Section group={FILE} />
           </div>
           <div className="shortcuts-column">
             <Section group={CANVAS} />
