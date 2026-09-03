@@ -125,6 +125,65 @@ test.describe("export / import", () => {
       .toEqual({ n: 1, type: "rectangle", x: 50 });
   });
 
+  test("import .excalidraw preserves element opacity (0-100 -> 0-1)", async ({
+    page,
+  }) => {
+    // regression: shapes imported from .excalidraw with opacity < 100 used to
+    // arrive with fillOpacity/strokeOpacity hard-coded to 1, so the renderer
+    // ignored the original opacity entirely.
+    const excalidrawFile = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "https://excalidraw.com",
+      elements: [
+        {
+          id: "exc_rect_half",
+          type: "rectangle",
+          x: 10,
+          y: 10,
+          width: 100,
+          height: 60,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "#a5d8ff",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 50,
+          roundness: { type: 3 },
+          seed: 1,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+        },
+      ],
+      appState: { gridSize: 20, viewBackgroundColor: "" },
+      files: {},
+    });
+
+    await page.setInputFiles('[data-testid="import-input"]', {
+      name: "half-opacity.excalidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(excalidrawFile),
+    });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const el = window.__editor__.getSnapshot().doc.elements[0];
+          return {
+            opacity: el?.opacity,
+            fillOpacity: el?.fillOpacity,
+            strokeOpacity: el?.strokeOpacity,
+          };
+        }),
+      )
+      .toEqual({ opacity: 0.5, fillOpacity: 0.5, strokeOpacity: 0.5 });
+  });
+
   test("import .archidraw.json (legacy extension) also works", async ({ page }) => {
     const workspace = JSON.stringify({
       schemaVersion: 2,
