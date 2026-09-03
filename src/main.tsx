@@ -13,6 +13,7 @@ import {
 } from "./ui/theme";
 import { initImportedLibraries } from "./core/importedLibraries";
 import { initImportedImages } from "./core/importedImages";
+import { initCustomLibrary } from "./core/customLibrary";
 import { elementVisualBounds, detailsBadgeAnchor } from "./core/renderer";
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
@@ -31,6 +32,7 @@ applySkinPref(loadSkinPref());
 // ANTES do restore (elementos salvos podem referenciar seus componentIds)
 initImportedLibraries();
 initImportedImages();
+initCustomLibrary();
 
 // restore last session before first render (no flash of empty canvas)
 const saved = loadFromStorage();

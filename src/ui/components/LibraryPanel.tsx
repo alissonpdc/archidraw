@@ -33,6 +33,13 @@ import {
   removeImportedImage,
 } from "../../core/importedImages";
 import type { ImportedImageData } from "../../core/importedImages";
+import {
+  CUSTOM_GROUP_NAME,
+  CUSTOM_LIBRARY_CHANGE,
+  getCustomLibrary,
+  removeCustomItem,
+} from "../../core/customLibrary";
+import type { CustomLibraryItemData } from "../../core/customLibrary";
 
 export const COMPONENT_DND_TYPE = "application/x-archidraw-component";
 
@@ -179,7 +186,9 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [tip, setTip] = useState<TipState | null>(null);
   const [imported, setImported] = useState<ImportedLibrary[]>(getImportedLibraries);
   const [importedImages, setImportedImages] = useState<ImportedImageData[]>(getImportedImages);
+  const [customItems, setCustomItems] = useState<CustomLibraryItemData[]>(getCustomLibrary);
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set());
+  const [customOpen, setCustomOpen] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -192,6 +201,15 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
     return () => {
       unsub();
     };
+  }, []);
+
+  // re-syncs the Custom group when a component is saved/removed via the
+  // context menu (outside React; the module notifies with a window event)
+  useEffect(() => {
+    const onCustomChange = () => setCustomItems(getCustomLibrary());
+    window.addEventListener(CUSTOM_LIBRARY_CHANGE, onCustomChange);
+    return () =>
+      window.removeEventListener(CUSTOM_LIBRARY_CHANGE, onCustomChange);
   }, []);
 
   const close = () => {
@@ -259,6 +277,11 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const onRemoveImportedImage = (id: string) => {
     removeImportedImage(id);
     setImportedImages(getImportedImages());
+  };
+
+  const onRemoveCustom = (id: string) => {
+    removeCustomItem(id);
+    setCustomItems(getCustomLibrary());
   };
 
   // event-delegated tooltips (same pattern as PropertiesPanel)
@@ -503,6 +526,43 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                 </section>
               );
             })}
+            {customItems.length > 0 && (
+              <section
+                className="library-section"
+                data-testid="library-custom"
+              >
+                <SectionHeader
+                  open={customOpen}
+                  onToggle={() => setCustomOpen((v) => !v)}
+                >
+                  <span className="library-group-name">
+                    {CUSTOM_GROUP_NAME}
+                  </span>
+                </SectionHeader>
+                {customOpen && (
+                  <div className="library-subgroup">
+                    <div className="library-grid">
+                      {customItems.map((it) => {
+                        const item = getLibraryItem(it.id);
+                        return item ? (
+                          <div key={item.id} className="library-tile-wrap">
+                            <Tile item={item} onInsert={insert} />
+                            <button
+                              className="library-tile-remove"
+                              aria-label={`Remove ${item.name}`}
+                              data-tip={`Remove ${item.name}`}
+                              onClick={() => onRemoveCustom(item.id)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
       </div>

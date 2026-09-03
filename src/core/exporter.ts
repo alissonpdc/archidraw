@@ -130,9 +130,14 @@ function arrowHeadPoints(tip: { x: number; y: number }, tail: { x: number; y: nu
   return `M ${tip.x} ${tip.y} L ${p1.x} ${p1.y} M ${tip.x} ${tip.y} L ${p2.x} ${p2.y}`;
 }
 
-export function exportSVG(doc: Document, filename: string): boolean {
+/**
+ * SVG markup for a document (scene coordinates, auto-computed viewBox with
+ * padding). Pure string builder — framework-free, shared by the SVG export
+ * and the "Add to Library" feature.
+ */
+export function buildSvgString(doc: Document): string | null {
   const bounds = unionBounds(doc.elements);
-  if (!bounds) return false;
+  if (!bounds) return null;
 
   const w = bounds.x2 - bounds.x1 + EXPORT_PADDING * 2;
   const h = bounds.y2 - bounds.y1 + EXPORT_PADDING * 2;
@@ -247,6 +252,13 @@ export function exportSVG(doc: Document, filename: string): boolean {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${bounds.x1 - EXPORT_PADDING} ${bounds.y1 - EXPORT_PADDING} ${w} ${h}">
 ${parts.map((p) => `  ${p}`).join("\n")}
 </svg>`;
+
+  return svg;
+}
+
+export function exportSVG(doc: Document, filename: string): boolean {
+  const svg = buildSvgString(doc);
+  if (!svg) return false;
 
   downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `${filename}.svg`);
   return true;
