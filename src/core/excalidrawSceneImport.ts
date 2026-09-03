@@ -68,6 +68,12 @@ function mapRoughness(r: number | undefined): 0 | 1 | 2 | 3 {
   return 3;
 }
 
+function mapFillStyle(s: string | undefined): "solid" | "hachure" | "cross-hachure" {
+  if (s === "hachure") return "hachure";
+  if (s === "cross-hatch") return "cross-hachure";
+  return "solid";
+}
+
 function mapBinding(
   binding: ExcalidrawSceneElement["startBinding"],
 ): ArrowBinding | undefined {
@@ -104,6 +110,7 @@ function convertElement(
     strokeOpacity: 1,
     fillOpacity: 1,
     strokeStyle: toExcalidrawStrokeStyle(el.strokeStyle),
+    fillStyle: mapFillStyle(el.fillStyle),
     roughness: mapRoughness(el.roughness),
     borderRadius: el.roundness
       ? Math.round(((el.roundness.value ?? 0.25) * 100))

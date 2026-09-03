@@ -60,9 +60,10 @@ function nextSeed(): number {
 }
 
 function mapFillStyle(
-  bg: string,
+  el: Element,
 ): "solid" | "hachure" | "cross-hatch" {
-  if (bg && bg !== "transparent") return "solid";
+  if (el.fillStyle === "hachure") return "hachure";
+  if (el.fillStyle === "cross-hachure") return "cross-hatch";
   return "solid";
 }
 
@@ -152,7 +153,7 @@ function elementToExcalidraw(
       el.backgroundColor === "transparent"
         ? "transparent"
         : el.backgroundColor,
-    fillStyle: mapFillStyle(el.backgroundColor),
+    fillStyle: mapFillStyle(el),
     strokeWidth: el.strokeWidth,
     strokeStyle: toExcalidrawStrokeStyle(el.strokeStyle),
     roughness: el.roughness,

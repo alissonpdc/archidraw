@@ -12,6 +12,7 @@ import type {
   Document,
   Element,
   EllipseElement,
+  FillStyle,
   LineElement,
   LineType,
   Point,
@@ -353,6 +354,7 @@ export class Editor {
   private lastStrokeStyle: StrokeStyle = "solid";
   private lastRoughness: Roughness = 0;
   private lastBorderRadius = 0;
+  private lastFillStyle: FillStyle = "solid";
   private focusMode = false;
 
   private listeners = new Set<() => void>();
@@ -724,6 +726,7 @@ export class Editor {
       strokeOpacity: 1,
       fillOpacity: 1,
       strokeStyle: "solid",
+      fillStyle: this.lastFillStyle,
       roughness: 0,
       borderRadius: 20,
       // legenda/editação usa a mesma fonte default do texto (média, sans)
@@ -1011,6 +1014,7 @@ export class Editor {
       strokeOpacity: 1,
       fillOpacity: 1,
       strokeStyle: "solid",
+      fillStyle: this.lastFillStyle,
       roughness: 0,
       borderRadius: 0,
     };
@@ -1041,11 +1045,12 @@ export class Editor {
       backgroundColor?: string;
       strokeWidth?: number;
       opacity?: number;
-      strokeOpacity?: number;
-      fillOpacity?: number;
-      fontSize?: number;
-      strokeStyle?: StrokeStyle;
-      roughness?: Roughness;
+strokeOpacity?: number;
+  fillOpacity?: number;
+  fontSize?: number;
+  strokeStyle?: StrokeStyle;
+  fillStyle?: FillStyle;
+  roughness?: Roughness;
       borderRadius?: number;
       fontFamily?: string;
       bold?: boolean;
@@ -1093,6 +1098,7 @@ export class Editor {
     };
     // remember style choices for the next created element
     if (patch.strokeStyle !== undefined) this.lastStrokeStyle = patch.strokeStyle;
+    if (patch.fillStyle !== undefined) this.lastFillStyle = patch.fillStyle;
     if (patch.roughness !== undefined) this.lastRoughness = patch.roughness;
     if (patch.borderRadius !== undefined && ids.length > 0)
       this.lastBorderRadius = patch.borderRadius;
@@ -1277,6 +1283,7 @@ export class Editor {
           strokeOpacity: 1,
           fillOpacity: 1,
           strokeStyle: this.lastStrokeStyle,
+          fillStyle: this.lastFillStyle,
           roughness: this.lastRoughness,
           borderRadius: this.lastBorderRadius,
         };
@@ -1329,6 +1336,7 @@ export class Editor {
           strokeOpacity: 1,
           fillOpacity: 1,
           strokeStyle: this.lastStrokeStyle,
+          fillStyle: this.lastFillStyle,
           roughness: this.lastRoughness,
           borderRadius: 0,
         };

@@ -749,6 +749,101 @@ function drawComponentIcon(ctx: CanvasRenderingContext2D, el: ComponentElement) 
   ctx.restore();
 }
 
+function traceShape(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+) {
+  if (el.type === "rectangle" || el.type === "component") {
+    ctx.beginPath();
+    ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+  } else if (el.type === "diamond") {
+    const v = diamondVertices(el);
+    ctx.beginPath();
+    ctx.moveTo(v[0].x, v[0].y);
+    for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+    ctx.closePath();
+  } else if (el.type === "ellipse") {
+    const rx = Math.abs(el.width) / 2;
+    const ry = Math.abs(el.height) / 2;
+    ctx.beginPath();
+    ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, rx, ry, 0, 0, Math.PI * 2);
+  }
+}
+
+function boundsOf(el: Element): { x: number; y: number; w: number; h: number } {
+  if (el.type === "diamond") {
+    const v = diamondVertices(el);
+    let x1 = v[0].x, y1 = v[0].y, x2 = v[0].x, y2 = v[0].y;
+    for (const p of v) {
+      if (p.x < x1) x1 = p.x;
+      if (p.x > x2) x2 = p.x;
+      if (p.y < y1) y1 = p.y;
+      if (p.y > y2) y2 = p.y;
+    }
+    return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+  }
+  return {
+    x: Math.min(el.x, el.x + el.width),
+    y: Math.min(el.y, el.y + el.height),
+    w: Math.abs(el.width),
+    h: Math.abs(el.height),
+  };
+}
+
+const HACHURE_SPACING = 10;
+
+function drawHachureFill(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  colors: RenderColors,
+  withCross: boolean,
+) {
+  const b = boundsOf(el);
+  const hatchColor =
+    el.backgroundColor !== "transparent"
+      ? el.backgroundColor
+      : resolveStroke(el, colors);
+  ctx.save();
+  ctx.strokeStyle = hatchColor;
+  ctx.lineCap = "round";
+  ctx.globalAlpha = el.fillOpacity;
+  traceShape(ctx, el);
+  ctx.clip();
+  const span = Math.max(b.w, b.h) * 1.5;
+  const cx = b.x + b.w / 2;
+  const cy = b.y + b.h / 2;
+  const lines: Point[][] = [];
+  for (let d = -span; d <= span; d += HACHURE_SPACING) {
+    lines.push([
+      { x: cx + d - span, y: cy - span },
+      { x: cx + d + span, y: cy + span },
+    ]);
+    if (withCross) {
+      lines.push([
+        { x: cx + d - span, y: cy + span },
+        { x: cx + d + span, y: cy - span },
+      ]);
+    }
+  }
+  // hachure follows the stroke style: clean lines at roughness 0, hand-drawn
+  // wobble when the outline is sketched (each line wobbles independently)
+  ctx.lineWidth = el.roughness > 0 ? Math.max(el.strokeWidth * 0.6, 1) : 1.2;
+  ctx.beginPath();
+  if (el.roughness === 0) {
+    for (const l of lines) {
+      ctx.moveTo(l[0].x, l[0].y);
+      ctx.lineTo(l[1].x, l[1].y);
+    }
+  } else {
+    const seedBase = seedOf(el.id) + 7;
+    lines.forEach((l, j) => {
+      sketchStroke(ctx, [l], el.roughness, seedBase + j * 17);
+    });
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawElement(
   ctx: CanvasRenderingContext2D,
   el: Element,
@@ -764,13 +859,17 @@ function drawElement(
 
   if (el.type === "rectangle" || el.type === "component") {
     // fill always uses a clean closed shape so it never breaks
-    if (el.backgroundColor !== "transparent") {
-      ctx.save();
-      ctx.globalAlpha = el.fillOpacity;
-      ctx.beginPath();
-      ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-      ctx.fill();
-      ctx.restore();
+    if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
+      if (el.backgroundColor !== "transparent") {
+        ctx.save();
+        ctx.globalAlpha = el.fillOpacity;
+        ctx.beginPath();
+        ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
     // strokeWidth 0 = borderless (library components)
     if (el.strokeWidth > 0) {
@@ -804,15 +903,19 @@ function drawElement(
     if (el.type === "component") drawComponentIcon(ctx, el);
   } else if (el.type === "diamond") {
     const v = diamondVertices(el);
-    if (el.backgroundColor !== "transparent") {
-      ctx.save();
-      ctx.globalAlpha = el.fillOpacity;
-      ctx.beginPath();
-      ctx.moveTo(v[0].x, v[0].y);
-      for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
+    if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
+      if (el.backgroundColor !== "transparent") {
+        ctx.save();
+        ctx.globalAlpha = el.fillOpacity;
+        ctx.beginPath();
+        ctx.moveTo(v[0].x, v[0].y);
+        for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
     ctx.save();
     ctx.globalAlpha = el.strokeOpacity;
@@ -832,13 +935,17 @@ function drawElement(
     const ry = Math.abs(el.height) / 2;
     const cx = el.x + el.width / 2;
     const cy = el.y + el.height / 2;
-    if (el.backgroundColor !== "transparent") {
-      ctx.save();
-      ctx.globalAlpha = el.fillOpacity;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+    if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
+      if (el.backgroundColor !== "transparent") {
+        ctx.save();
+        ctx.globalAlpha = el.fillOpacity;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
     ctx.save();
     ctx.globalAlpha = el.strokeOpacity;

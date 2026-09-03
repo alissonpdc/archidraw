@@ -585,7 +585,7 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  max-height: calc(100% - 140px);
+  max-height: calc(100% - 300px);
   overflow-y: auto;
   scrollbar-width: none;
   min-width: 180px;
@@ -659,6 +659,52 @@ button {
   align-items: stretch;
   gap: var(--space-1);
   padding: var(--space-1) 0;
+}
+
+/* themed sections (STROKE / FILL): big heading + accent left border that
+   spans the whole group of related attribute fields */
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-3) var(--space-3);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.panel-section + * {
+  margin-top: var(--space-1);
+}
+
+.panel-section-heading {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.panel-section-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin-left: 2px;
+}
+
+/* fields inside a section are spaced by the section gap itself, so every
+   attribute keeps the same rhythm (no extra per-group padding) */
+.panel-section .panel-group {
+  padding: 0;
+}
+
+.panel-section .panel-group-body {
+  min-height: 24px;
+}
+
+.panel-section .palette-opacity-row {
+  margin: 0;
 }
 
 .panel-group-body {

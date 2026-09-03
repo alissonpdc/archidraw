@@ -1,6 +1,6 @@
 import { render, componentIconLayout } from "./renderer";
 import type { Document } from "./types";
-import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, edgePathPoints, escapeXml, unionBounds } from "./utils";
+import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, escapeXml, unionBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { componentAssetDataUri, waitForComponentImages, waitForImage } from "./componentAssets";
 import { strokeDashArray } from "./strokeStyle";
@@ -8,6 +8,46 @@ import { fontFamilyOf, lineHeight, textBlockHeight } from "./textStyle";
 
 const EXPORT_PADDING = 20;
 const PNG_SCALE = 2;
+const HACHURE_SPACING = 10;
+
+function truncatedHachureSvg(
+  el: Document["elements"][number],
+  clipId: string,
+): string {
+  const color =
+    el.backgroundColor === "transparent"
+      ? el.strokeColor
+      : el.backgroundColor;
+  let shape = "";
+  if (el.type === "rectangle" || el.type === "component") {
+    const r = cornerRadius(el);
+    shape = `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}"/>`;
+  } else if (el.type === "diamond") {
+    const v = diamondVertices(el);
+    shape = `<polygon points="${v.map((p) => `${p.x},${p.y}`).join(" ")}"/>`;
+  } else if (el.type === "ellipse") {
+    const rx = Math.abs(el.width) / 2;
+    const ry = Math.abs(el.height) / 2;
+    shape = `<ellipse cx="${el.x + el.width / 2}" cy="${el.y + el.height / 2}" rx="${rx}" ry="${ry}"/>`;
+  }
+  const w = Math.abs(el.width);
+  const h = Math.abs(el.height);
+  const bx = Math.min(el.x, el.x + el.width);
+  const by = Math.min(el.y, el.y + el.height);
+  const span = Math.max(w, h) * 1.5;
+  const cx = bx + w / 2;
+  const cy = by + h / 2;
+  const withCross = el.fillStyle === "cross-hachure";
+  let lines = "";
+  for (let d = -span; d <= span; d += HACHURE_SPACING) {
+    lines += `<line x1="${cx + d - span}" y1="${cy - span}" x2="${cx + d + span}" y2="${cy + span}"/>`;
+    if (withCross) {
+      lines += `<line x1="${cx + d - span}" y1="${cy + span}" x2="${cx + d + span}" y2="${cy - span}"/>`;
+    }
+  }
+  const alpha = el.fillOpacity < 1 ? ` opacity="${el.fillOpacity}"` : "";
+  return `<clipPath id="${clipId}">${shape}</clipPath><g clip-path="url(#${clipId})" stroke="${color}" stroke-width="1.2" stroke-linecap="round"${alpha}>${lines}</g>`;
+}
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -111,17 +151,34 @@ export function exportSVG(doc: Document, filename: string): boolean {
             return d.length > 0 ? ` stroke-dasharray="${d.join(" ")}"` : "";
           })();
     const opacity = el.opacity < 1 ? ` opacity="${el.opacity}"` : "";
+    const isHatch =
+      (el.type === "rectangle" || el.type === "component") &&
+      (el.fillStyle === "hachure" || el.fillStyle === "cross-hachure");
     const fill = el.backgroundColor === "transparent" ? "none" : el.backgroundColor;
     if (el.type === "rectangle") {
       const r = cornerRadius(el);
-      parts.push(
-        `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="${fill}" ${stroke}${dash}${opacity}/>`
-      );
+      if (isHatch) {
+        const clipId = `hatch-${el.id}`;
+        parts.push(
+          `<g${opacity}>${truncatedHachureSvg(el, clipId)}<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="none" ${stroke}${dash}/></g>`
+        );
+      } else {
+        parts.push(
+          `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="${fill}" ${stroke}${dash}${opacity}/>`
+        );
+      }
     } else if (el.type === "component") {
       const r = cornerRadius(el);
-      parts.push(
-        `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="${fill}" ${stroke}${dash}${opacity}/>`
-      );
+      if (isHatch) {
+        const clipId = `hatch-${el.id}`;
+        parts.push(
+          `<g${opacity}>${truncatedHachureSvg(el, clipId)}<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="none" ${stroke}${dash}/></g>`
+        );
+      } else {
+        parts.push(
+          `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="${fill}" ${stroke}${dash}${opacity}/>`
+        );
+      }
       const layout = componentIconLayout(el);
       const dataUri = el.src ?? componentAssetDataUri(el.componentId);
       if (dataUri) {
