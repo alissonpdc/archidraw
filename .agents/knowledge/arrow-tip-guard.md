@@ -36,6 +36,9 @@ pixels escuros em x∈[502,514], y∈[196,204].
 
 ## Implementação real
 
-- `src/core/renderer.ts` — `roughPolyline`: quando `clampStart || clampEnd`,
+- `src/core/roughPath.ts` — `roughSegments`: quando `clampStart || clampEnd`,
   `ax/ay` = ponto clampado, offset de translação = 0, pivot em `(ax,ay)`.
+  ⚠️ A extração `roughPolyline`→`roughPath.ts` (8ed27ff) reintroduziu este bug
+  (pivot no centro do bbox + translate até ±0.9×roughness); o `unApply` só é
+  exato se o pivot for o clamp point com translação zero.
 - `e2e/specs/arrow-animation.spec.ts:268` — desseleciona antes de amostrar.

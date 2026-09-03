@@ -187,10 +187,25 @@ function roughSegments(
     if (p.x > maxX) maxX = p.x;
     if (p.y > maxY) maxY = p.y;
   }
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
-  const dx = jit(roughness * 0.9);
-  const dy = jit(roughness * 0.9);
+  // clamped anchors (arrow tips) must stay EXACT in final screen space, so the
+  // rigid pivot is the clamp anchor with ZERO translation: rotation/scale spin
+  // around the tip and the sketched shaft/head never overshoots it (regression
+  // of the roughPath extraction — was `roughPolyline`'s rigid-pivot fix)
+  const clampAnchored = clampStart || clampEnd;
+  const ax = clampEnd
+    ? points[last].x
+    : clampStart
+      ? points[0].x
+      : (minX + maxX) / 2;
+  const ay = clampEnd
+    ? points[last].y
+    : clampStart
+      ? points[0].y
+      : (minY + maxY) / 2;
+  const cx = ax;
+  const cy = ay;
+  const dx = clampAnchored ? 0 : jit(roughness * 0.9);
+  const dy = clampAnchored ? 0 : jit(roughness * 0.9);
   const rot = (jit(roughness * 0.5) * Math.PI) / 180;
   const t: Misregister = {
     dx,
