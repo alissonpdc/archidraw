@@ -460,6 +460,14 @@ export function getLibraryItem(id: string): LibraryItem | undefined {
   );
 }
 
+/** true for the bundled AWS/Kubernetes catalog (never removed at runtime) */
+export function isBuiltinLibraryItem(id: string): boolean {
+  return (
+    LIBRARY.some((i) => i.id === id) ||
+    LIBRARY_KUBERNETES.some((i) => i.id === id)
+  );
+}
+
 /** Simple case-insensitive search by name, keywords, and category */
 export function searchLibrary(query: string): LibraryItem[] {
   const q = query.trim().toLowerCase();

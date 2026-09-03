@@ -44,7 +44,8 @@ import {
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { DEFAULT_FONT_FAMILY } from "./textStyle";
-import { getLibraryItem } from "./library";
+import { getLibraryItem, isBuiltinLibraryItem } from "./library";
+import { componentAssetDataUri } from "./componentAssets";
 import { addImportedImage } from "./importedImages";
 import {
   elementVisualBounds,
@@ -734,12 +735,19 @@ export class Editor {
       strokeStyle: "solid",
       fillStyle: this.lastFillStyle,
       roughness: 0,
-      borderRadius: 20,
-      // legenda/editação usa a mesma fonte default do texto (média, sans)
+borderRadius: 20,
+      // legenda/edição usa a mesma fonte default do texto (média, sans)
       fontSize: 20,
       // imagens (asset raster) embedam o src para renderizar mesmo se o item
-      // de lib for removido da biblioteca depois
-      ...(item.src ? { src: item.src } : {}),
+      // de lib for removido da biblioteca depois; itens de bibliotecas
+      // importadas/removeíveis (não-bundled AWS/K8s) também embedam o asset:
+      // excluir o item da library nunca apaga/invisibiliza elementos já
+      // colocados no canvas
+      ...(item.src ||
+      (!isBuiltinLibraryItem(componentId) &&
+        componentAssetDataUri(componentId))
+        ? { src: item.src ?? componentAssetDataUri(componentId) ?? undefined }
+        : {}),
       ...(item.fill === true ? { fill: true } : {}),
     };
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };

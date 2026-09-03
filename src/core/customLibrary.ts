@@ -6,6 +6,7 @@
  */
 
 import {
+  componentAssetDataUri,
   registerCustomAsset,
   unregisterCustomAsset,
 } from "./componentAssets";
@@ -100,6 +101,18 @@ export function initCustomLibrary(): void {
   }
 }
 
+/**
+ * Componente custom armazenado: embeddings de assets que podem ser removidos.
+ * Elementos `component` guardam o asset embutido (src) para que re-inserir o
+ * item continue renderizando mesmo se a biblioteca de origem for excluída —
+ * excluir um item Custom da biblioteca nunca apaga elementos do canvas.
+ */
+function selfContained(el: Element): Element {
+  if (el.type !== "component" || el.src) return el;
+  const src = componentAssetDataUri(el.componentId);
+  return src ? { ...el, src } : el;
+}
+
 /** adiciona a seleção como componente custom (nome custom-N) e persiste */
 export function addCustomItem(
   elements: Element[],
@@ -107,7 +120,13 @@ export function addCustomItem(
   aspect: number,
 ): CustomLibraryItemData {
   const name = `custom-${nextCustomNumber()}`;
-  const it: CustomLibraryItemData = { id: name, name, elements, svg, aspect };
+  const it: CustomLibraryItemData = {
+    id: name,
+    name,
+    elements: elements.map(selfContained),
+    svg,
+    aspect,
+  };
   registerAll(it);
   items = [...items, it];
   persistJson(STORAGE_KEY, items);

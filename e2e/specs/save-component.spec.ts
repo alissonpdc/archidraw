@@ -13,6 +13,26 @@ async function drawRect(
   await selectTool(page, "1");
 }
 
+async function drawDiamond(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+) {
+  await selectTool(page, "3");
+  await drag(page, from, to);
+  await selectTool(page, "1");
+}
+
+async function drawEllipse(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+) {
+  await selectTool(page, "4");
+  await drag(page, from, to);
+  await selectTool(page, "1");
+}
+
 async function rightClickMenu(page: Page, x: number, y: number) {
   await page.mouse.click(x, y, { button: "right" });
   await expect(page.getByTestId("context-menu")).toBeVisible();
@@ -185,6 +205,79 @@ test.describe("save components (context menu → SAVE)", () => {
     expect(svg).toContain("<rect");
   });
 
+  test("Add to Library snapshot includes every selected shape type", async ({
+    page,
+  }) => {
+    await open(page);
+    await drawRect(page, { x: 200, y: 150 }, { x: 280, y: 200 });
+    await drawDiamond(page, { x: 320, y: 150 }, { x: 420, y: 200 });
+    await drawEllipse(page, { x: 450, y: 150 }, { x: 560, y: 200 });
+    await drag(page, { x: 140, y: 90 }, { x: 640, y: 260 });
+    await expect
+      .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
+      .toBe(3);
+
+    await rightClickMenu(page, 370, 175);
+    await page.getByTestId("context-menu-add-library").click();
+
+    const svg = await savedCustomSvg(page);
+    expect(svg).toContain("<svg");
+    expect((svg.match(/<rect/g) ?? []).length).toBe(1);
+    expect((svg.match(/<polygon/g) ?? []).length).toBe(1);
+    expect((svg.match(/<ellipse/g) ?? []).length).toBe(1);
+    // stored native elements still match the whole selection (canvas insert)
+    expect(await savedCustomElementCount(page)).toBe(3);
+  });
+
+  test("Download SVG includes every selected shape type", async ({ page }) => {
+    await open(page);
+    await drawRect(page, { x: 200, y: 150 }, { x: 280, y: 200 });
+    await drawDiamond(page, { x: 320, y: 150 }, { x: 420, y: 200 });
+    await drawEllipse(page, { x: 450, y: 150 }, { x: 560, y: 200 });
+    await drag(page, { x: 140, y: 90 }, { x: 640, y: 260 });
+    await expect
+      .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
+      .toBe(3);
+
+    await rightClickMenu(page, 370, 175);
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("context-menu-download-svg").click();
+    const download = await downloadPromise;
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    const svg = Buffer.concat(chunks).toString("utf-8");
+
+    expect((svg.match(/<rect/g) ?? []).length).toBe(1);
+    expect((svg.match(/<polygon/g) ?? []).length).toBe(1);
+    expect((svg.match(/<ellipse/g) ?? []).length).toBe(1);
+  });
+
+  test("Add to Library escapes double quotes in text font-family (XML-safe)", async ({
+    page,
+  }) => {
+    // regression: font families like "Architects Daughter", cursive (sketch
+    // import) contain literal quotes that broke the saved SVG XML.
+    await open(page);
+    await selectTool(page, "7");
+    await page.mouse.click(320, 185);
+    await page.keyboard.type("handwritten");
+    await page.keyboard.press("Escape");
+
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { fontFamily: '"Architects Daughter", cursive' });
+    });
+
+    await rightClickMenu(page, 320, 185);
+    await page.getByTestId("context-menu-add-library").click();
+
+    const svg = await savedCustomSvg(page);
+    expect(svg).toContain('font-family="&quot;Architects Daughter&quot;, cursive"');
+    expect(svg).not.toContain('font-family="\\"Architects Daughter');
+  });
+
   test("multi-selection right-click keeps the selection and saves both shapes", async ({
     page,
     editorState,
@@ -317,5 +410,157 @@ test.describe("save components (context menu → SAVE)", () => {
 
     const svg = await savedCustomSvg(page);
     expect((svg.match(/<rect/g) ?? []).length).toBe(2);
+  });
+
+  test("removing a Custom item from the library keeps canvas elements", async ({
+    page,
+  }) => {
+    // regression: deleting a saved custom item must never delete the elements
+    // the user already placed on the canvas from that item
+    await open(page);
+    await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
+    await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
+    await drag(page, { x: 140, y: 90 }, { x: 560, y: 290 });
+    await expect
+      .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
+      .toBe(2);
+
+    await rightClickMenu(page, 260, 185);
+    await page.getByTestId("context-menu-add-library").click();
+
+    await page.keyboard.press("l");
+    const custom = page.locator('[data-testid="library-custom"]');
+    await custom.locator(".library-section-header").click();
+    await custom.locator('[data-component-id="custom-1"]').click();
+    const countBeforeRemove = await page.evaluate(
+      () => (window as any).__editor__.getSnapshot().doc.elements.length,
+    );
+    expect(countBeforeRemove).toBe(4);
+
+    await custom.locator(".library-tile").first().hover();
+    await custom.locator(".library-tile-remove").click();
+    await expect(custom.locator(".library-tile")).toHaveCount(0);
+    const countAfterRemove = await page.evaluate(
+      () => (window as any).__editor__.getSnapshot().doc.elements.length,
+    );
+    expect(countAfterRemove).toBe(4);
+  });
+
+  test("removing an imported library keeps placed components rendering", async ({
+    page,
+  }) => {
+    // regression: components inserted from removable (non-bundled) libraries
+    // must embed their asset so removing the library item from the palette
+    // never makes them disappear from the canvas
+    await open(page);
+    await page.keyboard.press("l");
+    const lib = JSON.stringify({
+      type: "excalidrawlib",
+      version: 2,
+      libraryItems: [
+        {
+          id: "a1",
+          name: "DB Box",
+          elements: [
+            {
+              type: "rectangle",
+              x: 0,
+              y: 0,
+              width: 80,
+              height: 40,
+              strokeColor: "#1e1e1e",
+              backgroundColor: "#a5d8ff",
+              fillStyle: "solid",
+              strokeWidth: 2,
+              strokeStyle: "solid",
+              opacity: 100,
+              roundness: null,
+            },
+          ],
+        },
+      ],
+    });
+    await page.locator('[data-testid="library-import"]').click();
+    await page.locator(".library-import-input").setInputFiles({
+      name: "lib.excalidrawlib",
+      mimeType: "application/json",
+      buffer: Buffer.from(lib),
+    });
+    await expect(
+      page.locator('[data-testid="library-imported-group"]'),
+    ).toHaveCount(1);
+    await page
+      .locator('[data-testid="library-imported-group"] .library-tile')
+      .click();
+    await expect
+      .poll(async () => (await page.evaluate(() => (window as any).__editor__.getSnapshot().doc.elements.length)))
+      .toBe(1);
+
+    await page
+      .locator('[data-testid="library-imported-group"] .library-group-remove')
+      .click();
+    await expect(
+      page.locator('[data-testid="library-imported-group"]'),
+    ).toHaveCount(0);
+
+    // placed component keeps its asset embedded (self-contained) after removal
+    const state = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      return {
+        elementCount: ed.getSnapshot().doc.elements.length,
+        type: el.type,
+        hasSrc: typeof el.src === "string" && el.src.startsWith("data:image/svg+xml"),
+      };
+    });
+    expect(state.elementCount).toBe(1);
+    expect(state.type).toBe("component");
+    expect(state.hasSrc).toBe(true);
+  });
+
+  test("sketch shapes export as hand-drawn SVG, not clean lines", async ({
+    page,
+  }) => {
+    // regression: saved custom item thumbnails lost the sketch (rough) style
+    // and came out with clean straight lines
+    await open(page);
+    await drawRect(page);
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { roughness: 3 });
+    });
+
+    await rightClickMenu(page, 260, 185);
+    await page.getByTestId("context-menu-add-library").click();
+
+    const svg = await savedCustomSvg(page);
+    expect(svg).not.toContain("<rect");
+    expect(svg).toContain('fill="none"');
+    expect(svg).toMatch(/<path d="M[^"]* Q /);
+  });
+
+  test("sketch line downloads as hand-drawn path", async ({ page }) => {
+    await open(page);
+    await selectTool(page, "5");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
+    await selectTool(page, "1");
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { roughness: 3 });
+    });
+
+    await rightClickMenu(page, 350, 200);
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("context-menu-download-svg").click();
+    const download = await downloadPromise;
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    const svg = Buffer.concat(chunks).toString("utf-8");
+
+    expect(svg).toContain(" Q ");
+    expect(svg).not.toContain("<line");
   });
 });
