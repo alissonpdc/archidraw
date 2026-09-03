@@ -49,6 +49,39 @@ test.describe("arrow animation", () => {
     await expect(btn).toBeVisible();
   });
 
+  test("Path type and Animation groups live inside the Stroke section", async ({
+    page,
+  }) => {
+    await open(page);
+    const btn = await drawArrow(page, { strokeStyle: "dashed" });
+    await expect(btn).toBeVisible();
+    const strokeSection = page.locator(".panel-section", {
+      hasText: "Stroke",
+    });
+    await expect(
+      strokeSection.locator(".panel-group", { hasText: "Path type" }),
+    ).toHaveCount(1);
+    await expect(
+      strokeSection.locator(".panel-group", { hasText: "Animation" }),
+    ).toHaveCount(1);
+  });
+
+  test("line Path type group lives inside the Stroke section", async ({
+    page,
+  }) => {
+    await open(page);
+    await selectTool(page, "5");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 300 });
+    await selectTool(page, "1");
+    await page.mouse.click(350, 250);
+    const strokeSection = page.locator(".panel-section", {
+      hasText: "Stroke",
+    });
+    await expect(
+      strokeSection.locator(".panel-group", { hasText: "Path type" }),
+    ).toHaveCount(1);
+  });
+
   test("animation toggle is hidden for non-arrow selections", async ({
     page,
   }) => {

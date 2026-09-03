@@ -730,6 +730,27 @@ export function PropertiesPanel() {
               </button>
             ))}
           </Group>
+          {(hasArrow || selected.some((el) => el.type === "line")) && (
+            <Group title="Path type">
+              {([
+                { v: "straight", label: "Straight", icon: "M2 12 L18 4" },
+                { v: "curved", label: "Curved", icon: "M2 12 Q10 0 18 4" },
+                { v: "auto", label: "Automatic", icon: "M2 12 L10 12 L18 4" },
+              ] as const).map(({ v, label, icon }) => (
+                <button
+                  key={v}
+                  className={`size-btn ${allLineType(v) ? "active" : ""}`}
+                  aria-label={`Line ${label}`}
+                  data-tip={label}
+                  onClick={() => apply({ lineType: v })}
+                >
+                  <svg width="20" height="14" viewBox="0 0 20 14">
+                    <path d={icon} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ))}
+            </Group>
+          )}
           {hasRectangle && (
             <Group title="Roundness">
               <div className="v-stack">
@@ -778,29 +799,43 @@ export function PropertiesPanel() {
               </div>
             </Group>
           )}
-        </Section>
-
-        {(hasArrow || selected.some((el) => el.type === "line")) && (
-          <Group title="Path type">
-            {([
-              { v: "straight", label: "Straight", icon: "M2 12 L18 4" },
-              { v: "curved", label: "Curved", icon: "M2 12 Q10 0 18 4" },
-              { v: "auto", label: "Automatic", icon: "M2 12 L10 12 L18 4" },
-            ] as const).map(({ v, label, icon }) => (
+          {hasArrow && (
+            <Group title="Animation">
               <button
-                key={v}
-                className={`size-btn ${allLineType(v) ? "active" : ""}`}
-                aria-label={`Line ${label}`}
-                data-tip={label}
-                onClick={() => apply({ lineType: v })}
+                className={`size-btn text-btn ${allAnimated ? "active" : ""}`}
+                aria-label="Animate arrow"
+                data-tip={
+                  animationDisabled
+                    ? "Animation needs a dashed, dotted or dash-dot stroke"
+                    : "Flowing dashes along the arrow"
+                }
+                disabled={animationDisabled}
+                onClick={() => apply({ animated: !allAnimated })}
               >
                 <svg width="20" height="14" viewBox="0 0 20 14">
-                  <path d={icon} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <line
+                    x1="2"
+                    y1="7"
+                    x2="14"
+                    y2="7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="3 2"
+                  />
+                  <path
+                    d="M14 4 L18 7 L14 10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </button>
-            ))}
-          </Group>
-        )}
+            </Group>
+          )}
+        </Section>
 
         {hasFillable && (
           <Section title="Fill">
@@ -877,43 +912,7 @@ export function PropertiesPanel() {
           </Section>
         )}
 
-        {hasArrow && (
-          <Group title="Animation">
-            <button
-              className={`size-btn text-btn ${allAnimated ? "active" : ""}`}
-              aria-label="Animate arrow"
-              data-tip={
-                animationDisabled
-                  ? "Animation needs a dashed, dotted or dash-dot stroke"
-                  : "Flowing dashes along the arrow"
-              }
-              disabled={animationDisabled}
-              onClick={() => apply({ animated: !allAnimated })}
-            >
-              <svg width="20" height="14" viewBox="0 0 20 14">
-                <line
-                  x1="2"
-                  y1="7"
-                  x2="14"
-                  y2="7"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeDasharray="3 2"
-                />
-                <path
-                  d="M14 4 L18 7 L14 10"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </Group>
-        )}
-      </div>
+        </div>
       <div ref={textRef} className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
         <Group title="Text color">
             <PaletteGrid
