@@ -184,6 +184,77 @@ test.describe("export / import", () => {
       .toEqual({ opacity: 0.5, fillOpacity: 0.5, strokeOpacity: 0.5 });
   });
 
+  test("import .excalidraw auto-fits content into viewport", async ({ page }) => {
+    // element is far larger than the viewport: import must zoom out and
+    // center it (fit content), not leave the default zoom 1
+    const excalidrawFile = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "https://excalidraw.com",
+      elements: [
+        {
+          id: "exc_big_rect",
+          type: "rectangle",
+          x: 0,
+          y: 0,
+          width: 2000,
+          height: 2000,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "#a5d8ff",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 100,
+          roundness: { type: 3 },
+          seed: 1,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+        },
+      ],
+      appState: { gridSize: 20, viewBackgroundColor: "" },
+      files: {},
+    });
+
+    await page.setInputFiles('[data-testid="import-input"]', {
+      name: "big.excalidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(excalidrawFile),
+    });
+
+    // zoom must be the fit-to-viewport ratio (pad 40px each side) and the
+    // element's center must land at the screen center
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const snap = window.__editor__.getSnapshot();
+          const el = snap.doc.elements[0];
+          const want = Math.min(
+            8,
+            Math.max(
+              0.1,
+              Math.min(
+                (window.innerWidth - 80) / 2000,
+                (window.innerHeight - 80) / 2000,
+              ),
+            ),
+          );
+          const cx = snap.camera.scrollX + (el.x + el.width / 2) * snap.camera.zoom;
+          const cy = snap.camera.scrollY + (el.y + el.height / 2) * snap.camera.zoom;
+          return (
+            Math.abs(snap.camera.zoom - want) < 0.001 &&
+            Math.abs(cx - window.innerWidth / 2) < 1 &&
+            Math.abs(cy - window.innerHeight / 2) < 1
+          );
+        }),
+      )
+      .toBe(true);
+  });
+
   test("import .archidraw.json (legacy extension) also works", async ({ page }) => {
     const workspace = JSON.stringify({
       schemaVersion: 2,

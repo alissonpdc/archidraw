@@ -164,7 +164,7 @@ export function AppMenu({
       try {
         const doc = parseExcalidrawScene(text);
         const baseName = file.name.replace(/\.excalidraw$/i, "");
-        editor.importDocumentAsNewDiagram(doc, baseName);
+        editor.importDocumentAsNewDiagram(doc, baseName, true);
         toast(`"${baseName}" imported`);
       } catch {
         toast("Invalid .excalidraw file — import cancelled");

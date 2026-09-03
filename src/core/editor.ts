@@ -2054,11 +2054,12 @@ strokeOpacity?: number;
   }
 
   /** imports a Document as a new diagram tab (never replaces existing) */
-  importDocumentAsNewDiagram(doc: Document, name: string): string {
+  importDocumentAsNewDiagram(doc: Document, name: string, fitContent = false): string {
     const id = `tab_${Date.now().toString(36)}_${++tabSeq}`;
     const tab = { id, name, doc, camera: { scrollX: 0, scrollY: 0, zoom: 1 } };
     this.tabs = [...this.tabs, tab];
     this.activateTab(id);
+    if (fitContent) this.zoomToFit();
     return id;
   }
 
