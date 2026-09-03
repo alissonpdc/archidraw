@@ -36,6 +36,7 @@ Recurring-bug rules with mandatory patterns — check them before implementing c
 - `clipboard-paste.md` — paste only via the native `paste` event; never `navigator.clipboard.read()` in mod+V keydown, never `preventDefault()` there.
 - `context-menu.md` — right-click (`button === 2`) must early-return in `pointerDown`; portal-based menus with viewport clamping.
 - `tooltip-clipping.md` — tooltips inside `overflow-*`/`transform` ancestors must use portal + `position: fixed`, not CSS `::after`.
+- `arrow-tip-guard.md` — pixel-sampling tests must deselect first (tip selection handle pollutes the region); clamped arrow tips need a zero-translation rigid pivot.
 
 When fixing a recurring bug, add a new entry there and reference it in `AGENTS.md`.
 

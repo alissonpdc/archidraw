@@ -273,13 +273,20 @@ function roughPolyline(
     if (p.x > maxX) maxX = p.x;
     if (p.y > maxY) maxY = p.y;
   }
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
+  // clamped anchors (arrow tips) must stay EXACT in final screen space, so
+  // the rigid pivot is the anchor with ZERO translation: rotation/scale then
+  // keep the tip pinned and the sketched shaft/head never overshoots it
+  const clampAnchored = clampStart || clampEnd;
+  const ax = clampEnd ? points[last].x : clampStart ? points[0].x : (minX + maxX) / 2;
+  const ay = clampEnd ? points[last].y : clampStart ? points[0].y : (minY + maxY) / 2;
   ctx.save();
-  ctx.translate(cx + jit(roughness * 0.9), cy + jit(roughness * 0.9));
+  ctx.translate(
+    ax + (clampAnchored ? 0 : jit(roughness * 0.9)),
+    ay + (clampAnchored ? 0 : jit(roughness * 0.9)),
+  );
   ctx.rotate((jit(roughness * 0.5) * Math.PI) / 180);
   ctx.scale(1 + jit(roughness * 0.005), 1 + jit(roughness * 0.005));
-  ctx.translate(-cx, -cy);
+  ctx.translate(-ax, -ay);
 
   // loose tip: slip along the direction + a little perpendicular scatter
   const tipPt = (px: number, py: number, ux: number, uy: number): Point => {
