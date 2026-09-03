@@ -158,20 +158,82 @@ test.describe("save components (context menu → SAVE)", () => {
     await page.keyboard.press("ControlOrMeta+g");
     await page.keyboard.press("Escape");
 
-    // marquee that only touches the FIRST member of the group
-    await drag(page, { x: 180, y: 130 }, { x: 340, y: 240 });
-    await expect
-      .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
-      .toBe(1);
-    const ids = await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds]);
+    // marquee that only touches the FIRST member of the group (box right edge
+    // 335 < the second member's left edge 360; 140,90 is empty canvas)
+    await drag(page, { x: 140, y: 90 }, { x: 335, y: 240 });
+    const partialIds = await page.evaluate(() => [
+      ...(window as any).__editor__.getSnapshot().selectedIds,
+    ]);
+    expect(partialIds).toHaveLength(1);
     const sec = await page.evaluate((selId) => {
       const ed = (window as any).__editor__;
       const el = ed.getSnapshot().doc.elements.find((e: any) => e.id === selId);
       return ed.getScreenPoint({ x: el.x + el.width / 2, y: el.y + el.height / 2 });
-    }, ids[0]);
+    }, partialIds[0]);
 
     // right-click the selected group member and save: the WHOLE group goes in
     await rightClickMenu(page, sec.x, sec.y);
+    await page.getByTestId("context-menu-add-library").click();
+
+    const svg = await savedCustomSvg(page);
+    expect((svg.match(/<rect/g) ?? []).length).toBe(2);
+  });
+
+  test("right-click on an overlapping unselected element still saves the whole selection", async ({
+    page,
+  }) => {
+    await open(page);
+    await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
+    await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
+
+    // marquee-select both rectangles
+    await drag(page, { x: 140, y: 90 }, { x: 560, y: 290 });
+    await expect
+      .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
+      .toBe(2);
+
+    // draw an arrow BELOW the rectangles (y=300, outside the marquee box that
+    // ends at y=290). Drawing auto-selects the arrow.
+    await selectTool(page, "6");
+    await drag(page, { x: 340, y: 300 }, { x: 640, y: 300 });
+    await selectTool(page, "1");
+    await expect
+      .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
+      .toBe(1); // the arrow is the only selection now
+
+    // re-select ONLY the two rectangles (the arrow stays below the box)
+    await drag(page, { x: 140, y: 90 }, { x: 560, y: 290 });
+    await expect
+      .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
+      .toBe(2);
+
+    // right-click ON the arrow (NOT in the selection): the whole selection
+    // must remain the save target — never collapse to the hit element
+    await rightClickMenu(page, 640, 300);
+    await page.getByTestId("context-menu-add-library").click();
+
+    const svg = await savedCustomSvg(page);
+    expect((svg.match(/<rect/g) ?? []).length).toBe(2);
+    // the unselected arrow is NOT part of the selection, so it is not saved
+    expect((svg.match(/<(line|path)/g) ?? []).length).toBe(0);
+  });
+
+  test("grouped multiselection right-click saves every member", async ({
+    page,
+  }) => {
+    await open(page);
+    await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
+    await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("ControlOrMeta+g");
+
+    const c0 = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      return ed.getScreenPoint({ x: el.x + el.width / 2, y: el.y + el.height / 2 });
+    });
+
+    await rightClickMenu(page, c0.x, c0.y);
     await page.getByTestId("context-menu-add-library").click();
 
     const svg = await savedCustomSvg(page);

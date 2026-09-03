@@ -78,19 +78,20 @@ export function ContextMenu() {
       setEditingId(null);
       const p = { x: e.clientX, y: e.clientY };
       const hit = editor.elementAt(p) ?? editor.badgeElementAt(p);
-      if (hit) {
-        // right-clicking an already-selected element keeps the whole
-        // multiselection alive so "Save" can snapshot all of it
-        const selected = editor.getSnapshot().selectedIds;
-        if (!selected.has(hit.id) || selected.size === 0) {
-          editor.selectElementAt(p);
-        }
+      // The "Save" target is ALWAYS the full current selection (with every
+      // group completed). A non-empty selection must never collapse on
+      // right-click — even if the cursor lands on an unselected overlapping
+      // element — otherwise a multiselection saves only the hit element.
+      let selection = editor.getSnapshot().selectedIds;
+      if (hit && selection.size === 0) {
+        editor.selectElementAt(p);
+        selection = editor.getSnapshot().selectedIds;
       }
       setMenu({
         x: e.clientX,
         y: e.clientY,
         targetId: hit?.id ?? null,
-        saveIds: hit ? saveTarget(editor.getSnapshot().selectedIds) : null,
+        saveIds: hit ? saveTarget(selection) : null,
       });
       window.dispatchEvent(new CustomEvent("archidraw:contextmenu", { detail: true }));
     };
