@@ -3,6 +3,7 @@ import {
   arrowPoints,
   curvedArrowControl,
   diamondVertices,
+  distanceToPolyline,
   distanceToSegment,
   edgePathPoints,
   elementBounds,
@@ -61,12 +62,7 @@ export function hitTest(el: Element, p: { x: number; y: number }): boolean {
     }
     // auto: check distance to the polyline
     const pts = edgePathPoints(el);
-    let minDist = Infinity;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const d = distanceToSegment(p, pts[i], pts[i + 1]);
-      if (d < minDist) minDist = d;
-    }
-    return minDist <= ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
+    return distanceToPolyline(p, pts) <= ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
   }
   if (el.type === "diamond") {
     return pointInPolygon(p, diamondVertices(el));
