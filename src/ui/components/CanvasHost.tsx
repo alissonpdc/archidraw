@@ -5,7 +5,7 @@ import { useGridMode } from "../viewPrefs";
 import type { Point } from "../../core/types";
 import { pushRecentComponent } from "../../core/library";
 import { COMPONENT_DND_TYPE } from "./LibraryPanel";
-import { resolveTextColor } from "../../core/textStyle";
+import { resolveTextColor, fontFamilyOf } from "../../core/textStyle";
 import { measureText, edgeLabelAnchor } from "../../core/utils";
 
 function readThemeColors(): RenderColors & { elementStroke: string } {
@@ -400,7 +400,7 @@ export function CanvasHost() {
               width: editingEl.width * cam.zoom,
               height: editingEl.height * cam.zoom,
               fontSize: editingEl.fontSize * cam.zoom,
-              fontFamily: editingEl.fontFamily || '"Segoe UI", system-ui, sans-serif',
+              fontFamily: fontFamilyOf(editingEl),
               fontWeight: editingEl.bold ? "bold" : "normal",
               fontStyle: editingEl.italic ? "italic" : "normal",
               textDecoration: editingEl.underline ? "underline" : "none",
@@ -435,7 +435,7 @@ export function CanvasHost() {
               left: labelPos.x,
               top: labelPos.y,
               fontSize: labelFontSize,
-              fontFamily: editingEl.fontFamily || '"Segoe UI", system-ui, sans-serif',
+              fontFamily: fontFamilyOf(editingEl),
               fontWeight: editingEl.bold ? "bold" : "normal",
               fontStyle: editingEl.italic ? "italic" : "normal",
               lineHeight: String(editingEl.lineSpacing ?? 1.25),

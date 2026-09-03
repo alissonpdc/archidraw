@@ -12,6 +12,7 @@ import type {
   Document,
   Element,
   EllipseElement,
+  FillStyle,
   LineElement,
   LineType,
   Point,
@@ -42,6 +43,7 @@ import {
   snapSegmentDelta,
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
+import { DEFAULT_FONT_FAMILY } from "./textStyle";
 import { getLibraryItem } from "./library";
 import { addImportedImage } from "./importedImages";
 import {
@@ -352,6 +354,7 @@ export class Editor {
   private lastStrokeStyle: StrokeStyle = "solid";
   private lastRoughness: Roughness = 0;
   private lastBorderRadius = 0;
+  private lastFillStyle: FillStyle = "solid";
   private focusMode = false;
 
   private listeners = new Set<() => void>();
@@ -723,6 +726,7 @@ export class Editor {
       strokeOpacity: 1,
       fillOpacity: 1,
       strokeStyle: "solid",
+      fillStyle: this.lastFillStyle,
       roughness: 0,
       borderRadius: 20,
       // legenda/editação usa a mesma fonte default do texto (média, sans)
@@ -1002,7 +1006,7 @@ export class Editor {
       height: 0,
       text: "",
       fontSize: 20,
-      fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontFamily: DEFAULT_FONT_FAMILY,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
       strokeWidth: 1,
@@ -1010,6 +1014,7 @@ export class Editor {
       strokeOpacity: 1,
       fillOpacity: 1,
       strokeStyle: "solid",
+      fillStyle: this.lastFillStyle,
       roughness: 0,
       borderRadius: 0,
     };
@@ -1040,11 +1045,12 @@ export class Editor {
       backgroundColor?: string;
       strokeWidth?: number;
       opacity?: number;
-      strokeOpacity?: number;
-      fillOpacity?: number;
-      fontSize?: number;
-      strokeStyle?: StrokeStyle;
-      roughness?: Roughness;
+strokeOpacity?: number;
+  fillOpacity?: number;
+  fontSize?: number;
+  strokeStyle?: StrokeStyle;
+  fillStyle?: FillStyle;
+  roughness?: Roughness;
       borderRadius?: number;
       fontFamily?: string;
       bold?: boolean;
@@ -1068,13 +1074,18 @@ export class Editor {
       lineType?: LineType;
       controlPoint?: Point;
       bendPoints?: Point[];
+      animated?: boolean;
     },
   ) {
     this.doc = {
       ...this.doc,
       elements: this.doc.elements.map((el) => {
         if (!ids.includes(el.id)) return el;
-        const next = { ...el, ...patch } as Element;
+        let next = { ...el, ...patch } as Element;
+        // a solid stroke has no dashes to march — switching to it must
+        // clear the flowing-dash animation
+        if (next.type === "arrow" && next.strokeStyle === "solid")
+          next = { ...next, animated: false };
         // recalculate text dimensions when font-related props change
         if (next.type === "text" && (patch.fontSize !== undefined || patch.fontFamily !== undefined || patch.bold !== undefined || patch.italic !== undefined || patch.lineSpacing !== undefined)) {
           const te = next as TextElement;
@@ -1087,6 +1098,7 @@ export class Editor {
     };
     // remember style choices for the next created element
     if (patch.strokeStyle !== undefined) this.lastStrokeStyle = patch.strokeStyle;
+    if (patch.fillStyle !== undefined) this.lastFillStyle = patch.fillStyle;
     if (patch.roughness !== undefined) this.lastRoughness = patch.roughness;
     if (patch.borderRadius !== undefined && ids.length > 0)
       this.lastBorderRadius = patch.borderRadius;
@@ -1271,6 +1283,7 @@ export class Editor {
           strokeOpacity: 1,
           fillOpacity: 1,
           strokeStyle: this.lastStrokeStyle,
+          fillStyle: this.lastFillStyle,
           roughness: this.lastRoughness,
           borderRadius: this.lastBorderRadius,
         };
@@ -1315,7 +1328,7 @@ export class Editor {
           height: 0,
           text: "",
           fontSize: 20,
-          fontFamily: '"Segoe UI", system-ui, sans-serif',
+          fontFamily: DEFAULT_FONT_FAMILY,
           strokeColor: stroke,
           backgroundColor: DEFAULT_BG,
           strokeWidth: 1,
@@ -1323,6 +1336,7 @@ export class Editor {
           strokeOpacity: 1,
           fillOpacity: 1,
           strokeStyle: this.lastStrokeStyle,
+          fillStyle: this.lastFillStyle,
           roughness: this.lastRoughness,
           borderRadius: 0,
         };
@@ -2040,11 +2054,12 @@ export class Editor {
   }
 
   /** imports a Document as a new diagram tab (never replaces existing) */
-  importDocumentAsNewDiagram(doc: Document, name: string): string {
+  importDocumentAsNewDiagram(doc: Document, name: string, fitContent = false): string {
     const id = `tab_${Date.now().toString(36)}_${++tabSeq}`;
     const tab = { id, name, doc, camera: { scrollX: 0, scrollY: 0, zoom: 1 } };
     this.tabs = [...this.tabs, tab];
     this.activateTab(id);
+    if (fitContent) this.zoomToFit();
     return id;
   }
 
@@ -2070,6 +2085,7 @@ export class Editor {
         hiddenLabelId:
           this.editingKind === "label" ? this.editingTextId : null,
         hiddenTextId: this.editingKind === "text" ? this.editingTextId : null,
+        animationPhase: performance.now() / 60,
       },
       w,
       h,

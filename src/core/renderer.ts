@@ -1,7 +1,9 @@
 import type { ArrowBinding, ArrowElement, Bounds, Camera, ComponentElement, Document, Element, LineElement, Point } from "./types";
 import {
+  arrowHeadVectors,
   arrowPoints,
   bindingPoint,
+  cornerRadius,
   curvedArrowControl,
   diamondVertices,
   edgeLabelAnchor,
@@ -11,9 +13,10 @@ import {
   measureText,
 } from "./utils";
 import { getLibraryItem } from "./library";
-import { getComponentImage } from "./componentAssets";
-import { resolveFont, resolveTextColor, lineHeight } from "./textStyle";
+import { getComponentImage, getCachedImage } from "./componentAssets";
+import { resolveFont, resolveTextColor, lineHeight, textBlockHeight } from "./textStyle";
 import { themeColor } from "./color";
+import { strokeDashArray, strokeRoundCap } from "./strokeStyle";
 
 export interface RenderColors {
   selection: string;
@@ -44,6 +47,8 @@ export interface RenderState {
   hiddenLabelId?: string | null;
   /** free text element being edited (suppresses resize handles) */
   hiddenTextId?: string | null;
+  /** animation clock for flowing-dash arrow strokes (cycle value in scene units) */
+  animationPhase?: number;
 }
 
 const DEFAULT_COLORS: RenderColors = {
@@ -135,19 +140,15 @@ function drawArrowHead(
   tip: Point,
   tail: Point,
   size: number,
+  roughness: number,
+  seed: number,
 ) {
-  const angle = Math.atan2(tip.y - tail.y, tip.x - tail.x);
+  const [p1, p2] = arrowHeadVectors(tip, tail, size);
+  // the head never inherits the shaft dash pattern — wings stay solid
+  ctx.setLineDash([]);
+  ctx.lineDashOffset = 0;
   ctx.beginPath();
-  ctx.moveTo(tip.x, tip.y);
-  ctx.lineTo(
-    tip.x - size * Math.cos(angle - Math.PI / 6),
-    tip.y - size * Math.sin(angle - Math.PI / 6),
-  );
-  ctx.moveTo(tip.x, tip.y);
-  ctx.lineTo(
-    tip.x - size * Math.cos(angle + Math.PI / 6),
-    tip.y - size * Math.sin(angle + Math.PI / 6),
-  );
+  sketchStroke(ctx, [[tip, p1], [tip, p2]], roughness, seed, 1, true);
   ctx.stroke();
 }
 
@@ -187,6 +188,8 @@ function roughPolyline(
   roughness: number,
   seed: number,
   waveScale = 1,
+  clampStart = false,
+  clampEnd = false,
 ) {
   if (points.length < 2) return;
   let s = seed;
@@ -270,13 +273,20 @@ function roughPolyline(
     if (p.x > maxX) maxX = p.x;
     if (p.y > maxY) maxY = p.y;
   }
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
+  // clamped anchors (arrow tips) must stay EXACT in final screen space, so
+  // the rigid pivot is the anchor with ZERO translation: rotation/scale then
+  // keep the tip pinned and the sketched shaft/head never overshoots it
+  const clampAnchored = clampStart || clampEnd;
+  const ax = clampEnd ? points[last].x : clampStart ? points[0].x : (minX + maxX) / 2;
+  const ay = clampEnd ? points[last].y : clampStart ? points[0].y : (minY + maxY) / 2;
   ctx.save();
-  ctx.translate(cx + jit(roughness * 0.9), cy + jit(roughness * 0.9));
+  ctx.translate(
+    ax + (clampAnchored ? 0 : jit(roughness * 0.9)),
+    ay + (clampAnchored ? 0 : jit(roughness * 0.9)),
+  );
   ctx.rotate((jit(roughness * 0.5) * Math.PI) / 180);
   ctx.scale(1 + jit(roughness * 0.005), 1 + jit(roughness * 0.005));
-  ctx.translate(-cx, -cy);
+  ctx.translate(-ax, -ay);
 
   // loose tip: slip along the direction + a little perpendicular scatter
   const tipPt = (px: number, py: number, ux: number, uy: number): Point => {
@@ -348,7 +358,16 @@ function roughPolyline(
     let sx: number;
     let sy: number;
     if (tipStart) {
-      const p = tipPt(points[i - 1].x, points[i - 1].y, dir[i - 1].x, dir[i - 1].y);
+      // clamped start: keep the anchor point EXACT (used by the arrowhead,
+      // so its wings never detach from the tip or overshoot past it)
+      const p = clampStart
+        ? { x: points[i - 1].x, y: points[i - 1].y }
+        : tipPt(
+            points[i - 1].x,
+            points[i - 1].y,
+            dir[i - 1].x,
+            dir[i - 1].y,
+          );
       sx = p.x;
       sy = p.y;
     } else if (liftStart) {
@@ -369,7 +388,11 @@ function roughPolyline(
       ex = D[e].x - dir[e - 1].x * g;
       ey = D[e].y - dir[e - 1].y * g;
     } else if (tipEnd) {
-      const p = tipPt(points[e].x, points[e].y, dir[e - 1].x, dir[e - 1].y);
+      // clamped end: terminate exactly on the geometry (arrow shaft tip must
+      // not run past the arrowhead and push the animated dashes beyond it)
+      const p = clampEnd
+        ? { x: points[e].x, y: points[e].y }
+        : tipPt(points[e].x, points[e].y, dir[e - 1].x, dir[e - 1].y);
       ex = p.x;
       ey = p.y;
     } else {
@@ -435,6 +458,8 @@ function sketchStroke(
   roughness: number,
   seedBase: number,
   waveScale = 1,
+  clampStart = false,
+  clampEnd = false,
 ) {
   const passes = roughness === 0 ? 1 : roughness === 3 ? 3 : 2;
   for (let p = 0; p < passes; p++) {
@@ -450,6 +475,8 @@ function sketchStroke(
           roughness,
           seedBase + p * 131 + pts.length,
           waveScale,
+          clampStart,
+          clampEnd,
         );
       }
     }
@@ -467,14 +494,6 @@ function seedOf(id: string): number {
     seedCache.set(id, s);
   }
   return s;
-}
-
-/** corner radius in scene px for a rectangle/component (0–100% of the smaller side) */
-function cornerRadius(el: Element): number {
-  if ((el.type !== "rectangle" && el.type !== "component") || el.borderRadius <= 0)
-    return 0;
-  const max = Math.min(Math.abs(el.width), Math.abs(el.height)) / 2;
-  return (Math.min(100, el.borderRadius) / 100) * max;
 }
 
 // ---- library icon rendering (Path2D cache) ------------------------------
@@ -573,21 +592,14 @@ function applyDash(
   ctx: CanvasRenderingContext2D,
   el: Element,
   strokeWidth: number,
+  phase: number = 0,
+  animated: boolean = false,
 ) {
-  if (el.strokeStyle === "dashed") {
-    ctx.setLineDash([strokeWidth * 5, strokeWidth * 4]);
-  } else if (el.strokeStyle === "dotted") {
-    ctx.setLineDash([strokeWidth * 0.01 + 0.01, strokeWidth * 2.6]);
-    ctx.lineCap = "round";
-  } else if (el.strokeStyle === "dashdot") {
-    ctx.setLineDash([
-      strokeWidth * 5,
-      strokeWidth * 3,
-      strokeWidth * 0.01 + 0.01,
-      strokeWidth * 3,
-    ]);
-    ctx.lineCap = "round";
-  }
+  const dash = strokeDashArray(el.strokeStyle, strokeWidth);
+  if (dash.length === 0) return;
+  if (animated) ctx.lineDashOffset = -phase;
+  ctx.setLineDash(dash);
+  if (strokeRoundCap(el.strokeStyle)) ctx.lineCap = "round";
 }
 
 /** fixed icon→label distance and font size (do NOT scale with resize) */
@@ -670,19 +682,6 @@ function captionLayout(
 // ---- raster asset cache (HTMLImageElement from data URLs) ----------------
 // usado por imagens autocontidas (src embebido no elemento) quando o item de
 // lib já foi removido; assets registrados (AWS/libs) vêm de componentAssets.
-const imageCache = new Map<string, HTMLImageElement>();
-
-function getCachedImage(src: string): HTMLImageElement | null {
-  let img = imageCache.get(src);
-  if (!img) {
-    // cacheia imediatamente (mesmo enquanto carrega): descartar sem cachear
-    // reinicia o load a cada frame do loop RAF e a imagem nunca "complete"
-    img = new Image();
-    img.src = src;
-    imageCache.set(src, img);
-  }
-  return img.complete && img.naturalWidth > 0 ? img : null;
-}
 
 /**
  * icon/caption geometry shared between canvas rendering, label placement and
@@ -757,10 +756,106 @@ function drawComponentIcon(ctx: CanvasRenderingContext2D, el: ComponentElement) 
   ctx.restore();
 }
 
+function traceShape(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+) {
+  if (el.type === "rectangle" || el.type === "component") {
+    ctx.beginPath();
+    ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+  } else if (el.type === "diamond") {
+    const v = diamondVertices(el);
+    ctx.beginPath();
+    ctx.moveTo(v[0].x, v[0].y);
+    for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+    ctx.closePath();
+  } else if (el.type === "ellipse") {
+    const rx = Math.abs(el.width) / 2;
+    const ry = Math.abs(el.height) / 2;
+    ctx.beginPath();
+    ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, rx, ry, 0, 0, Math.PI * 2);
+  }
+}
+
+function boundsOf(el: Element): { x: number; y: number; w: number; h: number } {
+  if (el.type === "diamond") {
+    const v = diamondVertices(el);
+    let x1 = v[0].x, y1 = v[0].y, x2 = v[0].x, y2 = v[0].y;
+    for (const p of v) {
+      if (p.x < x1) x1 = p.x;
+      if (p.x > x2) x2 = p.x;
+      if (p.y < y1) y1 = p.y;
+      if (p.y > y2) y2 = p.y;
+    }
+    return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+  }
+  return {
+    x: Math.min(el.x, el.x + el.width),
+    y: Math.min(el.y, el.y + el.height),
+    w: Math.abs(el.width),
+    h: Math.abs(el.height),
+  };
+}
+
+const HACHURE_SPACING = 6;
+
+function drawHachureFill(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  colors: RenderColors,
+  withCross: boolean,
+) {
+  const b = boundsOf(el);
+  const hatchColor =
+    el.backgroundColor !== "transparent"
+      ? el.backgroundColor
+      : resolveStroke(el, colors);
+  ctx.save();
+  ctx.strokeStyle = hatchColor;
+  ctx.lineCap = "round";
+  ctx.globalAlpha = el.fillOpacity;
+  traceShape(ctx, el);
+  ctx.clip();
+  const span = Math.max(b.w, b.h) * 1.5;
+  const cx = b.x + b.w / 2;
+  const cy = b.y + b.h / 2;
+  const lines: Point[][] = [];
+  for (let d = -span; d <= span; d += HACHURE_SPACING) {
+    lines.push([
+      { x: cx + d - span, y: cy - span },
+      { x: cx + d + span, y: cy + span },
+    ]);
+    if (withCross) {
+      lines.push([
+        { x: cx + d - span, y: cy + span },
+        { x: cx + d + span, y: cy - span },
+      ]);
+    }
+  }
+  // hachure follows the stroke style: clean lines at roughness 0, hand-drawn
+  // wobble when the outline is sketched (each line wobbles independently)
+  ctx.lineWidth = el.roughness > 0 ? Math.max(el.strokeWidth * 0.6, 1) : 1.2;
+  ctx.beginPath();
+  if (el.roughness === 0) {
+    for (const l of lines) {
+      ctx.moveTo(l[0].x, l[0].y);
+      ctx.lineTo(l[1].x, l[1].y);
+    }
+  } else {
+    const seedBase = seedOf(el.id) + 7;
+    lines.forEach((l, j) => {
+      sketchStroke(ctx, [l], el.roughness, seedBase + j * 17);
+    });
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawElement(
   ctx: CanvasRenderingContext2D,
   el: Element,
   colors: RenderColors,
+  animationPhase: number = 0,
 ) {
   ctx.save();
   ctx.strokeStyle = resolveStroke(el, colors);
@@ -771,13 +866,17 @@ function drawElement(
 
   if (el.type === "rectangle" || el.type === "component") {
     // fill always uses a clean closed shape so it never breaks
-    if (el.backgroundColor !== "transparent") {
-      ctx.save();
-      ctx.globalAlpha = el.fillOpacity;
-      ctx.beginPath();
-      ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-      ctx.fill();
-      ctx.restore();
+    if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
+      if (el.backgroundColor !== "transparent") {
+        ctx.save();
+        ctx.globalAlpha = el.fillOpacity;
+        ctx.beginPath();
+        ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
     // strokeWidth 0 = borderless (library components)
     if (el.strokeWidth > 0) {
@@ -811,15 +910,19 @@ function drawElement(
     if (el.type === "component") drawComponentIcon(ctx, el);
   } else if (el.type === "diamond") {
     const v = diamondVertices(el);
-    if (el.backgroundColor !== "transparent") {
-      ctx.save();
-      ctx.globalAlpha = el.fillOpacity;
-      ctx.beginPath();
-      ctx.moveTo(v[0].x, v[0].y);
-      for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
+    if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
+      if (el.backgroundColor !== "transparent") {
+        ctx.save();
+        ctx.globalAlpha = el.fillOpacity;
+        ctx.beginPath();
+        ctx.moveTo(v[0].x, v[0].y);
+        for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
     ctx.save();
     ctx.globalAlpha = el.strokeOpacity;
@@ -839,13 +942,17 @@ function drawElement(
     const ry = Math.abs(el.height) / 2;
     const cx = el.x + el.width / 2;
     const cy = el.y + el.height / 2;
-    if (el.backgroundColor !== "transparent") {
-      ctx.save();
-      ctx.globalAlpha = el.fillOpacity;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+    if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
+      if (el.backgroundColor !== "transparent") {
+        ctx.save();
+        ctx.globalAlpha = el.fillOpacity;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
     ctx.save();
     ctx.globalAlpha = el.strokeOpacity;
@@ -895,30 +1002,34 @@ function drawElement(
     const lineType = el.lineType ?? "straight";
     const endY = b.y === a.y ? b.y + 1 : b.y;
     const tip = { x: b.x, y: endY };
+    const headSize = Math.max(12, el.strokeWidth * 4) * 1.2;
+    const headSeed = seedOf(el.id) + 7;
 
     ctx.save();
     ctx.globalAlpha = el.strokeOpacity;
     ctx.beginPath();
     if (lineType === "straight") {
-      sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id));
-      applyDash(ctx, el, el.strokeWidth);
+      // clamp the head-side end so the sketched shaft never runs past the
+      // arrowhead (animated dashes would otherwise march beyond the arrow)
+      sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id), 1, false, true);
+      applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
-      drawArrowHead(ctx, tip, a, Math.max(12, el.strokeWidth * 4));
+      drawArrowHead(ctx, tip, a, headSize, el.roughness, headSeed);
     } else if (lineType === "curved") {
       const cp = curvedArrowControl(el, a, tip);
       ctx.moveTo(a.x, a.y);
       ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
-      applyDash(ctx, el, el.strokeWidth);
+      applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
-      drawArrowHead(ctx, tip, cp, Math.max(12, el.strokeWidth * 4));
+      drawArrowHead(ctx, tip, cp, headSize, el.roughness, headSeed);
     } else {
       // auto: polyline through bend points (or L-shaped default)
       const pts = edgePathPoints(el);
-      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id));
-      applyDash(ctx, el, el.strokeWidth);
+      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id), 1, false, true);
+      applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
       const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
-      drawArrowHead(ctx, tip, prevPt, Math.max(12, el.strokeWidth * 4));
+      drawArrowHead(ctx, tip, prevPt, headSize, el.roughness, headSeed);
     }
     ctx.restore();
   } else if (el.type === "text") {
@@ -932,7 +1043,7 @@ function drawElement(
     const align = el.textAlign ?? "left";
     ctx.textAlign = align;
     const n = lines.length;
-    const textBlockH = n === 1 ? el.fontSize : (n - 1) * el.fontSize * lh + el.fontSize;
+    const textBlockH = textBlockHeight(el.fontSize, n, lh);
     const vOffset = Math.max(0, (el.height - textBlockH) / 2);
     const underlineOn = !!el.underline;
     lines.forEach((line, i) => {
@@ -1230,7 +1341,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     if (el.type === "line" || el.type === "arrow") {
       const pad = Math.max(2, fontSize * 0.3);
       const tw = Math.max(...lines.map((l: string) => ctx.measureText(l).width), 1);
-      const bh = (lines.length - 1) * step + fontSize;
+      const bh = textBlockHeight(fontSize, lines.length, lh);
       const blockCy =
         textVAlign === "top"
           ? cy + ((lines.length - 1) * step) / 2
@@ -1461,7 +1572,7 @@ export function render(
   for (const el of state.doc.elements) {
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
-    drawElement(ctx, el, colors);
+    drawElement(ctx, el, colors, state.animationPhase ?? 0);
     // label is ALWAYS painted (even while its text is being edited) so the
     // invisible overlay textarea stays WYSIWYG with the final style
     drawLabel(ctx, el, colors);
@@ -1494,7 +1605,7 @@ export function render(
   }
 
   if (state.draft) {
-    drawElement(ctx, state.draft, colors);
+    drawElement(ctx, state.draft, colors, state.animationPhase ?? 0);
     drawLabel(ctx, state.draft, colors);
     drawSelectionBox(ctx, state.draft, cam.zoom, colors.selection);
   }

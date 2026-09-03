@@ -125,6 +125,390 @@ test.describe("export / import", () => {
       .toEqual({ n: 1, type: "rectangle", x: 50 });
   });
 
+  test("import .excalidraw preserves element opacity (0-100 -> 0-1)", async ({
+    page,
+  }) => {
+    // regression: shapes imported from .excalidraw with opacity < 100 used to
+    // arrive with fillOpacity/strokeOpacity hard-coded to 1, so the renderer
+    // ignored the original opacity entirely. fillOpacity is kept 15 points
+    // below the element opacity (excalidraw's own fill rendering rule).
+    const excalidrawFile = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "https://excalidraw.com",
+      elements: [
+        {
+          id: "exc_rect_half",
+          type: "rectangle",
+          x: 10,
+          y: 10,
+          width: 100,
+          height: 60,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "#a5d8ff",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 50,
+          roundness: { type: 3 },
+          seed: 1,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+        },
+      ],
+      appState: { gridSize: 20, viewBackgroundColor: "" },
+      files: {},
+    });
+
+    await page.setInputFiles('[data-testid="import-input"]', {
+      name: "half-opacity.excalidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(excalidrawFile),
+    });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const el = window.__editor__.getSnapshot().doc.elements[0];
+          return {
+            opacity: el?.opacity,
+            fillOpacity: el?.fillOpacity,
+            strokeOpacity: el?.strokeOpacity,
+          };
+        }),
+      )
+      .toEqual({ opacity: 0.5, fillOpacity: 0.35, strokeOpacity: 0.5 });
+  });
+
+  test("import .excalidraw keeps transparent background transparent (fill 0%, stroke 100%)", async ({
+    page,
+  }) => {
+    // regression: a rectangle with no background (excalidraw's default: bg
+    // "transparent" + fillStyle "hachure") used to import with fillStyle
+    // hachure, and the renderer draws hachure lines in the stroke color over
+    // transparent backgrounds — the transparency was lost.
+    const excalidrawFile = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "https://excalidraw.com",
+      elements: [
+        {
+          id: "exc_rect_no_bg",
+          type: "rectangle",
+          x: 10,
+          y: 10,
+          width: 100,
+          height: 60,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "transparent",
+          fillStyle: "hachure",
+          strokeWidth: 2,
+          strokeStyle: "solid",
+          roughness: 1,
+          opacity: 100,
+          roundness: { type: 3 },
+          seed: 1,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+        },
+      ],
+      appState: { gridSize: 20, viewBackgroundColor: "" },
+      files: {},
+    });
+
+    await page.setInputFiles('[data-testid="import-input"]', {
+      name: "no-bg.excalidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(excalidrawFile),
+    });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const el = window.__editor__.getSnapshot().doc.elements[0];
+          return {
+            backgroundColor: el?.backgroundColor,
+            fillStyle: el?.fillStyle,
+            fillOpacity: el?.fillOpacity,
+            strokeOpacity: el?.strokeOpacity,
+          };
+        }),
+      )
+      .toEqual({
+        backgroundColor: "transparent",
+        fillStyle: "solid",
+        fillOpacity: 0,
+        strokeOpacity: 1,
+      });
+  });
+
+  test("import .excalidraw preserves text font family (1=sketch, 3=mono, else sans)", async ({
+    page,
+  }) => {
+    // regression: text elements imported from .excalidraw used to drop their
+    // font entirely — every element fell back to the default sans font.
+    const excalidrawFile = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "https://excalidraw.com",
+      elements: [
+        {
+          id: "exc_text_sketch",
+          type: "text",
+          x: 10,
+          y: 10,
+          width: 200,
+          height: 40,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "transparent",
+          fillStyle: "solid",
+          strokeWidth: 1,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 100,
+          roundness: null,
+          seed: 1,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+          text: "handwritten",
+          fontSize: 24,
+          fontFamily: 1,
+          textAlign: "left",
+          verticalAlign: "top",
+          containerId: null,
+          originalText: "handwritten",
+        },
+        {
+          id: "exc_text_mono",
+          type: "text",
+          x: 10,
+          y: 80,
+          width: 200,
+          height: 40,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "transparent",
+          fillStyle: "solid",
+          strokeWidth: 1,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 100,
+          roundness: null,
+          seed: 2,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+          text: "mono",
+          fontSize: 24,
+          fontFamily: 3,
+          textAlign: "left",
+          verticalAlign: "top",
+          containerId: null,
+          originalText: "mono",
+        },
+        {
+          id: "exc_text_sans",
+          type: "text",
+          x: 10,
+          y: 150,
+          width: 200,
+          height: 40,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "transparent",
+          fillStyle: "solid",
+          strokeWidth: 1,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 100,
+          roundness: null,
+          seed: 3,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+          text: "normal",
+          fontSize: 24,
+          fontFamily: 2,
+          textAlign: "left",
+          verticalAlign: "top",
+          containerId: null,
+          originalText: "normal",
+        },
+        {
+          id: "exc_box_labeled",
+          type: "rectangle",
+          x: 10,
+          y: 220,
+          width: 150,
+          height: 80,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "#a5d8ff",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 100,
+          roundness: { type: 3 },
+          seed: 4,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: [{ id: "exc_box_label", type: "text" }],
+          updated: 1,
+          groupIds: [],
+        },
+        {
+          id: "exc_box_label",
+          type: "text",
+          x: 30,
+          y: 240,
+          width: 120,
+          height: 30,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "transparent",
+          fillStyle: "solid",
+          strokeWidth: 1,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 100,
+          roundness: null,
+          seed: 5,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+          text: "título",
+          fontSize: 20,
+          fontFamily: 1,
+          textAlign: "center",
+          verticalAlign: "middle",
+          containerId: "exc_box_labeled",
+          originalText: "título",
+        },
+      ],
+      appState: { gridSize: 20, viewBackgroundColor: "" },
+      files: {},
+    });
+
+    await page.setInputFiles('[data-testid="import-input"]', {
+      name: "fonts.excalidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(excalidrawFile),
+    });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const els = window.__editor__.getSnapshot().doc.elements;
+          const byType = (t: string) => els.find((e) => e.type === t);
+          const font = (id: string) =>
+            els.find((e) => e.id === id)?.fontFamily;
+          return {
+            sketch: font("exc_text_sketch"),
+            mono: font("exc_text_mono"),
+            sans: font("exc_text_sans"),
+            labeled: byType("rectangle")?.fontFamily,
+          };
+        }),
+      )
+      .toEqual({
+        sketch: '"Architects Daughter", cursive',
+        mono: 'Consolas, "SF Mono", monospace',
+        sans: undefined,
+        labeled: '"Architects Daughter", cursive',
+      });
+  });
+
+  test("import .excalidraw auto-fits content into viewport", async ({ page }) => {
+    // element is far larger than the viewport: import must zoom out and
+    // center it (fit content), not leave the default zoom 1
+    const excalidrawFile = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "https://excalidraw.com",
+      elements: [
+        {
+          id: "exc_big_rect",
+          type: "rectangle",
+          x: 0,
+          y: 0,
+          width: 2000,
+          height: 2000,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "#a5d8ff",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          strokeStyle: "solid",
+          roughness: 0,
+          opacity: 100,
+          roundness: { type: 3 },
+          seed: 1,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          groupIds: [],
+        },
+      ],
+      appState: { gridSize: 20, viewBackgroundColor: "" },
+      files: {},
+    });
+
+    await page.setInputFiles('[data-testid="import-input"]', {
+      name: "big.excalidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(excalidrawFile),
+    });
+
+    // zoom must be the fit-to-viewport ratio (pad 40px each side) and the
+    // element's center must land at the screen center
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const snap = window.__editor__.getSnapshot();
+          const el = snap.doc.elements[0];
+          const want = Math.min(
+            8,
+            Math.max(
+              0.1,
+              Math.min(
+                (window.innerWidth - 80) / 2000,
+                (window.innerHeight - 80) / 2000,
+              ),
+            ),
+          );
+          const cx = snap.camera.scrollX + (el.x + el.width / 2) * snap.camera.zoom;
+          const cy = snap.camera.scrollY + (el.y + el.height / 2) * snap.camera.zoom;
+          return (
+            Math.abs(snap.camera.zoom - want) < 0.001 &&
+            Math.abs(cx - window.innerWidth / 2) < 1 &&
+            Math.abs(cy - window.innerHeight / 2) < 1
+          );
+        }),
+      )
+      .toBe(true);
+  });
+
   test("import .archidraw.json (legacy extension) also works", async ({ page }) => {
     const workspace = JSON.stringify({
       schemaVersion: 2,

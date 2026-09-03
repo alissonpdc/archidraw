@@ -17,6 +17,7 @@ import {
   registerImageAsset,
   unregisterCustomAsset,
 } from "./componentAssets";
+import { makeReuseId, persistJson } from "./localStore";
 
 export interface ImportedImageData {
   id: string;
@@ -42,10 +43,6 @@ export const IMPORTED_IMAGES_GROUP = "imported-images";
 
 let images: ImportedImageData[] = [];
 
-function makeId(): string {
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-}
-
 function toLibraryItem(img: ImportedImageData): LibraryItem {
   return {
     id: img.id,
@@ -62,14 +59,6 @@ function toLibraryItem(img: ImportedImageData): LibraryItem {
 function registerAll() {
   for (const img of images) registerImageAsset(img.id, img.src);
   registerImportedLibraryItems(images.map(toLibraryItem));
-}
-
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(images));
-  } catch {
-    // best-effort: pode estourar quota com imagens grandes
-  }
 }
 
 function sanitize(raw: unknown): ImportedImageData[] {
@@ -118,7 +107,7 @@ export function addImportedImage(input: ImportedImageInput): ImportedImageData |
   const existing = images.find((im) => im.src === input.src);
   if (existing) return existing;
   const img: ImportedImageData = {
-    id: `img-${makeId()}`,
+    id: `img-${makeReuseId()}`,
     name: input.name.trim() || "Imported image",
     src: input.src,
     aspect: input.naturalWidth / input.naturalHeight,
@@ -126,7 +115,7 @@ export function addImportedImage(input: ImportedImageInput): ImportedImageData |
   registerImageAsset(img.id, img.src);
   registerImportedLibraryItems([toLibraryItem(img)]);
   images = [...images, img];
-  persist();
+  persistJson(STORAGE_KEY, images);
   return img;
 }
 
@@ -137,5 +126,5 @@ export function removeImportedImage(id: string): void {
   unregisterCustomAsset(img.id);
   unregisterImportedLibraryItems([img.id]);
   images = images.filter((im) => im.id !== id);
-  persist();
+  persistJson(STORAGE_KEY, images);
 }

@@ -10,6 +10,9 @@ export type ElementType =
 /** line pattern: continuous, dashed, dotted or dash-dot */
 export type StrokeStyle = "solid" | "dashed" | "dotted" | "dashdot";
 
+/** fill pattern: solid color block, 45° hachure lines, or cross-hatched lines */
+export type FillStyle = "solid" | "hachure" | "cross-hachure";
+
 /** how "hand-drawn" the stroke looks: 0 = clean, 1 = draft, 2 = sketchy, 3 = chaos */
 export type Roughness = 0 | 1 | 2 | 3;
 
@@ -43,6 +46,7 @@ export interface BaseElement {
   strokeOpacity: number;
   fillOpacity: number;
   strokeStyle: StrokeStyle;
+  fillStyle: FillStyle;
   /** 0 = clean, 1 = draft, 2 = sketchy, 3 = chaos */
   roughness: Roughness;
   /** corner rounding of rectangles, % of the smaller side (0–100) */
@@ -144,6 +148,8 @@ export interface ArrowElement extends BaseElement {
   bendPoints?: Point[];
   startBinding?: ArrowBinding;
   endBinding?: ArrowBinding;
+  /** when true, the arrow stroke renders with a flowing dash pattern */
+  animated?: boolean;
 }
 
 export interface TextElement extends BaseElement {

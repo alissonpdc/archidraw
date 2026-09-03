@@ -1,5 +1,6 @@
-import type { Document, Element, ArrowBinding } from "./types";
+import type { Document, Element, ArrowBinding, BaseElement } from "./types";
 import { arrowPoints } from "./utils";
+import { toExcalidrawStrokeStyle } from "./excalidrawCommon";
 
 interface ExcalidrawElement {
   id: string;
@@ -58,18 +59,11 @@ function nextSeed(): number {
   return seedCounter++;
 }
 
-function mapStrokeStyle(
-  s: string | undefined,
-): "solid" | "dashed" | "dotted" {
-  if (s === "dashed") return "dashed";
-  if (s === "dotted") return "dotted";
-  return "solid";
-}
-
 function mapFillStyle(
-  bg: string,
+  el: Element,
 ): "solid" | "hachure" | "cross-hatch" {
-  if (bg && bg !== "transparent") return "solid";
+  if (el.fillStyle === "hachure") return "hachure";
+  if (el.fillStyle === "cross-hachure") return "cross-hatch";
   return "solid";
 }
 
@@ -100,6 +94,50 @@ function addBoundElement(
   el.boundElements.push({ id: boundId, type: boundType });
 }
 
+/** builds the bound text element for a labelled element (bound to container) */
+function boundTextElement(
+  container: BaseElement & { label?: string },
+  textId: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fontSizeDefault: number,
+): ExcalidrawElement {
+  return {
+    id: textId,
+    type: "text",
+    x,
+    y,
+    width,
+    height,
+    angle: 0,
+    strokeColor: container.textColor || container.strokeColor,
+    backgroundColor: "transparent",
+    fillStyle: "solid",
+    strokeWidth: 0,
+    strokeStyle: "solid",
+    roughness: 0,
+    opacity: 100,
+    roundness: null,
+    seed: nextSeed(),
+    version: 1,
+    versionNonce: nextSeed(),
+    isDeleted: false,
+    boundElements: null,
+    updated: Date.now(),
+    groupIds: container.groupId ? [container.groupId] : [],
+    text: container.label,
+    fontSize: container.fontSize || fontSizeDefault,
+    fontFamily: 2,
+    textAlign: "center",
+    verticalAlign: "middle",
+    containerId: container.id,
+    originalText: container.label,
+    autoResize: true,
+  };
+}
+
 function elementToExcalidraw(
   el: Element,
 ): ExcalidrawElement | ExcalidrawElement[] {
@@ -115,9 +153,9 @@ function elementToExcalidraw(
       el.backgroundColor === "transparent"
         ? "transparent"
         : el.backgroundColor,
-    fillStyle: mapFillStyle(el.backgroundColor),
+    fillStyle: mapFillStyle(el),
     strokeWidth: el.strokeWidth,
-    strokeStyle: mapStrokeStyle(el.strokeStyle),
+    strokeStyle: toExcalidrawStrokeStyle(el.strokeStyle),
     roughness: el.roughness,
     opacity: Math.round(el.opacity * 100),
     roundness: borderRadiusToRoundness(el),
@@ -138,38 +176,15 @@ function elementToExcalidraw(
       };
       if (el.label) {
         const textId = `${el.id}_label`;
-        const textEl: ExcalidrawElement = {
-          id: textId,
-          type: "text",
-          x: el.x + 5,
-          y: el.y + 5,
-          width: Math.max(el.width - 10, 10),
-          height: Math.max(el.height - 10, 10),
-          angle: 0,
-          strokeColor: el.textColor || el.strokeColor,
-          backgroundColor: "transparent",
-          fillStyle: "solid",
-          strokeWidth: 0,
-          strokeStyle: "solid",
-          roughness: 0,
-          opacity: 100,
-          roundness: null,
-          seed: nextSeed(),
-          version: 1,
-          versionNonce: nextSeed(),
-          isDeleted: false,
-          boundElements: null,
-          updated: Date.now(),
-          groupIds: el.groupId ? [el.groupId] : [],
-          text: el.label,
-          fontSize: el.fontSize || 20,
-          fontFamily: 2,
-          textAlign: "center",
-          verticalAlign: "middle",
-          containerId: el.id,
-          originalText: el.label,
-          autoResize: true,
-        };
+        const textEl = boundTextElement(
+          el,
+          textId,
+          el.x + 5,
+          el.y + 5,
+          Math.max(el.width - 10, 10),
+          Math.max(el.height - 10, 10),
+          20,
+        );
         addBoundElement(excalEl, textId, "text");
         return [excalEl, textEl];
       }
@@ -182,38 +197,15 @@ function elementToExcalidraw(
       };
       if (el.label) {
         const textId = `${el.id}_label`;
-        const textEl: ExcalidrawElement = {
-          id: textId,
-          type: "text",
-          x: el.x + 5,
-          y: el.y + 5,
-          width: Math.max(el.width - 10, 10),
-          height: Math.max(el.height - 10, 10),
-          angle: 0,
-          strokeColor: el.textColor || el.strokeColor,
-          backgroundColor: "transparent",
-          fillStyle: "solid",
-          strokeWidth: 0,
-          strokeStyle: "solid",
-          roughness: 0,
-          opacity: 100,
-          roundness: null,
-          seed: nextSeed(),
-          version: 1,
-          versionNonce: nextSeed(),
-          isDeleted: false,
-          boundElements: null,
-          updated: Date.now(),
-          groupIds: el.groupId ? [el.groupId] : [],
-          text: el.label,
-          fontSize: el.fontSize || 20,
-          fontFamily: 2,
-          textAlign: "center",
-          verticalAlign: "middle",
-          containerId: el.id,
-          originalText: el.label,
-          autoResize: true,
-        };
+        const textEl = boundTextElement(
+          el,
+          textId,
+          el.x + 5,
+          el.y + 5,
+          Math.max(el.width - 10, 10),
+          Math.max(el.height - 10, 10),
+          20,
+        );
         addBoundElement(excalEl, textId, "text");
         return [excalEl, textEl];
       }
@@ -226,38 +218,15 @@ function elementToExcalidraw(
       };
       if (el.label) {
         const textId = `${el.id}_label`;
-        const textEl: ExcalidrawElement = {
-          id: textId,
-          type: "text",
-          x: el.x + 5,
-          y: el.y + 5,
-          width: Math.max(el.width - 10, 10),
-          height: Math.max(el.height - 10, 10),
-          angle: 0,
-          strokeColor: el.textColor || el.strokeColor,
-          backgroundColor: "transparent",
-          fillStyle: "solid",
-          strokeWidth: 0,
-          strokeStyle: "solid",
-          roughness: 0,
-          opacity: 100,
-          roundness: null,
-          seed: nextSeed(),
-          version: 1,
-          versionNonce: nextSeed(),
-          isDeleted: false,
-          boundElements: null,
-          updated: Date.now(),
-          groupIds: el.groupId ? [el.groupId] : [],
-          text: el.label,
-          fontSize: el.fontSize || 20,
-          fontFamily: 2,
-          textAlign: "center",
-          verticalAlign: "middle",
-          containerId: el.id,
-          originalText: el.label,
-          autoResize: true,
-        };
+        const textEl = boundTextElement(
+          el,
+          textId,
+          el.x + 5,
+          el.y + 5,
+          Math.max(el.width - 10, 10),
+          Math.max(el.height - 10, 10),
+          20,
+        );
         addBoundElement(excalEl, textId, "text");
         return [excalEl, textEl];
       }
@@ -270,38 +239,15 @@ function elementToExcalidraw(
       };
       if (el.label) {
         const textId = `${el.id}_label`;
-        const textEl: ExcalidrawElement = {
-          id: textId,
-          type: "text",
-          x: el.x + 5,
-          y: el.y + 5,
-          width: Math.max(el.width - 10, 10),
-          height: Math.max(el.height - 10, 10),
-          angle: 0,
-          strokeColor: el.textColor || el.strokeColor,
-          backgroundColor: "transparent",
-          fillStyle: "solid",
-          strokeWidth: 0,
-          strokeStyle: "solid",
-          roughness: 0,
-          opacity: 100,
-          roundness: null,
-          seed: nextSeed(),
-          version: 1,
-          versionNonce: nextSeed(),
-          isDeleted: false,
-          boundElements: null,
-          updated: Date.now(),
-          groupIds: el.groupId ? [el.groupId] : [],
-          text: el.label,
-          fontSize: el.fontSize || 20,
-          fontFamily: 2,
-          textAlign: "center",
-          verticalAlign: "middle",
-          containerId: el.id,
-          originalText: el.label,
-          autoResize: true,
-        };
+        const textEl = boundTextElement(
+          el,
+          textId,
+          el.x + 5,
+          el.y + 5,
+          Math.max(el.width - 10, 10),
+          Math.max(el.height - 10, 10),
+          20,
+        );
         addBoundElement(excalEl, textId, "text");
         return [excalEl, textEl];
       }
@@ -326,38 +272,15 @@ function elementToExcalidraw(
         const textId = `${el.id}_label`;
         const midX = (a.x + b.x) / 2;
         const midY = (a.y + b.y) / 2;
-        const textEl: ExcalidrawElement = {
-          id: textId,
-          type: "text",
-          x: midX - 20,
-          y: midY - 10,
-          width: 40,
-          height: 20,
-          angle: 0,
-          strokeColor: el.textColor || el.strokeColor,
-          backgroundColor: "transparent",
-          fillStyle: "solid",
-          strokeWidth: 0,
-          strokeStyle: "solid",
-          roughness: 0,
-          opacity: 100,
-          roundness: null,
-          seed: nextSeed(),
-          version: 1,
-          versionNonce: nextSeed(),
-          isDeleted: false,
-          boundElements: null,
-          updated: Date.now(),
-          groupIds: el.groupId ? [el.groupId] : [],
-          text: el.label,
-          fontSize: el.fontSize || 16,
-          fontFamily: 2,
-          textAlign: "center",
-          verticalAlign: "middle",
-          containerId: el.id,
-          originalText: el.label,
-          autoResize: true,
-        };
+        const textEl = boundTextElement(
+          el,
+          textId,
+          midX - 20,
+          midY - 10,
+          40,
+          20,
+          16,
+        );
         addBoundElement(excalEl, textId, "text");
         return [excalEl, textEl];
       }
@@ -382,38 +305,15 @@ function elementToExcalidraw(
         const textId = `${el.id}_label`;
         const midX = (a.x + b.x) / 2;
         const midY = (a.y + b.y) / 2;
-        const textEl: ExcalidrawElement = {
-          id: textId,
-          type: "text",
-          x: midX - 20,
-          y: midY - 10,
-          width: 40,
-          height: 20,
-          angle: 0,
-          strokeColor: el.textColor || el.strokeColor,
-          backgroundColor: "transparent",
-          fillStyle: "solid",
-          strokeWidth: 0,
-          strokeStyle: "solid",
-          roughness: 0,
-          opacity: 100,
-          roundness: null,
-          seed: nextSeed(),
-          version: 1,
-          versionNonce: nextSeed(),
-          isDeleted: false,
-          boundElements: null,
-          updated: Date.now(),
-          groupIds: el.groupId ? [el.groupId] : [],
-          text: el.label,
-          fontSize: el.fontSize || 16,
-          fontFamily: 2,
-          textAlign: "center",
-          verticalAlign: "middle",
-          containerId: el.id,
-          originalText: el.label,
-          autoResize: true,
-        };
+        const textEl = boundTextElement(
+          el,
+          textId,
+          midX - 20,
+          midY - 10,
+          40,
+          20,
+          16,
+        );
         addBoundElement(excalEl, textId, "text");
         return [excalEl, textEl];
       }

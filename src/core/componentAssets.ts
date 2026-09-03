@@ -90,3 +90,30 @@ export function waitForComponentImages(componentIds?: string[]): Promise<void> {
     );
   return Promise.all(pending).then(() => undefined);
 }
+
+// ---- self-contained raster images (data URI embedded in the element) -----
+
+const bySrc = new Map<string, HTMLImageElement>();
+
+/** cached <img> for a self-contained data-URI src; returns non-null only
+ *  after it has decoded (naturalWidth > 0). The element stays cached so a
+ *  not-yet-loaded src is never restarted on the next frame. */
+export function getCachedImage(src: string): HTMLImageElement | null {
+  let img = bySrc.get(src);
+  if (!img) {
+    img = new Image();
+    img.src = src;
+    bySrc.set(src, img);
+  }
+  return img.complete && img.naturalWidth > 0 ? img : null;
+}
+
+/** resolves once the data URI has decoded (or errored) */
+export function waitForImage(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = src;
+  });
+}

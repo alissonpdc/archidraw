@@ -56,6 +56,7 @@ type Patch = Partial<{
   fillOpacity: number;
   fontSize: number;
   strokeStyle: "solid" | "dashed" | "dotted" | "dashdot";
+  fillStyle: "solid" | "hachure" | "cross-hachure";
   roughness: 0 | 1 | 2 | 3;
   borderRadius: number;
   fontFamily: string;
@@ -78,6 +79,7 @@ type Patch = Partial<{
   captionOffsetLeft: number;
   captionOffsetRight: number;
   lineType: "straight" | "curved" | "auto";
+  animated: boolean;
 }>;
 
 // ---- color helpers -----------------------------------------------------
@@ -183,6 +185,23 @@ function Group({
     <div className="panel-group">
       <div className="panel-subtitle">{title}</div>
       <div className={`panel-group-body${vertical ? " vertical" : ""}`}>{children}</div>
+    </div>
+  );
+}
+
+/** themed section (e.g. STROKE / FILL): big heading + accent left border
+ *  that spans the related attribute fields */
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="panel-section">
+      <div className="panel-section-heading">{title}</div>
+      <div className="panel-section-body">{children}</div>
     </div>
   );
 }
@@ -471,10 +490,23 @@ export function PropertiesPanel() {
   const allStroke = (v: number) => selected.every((el) => el.strokeWidth === v);
   const allStyle = (v: string) =>
     selected.every((el) => el.strokeStyle === v);
+  const allFillStyle = (v: string) =>
+    selected.every((el) => (el.fillStyle ?? "solid") === v);
   const allRoughness = (v: number) =>
     selected.every((el) => el.roughness === v);
   const allLineType = (v: string) =>
     selected.every((el) => ((el.type === "arrow" || el.type === "line") ? (el.lineType ?? "straight") : v) === v);
+  const allAnimated = selected.every(
+    (el) => el.type !== "arrow" || !!el.animated,
+  );
+  /** animation marches the dash pattern; solid strokes have no dashes to
+   *  move, so the toggle is disabled unless an arrow is dashed, dotted or
+   *  dash-dot (any path type: straight, curved or auto). Switching an
+   *  animated arrow back to solid clears `animated`, so this stays true. */
+  const hasAnimatableArrow = selected.some(
+    (el) => el.type === "arrow" && (el.strokeStyle ?? "solid") !== "solid",
+  );
+  const animationDisabled = !hasAnimatableArrow;
   const allFont = (v: number) => {
     const textEls = selected.filter((el) => el.type === "text" || el.label);
     return (
@@ -577,139 +609,127 @@ export function PropertiesPanel() {
       <div className="panel-divider" />
 
       <div ref={styleRef} className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
-        <Group title="Stroke">
-          <PaletteGrid
-            current={selected[0].strokeColor}
-            onPick={(strokeColor) => apply({ strokeColor })}
-            label="Stroke color"
-          />
-        </Group>
-        <div className="palette-opacity-row">
-          <MiniSlider
-            value={strokeOpacityValue ?? 100}
-            min={0}
-            max={100}
-            step={5}
-            ariaLabel="Stroke opacity"
-            onChange={(v) => apply({ strokeOpacity: v / 100 })}
-          />
-        </div>
-
-          {hasFillable && (
-            <>
-              <Group title="Fill">
-                <PaletteGrid
-                  current={selected[0].backgroundColor}
-                  onPick={(backgroundColor) => apply({ backgroundColor })}
-                  label="Fill"
-                />
-              </Group>
-              <div className="palette-opacity-row">
-                <MiniSlider
-                  value={fillOpacityValue ?? 100}
-                  min={0}
-                  max={100}
-                  step={5}
-                  ariaLabel="Fill opacity"
-                  onChange={(v) => apply({ fillOpacity: v / 100 })}
-                />
-              </div>
-            </>
-          )}
-
+        <Section title="Stroke">
+          <Group title="Color">
+            <PaletteGrid
+              current={selected[0].strokeColor}
+              onPick={(strokeColor) => apply({ strokeColor })}
+              label="Stroke color"
+            />
+          </Group>
+          <Group title="Opacity">
+            <MiniSlider
+              value={strokeOpacityValue ?? 100}
+              min={0}
+              max={100}
+              step={5}
+              ariaLabel="Stroke opacity"
+              onChange={(v) => apply({ strokeOpacity: v / 100 })}
+            />
+          </Group>
           {hasShape && (
-            <>
-              <Group title="Line type">
-                {(["solid", "dashed", "dotted", "dashdot"] as const).map((s) => (
-                  <button
-                    key={s}
-                    className={`size-btn line-style-btn ${allStyle(s) ? "active" : ""}`}
-                    aria-label={`Line ${s}`}
-                    onClick={() => apply({ strokeStyle: s })}
-                  >
-                    <svg width="20" height="10" viewBox="0 0 20 10">
-                      <line
-                        x1="1" y1="5" x2="19" y2="5"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        {...(s === "solid"
-                          ? {}
-                          : s === "dashed"
-                            ? { strokeDasharray: "4 3" }
-                            : s === "dashdot"
-                              ? { strokeDasharray: "5 2.5 0.5 2.5" }
-                              : { strokeDasharray: "0.1 4" })}
-                      />
-                    </svg>
-                  </button>
-                ))}
-              </Group>
-
-              <Group title="Stroke style">
-                {(
-                  [
-                    {
-                      v: 0,
-                      label: "Architect",
-                      paths: ["M2 7 L18 7"],
-                    },
-                    {
-                      v: 1,
-                      label: "Draft",
-                      paths: [
-                        "M2.5 7 C6 5.8 12 8.4 17.5 6.8",
-                        "M3 7.6 C7 8.6 13 6.2 17 8",
-                      ],
-                    },
-                    {
-                      v: 2,
-                      label: "Sketchy",
-                      paths: [
-                        "M2 8 C6 4 12 10 18 6",
-                        "M2.5 6.5 C7 9.5 12 4.5 17.5 8",
-                        "M3 7 C8 6 11 8.5 16.5 6.8",
-                      ],
-                    },
-                    {
-                      v: 3,
-                      label: "Chaos",
-                      paths: [
-                        "M2 9 C5 2 14 11 18 5",
-                        "M2.5 5 C7 10.5 13 3.5 17.5 9",
-                        "M3 7.5 C6 3.5 12 10.5 17 6.5",
-                        "M2 6.5 C8 9.5 11 4.5 18 7.5",
-                        "M3.5 8 C7 5.5 13 8 16.5 5.5",
-                      ],
-                    },
-                  ] as const
-                ).map(({ v, label, paths }) => (
-                  <button
-                    key={v}
-                    className={`size-btn ${allRoughness(v) ? "active" : ""}`}
-                    aria-label={`Roughness ${label}`}
-                    data-tip={label}
-                    onClick={() => apply({ roughness: v as 0 | 1 | 2 | 3 })}
-                  >
-                    <svg width="20" height="14" viewBox="0 0 20 14">
-                      {paths.map((d, i) => (
-                        <path
-                          key={i}
-                          d={d}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                          opacity={i === 0 ? 1 : 0.35}
-                        />
-                      ))}
-                    </svg>
-                  </button>
-                ))}
-              </Group>
-            </>
+            <Group title="Type">
+              {(["solid", "dashed", "dotted", "dashdot"] as const).map((s) => (
+                <button
+                  key={s}
+                  className={`size-btn line-style-btn ${allStyle(s) ? "active" : ""}`}
+                  aria-label={`Line ${s}`}
+                  onClick={() => apply({ strokeStyle: s })}
+                >
+                  <svg width="20" height="10" viewBox="0 0 20 10">
+                    <line
+                      x1="1" y1="5" x2="19" y2="5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      {...(s === "solid"
+                        ? {}
+                        : s === "dashed"
+                          ? { strokeDasharray: "4 3" }
+                          : s === "dashdot"
+                            ? { strokeDasharray: "5 2.5 0.5 2.5" }
+                            : { strokeDasharray: "0.1 4" })}
+                    />
+                  </svg>
+                </button>
+              ))}
+            </Group>
           )}
-
+          {hasShape && (
+            <Group title="Style">
+              {(
+                [
+                  {
+                    v: 0,
+                    label: "Architect",
+                    paths: ["M2 7 L18 7"],
+                  },
+                  {
+                    v: 1,
+                    label: "Draft",
+                    paths: [
+                      "M2.5 7 C6 5.8 12 8.4 17.5 6.8",
+                      "M3 7.6 C7 8.6 13 6.2 17 8",
+                    ],
+                  },
+                  {
+                    v: 2,
+                    label: "Sketchy",
+                    paths: [
+                      "M2 8 C6 4 12 10 18 6",
+                      "M2.5 6.5 C7 9.5 12 4.5 17.5 8",
+                      "M3 7 C8 6 11 8.5 16.5 6.8",
+                    ],
+                  },
+                  {
+                    v: 3,
+                    label: "Chaos",
+                    paths: [
+                      "M2 9 C5 2 14 11 18 5",
+                      "M2.5 5 C7 10.5 13 3.5 17.5 9",
+                      "M3 7.5 C6 3.5 12 10.5 17 6.5",
+                      "M2 6.5 C8 9.5 11 4.5 18 7.5",
+                      "M3.5 8 C7 5.5 13 8 16.5 5.5",
+                    ],
+                  },
+                ] as const
+              ).map(({ v, label, paths }) => (
+                <button
+                  key={v}
+                  className={`size-btn ${allRoughness(v) ? "active" : ""}`}
+                  aria-label={`Roughness ${label}`}
+                  data-tip={label}
+                  onClick={() => apply({ roughness: v as 0 | 1 | 2 | 3 })}
+                >
+                  <svg width="20" height="14" viewBox="0 0 20 14">
+                    {paths.map((d, i) => (
+                      <path
+                        key={i}
+                        d={d}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        opacity={i === 0 ? 1 : 0.35}
+                      />
+                    ))}
+                  </svg>
+                </button>
+              ))}
+            </Group>
+          )}
+          <Group title="Thickness">
+            {STROKE_WIDTHS.map((w) => (
+              <button
+                key={w}
+                className={`size-btn ${allStroke(w) ? "active" : ""}`}
+                aria-label={`Thickness ${w}`}
+                onClick={() => apply({ strokeWidth: w })}
+              >
+                <span className="thickness-preview" style={{ height: w + 1 }} />
+              </button>
+            ))}
+          </Group>
           {(hasArrow || selected.some((el) => el.type === "line")) && (
             <Group title="Path type">
               {([
@@ -731,54 +751,40 @@ export function PropertiesPanel() {
               ))}
             </Group>
           )}
-
-<Group title="Thickness">
-          {STROKE_WIDTHS.map((w) => (
-            <button
-              key={w}
-              className={`size-btn ${allStroke(w) ? "active" : ""}`}
-              aria-label={`Thickness ${w}`}
-              onClick={() => apply({ strokeWidth: w })}
-            >
-              <span className="thickness-preview" style={{ height: w + 1 }} />
-            </button>
-          ))}
-        </Group>
-
           {hasRectangle && (
-            <Group title="Borders">
+            <Group title="Roundness">
               <div className="v-stack">
                 <div className="border-presets">
-                <button
-                  className={`size-btn border-preset-btn tip-up ${
-                    radiusValue === 0 ? "active" : ""
-                  }`}
-                  aria-label="Square borders"
-                  data-tip="Square"
-                  onClick={() => apply({ borderRadius: 0 })}
-                >
-                  <span className="corner-preview square" />
-                </button>
-                <button
-                  className={`size-btn border-preset-btn tip-up ${
-                    radiusValue === 100 ? "active" : ""
-                  }`}
-                  aria-label="Rounded borders"
-                  data-tip="Rounded"
-                  onClick={() => apply({ borderRadius: 100 })}
-                >
-                  <span className="corner-preview round" />
-                </button>
-                <button
-                  className={`size-btn border-preset-btn tip-up ${isCustomRadius ? "active" : ""}`}
-                  aria-label="Custom borders"
-                  data-tip="Custom"
-                  onClick={() =>
-                    apply({ borderRadius: isCustomRadius ? (radiusValue ?? 50) : 25 })
-                  }
-                >
-                  <span className="corner-preview custom" />
-                </button>
+                  <button
+                    className={`size-btn border-preset-btn tip-up ${
+                      radiusValue === 0 ? "active" : ""
+                    }`}
+                    aria-label="Square borders"
+                    data-tip="Square"
+                    onClick={() => apply({ borderRadius: 0 })}
+                  >
+                    <span className="corner-preview square" />
+                  </button>
+                  <button
+                    className={`size-btn border-preset-btn tip-up ${
+                      radiusValue === 100 ? "active" : ""
+                    }`}
+                    aria-label="Rounded borders"
+                    data-tip="Rounded"
+                    onClick={() => apply({ borderRadius: 100 })}
+                  >
+                    <span className="corner-preview round" />
+                  </button>
+                  <button
+                    className={`size-btn border-preset-btn tip-up ${isCustomRadius ? "active" : ""}`}
+                    aria-label="Custom borders"
+                    data-tip="Custom"
+                    onClick={() =>
+                      apply({ borderRadius: isCustomRadius ? (radiusValue ?? 50) : 25 })
+                    }
+                  >
+                    <span className="corner-preview custom" />
+                  </button>
                 </div>
                 {isCustomRadius && (
                   <MiniSlider
@@ -793,7 +799,120 @@ export function PropertiesPanel() {
               </div>
             </Group>
           )}
-      </div>
+          {hasArrow && (
+            <Group title="Animation">
+              <button
+                className={`size-btn text-btn ${allAnimated ? "active" : ""}`}
+                aria-label="Animate arrow"
+                data-tip={
+                  animationDisabled
+                    ? "Animation needs a dashed, dotted or dash-dot stroke"
+                    : "Flowing dashes along the arrow"
+                }
+                disabled={animationDisabled}
+                onClick={() => apply({ animated: !allAnimated })}
+              >
+                <svg width="20" height="14" viewBox="0 0 20 14">
+                  <line
+                    x1="2"
+                    y1="7"
+                    x2="14"
+                    y2="7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="3 2"
+                  />
+                  <path
+                    d="M14 4 L18 7 L14 10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </Group>
+          )}
+        </Section>
+
+        {hasFillable && (
+          <Section title="Fill">
+            <Group title="Color">
+              <PaletteGrid
+                current={selected[0].backgroundColor}
+                onPick={(backgroundColor) => apply({ backgroundColor })}
+                label="Fill"
+              />
+            </Group>
+            <Group title="Opacity">
+              <MiniSlider
+                value={fillOpacityValue ?? 100}
+                min={0}
+                max={100}
+                step={5}
+                ariaLabel="Fill opacity"
+                onChange={(v) => apply({ fillOpacity: v / 100 })}
+              />
+            </Group>
+            <Group title="Type">
+              {(
+                [
+                  {
+                    v: "solid",
+                    label: "Solid",
+                    href: "M3 3 H19 V19 H3 Z",
+                  },
+                  {
+                    v: "hachure",
+                    label: "Hachure",
+                    href: "M3 5 L17 19 M5 3 L19 17 M3 13 L9 19 M13 3 L19 9",
+                  },
+                  {
+                    v: "cross-hachure",
+                    label: "Cross hachure",
+                    href: "M3 5 L17 19 M5 3 L19 17 M3 13 L9 19 M13 3 L19 9 M17 3 L3 17 M19 5 L5 19 M9 3 L3 9 M19 13 L13 19",
+                  },
+                ] as const
+              ).map(({ v, label, href }) => (
+                <button
+                  key={v}
+                  className={`size-btn line-style-btn ${allFillStyle(v) ? "active" : ""}`}
+                  aria-label={`Fill ${label}`}
+                  data-tip={label}
+                  onClick={() => apply({ fillStyle: v })}
+                >
+                  <svg width="22" height="22" viewBox="0 0 22 22">
+                    <rect
+                      x="3" y="3" width="16" height="16" rx="2"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    />
+                    {v === "solid" ? (
+                      <rect
+                        x="4" y="4" width="14" height="14" rx="1.5"
+                        fill="currentColor"
+                        fillOpacity="0.35"
+                      />
+                    ) : (
+                      <path
+                        d={href}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                      />
+                    )}
+                  </svg>
+                </button>
+              ))}
+            </Group>
+          </Section>
+        )}
+
+        </div>
       <div ref={textRef} className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
         <Group title="Text color">
             <PaletteGrid
