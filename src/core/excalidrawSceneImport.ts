@@ -6,7 +6,11 @@
  */
 
 import type { Document, Element, ArrowBinding } from "./types";
-import { normalizePoints, toExcalidrawStrokeStyle } from "./excalidrawCommon";
+import {
+  normalizePoints,
+  toExcalidrawStrokeStyle,
+  excalidrawFontCategory,
+} from "./excalidrawCommon";
 
 export class ExcalidrawSceneParseError extends Error {}
 
@@ -60,6 +64,13 @@ interface ExcalidrawSceneFile {
   files?: Record<string, unknown>;
 }
 
+/** fonte ArchiDraw para cada categoria Excalidraw; sans fica undefined
+ *  (usa o padrão do document — DEFAULT_FONT_FAMILY) */
+const FONT_FAMILIES: Record<"sketch" | "mono", string> = {
+  sketch: '"Architects Daughter", cursive',
+  mono: 'Consolas, "SF Mono", monospace',
+};
+
 function mapRoughness(r: number | undefined): 0 | 1 | 2 | 3 {
   if (r === undefined || r === null) return 0;
   if (r <= 0) return 0;
@@ -72,6 +83,14 @@ function mapFillStyle(s: string | undefined): "solid" | "hachure" | "cross-hachu
   if (s === "hachure") return "hachure";
   if (s === "cross-hatch") return "cross-hachure";
   return "solid";
+}
+
+/** sem fundo no Excalidraw = fill 0%: o renderer só desenha hachure sobre
+ *  fundo colorido, então um bg transparente precisa cair em fillStyle
+ *  "solid" (que pula o fill) — senão o hachure herda a cor do stroke em
+ *  drawHachureFill e a transparência se perde */
+function transparentBackground(bg: string | undefined): boolean {
+  return !bg || bg === "transparent";
 }
 
 function mapBinding(
@@ -97,6 +116,14 @@ function convertElement(
     return null;
   }
 
+  const bg = el.backgroundColor ?? "transparent";
+  const noFill = transparentBackground(bg);
+  const opacityRaw = typeof el.opacity === "number" ? el.opacity : 100;
+  const opacity = opacityRaw / 100;
+  // o Excalidraw renderiza o fill 15 pontos mais transparente que o stroke
+  // (opacity 100 → fill 85%); preserva essa diferença no import
+  const fillOpacity = Math.max(0, (opacityRaw - 15) / 100);
+
   const base = {
     id: el.id,
     x: el.x,
@@ -104,13 +131,15 @@ function convertElement(
     width: el.width ?? 0,
     height: el.height ?? 0,
     strokeColor: el.strokeColor ?? "#1e1e1e",
-    backgroundColor: el.backgroundColor ?? "transparent",
+    backgroundColor: noFill ? "transparent" : bg,
     strokeWidth: el.strokeWidth ?? 2,
-    opacity: typeof el.opacity === "number" ? el.opacity / 100 : 1,
-    strokeOpacity: typeof el.opacity === "number" ? el.opacity / 100 : 1,
-    fillOpacity: typeof el.opacity === "number" ? el.opacity / 100 : 1,
+    opacity,
+    strokeOpacity: opacity,
+    // sem fundo: stroke 100% do elemento, fill sempre 0% (regra do bug
+    // "import .excalidraw perde transparência de fundo")
+    fillOpacity: noFill ? 0 : fillOpacity,
     strokeStyle: toExcalidrawStrokeStyle(el.strokeStyle),
-    fillStyle: mapFillStyle(el.fillStyle),
+    fillStyle: noFill ? "solid" : mapFillStyle(el.fillStyle),
     roughness: mapRoughness(el.roughness),
     borderRadius: el.roundness
       ? Math.round(((el.roundness.value ?? 0.25) * 100))
@@ -157,11 +186,13 @@ function convertElement(
     }
     case "text": {
       const text = el.text ?? el.originalText ?? "";
+      const category = excalidrawFontCategory(el.fontFamily);
       return {
         ...base,
         type: "text" as const,
         text,
         fontSize: el.fontSize ?? 20,
+        fontFamily: category === "sans" ? undefined : FONT_FAMILIES[category],
       };
     }
     default:
@@ -220,6 +251,8 @@ export function parseExcalidrawScene(jsonText: string): Document {
 
   const boundTexts = extractBoundTexts(rawElements);
   const boundTextIds = new Set(boundTexts.keys());
+  const byId = new Map<string, ExcalidrawSceneElement>();
+  for (const raw of rawElements) byId.set(raw.id, raw);
 
   const elements: Element[] = [];
   for (const raw of rawElements) {
@@ -242,6 +275,13 @@ export function parseExcalidrawScene(jsonText: string): Document {
             const text = boundTexts.get(textId);
             if (text) {
               (converted as { label?: string }).label = text;
+              // o label herda a fonte do texto ligado (virgil/cascadia → sketch/mono)
+              const textEl = byId.get(textId);
+              const category = excalidrawFontCategory(textEl?.fontFamily);
+              if (category !== "sans") {
+                (converted as { fontFamily?: string }).fontFamily =
+                  FONT_FAMILIES[category];
+              }
             }
           }
         }

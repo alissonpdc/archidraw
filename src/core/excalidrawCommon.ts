@@ -29,3 +29,22 @@ export function toExcalidrawStrokeStyle(
   if (s === "dotted") return "dotted";
   return "solid";
 }
+
+/** Excalidraw fontFamily → categoria ArchiDraw. Excalidraw usa números estáveis
+ *  (1 = Virgil/Excalifont manuscrito, 3 = Cascadia mono, 2 = Helvetica/sans);
+ *  arquivos antigos podem trazer o nome como string, então aceitamos ambos.
+ *  Demais valores caem em sans — a fonte padrão do ArchiDraw. */
+export function excalidrawFontCategory(
+  f: unknown,
+): "sketch" | "mono" | "sans" {
+  if (f === 1) return "sketch";
+  if (f === 3) return "mono";
+  if (typeof f === "string") {
+    const name = f.replace(/[-_ ]/g, "").toLowerCase();
+    if (name === "virgil" || name === "excalifont" || name === "comicshanns") {
+      return "sketch";
+    }
+    if (name === "cascadia") return "mono";
+  }
+  return "sans";
+}

@@ -7,7 +7,7 @@
 *  mesmo pipeline de imagens usado pelos ícones oficiais AWS.
  */
 
-import { normalizePoints } from "./excalidrawCommon";
+import { normalizePoints, excalidrawFontCategory } from "./excalidrawCommon";
 import { escapeXml } from "./utils";
 
 export interface ExcalidrawLibParseResult {
@@ -93,9 +93,14 @@ const PAD = 4;
 
 function fontFamilyOf(f: number | undefined): string {
   // aspas simples: o valor entra em atributo delimitado por aspas duplas
-  if (f === 1) return "Virgil,'Segoe Print',cursive";
-  if (f === 3) return "Cascadia,monospace";
-  return "system-ui,sans-serif";
+  switch (excalidrawFontCategory(f)) {
+    case "sketch":
+      return "Virgil,'Segoe Print',cursive";
+    case "mono":
+      return "Cascadia,monospace";
+    default:
+      return "system-ui,sans-serif";
+  }
 }
 
 function dashArray(style: string | undefined): string | null {
