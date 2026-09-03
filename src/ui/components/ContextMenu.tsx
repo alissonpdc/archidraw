@@ -144,7 +144,9 @@ export function ContextMenu() {
     const rawW = b ? b.x2 - b.x1 : 0;
     const rawH = b ? b.y2 - b.y1 : 0;
     const aspect = rawW > 0 && rawH > 0 ? rawW / rawH : 1;
-    const item = addCustomItem(svg, aspect);
+    // guarda os ELEMENTOS Nativos (re-inseridos como grupo editável); o SVG
+    // é usado apenas como thumbnail no painel da library
+    const item = addCustomItem(selected, svg, aspect);
     toast(`Added "${item.name}" to library`);
     close();
   };

@@ -27,6 +27,15 @@ async function savedCustomSvg(page: Page): Promise<string> {
   });
 }
 
+/** number of NATIVE elements stored in the last custom library item */
+async function savedCustomElementCount(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const raw = window.localStorage.getItem("archidraw:customLibrary");
+    const arr = raw ? JSON.parse(raw) : [];
+    return ((arr[arr.length - 1]?.elements ?? []) as unknown[]).length;
+  });
+}
+
 test.describe("save components (context menu → SAVE)", () => {
   test("right-click on an element offers the SAVE section", async ({ page }) => {
     await open(page);
@@ -45,12 +54,17 @@ test.describe("save components (context menu → SAVE)", () => {
     );
   });
 
-  test("Add to Library creates a Custom group with custom-1 and inserts it", async ({
+  test("Add to Library stores native elements; inserting re-adds as a native editable group", async ({
     page,
     editorState,
   }) => {
     await open(page);
     await drawRect(page);
+    const origId = (await editorState()).elements[0].id;
+    const styles = await page.evaluate(() => {
+      const el = (window as any).__editor__.getSnapshot().doc.elements[0];
+      return { strokeColor: el.strokeColor, backgroundColor: el.backgroundColor };
+    });
 
     await rightClickMenu(page, 260, 185);
     await page.getByTestId("context-menu-add-library").click();
@@ -68,8 +82,71 @@ test.describe("save components (context menu → SAVE)", () => {
     await tile.click();
     const state = await editorState();
     expect(state.elementCount).toBe(2);
-    const inserted = state.elements.find((e) => e.type === "component");
-    expect(inserted?.componentId).toBe("custom-1");
+    const inserted = state.elements.find((e) => e.id !== origId)!;
+    // NOT a component/image: the original native element comes back
+    expect(inserted.type).toBe("rectangle");
+    expect(state.elements.filter((e) => e.type === "component")).toHaveLength(0);
+    // and it is grouped (saved sets are re-inserted as a group)
+    expect(inserted.groupId).toBeTruthy();
+
+    const insertedStyles = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const ins = ed.getSnapshot().doc.elements.find((e: any) => e.groupId);
+      return { strokeColor: ins.strokeColor, backgroundColor: ins.backgroundColor };
+    });
+    expect(insertedStyles.strokeColor).toBe(styles.strokeColor);
+    expect(insertedStyles.backgroundColor).toBe(styles.backgroundColor);
+
+    // native = editable: applying a stroke change sticks
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const ins = ed.getSnapshot().doc.elements.find((e: any) => e.groupId);
+      ed.updateElements([ins.id], { strokeColor: "#ff0000" });
+    });
+    const edited = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const ins = ed.getSnapshot().doc.elements.find((e: any) => e.groupId);
+      return ins.strokeColor;
+    });
+    expect(edited).toBe("#ff0000");
+  });
+
+  test("saved multiselection returns as ONE group containing every element", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+    await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
+    await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
+    await drag(page, { x: 140, y: 90 }, { x: 560, y: 290 });
+    await expect
+      .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
+      .toBe(2);
+
+    await rightClickMenu(page, 260, 185);
+    await page.getByTestId("context-menu-add-library").click();
+
+    await page.keyboard.press("l");
+    const custom = page.locator('[data-testid="library-custom"]');
+    await custom.locator(".library-section-header").click();
+    await custom.locator('[data-component-id="custom-1"]').click();
+
+    const state = await editorState();
+    expect(state.elementCount).toBe(4);
+    const inserted = state.elements.filter((e) => e.groupId);
+    expect(inserted).toHaveLength(2);
+    expect(inserted[0].groupId).toBe(inserted[1].groupId);
+    expect(inserted.every((e) => e.type === "rectangle")).toBe(true);
+
+    // single click on a member selects the whole (native) group again
+    await page.evaluate(() => (window as any).__editor__.clearSelection());
+    const c = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements.find((e: any) => e.groupId);
+      return ed.getScreenPoint({ x: el.x + el.width / 2, y: el.y + el.height / 2 });
+    });
+    await page.mouse.click(c.x, c.y);
+    expect((await editorState()).selectedIds).toHaveLength(2);
   });
 
   test("component names increment: custom-1, custom-2", async ({ page }) => {
@@ -131,6 +208,8 @@ test.describe("save components (context menu → SAVE)", () => {
     const svg = await savedCustomSvg(page);
     expect(svg).toContain("<svg");
     expect((svg.match(/<rect/g) ?? []).length).toBe(2);
+    // the native elements (not just a flattened image) are what is stored
+    expect(await savedCustomElementCount(page)).toBe(2);
   });
 
   test("custom library items persist after reload", async ({ page }) => {

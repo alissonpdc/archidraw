@@ -699,6 +699,12 @@ export class Editor {
   insertComponent(componentId: string, screenPoint?: Point) {
     const item = getLibraryItem(componentId);
     if (!item) return;
+    // componente do grupo "Custom": re-insere os elementos nativos como um
+    // grupo editável (nunca como imagem/asset)
+    if (item.elements && item.elements.length > 0) {
+      this.insertElementGroup(item.elements, screenPoint);
+      return;
+    }
     const screen = screenPoint ?? this.screenCenter();
     const scene = screenToScene(screen, this.camera);
     // ícone preenche o bounds do elemento, então o tamanho de inserção
@@ -739,6 +745,31 @@ export class Editor {
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
     this.tool = "selection";
     this.selectedIds = new Set([el.id]);
+    this.emit();
+  }
+
+  /**
+   * re-adiciona um conjunto de elementos salvos na library ("Custom") como um
+   * GRUPO nativo e editável, centralizado no viewport (ou no ponto de drop).
+   * Os elementos recebem ids novos e um único groupId compartilhado; arestas
+   * com bindings internos são remapeadas para os clones.
+   */
+  insertElementGroup(elements: Element[], screenPoint?: Point) {
+    const screen = screenPoint ?? this.screenCenter();
+    const scene = screenToScene(screen, this.camera);
+    this.commitHistory();
+    const b = unionBounds(elements);
+    const dx = b ? scene.x - (b.x1 + b.x2) / 2 : 0;
+    const dy = b ? scene.y - (b.y1 + b.y2) / 2 : 0;
+    const clones = this.cloneElements(elements, dx, dy);
+    const gid = newId();
+    const grouped = clones.map((el) => ({ ...el, groupId: gid }));
+    this.doc = {
+      ...this.doc,
+      elements: [...this.doc.elements, ...grouped],
+    };
+    this.tool = "selection";
+    this.selectedIds = new Set(grouped.map((el) => el.id));
     this.emit();
   }
 

@@ -1,7 +1,8 @@
 /**
  * Componentes salvos pelo usuário (context menu → Save → Add to Library).
- * Cada item é o SVG da seleção, registrado como asset customizado e
- * persistido no grupo fixo "Custom" em localStorage.
+ * Cada item guarda os ELEMENTOS NATIVOS da seleção (re-inseridos como grupo
+ * editável) mais um SVG snapshot para o thumbnail no painel. Persistido no
+ * grupo fixo "Custom" em localStorage.
  */
 
 import {
@@ -14,10 +15,14 @@ import {
   type LibraryItem,
 } from "./library";
 import { persistJson } from "./localStore";
+import type { Element } from "./types";
 
 export interface CustomLibraryItemData {
   id: string;
   name: string;
+  /** elementos nativos salvos — re-adicionados como grupo, não como imagem */
+  elements: Element[];
+  /** snapshot SVG apenas para o preview do tile no painel */
   svg: string;
   aspect: number;
 }
@@ -51,6 +56,7 @@ function toLibraryItem(it: CustomLibraryItemData): LibraryItem {
     category: "",
     keywords: ["custom", it.name.toLowerCase()],
     aspect: it.aspect,
+    elements: it.elements,
   };
 }
 
@@ -84,6 +90,7 @@ export function initCustomLibrary(): void {
         typeof it === "object" &&
         typeof (it as CustomLibraryItemData).id === "string" &&
         typeof (it as CustomLibraryItemData).name === "string" &&
+        Array.isArray((it as CustomLibraryItemData).elements) &&
         typeof (it as CustomLibraryItemData).svg === "string" &&
         typeof (it as CustomLibraryItemData).aspect === "number",
     );
@@ -94,9 +101,13 @@ export function initCustomLibrary(): void {
 }
 
 /** adiciona a seleção como componente custom (nome custom-N) e persiste */
-export function addCustomItem(svg: string, aspect: number): CustomLibraryItemData {
+export function addCustomItem(
+  elements: Element[],
+  svg: string,
+  aspect: number,
+): CustomLibraryItemData {
   const name = `custom-${nextCustomNumber()}`;
-  const it: CustomLibraryItemData = { id: name, name, svg, aspect };
+  const it: CustomLibraryItemData = { id: name, name, elements, svg, aspect };
   registerAll(it);
   items = [...items, it];
   persistJson(STORAGE_KEY, items);
