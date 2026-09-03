@@ -18,6 +18,7 @@ import {
   unregisterImportedLibraryItems,
   type LibraryItem,
 } from "./library";
+import { makeReuseId, persistJson } from "./localStore";
 
 export interface ImportedLibraryItemData {
   id: string;
@@ -36,10 +37,6 @@ export interface ImportedLibrary {
 const STORAGE_KEY = "archidraw:importedLibraries";
 
 let libraries: ImportedLibrary[] = [];
-
-function makeId(): string {
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-}
 
 /** nome do grupo a partir do nome do arquivo */
 export function groupNameFromFile(filename: string): string {
@@ -73,14 +70,6 @@ function unregisterAll(lib: ImportedLibrary) {
   unregisterImportedLibraryItems(lib.items.map((it) => it.id));
 }
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(libraries));
-  } catch {
-    // best-effort: pode estourar quota com bibliotecas grandes
-  }
-}
-
 /** restaura bibliotecas persistidas e as re-registra (chamado no startup) */
 export function initImportedLibraries(): void {
   try {
@@ -111,7 +100,7 @@ export function removeImportedLibrary(id: string): void {
   if (!lib) return;
   unregisterAll(lib);
   libraries = libraries.filter((l) => l.id !== id);
-  persist();
+  persistJson(STORAGE_KEY, libraries);
 }
 
 /**
@@ -122,10 +111,10 @@ export async function importExcalidrawLibFile(file: File): Promise<ImportedLibra
   const text = await file.text();
   const { items } = parseExcalidrawLib(text);
   const lib: ImportedLibrary = {
-    id: makeId(),
+    id: makeReuseId(),
     name: groupNameFromFile(file.name),
     items: items.map((it, i) => ({
-      id: `imp-${makeId()}-${i}`,
+      id: `imp-${makeReuseId()}-${i}`,
       name: it.name,
       svg: it.svg,
       aspect: it.aspect,
@@ -133,7 +122,7 @@ export async function importExcalidrawLibFile(file: File): Promise<ImportedLibra
   };
   registerAll(lib);
   libraries = [...libraries, lib];
-  persist();
+  persistJson(STORAGE_KEY, libraries);
   return lib;
 }
 

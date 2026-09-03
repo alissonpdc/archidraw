@@ -6,6 +6,7 @@
  */
 
 import type { Document, Element, ArrowBinding } from "./types";
+import { normalizePoints, toExcalidrawStrokeStyle } from "./excalidrawCommon";
 
 export class ExcalidrawSceneParseError extends Error {}
 
@@ -59,32 +60,6 @@ interface ExcalidrawSceneFile {
   files?: Record<string, unknown>;
 }
 
-function normalizePoints(points: unknown): { x: number; y: number }[] {
-  if (!Array.isArray(points)) return [];
-  const out: { x: number; y: number }[] = [];
-  for (const p of points) {
-    if (Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])) {
-      out.push({ x: p[0] as number, y: p[1] as number });
-    } else if (
-      p &&
-      typeof p === "object" &&
-      Number.isFinite((p as { x?: unknown }).x) &&
-      Number.isFinite((p as { y?: unknown }).y)
-    ) {
-      out.push({ x: (p as { x: number }).x, y: (p as { y: number }).y });
-    }
-  }
-  return out;
-}
-
-function mapStrokeStyle(
-  s: string | undefined,
-): "solid" | "dashed" | "dotted" | "dashdot" {
-  if (s === "dashed") return "dashed";
-  if (s === "dotted") return "dotted";
-  return "solid";
-}
-
 function mapRoughness(r: number | undefined): 0 | 1 | 2 | 3 {
   if (r === undefined || r === null) return 0;
   if (r <= 0) return 0;
@@ -128,7 +103,7 @@ function convertElement(
     opacity: typeof el.opacity === "number" ? el.opacity / 100 : 1,
     strokeOpacity: 1,
     fillOpacity: 1,
-    strokeStyle: mapStrokeStyle(el.strokeStyle),
+    strokeStyle: toExcalidrawStrokeStyle(el.strokeStyle),
     roughness: mapRoughness(el.roughness),
     borderRadius: el.roundness
       ? Math.round(((el.roundness.value ?? 0.25) * 100))

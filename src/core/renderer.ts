@@ -1,7 +1,9 @@
 import type { ArrowBinding, ArrowElement, Bounds, Camera, ComponentElement, Document, Element, LineElement, Point } from "./types";
 import {
+  arrowHeadVectors,
   arrowPoints,
   bindingPoint,
+  cornerRadius,
   curvedArrowControl,
   diamondVertices,
   edgeLabelAnchor,
@@ -11,9 +13,10 @@ import {
   measureText,
 } from "./utils";
 import { getLibraryItem } from "./library";
-import { getComponentImage } from "./componentAssets";
-import { resolveFont, resolveTextColor, lineHeight } from "./textStyle";
+import { getComponentImage, getCachedImage } from "./componentAssets";
+import { resolveFont, resolveTextColor, lineHeight, textBlockHeight } from "./textStyle";
 import { themeColor } from "./color";
+import { strokeDashArray, strokeRoundCap } from "./strokeStyle";
 
 export interface RenderColors {
   selection: string;
@@ -140,15 +143,7 @@ function drawArrowHead(
   roughness: number,
   seed: number,
 ) {
-  const angle = Math.atan2(tip.y - tail.y, tip.x - tail.x);
-  const p1 = {
-    x: tip.x - size * Math.cos(angle - Math.PI / 6),
-    y: tip.y - size * Math.sin(angle - Math.PI / 6),
-  };
-  const p2 = {
-    x: tip.x - size * Math.cos(angle + Math.PI / 6),
-    y: tip.y - size * Math.sin(angle + Math.PI / 6),
-  };
+  const [p1, p2] = arrowHeadVectors(tip, tail, size);
   // the head never inherits the shaft dash pattern — wings stay solid
   ctx.setLineDash([]);
   ctx.lineDashOffset = 0;
@@ -494,14 +489,6 @@ function seedOf(id: string): number {
   return s;
 }
 
-/** corner radius in scene px for a rectangle/component (0–100% of the smaller side) */
-function cornerRadius(el: Element): number {
-  if ((el.type !== "rectangle" && el.type !== "component") || el.borderRadius <= 0)
-    return 0;
-  const max = Math.min(Math.abs(el.width), Math.abs(el.height)) / 2;
-  return (Math.min(100, el.borderRadius) / 100) * max;
-}
-
 // ---- library icon rendering (Path2D cache) ------------------------------
 
 const iconPathCache = new Map<string, Path2D[]>();
@@ -601,25 +588,11 @@ function applyDash(
   phase: number = 0,
   animated: boolean = false,
 ) {
-  let pattern: number[] | null = null;
-  if (el.strokeStyle === "dashed") {
-    pattern = [strokeWidth * 5, strokeWidth * 4];
-  } else if (el.strokeStyle === "dotted") {
-    pattern = [strokeWidth * 0.01 + 0.01, strokeWidth * 2.6];
-    ctx.lineCap = "round";
-  } else if (el.strokeStyle === "dashdot") {
-    pattern = [
-      strokeWidth * 5,
-      strokeWidth * 3,
-      strokeWidth * 0.01 + 0.01,
-      strokeWidth * 3,
-    ];
-    ctx.lineCap = "round";
-  }
-  if (pattern) {
-    if (animated) ctx.lineDashOffset = -phase;
-    ctx.setLineDash(pattern);
-  }
+  const dash = strokeDashArray(el.strokeStyle, strokeWidth);
+  if (dash.length === 0) return;
+  if (animated) ctx.lineDashOffset = -phase;
+  ctx.setLineDash(dash);
+  if (strokeRoundCap(el.strokeStyle)) ctx.lineCap = "round";
 }
 
 /** fixed icon→label distance and font size (do NOT scale with resize) */
@@ -702,19 +675,6 @@ function captionLayout(
 // ---- raster asset cache (HTMLImageElement from data URLs) ----------------
 // usado por imagens autocontidas (src embebido no elemento) quando o item de
 // lib já foi removido; assets registrados (AWS/libs) vêm de componentAssets.
-const imageCache = new Map<string, HTMLImageElement>();
-
-function getCachedImage(src: string): HTMLImageElement | null {
-  let img = imageCache.get(src);
-  if (!img) {
-    // cacheia imediatamente (mesmo enquanto carrega): descartar sem cachear
-    // reinicia o load a cada frame do loop RAF e a imagem nunca "complete"
-    img = new Image();
-    img.src = src;
-    imageCache.set(src, img);
-  }
-  return img.complete && img.naturalWidth > 0 ? img : null;
-}
 
 /**
  * icon/caption geometry shared between canvas rendering, label placement and
@@ -969,7 +929,7 @@ function drawElement(
     const align = el.textAlign ?? "left";
     ctx.textAlign = align;
     const n = lines.length;
-    const textBlockH = n === 1 ? el.fontSize : (n - 1) * el.fontSize * lh + el.fontSize;
+    const textBlockH = textBlockHeight(el.fontSize, n, lh);
     const vOffset = Math.max(0, (el.height - textBlockH) / 2);
     const underlineOn = !!el.underline;
     lines.forEach((line, i) => {
@@ -1267,7 +1227,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     if (el.type === "line" || el.type === "arrow") {
       const pad = Math.max(2, fontSize * 0.3);
       const tw = Math.max(...lines.map((l: string) => ctx.measureText(l).width), 1);
-      const bh = (lines.length - 1) * step + fontSize;
+      const bh = textBlockHeight(fontSize, lines.length, lh);
       const blockCy =
         textVAlign === "top"
           ? cy + ((lines.length - 1) * step) / 2

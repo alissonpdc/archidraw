@@ -42,6 +42,7 @@ import {
   snapSegmentDelta,
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
+import { DEFAULT_FONT_FAMILY } from "./textStyle";
 import { getLibraryItem } from "./library";
 import { addImportedImage } from "./importedImages";
 import {
@@ -1002,7 +1003,7 @@ export class Editor {
       height: 0,
       text: "",
       fontSize: 20,
-      fontFamily: '"Segoe UI", system-ui, sans-serif',
+      fontFamily: DEFAULT_FONT_FAMILY,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
       strokeWidth: 1,
@@ -1320,7 +1321,7 @@ export class Editor {
           height: 0,
           text: "",
           fontSize: 20,
-          fontFamily: '"Segoe UI", system-ui, sans-serif',
+          fontFamily: DEFAULT_FONT_FAMILY,
           strokeColor: stroke,
           backgroundColor: DEFAULT_BG,
           strokeWidth: 1,

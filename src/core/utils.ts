@@ -12,8 +12,25 @@ let seed = 0;
 export const newId = () =>
   `el_${Date.now().toString(36)}_${(seed++).toString(36)}`;
 
+/** escapes a string for safe embedding in XML/SVG text and attributes */
+export function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
+
+/** corner radius in scene px for a rectangle/component (0–100% of the smaller side) */
+export function cornerRadius(el: Element): number {
+  if ((el.type !== "rectangle" && el.type !== "component") || el.borderRadius <= 0)
+    return 0;
+  const max = Math.min(Math.abs(el.width), Math.abs(el.height)) / 2;
+  return (Math.min(100, el.borderRadius) / 100) * max;
+}
 
 export function screenToScene(p: Point, cam: Camera): Point {
   return { x: (p.x - cam.scrollX) / cam.zoom, y: (p.y - cam.scrollY) / cam.zoom };
@@ -64,6 +81,26 @@ export function arrowPoints(el: Element): [Point, Point] {
   return [
     { x: el.x, y: el.y },
     { x: el.x + el.width, y: el.y + el.height },
+  ];
+}
+
+/** arrowhead length: stroke-relative, clamped to a minimum */
+export function arrowHeadSize(el: Element): number {
+  return Math.max(9.7, el.strokeWidth * 3.24);
+}
+
+/** the two wing endpoints of an arrowhead drawn from tip toward tail */
+export function arrowHeadVectors(tip: Point, tail: Point, size: number): [Point, Point] {
+  const angle = Math.atan2(tip.y - tail.y, tip.x - tail.x);
+  return [
+    {
+      x: tip.x - size * Math.cos(angle - Math.PI / 8),
+      y: tip.y - size * Math.sin(angle - Math.PI / 8),
+    },
+    {
+      x: tip.x - size * Math.cos(angle + Math.PI / 8),
+      y: tip.y - size * Math.sin(angle + Math.PI / 8),
+    },
   ];
 }
 
@@ -550,8 +587,12 @@ export function snapSegmentDelta(
 
 // ---- text measurement --------------------------------------------------
 
-const LINE_HEIGHT = 1.25;
-const DEFAULT_FONT_FAMILY = '"Segoe UI", system-ui, sans-serif';
+import {
+  buildFontString,
+  DEFAULT_FONT_FAMILY,
+  DEFAULT_LINE_HEIGHT,
+  textBlockHeight,
+} from "./textStyle";
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;
 
@@ -571,17 +612,13 @@ export function measureText(
   fontFamily?: string,
   bold?: boolean,
   italic?: boolean,
-  lineSpacing: number = LINE_HEIGHT,
+  lineSpacing: number = DEFAULT_LINE_HEIGHT,
 ): { width: number; height: number } {
   const lines = text.split("\n");
-  const n = Math.max(lines.length, 1);
-  const height = n === 1 ? fontSize : (n - 1) * fontSize * lineSpacing + fontSize;
+  const height = textBlockHeight(fontSize, lines.length, lineSpacing);
   const ctx = getMeasureCtx();
   if (ctx) {
-    const family = fontFamily || DEFAULT_FONT_FAMILY;
-    const style = italic ? "italic " : "";
-    const weight = bold ? "bold " : "";
-    ctx.font = `${style}${weight}${fontSize}px ${family}`;
+    ctx.font = buildFontString(fontSize, fontFamily || DEFAULT_FONT_FAMILY, bold, italic);
     const widest = Math.max(...lines.map((l) => ctx.measureText(l).width), 1);
     return { width: Math.ceil(widest), height };
   }

@@ -4,8 +4,11 @@
  * Cada library item do Excalidraw é um conjunto de elementos
  * (rect, ellipse, diamond, line, arrow, freedraw, text). Convertimos
  * cada item para um SVG autocontido (data URI), que é desenhado pelo
- * mesmo pipeline de imagens usado pelos ícones oficiais AWS.
+*  mesmo pipeline de imagens usado pelos ícones oficiais AWS.
  */
+
+import { normalizePoints } from "./excalidrawCommon";
+import { escapeXml } from "./utils";
 
 export interface ExcalidrawLibParseResult {
   /** um item por library item do arquivo */
@@ -67,28 +70,6 @@ function extractItems(root: unknown): ExcalidrawElementLike[][] {
     }
   }
   throw new ExcalidrawLibParseError("Invalid .excalidrawlib file: no libraryItems");
-}
-
-/**
- * normaliza points: Excalidraw usa tuplas [x, y] (versões novas) ou
- * objetos {x, y} (antigas); descarta valores inválidos
- */
-function normalizePoints(points: unknown): { x: number; y: number }[] {
-  if (!Array.isArray(points)) return [];
-  const out: { x: number; y: number }[] = [];
-  for (const p of points) {
-    if (Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])) {
-      out.push({ x: p[0] as number, y: p[1] as number });
-    } else if (
-      p &&
-      typeof p === "object" &&
-      Number.isFinite((p as { x?: unknown }).x) &&
-      Number.isFinite((p as { y?: unknown }).y)
-    ) {
-      out.push({ x: (p as { x: number }).x, y: (p as { y: number }).y });
-    }
-  }
-  return out;
 }
 
 /** copia rasa do elemento com points normalizados para {x,y}[] */
@@ -335,14 +316,6 @@ function elementToSvg(el: ExcalidrawElementLike, ox: number, oy: number): string
 
 function firstBaselineY(el: ExcalidrawElementLike, oy: number): string {
   return (el.y - oy + (el.fontSize ?? 20) * 0.8).toFixed(2);
-}
-
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 /** converte um library item (lista de elementos) para um SVG completo */
