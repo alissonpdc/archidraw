@@ -790,7 +790,7 @@ function boundsOf(el: Element): { x: number; y: number; w: number; h: number } {
   };
 }
 
-const HACHURE_SPACING = 10;
+const HACHURE_SPACING = 6;
 
 function drawHachureFill(
   ctx: CanvasRenderingContext2D,

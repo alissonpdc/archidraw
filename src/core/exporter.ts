@@ -8,7 +8,7 @@ import { fontFamilyOf, lineHeight, textBlockHeight } from "./textStyle";
 
 const EXPORT_PADDING = 20;
 const PNG_SCALE = 2;
-const HACHURE_SPACING = 10;
+const HACHURE_SPACING = 6;
 
 function truncatedHachureSvg(
   el: Document["elements"][number],
