@@ -280,6 +280,18 @@ test.describe("arrow animation", () => {
         animated: true,
       });
     });
+    // deselect before sampling: the arrow stays selected after drawing and the
+    // tip selection handle (a 7px box centered on the tip) would leak dark
+    // pixels into the guarded region — the invariant covers the drawn stroke
+    await page.evaluate(async () => {
+      const ed = (window as any).__editor__;
+      ed.clearSelection();
+      await new Promise((r) =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => requestAnimationFrame(r)),
+        ),
+      );
+    });
     // sample the region just beyond the arrow tip (x=500) — any dark pixel
     // means the sketched shaft (or its marching dashes) overshoots the head
     const dark = await page.evaluate(() => {
