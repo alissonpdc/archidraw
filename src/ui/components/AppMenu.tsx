@@ -21,7 +21,10 @@ import {
   CheckIcon,
   ChevronLeftIcon,
   DropletIcon,
+  GridDotsIcon,
   GridIcon,
+  GridLinesIcon,
+  GridOffIcon,
   ImageIcon,
   KeyboardIcon,
   MenuIcon,
@@ -48,10 +51,10 @@ const THEME_OPTIONS: { id: ThemePref; label: string; icon: ReactNode }[] = [
   { id: "dark", label: "Dark", icon: <MoonIcon size={14} /> },
 ];
 
-const GRID_OPTIONS: { id: GridMode; label: string }[] = [
-  { id: "dots", label: "Dots" },
-  { id: "lines", label: "Lines" },
-  { id: "none", label: "None" },
+const GRID_OPTIONS: { id: GridMode; label: string; icon: ReactNode }[] = [
+  { id: "lines", label: "Lines", icon: <GridLinesIcon size={14} /> },
+  { id: "dots", label: "Dots", icon: <GridDotsIcon size={14} /> },
+  { id: "none", label: "None", icon: <GridOffIcon size={14} /> },
 ];
 
 function MenuSection({ title, children }: { title: string; children: ReactNode }) {
@@ -306,7 +309,7 @@ export function AppMenu({
                   <MenuItem
                     key={opt.id}
                     label={opt.label}
-                    icon={<GridIcon size={14} />}
+                    icon={opt.icon}
                     active={gridMode === opt.id}
                     onClick={() => setGridMode(opt.id)}
                   />
