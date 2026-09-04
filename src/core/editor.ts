@@ -44,7 +44,8 @@ import {
 } from "./utils";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { DEFAULT_FONT_FAMILY } from "./textStyle";
-import { getLibraryItem } from "./library";
+import { getLibraryItem, isBuiltinLibraryItem } from "./library";
+import { componentAssetDataUri } from "./componentAssets";
 import { addImportedImage } from "./importedImages";
 import {
   elementVisualBounds,
@@ -699,6 +700,12 @@ export class Editor {
   insertComponent(componentId: string, screenPoint?: Point) {
     const item = getLibraryItem(componentId);
     if (!item) return;
+    // componente do grupo "Custom": re-insere os elementos nativos como um
+    // grupo editável (nunca como imagem/asset)
+    if (item.elements && item.elements.length > 0) {
+      this.insertElementGroup(item.elements, screenPoint);
+      return;
+    }
     const screen = screenPoint ?? this.screenCenter();
     const scene = screenToScene(screen, this.camera);
     // ícone preenche o bounds do elemento, então o tamanho de inserção
@@ -728,17 +735,49 @@ export class Editor {
       strokeStyle: "solid",
       fillStyle: this.lastFillStyle,
       roughness: 0,
-      borderRadius: 20,
-      // legenda/editação usa a mesma fonte default do texto (média, sans)
+borderRadius: 20,
+      // legenda/edição usa a mesma fonte default do texto (média, sans)
       fontSize: 20,
       // imagens (asset raster) embedam o src para renderizar mesmo se o item
-      // de lib for removido da biblioteca depois
-      ...(item.src ? { src: item.src } : {}),
+      // de lib for removido da biblioteca depois; itens de bibliotecas
+      // importadas/removeíveis (não-bundled AWS/K8s) também embedam o asset:
+      // excluir o item da library nunca apaga/invisibiliza elementos já
+      // colocados no canvas
+      ...(item.src ||
+      (!isBuiltinLibraryItem(componentId) &&
+        componentAssetDataUri(componentId))
+        ? { src: item.src ?? componentAssetDataUri(componentId) ?? undefined }
+        : {}),
       ...(item.fill === true ? { fill: true } : {}),
     };
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
     this.tool = "selection";
     this.selectedIds = new Set([el.id]);
+    this.emit();
+  }
+
+  /**
+   * re-adiciona um conjunto de elementos salvos na library ("Custom") como um
+   * GRUPO nativo e editável, centralizado no viewport (ou no ponto de drop).
+   * Os elementos recebem ids novos e um único groupId compartilhado; arestas
+   * com bindings internos são remapeadas para os clones.
+   */
+  insertElementGroup(elements: Element[], screenPoint?: Point) {
+    const screen = screenPoint ?? this.screenCenter();
+    const scene = screenToScene(screen, this.camera);
+    this.commitHistory();
+    const b = unionBounds(elements);
+    const dx = b ? scene.x - (b.x1 + b.x2) / 2 : 0;
+    const dy = b ? scene.y - (b.y1 + b.y2) / 2 : 0;
+    const clones = this.cloneElements(elements, dx, dy);
+    const gid = newId();
+    const grouped = clones.map((el) => ({ ...el, groupId: gid }));
+    this.doc = {
+      ...this.doc,
+      elements: [...this.doc.elements, ...grouped],
+    };
+    this.tool = "selection";
+    this.selectedIds = new Set(grouped.map((el) => el.id));
     this.emit();
   }
 

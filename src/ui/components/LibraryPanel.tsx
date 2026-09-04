@@ -33,6 +33,14 @@ import {
   removeImportedImage,
 } from "../../core/importedImages";
 import type { ImportedImageData } from "../../core/importedImages";
+import {
+  CUSTOM_GROUP_NAME,
+  CUSTOM_LIBRARY_CHANGE,
+  getCustomLibrary,
+  removeCustomItem,
+} from "../../core/customLibrary";
+import type { CustomLibraryItemData } from "../../core/customLibrary";
+import { downloadCustomLibrary } from "../../core/archidrawLibExport";
 
 export const COMPONENT_DND_TYPE = "application/x-archidraw-component";
 
@@ -179,7 +187,9 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [tip, setTip] = useState<TipState | null>(null);
   const [imported, setImported] = useState<ImportedLibrary[]>(getImportedLibraries);
   const [importedImages, setImportedImages] = useState<ImportedImageData[]>(getImportedImages);
+  const [customItems, setCustomItems] = useState<CustomLibraryItemData[]>(getCustomLibrary);
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set());
+  const [customOpen, setCustomOpen] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -192,6 +202,15 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
     return () => {
       unsub();
     };
+  }, []);
+
+  // re-syncs the Custom group when a component is saved/removed via the
+  // context menu (outside React; the module notifies with a window event)
+  useEffect(() => {
+    const onCustomChange = () => setCustomItems(getCustomLibrary());
+    window.addEventListener(CUSTOM_LIBRARY_CHANGE, onCustomChange);
+    return () =>
+      window.removeEventListener(CUSTOM_LIBRARY_CHANGE, onCustomChange);
   }, []);
 
   const close = () => {
@@ -247,7 +266,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
       setOpenGroups((prev) => new Set(prev).add(lib.id));
       setImportError(null);
     } catch {
-      setImportError("Invalid .excalidrawlib file");
+      setImportError("Invalid library file");
     }
   };
 
@@ -259,6 +278,11 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const onRemoveImportedImage = (id: string) => {
     removeImportedImage(id);
     setImportedImages(getImportedImages());
+  };
+
+  const onRemoveCustom = (id: string) => {
+    removeCustomItem(id);
+    setCustomItems(getCustomLibrary());
   };
 
   // event-delegated tooltips (same pattern as PropertiesPanel)
@@ -287,8 +311,8 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
         <div className="library-header-actions">
           <button
             className="tool-btn library-import"
-            aria-label="Import Excalidraw library"
-            title="Import .excalidrawlib"
+            aria-label="Import library"
+            title="Import .excalidrawlib / .archidrawlib"
             data-testid="library-import"
             onClick={() => fileInputRef.current?.click()}
           >
@@ -319,7 +343,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".excalidrawlib,.json,application/json"
+          accept=".excalidrawlib,.archidrawlib"
           className="library-import-input"
           aria-hidden="true"
           tabIndex={-1}
@@ -503,6 +527,68 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                 </section>
               );
             })}
+            {customItems.length > 0 && (
+              <section
+                className="library-section"
+                data-testid="library-custom"
+              >
+                <div className="library-section-row">
+                  <SectionHeader
+                    open={customOpen}
+                    onToggle={() => setCustomOpen((v) => !v)}
+                  >
+                    <span className="library-group-name">
+                      {CUSTOM_GROUP_NAME}
+                    </span>
+                  </SectionHeader>
+                  <button
+                    className="tool-btn library-group-export"
+                    aria-label="Export custom library"
+                    title="Export .archidrawlib"
+                    data-testid="library-export"
+                    onClick={() => downloadCustomLibrary()}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 5V17" />
+                      <path d="M6.5 10.5 L12 17 L17.5 10.5" />
+                      <path d="M4 20 H20" />
+                    </svg>
+                  </button>
+                </div>
+                {customOpen && (
+                  <div className="library-subgroup">
+                    <div className="library-grid">
+                      {customItems.map((it) => {
+                        const item = getLibraryItem(it.id);
+                        return item ? (
+                          <div key={item.id} className="library-tile-wrap">
+                            <Tile item={item} onInsert={insert} />
+                            <button
+                              className="library-tile-remove"
+                              aria-label={`Remove ${item.name}`}
+                              data-tip={`Remove ${item.name}`}
+                              onClick={() => onRemoveCustom(item.id)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
       </div>

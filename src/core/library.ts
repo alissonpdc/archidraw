@@ -4,6 +4,8 @@
  * on canvas (Path2D), in DOM (inline svg), and in SVG export.
  */
 
+import type { Element } from "./types";
+
 export interface LibraryItem {
   id: string;
   name: string;
@@ -22,6 +24,9 @@ export interface LibraryItem {
    *  elemento na inserção para que ele continue renderizando caso o item
    *  seja removido da biblioteca depois */
   src?: string;
+  /** elementos nativos salvos pelo usuário (grupo "Custom"): re-inseridos
+   *  como grupo editável, NÃO como imagem/asset */
+  elements?: Element[];
 }
 
 export const LIBRARY_CATEGORIES = [
@@ -452,6 +457,14 @@ export function getLibraryItem(id: string): LibraryItem | undefined {
     LIBRARY.find((i) => i.id === id) ??
     LIBRARY_KUBERNETES.find((i) => i.id === id) ??
     importedItems.get(id)
+  );
+}
+
+/** true for the bundled AWS/Kubernetes catalog (never removed at runtime) */
+export function isBuiltinLibraryItem(id: string): boolean {
+  return (
+    LIBRARY.some((i) => i.id === id) ||
+    LIBRARY_KUBERNETES.some((i) => i.id === id)
   );
 }
 

@@ -17,6 +17,13 @@ import { getComponentImage, getCachedImage } from "./componentAssets";
 import { resolveFont, resolveTextColor, lineHeight, textBlockHeight } from "./textStyle";
 import { themeColor } from "./color";
 import { strokeDashArray, strokeRoundCap } from "./strokeStyle";
+import {
+  diamondLoop,
+  ellipseLoop,
+  roundedRectLoop,
+  seedOf,
+  sketchStrokeSegments,
+} from "./roughPath";
 
 export interface RenderColors {
   selection: string;
@@ -157,300 +164,10 @@ function resolveStroke(el: Element, colors: RenderColors): string {
   return themeColor(el.strokeColor, colors.elementStroke, colors.canvasBg);
 }
 
-/** deterministic pseudo-random in [-1, 1] from integer seed */
-function jitter(seed: number): number {
-  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
-  return (x - Math.floor(x)) * 2 - 1;
-}
-
-/** dot product below this marks a sharp corner where the pen "lifts" */
-const BREAK_COS = Math.cos((35 * Math.PI) / 180);
-
-/** dot product above this marks two segments as the same straight run */
-const COLIN_COS = Math.cos((1.5 * Math.PI) / 180);
-
-/**
- * one hand-drawn pass over a polyline. the exact geometry is traced (arcs
- * stay perfect curves — no wave, so no sawtooth or overshoot artifacts);
- * looseness comes from:
- *  - a per-pass rigid misregistration (offset + slight rotation), like a
- *    second pencil pass over the same shape;
- *  - a gentle one-shot bow on straight runs that end at sharp corners or
- *    loose tips;
- *  - pen-lifts (gaps / overshoots) at sharp corners, open tips, and a few
- *    soft spots along continuous outlines (arcs split into loose strokes
- *    with salient crossing tips).
- * `roughness` scales the sloppiness (0 = perfectly straight).
- */
-function roughPolyline(
-  ctx: CanvasRenderingContext2D,
-  points: Point[],
-  roughness: number,
-  seed: number,
-  waveScale = 1,
-  clampStart = false,
-  clampEnd = false,
-) {
-  if (points.length < 2) return;
-  let s = seed;
-  const jit = (max: number) => jitter(++s) * max;
-  const o = roughness * 1.5;
-  const slip = Math.max(o * 1.4, 1);
-  const last = points.length - 1;
-
-  // cumulative arc length along the polyline
-  const cum: number[] = [0];
-  for (let i = 1; i < points.length; i++)
-    cum.push(cum[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y));
-  const total = cum[last];
-
-  // unit direction of each segment (zero-length falls back to previous)
-  const dir: Point[] = [];
-  for (let i = 0; i < last; i++) {
-    const l = cum[i + 1] - cum[i];
-    dir.push(
-      l > 0
-        ? { x: (points[i + 1].x - points[i].x) / l, y: (points[i + 1].y - points[i].y) / l }
-        : dir.length
-          ? dir[dir.length - 1]
-          : { x: 1, y: 0 },
-    );
-  }
-
-  // sharp interior corners get pen-lifts; gentle bends (arc samplings) never
-  const sharp = new Array<boolean>(points.length).fill(false);
-  for (let v = 1; v < last; v++) {
-    if (
-      dir[v - 1].x * dir[v].x + dir[v - 1].y * dir[v].y < BREAK_COS &&
-      cum[v] - cum[v - 1] >= 6 &&
-      cum[v + 1] - cum[v] >= 6
-    )
-      sharp[v] = true;
-  }
-  // two joined segments colinear enough to be one straight run
-  const colin = (v: number) =>
-    dir[v - 1].x * dir[v].x + dir[v - 1].y * dir[v].y > COLIN_COS;
-
-  const closedLoop =
-    points.length > 3 &&
-    points[0].x === points[last].x &&
-    points[0].y === points[last].y;
-
-  // soft pen-lifts: continuous outlines (arcs / rounded corners) also split
-  // into a few disconnected strokes with salient tips, like a hand lifting
-  // the pen mid-outline. placed only at bend points (never inside straight
-  // runs) and spaced along the arclength.
-  const lift = sharp.slice();
-  {
-    let acc = 0;
-    let next = 90 + jit(70);
-    for (let v = 2; v < last - 1; v++) {
-      acc += cum[v] - cum[v - 1];
-      if (acc < next) continue;
-      if (
-        sharp[v] ||
-        colin(v) ||
-        cum[v] - cum[v - 1] < 6 ||
-        cum[v + 1] - cum[v] < 6
-      )
-        continue;
-      if (closedLoop && (v <= 2 || v >= last - 2)) continue;
-      lift[v] = true;
-      acc = 0;
-      next = 90 + jit(70);
-    }
-  }
-
-  // per-pass rigid misregistration: offset + rotation + slight non-uniform
-  // scale, so each pass reads as a separate hand trace of the same shape
-  let minX = points[0].x;
-  let minY = points[0].y;
-  let maxX = minX;
-  let maxY = minY;
-  for (const p of points) {
-    if (p.x < minX) minX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y > maxY) maxY = p.y;
-  }
-  // clamped anchors (arrow tips) must stay EXACT in final screen space, so
-  // the rigid pivot is the anchor with ZERO translation: rotation/scale then
-  // keep the tip pinned and the sketched shaft/head never overshoots it
-  const clampAnchored = clampStart || clampEnd;
-  const ax = clampEnd ? points[last].x : clampStart ? points[0].x : (minX + maxX) / 2;
-  const ay = clampEnd ? points[last].y : clampStart ? points[0].y : (minY + maxY) / 2;
-  ctx.save();
-  ctx.translate(
-    ax + (clampAnchored ? 0 : jit(roughness * 0.9)),
-    ay + (clampAnchored ? 0 : jit(roughness * 0.9)),
-  );
-  ctx.rotate((jit(roughness * 0.5) * Math.PI) / 180);
-  ctx.scale(1 + jit(roughness * 0.005), 1 + jit(roughness * 0.005));
-  ctx.translate(-ax, -ay);
-
-  // loose tip: slip along the direction + a little perpendicular scatter
-  const tipPt = (px: number, py: number, ux: number, uy: number): Point => {
-    const g = jit(slip);
-    const sc = jit(o * 0.5);
-    return { x: px + ux * g - uy * sc, y: py + uy * g + ux * sc };
-  };
-
-  // ---- body wave -------------------------------------------------------
-  // a smooth sinusoid of arclength, applied along the (smoothly rotating)
-  // bisector normal and tapered to zero at pen-lifts and open tips. being an
-  // analytic C1 function of s, it CANNOT produce sawtooth or kinks — but it
-  // gives arcs and continuous outlines organic hand-drawn wander.
-  const perp = (u: Point): Point => ({ x: -u.y, y: u.x });
-  const N: Point[] = [];
-  for (let j = 0; j <= last; j++) {
-    if (j === 0) N.push(perp(dir[0]));
-    else if (j === last) N.push(perp(dir[last - 1]));
-    else {
-      const bx = -dir[j - 1].y - dir[j].y;
-      const by = dir[j - 1].x + dir[j].x;
-      const bl = Math.hypot(bx, by);
-      N.push(bl > 0.05 ? { x: bx / bl, y: by / bl } : perp(dir[j]));
-    }
-  }
-  // wave must vanish at pen-lifts and open tips (break positions)
-  const breaks: number[] = [];
-  if (!closedLoop) breaks.push(0, total);
-  for (let v = 1; v < last; v++) if (sharp[v]) breaks.push(cum[v]);
-  const envAt = (s: number): number => {
-    let d = Infinity;
-    for (const b of breaks) {
-      const dd = Math.abs(s - b);
-      if (dd < d) d = dd;
-    }
-    if (d === Infinity) return 1;
-    const t = Math.min(1, d / 22);
-    return t * t * (3 - 2 * t);
-  };
-  // integer wave count: periodic on closed loops (seam matches exactly);
-  // low frequency: several samples per period so chords can't alias
-  const lam = 90 + jit(40);
-  const cycles = Math.max(1, Math.round(total / lam));
-  const wamp = waveScale * roughness * (0.9 + 0.5 * jit(1));
-  const phase = jit(6.283);
-  const waveAt = (s: number): number =>
-    wamp * envAt(s) * Math.sin((2 * Math.PI * cycles * s) / total + phase);
-  // wave-displaced vertices (used by continuous stretches)
-  const D: Point[] = [];
-  for (let j = 0; j <= last; j++) {
-    const w = waveAt(cum[j]);
-    D.push({ x: points[j].x + N[j].x * w, y: points[j].y + N[j].y * w });
-  }
-
-  // walk maximal runs: colinear stretch (bounded by sharp corners / tips /
-  // bends). straight stretches that END loose get a one-shot bow; continuous
-  // stretches trace the wave-displaced geometry, subdivided so the wave
-  // shows on long straight runs too.
-  let i = 1;
-  while (i <= last) {
-    let e = i;
-    while (e < last && !lift[e] && colin(e)) e++;
-
-    const tipStart = i === 1 && !closedLoop;
-    const tipEnd = e === last && !closedLoop;
-    const liftStart = i > 1 && lift[i - 1];
-    const liftEnd = e < last && lift[e];
-
-    let sx: number;
-    let sy: number;
-    if (tipStart) {
-      // clamped start: keep the anchor point EXACT (used by the arrowhead,
-      // so its wings never detach from the tip or overshoot past it)
-      const p = clampStart
-        ? { x: points[i - 1].x, y: points[i - 1].y }
-        : tipPt(
-            points[i - 1].x,
-            points[i - 1].y,
-            dir[i - 1].x,
-            dir[i - 1].y,
-          );
-      sx = p.x;
-      sy = p.y;
-    } else if (liftStart) {
-      // salient tip: slip past the break (signed jitter → crossing strokes)
-      const g = jit(slip);
-      sx = D[i - 1].x + dir[i - 1].x * g;
-      sy = D[i - 1].y + dir[i - 1].y * g;
-    } else {
-      sx = D[i - 1].x;
-      sy = D[i - 1].y;
-    }
-    if (i === 1 || liftStart) ctx.moveTo(sx, sy);
-
-    let ex: number;
-    let ey: number;
-    if (liftEnd) {
-      const g = jit(slip);
-      ex = D[e].x - dir[e - 1].x * g;
-      ey = D[e].y - dir[e - 1].y * g;
-    } else if (tipEnd) {
-      // clamped end: terminate exactly on the geometry (arrow shaft tip must
-      // not run past the arrowhead and push the animated dashes beyond it)
-      const p = clampEnd
-        ? { x: points[e].x, y: points[e].y }
-        : tipPt(points[e].x, points[e].y, dir[e - 1].x, dir[e - 1].y);
-      ex = p.x;
-      ey = p.y;
-    } else {
-      ex = D[e].x;
-      ey = D[e].y;
-    }
-
-    // one-shot bow only on straight runs bounded by sharp corners / tips
-    // (soft lifts keep the wave trace, so arcs stay arcs)
-    if (
-      tipStart ||
-      tipEnd ||
-      (liftStart && sharp[i - 1]) ||
-      (liftEnd && sharp[e])
-    ) {
-      // one-shot gentle bow on the straight run
-      const len = cum[e] - cum[i - 1] || 1;
-      const ux = (points[e].x - points[i - 1].x) / len;
-      const uy = (points[e].y - points[i - 1].y) / len;
-      const bow = jit(roughness * 1.6) * Math.min(1, len / 60);
-      ctx.quadraticCurveTo(
-        (points[i - 1].x + points[e].x) / 2 - uy * bow,
-        (points[i - 1].y + points[e].y) / 2 + ux * bow,
-        ex,
-        ey,
-      );
-    } else {
-      // continuous stretch (straight run or arc chord): subdivide finely so
-      // the wave renders smoothly — drawing it only at sample vertices would
-      // alias into zig-zag on wide-spaced arc chords
-      const sA = cum[i - 1];
-      const sB = cum[e];
-      const steps = Math.max(1, Math.ceil((sB - sA) / 8));
-      for (let k = 1; k <= steps; k++) {
-        const t = k / steps;
-        const s = sA + (sB - sA) * t;
-        const bx = points[i - 1].x + (points[e].x - points[i - 1].x) * t;
-        const by = points[i - 1].y + (points[e].y - points[i - 1].y) * t;
-        let nx = N[i - 1].x + (N[e].x - N[i - 1].x) * t;
-        let ny = N[i - 1].y + (N[e].y - N[i - 1].y) * t;
-        const nl = Math.hypot(nx, ny);
-        if (nl > 0) {
-          nx /= nl;
-          ny /= nl;
-        }
-        const w = waveAt(s);
-        ctx.lineTo(bx + nx * w, by + ny * w);
-      }
-    }
-    i = e + 1;
-  }
-  ctx.restore();
-}
-
 /**
  * strokes hand-drawn polylines: a single straight pass when clean,
  * independent offset passes otherwise (sloppy sketch look).
- * endpoints don't meet exactly at corners — that's the point.
+ * Geometry is shared with the SVG exporter via roughPath — replayed here.
  */
 function sketchStroke(
   ctx: CanvasRenderingContext2D,
@@ -461,39 +178,23 @@ function sketchStroke(
   clampStart = false,
   clampEnd = false,
 ) {
-  const passes = roughness === 0 ? 1 : roughness === 3 ? 3 : 2;
-  for (let p = 0; p < passes; p++) {
-    for (const pts of polylines) {
-      if (roughness === 0) {
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++)
-          ctx.lineTo(pts[i].x, pts[i].y);
+  for (const seg of sketchStrokeSegments(
+    polylines,
+    roughness,
+    seedBase,
+    waveScale,
+    clampStart,
+    clampEnd,
+  )) {
+    ctx.moveTo(seg.moveTo.x, seg.moveTo.y);
+    for (const c of seg.curves) {
+      if (c.kind === "quad" && c.ctrl) {
+        ctx.quadraticCurveTo(c.ctrl.x, c.ctrl.y, c.to.x, c.to.y);
       } else {
-        roughPolyline(
-          ctx,
-          pts,
-          roughness,
-          seedBase + p * 131 + pts.length,
-          waveScale,
-          clampStart,
-          clampEnd,
-        );
+        ctx.lineTo(c.to.x, c.to.y);
       }
     }
   }
-}
-
-const seedCache = new Map<string, number>();
-
-/** stable seed from element id: sketch outlines must NOT shift while dragging */
-function seedOf(id: string): number {
-  let s = seedCache.get(id);
-  if (s === undefined) {
-    s = 0;
-    for (let i = 0; i < id.length; i++) s = (s * 31 + id.charCodeAt(i)) % 100000;
-    seedCache.set(id, s);
-  }
-  return s;
 }
 
 // ---- library icon rendering (Path2D cache) ------------------------------
@@ -512,81 +213,6 @@ function iconPaths(componentId: string): Path2D[] {
 
 // assets (ícones AWS, libs importadas e imagens raster) são desenhados pelo
 // pipeline de imagens em componentAssets — nenhum cache duplicado aqui.
-
-/**
- * closed perimeter of a rounded rectangle as a sampled polyline loop
- * (first point == last point), so hand-drawn strokes follow the corners.
- */
-function roundedRectLoop(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  r: number,
-): Point[] {
-  const x1 = Math.min(x, x + width);
-  const y1 = Math.min(y, y + height);
-  const x2 = x1 + Math.abs(width);
-  const y2 = y1 + Math.abs(height);
-  if (r <= 0) {
-    return [
-      { x: x1, y: y1 },
-      { x: x2, y: y1 },
-      { x: x2, y: y2 },
-      { x: x1, y: y2 },
-      { x: x1, y: y1 },
-    ];
-  }
-  const pts: Point[] = [];
-  // fixed arc sampling (7.5° facets): exact-traced curves stay visually
-  // perfect while keeping the polyline representation simple
-  const seg = 12;
-  // [centerX, centerY, startAngle] per corner, clockwise from top-left arc
-  const arcs: [number, number, number][] = [
-    [x2 - r, y1 + r, -Math.PI / 2],
-    [x2 - r, y2 - r, 0],
-    [x1 + r, y2 - r, Math.PI / 2],
-    [x1 + r, y1 + r, Math.PI],
-  ];
-  for (const [cx, cy, start] of arcs) {
-    for (let i = 0; i <= seg; i++) {
-      const a = start + (i / seg) * (Math.PI / 2);
-      pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
-    }
-  }
-  pts.push(pts[0]);
-  return pts;
-}
-
-/** closed perimeter of a diamond as a polyline loop (first point == last) */
-function diamondLoop(el: Element): Point[] {
-  const v = diamondVertices(el);
-  return [...v, v[0]];
-}
-
-/**
- * ellipse perimeter sampled as a closed polyline loop (first point == last),
- * with fixed ~7.5° facets — same sampling style as the rounded-rect corners.
- */
-function ellipseLoop(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): Point[] {
-  const rx = Math.abs(width) / 2;
-  const ry = Math.abs(height) / 2;
-  const cx = x + width / 2;
-  const cy = y + height / 2;
-  const seg = 48;
-  const pts: Point[] = [];
-  for (let i = 0; i < seg; i++) {
-    const a = (i / seg) * Math.PI * 2;
-    pts.push({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) });
-  }
-  pts.push(pts[0]);
-  return pts;
-}
 
 function applyDash(
   ctx: CanvasRenderingContext2D,

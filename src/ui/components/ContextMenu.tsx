@@ -2,6 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { editor } from "../hooks/useEditor";
 import { AdditionalInfoModal } from "./AdditionalInfoModal";
+import { buildSvgString, exportSVG } from "../../core/exporter";
+import {
+  addCustomItem,
+  nextCustomNumber,
+} from "../../core/customLibrary";
+import { unionBounds } from "../../core/utils";
+import type { Element } from "../../core/types";
+import { toast } from "../toasts";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Shift", "Alt"]);
 
@@ -10,6 +18,41 @@ interface MenuState {
   y: number;
   /** element under the cursor when the menu opened (null = empty canvas) */
   targetId: string | null;
+  /** ids to snapshot for "Save": the current selection with every group
+   *  completed — a partially-selected group saves the whole group */
+  saveIds: string[] | null;
+}
+
+/**
+ * Full set of elements the "Save" actions should serialize: the selection
+ * with each group completed. A group member pulled in by a partial marquee
+ * (or any other partial selection) must not leave its siblings behind.
+ */
+function saveTarget(ids: ReadonlySet<string>): string[] {
+  const { doc } = editor.getSnapshot();
+  const wanted = new Set(ids);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const el of doc.elements) {
+      if (!el.groupId || !wanted.has(el.id)) continue;
+      for (const sib of doc.elements) {
+        if (sib.groupId === el.groupId && !wanted.has(sib.id)) {
+          wanted.add(sib.id);
+          changed = true;
+        }
+      }
+    }
+  }
+  return doc.elements.filter((el) => wanted.has(el.id)).map((el) => el.id);
+}
+
+/** elements targeted by the open menu's "Save" actions (stable snapshot) */
+function saveElements(saveIds: string[] | null): Element[] {
+  const snap = editor.getSnapshot();
+  const ids = saveIds ?? [...snap.selectedIds];
+  const key = new Set(ids);
+  return snap.doc.elements.filter((el) => key.has(el.id));
 }
 
 /**
@@ -35,8 +78,21 @@ export function ContextMenu() {
       setEditingId(null);
       const p = { x: e.clientX, y: e.clientY };
       const hit = editor.elementAt(p) ?? editor.badgeElementAt(p);
-      if (hit) editor.selectElementAt(p);
-      setMenu({ x: e.clientX, y: e.clientY, targetId: hit?.id ?? null });
+      // The "Save" target is ALWAYS the full current selection (with every
+      // group completed). A non-empty selection must never collapse on
+      // right-click — even if the cursor lands on an unselected overlapping
+      // element — otherwise a multiselection saves only the hit element.
+      let selection = editor.getSnapshot().selectedIds;
+      if (hit && selection.size === 0) {
+        editor.selectElementAt(p);
+        selection = editor.getSnapshot().selectedIds;
+      }
+      setMenu({
+        x: e.clientX,
+        y: e.clientY,
+        targetId: hit?.id ?? null,
+        saveIds: hit ? saveTarget(selection) : null,
+      });
       window.dispatchEvent(new CustomEvent("archidraw:contextmenu", { detail: true }));
     };
     const onDown = (e: MouseEvent) => {
@@ -78,6 +134,32 @@ export function ContextMenu() {
     );
   }, [menu]);
 
+  /** serializa a seleção como SVG standalone (documento só com os ítens) */
+  const addToLibrary = () => {
+    const selected = saveElements(menu?.saveIds ?? null);
+    if (selected.length === 0) return;
+    const svg = buildSvgString({ schemaVersion: 1, elements: selected });
+    if (!svg) return;
+    const b = unionBounds(selected);
+    const rawW = b ? b.x2 - b.x1 : 0;
+    const rawH = b ? b.y2 - b.y1 : 0;
+    const aspect = rawW > 0 && rawH > 0 ? rawW / rawH : 1;
+    // guarda os ELEMENTOS Nativos (re-inseridos como grupo editável); o SVG
+    // é usado apenas como thumbnail no painel da library
+    const item = addCustomItem(selected, svg, aspect);
+    toast(`Added "${item.name}" to library`);
+    close();
+  };
+
+  const downloadSvgImage = () => {
+    const selected = saveElements(menu?.saveIds ?? null);
+    if (selected.length === 0) return;
+    const name = `custom-${nextCustomNumber()}`;
+    const ok = exportSVG({ schemaVersion: 1, elements: selected }, name);
+    if (ok) toast(`SVG "${name}.svg" downloaded`);
+    close();
+  };
+
   if (!menu && !editingId) return null;
 
   return createPortal(
@@ -95,17 +177,42 @@ export function ContextMenu() {
           }}
         >
           {menu.targetId ? (
-            <button
-              className="context-menu-item"
-              role="menuitem"
-              data-testid="context-menu-info"
-              onClick={() => {
-                setEditingId(menu.targetId);
-                close();
-              }}
-            >
-              Additional Information
-            </button>
+            <>
+              <div
+                className="context-menu-header"
+                data-testid="context-menu-save-header"
+              >
+                SAVE
+              </div>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-add-library"
+                onClick={addToLibrary}
+              >
+                Add to Library
+              </button>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-download-svg"
+                onClick={downloadSvgImage}
+              >
+                Download SVG Image
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-info"
+                onClick={() => {
+                  setEditingId(menu.targetId);
+                  close();
+                }}
+              >
+                Additional Information
+              </button>
+            </>
           ) : (
             <div className="context-menu-empty" data-testid="context-menu-empty">
               No actions available

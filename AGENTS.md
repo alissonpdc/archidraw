@@ -12,14 +12,15 @@ Run the full GATE before reporting any task complete:
 npm run lint && npm run build && npm run test:e2e
 ```
 
-- `npm run build` includes typecheck (`tsc -b`). There is no separate typecheck script.
+- `npm run build` includes typecheck (`tsc -b`). There is no separate typecheck script (`CI` typechecks standalone).
+- `tsconfig.app.json` sets `verbatimModuleSyntax` + `erasableSyntaxOnly`: type-only imports **must** use `import type`, and enums/namespaces/parameter-properties are compile errors.
 - Run a single E2E spec: `npx playwright test e2e/specs/history.spec.ts`
 - First run requires: `npm install && npx playwright install chromium`
 - Node 22+ required (CI runs Node 22).
 
 ## E2E gotchas
 
-- Playwright's `webServer` builds in **test mode** and previews on port 4173 with `reuseExistingServer: false` — it will fail if something else holds that port, and a plain `npm run dev` server won't be used. A test build (`build:test`) is what exposes `window.__editor__`.
+- Playwright's `webServer` builds in **test mode** and previews on port 4173 with `reuseExistingServer: false` — it will fail if something else holds that port, and a plain `npm run dev` server won't be used. A test build (`build:test`) is what exposes `window.__editor__`; `npm run dev` also exposes it (`MODE === "test" || DEV` in `src/main.tsx`).
 - Always import `test`/`expect` from `e2e/fixtures.ts`, never `@playwright/test` directly. The fixture fails the test if **any** `console.error`/`console.warning`/`pageerror` occurs — React key warnings etc. will break CI.
 - Use `open(page)` to navigate and wait for hydration (`__appReady__`); read editor state via the `editorState()` fixture (`window.__editor__.getSnapshot()`).
 - Never simulate paste with `Control+v`/`Meta+v` (platform-dependent in headless); use the `pressPaste()` helper (synthetic `ClipboardEvent` dispatch).
@@ -45,4 +46,4 @@ When fixing a recurring bug, add a new entry there and reference it in `AGENTS.m
 - Branch names must use a conventional prefix (`feat/`, `fix/`, `chore/`, …) — **other prefixes don't trigger CI**. On green CI, a PR to `main` is opened automatically.
 - Commits follow Conventional Commits (pt-BR or English); the message type drives automatic semver on merge (`feat` → minor, `!:`/`BREAKING CHANGE` → major, else patch).
 - Lint is oxlint (`.oxlintrc.json`); it ignores `e2e/**`.
-- No code comments unless strictly necessary.
+- **No code comments** unless strictly necessary (differs from the global "keep comments" rule in `~/.agents/rules/development.md`).
