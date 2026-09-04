@@ -57,7 +57,7 @@ function truncatedHachureSvg(
   return `<clipPath id="${clipId}">${shape}</clipPath><g clip-path="url(#${clipId})" stroke="${color}" stroke-width="1.2" stroke-linecap="round"${alpha}>${lines}</g>`;
 }
 
-function downloadBlob(blob: Blob, filename: string) {
+export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

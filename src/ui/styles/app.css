@@ -1502,6 +1502,12 @@ button {
   color: var(--text-muted);
 }
 
+.library-group-export {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+}
+
 .library-error {
   font-size: var(--font-size-xs);
   color: var(--color-danger, #d64545);

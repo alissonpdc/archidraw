@@ -164,7 +164,7 @@ test.describe("excalidraw library import", () => {
     // group named after the file (extension stripped) appears expanded
     const group = page.locator('[data-testid="library-imported-group"]');
     await expect(group).toHaveCount(1);
-    await expect(group.locator(".library-group-name")).toHaveText("my icons");
+    await expect(group.locator(".library-group-name")).toHaveText("my-icons");
     await expect(group.locator(".library-section-header")).toHaveAttribute(
       "aria-expanded",
       "true",
@@ -220,7 +220,7 @@ test.describe("excalidraw library import", () => {
 
     const group = page.locator('[data-testid="library-imported-group"]');
     await expect(group).toHaveCount(1);
-    await expect(group.locator(".library-group-name")).toHaveText("my icons");
+    await expect(group.locator(".library-group-name")).toHaveText("my-icons");
   });
 
   test("invalid file shows an error and does not create a group", async ({

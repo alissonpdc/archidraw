@@ -40,6 +40,7 @@ import {
   removeCustomItem,
 } from "../../core/customLibrary";
 import type { CustomLibraryItemData } from "../../core/customLibrary";
+import { downloadCustomLibrary } from "../../core/archidrawLibExport";
 
 export const COMPONENT_DND_TYPE = "application/x-archidraw-component";
 
@@ -265,7 +266,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
       setOpenGroups((prev) => new Set(prev).add(lib.id));
       setImportError(null);
     } catch {
-      setImportError("Invalid .excalidrawlib file");
+      setImportError("Invalid library file");
     }
   };
 
@@ -310,8 +311,8 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
         <div className="library-header-actions">
           <button
             className="tool-btn library-import"
-            aria-label="Import Excalidraw library"
-            title="Import .excalidrawlib"
+            aria-label="Import library"
+            title="Import .excalidrawlib / .archidrawlib"
             data-testid="library-import"
             onClick={() => fileInputRef.current?.click()}
           >
@@ -342,7 +343,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".excalidrawlib,.json,application/json"
+          accept=".excalidrawlib,.archidrawlib"
           className="library-import-input"
           aria-hidden="true"
           tabIndex={-1}
@@ -531,14 +532,39 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                 className="library-section"
                 data-testid="library-custom"
               >
-                <SectionHeader
-                  open={customOpen}
-                  onToggle={() => setCustomOpen((v) => !v)}
-                >
-                  <span className="library-group-name">
-                    {CUSTOM_GROUP_NAME}
-                  </span>
-                </SectionHeader>
+                <div className="library-section-row">
+                  <SectionHeader
+                    open={customOpen}
+                    onToggle={() => setCustomOpen((v) => !v)}
+                  >
+                    <span className="library-group-name">
+                      {CUSTOM_GROUP_NAME}
+                    </span>
+                  </SectionHeader>
+                  <button
+                    className="tool-btn library-group-export"
+                    aria-label="Export custom library"
+                    title="Export .archidrawlib"
+                    data-testid="library-export"
+                    onClick={() => downloadCustomLibrary()}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 5V17" />
+                      <path d="M6.5 10.5 L12 17 L17.5 10.5" />
+                      <path d="M4 20 H20" />
+                    </svg>
+                  </button>
+                </div>
                 {customOpen && (
                   <div className="library-subgroup">
                     <div className="library-grid">

@@ -40,8 +40,8 @@ let libraries: ImportedLibrary[] = [];
 
 /** nome do grupo a partir do nome do arquivo */
 export function groupNameFromFile(filename: string): string {
-  const base = filename.replace(/\.(excalidrawlib|json)$/i, "").trim();
-  const cleaned = base.replace(/[-_]+/g, " ").trim();
+  const base = filename.replace(/\.(excalidrawlib|archidrawlib)$/i, "").trim();
+  const cleaned = base.replace(/[_]+/g, " ").trim();
   return cleaned || "Imported library";
 }
 
