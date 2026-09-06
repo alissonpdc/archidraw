@@ -1,4 +1,4 @@
-import type { ArrowBinding, ArrowElement, Bounds, Camera, ComponentElement, Document, Element, LineElement, Point } from "./types";
+import type { ArrowBinding, ArrowElement, ArrowHeadType, Bounds, Camera, ComponentElement, Document, Element, LineElement, Point } from "./types";
 import {
   arrowHeadVectors,
   arrowPoints,
@@ -147,16 +147,64 @@ function drawArrowHead(
   tip: Point,
   tail: Point,
   size: number,
+  color: string,
   roughness: number,
   seed: number,
+  type: ArrowHeadType = "arrow",
 ) {
-  const [p1, p2] = arrowHeadVectors(tip, tail, size);
+  if (type === "none") return;
   // the head never inherits the shaft dash pattern — wings stay solid
   ctx.setLineDash([]);
   ctx.lineDashOffset = 0;
-  ctx.beginPath();
-  sketchStroke(ctx, [[tip, p1], [tip, p2]], roughness, seed, 1, true);
-  ctx.stroke();
+
+  if (type === "circle") {
+    const r = size * 0.35;
+    ctx.beginPath();
+    ctx.arc(tip.x, tip.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    return;
+  }
+
+  const [p1, p2] = arrowHeadVectors(tip, tail, size);
+
+  if (type === "arrow") {
+    // optical fix: a sketched chevron's thin loose tips read shorter than the
+    // filled triangle's silhouette, so grow the wings with the roughness
+    const ws = size * (1 + roughness * 0.04);
+    const [w1, w2] = arrowHeadVectors(tip, tail, ws);
+    ctx.beginPath();
+    sketchStroke(ctx, [[tip, w1]], roughness, seed, 1, true, false);
+    sketchStroke(ctx, [[tip, w2]], roughness, seed + 16, 1, true, false);
+    ctx.stroke();
+  } else if (type === "triangle") {
+    // filled triangle: single-color head matching the stroke — fill first
+    // then sketch the outline for hand-drawn look
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.closePath();
+    ctx.fill();
+    // sketch outline over the fill: clamp only the tip corners (loose wing
+    // tips scatter like the "arrow" head — double-clamping both ends pins
+    // every corner and reads as a clean triangle)
+    if (roughness > 0) {
+      ctx.beginPath();
+      sketchStroke(ctx, [[tip, p1]], roughness, seed + 13, 1, true, false);
+      sketchStroke(ctx, [[p1, p2]], roughness, seed + 29, 1, false, false);
+      sketchStroke(ctx, [[p2, tip]], roughness, seed + 47, 1, false, true);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(tip.x, tip.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
 }
 
 /** resolves the element stroke; empty / legacy auto values → transparent */
@@ -194,6 +242,25 @@ function sketchStroke(
         ctx.lineTo(c.to.x, c.to.y);
       }
     }
+  }
+}
+
+/** edge shaft stroke: sketch only on solid strokes — dashed/dotted/dash-dot
+ *  edges keep a clean ruler-drawn path (the draft style lives on the heads) */
+function strokeEdge(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  polylines: Point[][],
+  seedBase: number,
+  clampEnd = false,
+) {
+  if (el.strokeStyle === "solid") {
+    sketchStroke(ctx, polylines, el.roughness, seedBase, 1, false, clampEnd);
+    return;
+  }
+  for (const pts of polylines) {
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
   }
 }
 
@@ -606,7 +673,7 @@ function drawElement(
     ctx.globalAlpha = el.strokeOpacity;
     ctx.beginPath();
     if (lineType === "straight") {
-      sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id));
+      strokeEdge(ctx, el, [[a, tip]], seedOf(el.id));
       applyDash(ctx, el, el.strokeWidth);
       ctx.stroke();
     } else if (lineType === "curved") {
@@ -618,7 +685,7 @@ function drawElement(
     } else {
       // auto: polyline through bend points (or L-shaped default)
       const pts = edgePathPoints(el);
-      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id));
+      strokeEdge(ctx, el, [pts], seedOf(el.id));
       applyDash(ctx, el, el.strokeWidth);
       ctx.stroke();
     }
@@ -630,32 +697,37 @@ function drawElement(
     const tip = { x: b.x, y: endY };
     const headSize = Math.max(12, el.strokeWidth * 4) * 1.2;
     const headSeed = seedOf(el.id) + 7;
+    const headColor = resolveStroke(el, colors);
+    const startType = el.startArrowhead ?? "none";
+    const endType = el.endArrowhead ?? "arrow";
 
     ctx.save();
     ctx.globalAlpha = el.strokeOpacity;
     ctx.beginPath();
     if (lineType === "straight") {
-      // clamp the head-side end so the sketched shaft never runs past the
-      // arrowhead (animated dashes would otherwise march beyond the arrow)
-      sketchStroke(ctx, [[a, tip]], el.roughness, seedOf(el.id), 1, false, true);
+      strokeEdge(ctx, el, [[a, tip]], seedOf(el.id), true);
       applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
-      drawArrowHead(ctx, tip, a, headSize, el.roughness, headSeed);
+      drawArrowHead(ctx, tip, a, headSize, headColor, el.roughness, headSeed, endType);
+      drawArrowHead(ctx, a, tip, headSize, headColor, el.roughness, headSeed + 3, startType);
     } else if (lineType === "curved") {
       const cp = curvedArrowControl(el, a, tip);
       ctx.moveTo(a.x, a.y);
       ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
       applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
-      drawArrowHead(ctx, tip, cp, headSize, el.roughness, headSeed);
+      drawArrowHead(ctx, tip, cp, headSize, headColor, el.roughness, headSeed, endType);
+      drawArrowHead(ctx, a, cp, headSize, headColor, el.roughness, headSeed + 3, startType);
     } else {
       // auto: polyline through bend points (or L-shaped default)
       const pts = edgePathPoints(el);
-      sketchStroke(ctx, [pts], el.roughness, seedOf(el.id), 1, false, true);
+      strokeEdge(ctx, el, [pts], seedOf(el.id), true);
       applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
       ctx.stroke();
       const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
-      drawArrowHead(ctx, tip, prevPt, headSize, el.roughness, headSeed);
+      drawArrowHead(ctx, tip, prevPt, headSize, headColor, el.roughness, headSeed, endType);
+      const nextPt = pts.length >= 2 ? pts[1] : tip;
+      drawArrowHead(ctx, a, nextPt, headSize, headColor, el.roughness, headSeed + 3, startType);
     }
     ctx.restore();
   } else if (el.type === "text") {

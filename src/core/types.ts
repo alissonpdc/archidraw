@@ -16,6 +16,9 @@ export type FillStyle = "solid" | "hachure" | "cross-hachure";
 /** how "hand-drawn" the stroke looks: 0 = clean, 1 = draft, 2 = sketchy, 3 = chaos */
 export type Roughness = 0 | 1 | 2 | 3;
 
+/** arrowhead style: none, circle, current arrow (>), filled triangle */
+export type ArrowHeadType = "none" | "circle" | "arrow" | "triangle";
+
 export interface Point {
   x: number;
   y: number;
@@ -150,6 +153,10 @@ export interface ArrowElement extends BaseElement {
   endBinding?: ArrowBinding;
   /** when true, the arrow stroke renders with a flowing dash pattern */
   animated?: boolean;
+  /** arrowhead style at the start of the arrow (default "none") */
+  startArrowhead?: ArrowHeadType;
+  /** arrowhead style at the end of the arrow (default "arrow") */
+  endArrowhead?: ArrowHeadType;
 }
 
 export interface TextElement extends BaseElement {

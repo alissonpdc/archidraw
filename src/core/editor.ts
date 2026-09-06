@@ -5,6 +5,7 @@ import { render, type RenderColors } from "./renderer";
 import type {
   ArrowBinding,
   ArrowElement,
+  ArrowHeadType,
   Bounds,
   Camera,
   ComponentElement,
@@ -1114,6 +1115,8 @@ strokeOpacity?: number;
       controlPoint?: Point;
       bendPoints?: Point[];
       animated?: boolean;
+      startArrowhead?: ArrowHeadType;
+      endArrowhead?: ArrowHeadType;
     },
   ) {
     this.doc = {
@@ -1337,7 +1340,7 @@ strokeOpacity?: number;
         } else if (this.tool === "line") {
           el = { ...base, type: "line", strokeWidth: 1, ...bbox } satisfies LineElement;
         } else {
-          el = { ...base, type: "arrow", strokeWidth: 1, ...bbox } satisfies ArrowElement;
+          el = { ...base, type: "arrow", strokeWidth: 1, ...bbox, startArrowhead: "none", endArrowhead: "arrow" } satisfies ArrowElement;
         }
         // drawing that starts over/near a shape binds and snaps the start
         // to the nearest outline point (or to a cardinal center nearby)

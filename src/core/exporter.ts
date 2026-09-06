@@ -1,5 +1,5 @@
 import { render, componentIconLayout } from "./renderer";
-import type { Document, Element, Point } from "./types";
+import type { ArrowHeadType, Document, Element, Point } from "./types";
 import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, escapeXml, unionBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { componentAssetDataUri, waitForComponentImages, waitForImage } from "./componentAssets";
@@ -193,25 +193,47 @@ function arrowHeadSvg(
   tip: Point,
   tail: Point,
   stroke: string,
+  color: string,
   opacity: string,
   headSeed: number,
+  type: ArrowHeadType = "arrow",
 ): string {
   const size = arrowHeadSize(el) * 1.2;
-  if (isSketch(el)) {
-    const [p1, p2] = arrowHeadVectors(tip, tail, size);
-    const d = sketchPathD(
-      [
-        [tip, p1],
-        [tip, p2],
-      ],
-      el.roughness ?? 0,
-      headSeed,
-      1,
-      true,
-    );
-    return `<path d="${d}" fill="none" ${stroke}${opacity}/>`;
+  if (type === "none") return "";
+  if (type === "circle") {
+    const r = (size * 0.35).toFixed(2);
+    return `<circle cx="${tip.x.toFixed(2)}" cy="${tip.y.toFixed(2)}" r="${r}" fill="${color}"${opacity}/>`;
   }
-  return `<path d="${arrowHeadPoints(tip, tail, size)}" fill="none" ${stroke}${opacity}/>`;
+  const [p1, p2] = arrowHeadVectors(tip, tail, size);
+  if (type === "arrow") {
+    if (isSketch(el)) {
+      // sketched chevron wings read shorter than the triangle's silhouette;
+      // grow them with the roughness (canvas mirror) and trace each wing
+      // separately so both loose tips scatter
+      const r = el.roughness ?? 0;
+      const ws = size * (1 + r * 0.04);
+      const [w1, w2] = arrowHeadVectors(tip, tail, ws);
+      const d =
+        sketchPathD([[tip, w1]], r, headSeed, 1, true, false) +
+        sketchPathD([[tip, w2]], r, headSeed + 16, 1, true, false);
+      return `<path d="${d}" fill="none" ${stroke}${opacity}/>`;
+    }
+    return `<path d="${arrowHeadPoints(tip, tail, size)}" fill="none" ${stroke}${opacity}/>`;
+  }
+  if (type === "triangle") {
+    const points = `${tip.x.toFixed(2)},${tip.y.toFixed(2)} ${p1.x.toFixed(2)},${p1.y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+    if (isSketch(el)) {
+      // clamp only the tip corners so the wing tips scatter like the "arrow"
+      // head (double-ending clamp pins every corner → clean triangle)
+      const d =
+        sketchPathD([[tip, p1]], el.roughness ?? 0, headSeed + 13, 1, true, false) +
+        sketchPathD([[p1, p2]], el.roughness ?? 0, headSeed + 29, 1, false, false) +
+        sketchPathD([[p2, tip]], el.roughness ?? 0, headSeed + 47, 1, false, true);
+      return `<polygon points="${points}" fill="${color}"${opacity}/><path d="${d}" fill="none" ${stroke}${opacity}/>`;
+    }
+    return `<polygon points="${points}" fill="${color}"${opacity}/>`;
+  }
+  return "";
 }
 
 /**
@@ -295,7 +317,7 @@ export function buildSvgString(doc: Document): string | null {
       if (lineType === "curved") {
         const cp = curvedArrowControl(el, a, tip);
         parts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
-      } else if (isSketch(el)) {
+      } else if (isSketch(el) && el.strokeStyle === "solid") {
         const pts = lineType === "auto" ? edgePathPoints(el) : [a, tip];
         parts.push(`<path d="${sketchPathD([pts], el.roughness ?? 0, seedOf(el.id))}" fill="none" ${stroke}${dash}${opacity}/>`);
       } else if (lineType === "auto") {
@@ -311,24 +333,33 @@ export function buildSvgString(doc: Document): string | null {
       const tip = { x: b.x, y: endY };
       const lineType = el.lineType ?? "straight";
       const headSeed = seedOf(el.id) + 7;
+      const arrowEl = el as import("./types").ArrowElement;
+      const startType = arrowEl.startArrowhead ?? "none";
+      const endType = arrowEl.endArrowhead ?? "arrow";
       if (lineType === "curved") {
         const cp = curvedArrowControl(el, a, tip);
         parts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
-        parts.push(arrowHeadSvg(el, tip, cp, stroke, opacity, headSeed));
-      } else if (isSketch(el)) {
+        parts.push(arrowHeadSvg(el, tip, cp, stroke, el.strokeColor, opacity, headSeed, endType));
+        parts.push(arrowHeadSvg(el, a, cp, stroke, el.strokeColor, opacity, headSeed + 3, startType));
+      } else if (isSketch(el) && el.strokeStyle === "solid") {
         const pts = lineType === "auto" ? edgePathPoints(el) : [a, tip];
         const headTail = lineType === "auto" && pts.length >= 2 ? pts[pts.length - 2] : a;
+        const headNext = lineType === "auto" && pts.length >= 2 ? pts[1] : tip;
         parts.push(`<path d="${sketchPathD([pts], el.roughness ?? 0, seedOf(el.id), 1, false, true)}" fill="none" ${stroke}${dash}${opacity}/>`);
-        parts.push(arrowHeadSvg(el, tip, headTail, stroke, opacity, headSeed));
+        parts.push(arrowHeadSvg(el, tip, headTail, stroke, el.strokeColor, opacity, headSeed, endType));
+        parts.push(arrowHeadSvg(el, a, headNext, stroke, el.strokeColor, opacity, headSeed + 3, startType));
       } else if (lineType === "auto") {
         const pts = edgePathPoints(el);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
         parts.push(`<path d="${d}" fill="none" ${stroke}${dash}${opacity}/>`);
         const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
-        parts.push(arrowHeadSvg(el, tip, prevPt, stroke, opacity, headSeed));
+        const nextPt = pts.length >= 2 ? pts[1] : tip;
+        parts.push(arrowHeadSvg(el, tip, prevPt, stroke, el.strokeColor, opacity, headSeed, endType));
+        parts.push(arrowHeadSvg(el, a, nextPt, stroke, el.strokeColor, opacity, headSeed + 3, startType));
       } else {
         parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
-        parts.push(arrowHeadSvg(el, tip, a, stroke, opacity, headSeed));
+        parts.push(arrowHeadSvg(el, tip, a, stroke, el.strokeColor, opacity, headSeed, endType));
+        parts.push(arrowHeadSvg(el, a, tip, stroke, el.strokeColor, opacity, headSeed + 3, startType));
       }
     } else if (el.type === "text") {
       const lines = el.text.split("\n");

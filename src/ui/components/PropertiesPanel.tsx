@@ -80,6 +80,8 @@ type Patch = Partial<{
   captionOffsetRight: number;
   lineType: "straight" | "curved" | "auto";
   animated: boolean;
+  startArrowhead: "none" | "circle" | "arrow" | "triangle";
+  endArrowhead: "none" | "circle" | "arrow" | "triangle";
 }>;
 
 // ---- color helpers -----------------------------------------------------
@@ -499,6 +501,18 @@ export function PropertiesPanel() {
   const allAnimated = selected.every(
     (el) => el.type !== "arrow" || !!el.animated,
   );
+  const allStartArrowhead = (v: string) =>
+    selected.every(
+      (el) =>
+        el.type !== "arrow" ||
+        ((el as any).startArrowhead ?? "none") === v,
+    );
+  const allEndArrowhead = (v: string) =>
+    selected.every(
+      (el) =>
+        el.type !== "arrow" ||
+        ((el as any).endArrowhead ?? "arrow") === v,
+    );
   /** animation marches the dash pattern; solid strokes have no dashes to
    *  move, so the toggle is disabled unless an arrow is dashed, dotted or
    *  dash-dot (any path type: straight, curved or auto). Switching an
@@ -833,6 +847,76 @@ export function PropertiesPanel() {
                   />
                 </svg>
               </button>
+            </Group>
+          )}
+          {hasArrow && (
+            <Group title="Arrowheads">
+<div className="arrowhead-grid">
+                  <div className="arrowhead-row">
+                  {(["none", "circle", "arrow", "triangle"] as const).map((t) => (
+                    <button
+                      key={`start-${t}`}
+                      className={`size-btn arrowhead-btn ${allStartArrowhead(t) ? "active" : ""}`}
+                      aria-label={`Start arrowhead ${t}`}
+                      data-tip={t === "none" ? "None" : t === "circle" ? "Circle" : t === "arrow" ? "Arrow" : "Triangle"}
+                      onClick={() => apply({ startArrowhead: t })}
+                    >
+                      <svg width="18" height="14" viewBox="0 0 18 14">
+                        {t === "none" ? (
+                          <line x1="2" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        ) : t === "circle" ? (
+                          <>
+                            <line x1="2" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <circle cx="4" cy="7" r="2.5" fill="currentColor" />
+                          </>
+                        ) : t === "arrow" ? (
+                          <>
+                            <line x1="6" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M6 3 L2 7 L6 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </>
+                        ) : (
+                          <>
+                            <line x1="6" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <polygon points="6,3 2,7 6,11" fill="currentColor" />
+                          </>
+                        )}
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+                <div className="arrowhead-row">
+                  {(["none", "circle", "arrow", "triangle"] as const).map((t) => (
+                    <button
+                      key={`end-${t}`}
+                      className={`size-btn arrowhead-btn ${allEndArrowhead(t) ? "active" : ""}`}
+                      aria-label={`End arrowhead ${t}`}
+                      data-tip={t === "none" ? "None" : t === "circle" ? "Circle" : t === "arrow" ? "Arrow" : "Triangle"}
+                      onClick={() => apply({ endArrowhead: t })}
+                    >
+                      <svg width="18" height="14" viewBox="0 0 18 14">
+                        {t === "none" ? (
+                          <line x1="2" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        ) : t === "circle" ? (
+                          <>
+                            <line x1="2" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <circle cx="15" cy="7" r="2.5" fill="currentColor" />
+                          </>
+                        ) : t === "arrow" ? (
+                          <>
+                            <line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <path d="M12 3 L16 7 L12 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </>
+                        ) : (
+                          <>
+                            <line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <polygon points="12,3 16,7 12,11" fill="currentColor" />
+                          </>
+                        )}
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </Group>
           )}
         </Section>
