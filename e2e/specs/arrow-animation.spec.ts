@@ -315,4 +315,34 @@ test.describe("arrow animation", () => {
     });
     expect(dark).toBe(0);
   });
+
+  test("dashed rough arrow exports a clean dashed shaft with a sketched head", async ({
+    page,
+  }) => {
+    await open(page);
+    await selectTool(page, "6");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { strokeStyle: "dashed", roughness: 3 });
+    });
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.click(".menu-btn");
+    await page.getByRole("button", { name: "Export Image…" }).click();
+    await page.getByRole("button", { name: "SVG" }).click();
+    await page.getByRole("button", { name: "Export" }).click();
+    const download = await downloadPromise;
+    const stream = (await download.createReadStream())!;
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    const svg = Buffer.concat(chunks).toString("utf-8");
+
+    // shaft: clean <line> with the dash pattern (no sketch path for the body)
+    expect(svg).toContain("<line");
+    expect(svg).toContain("stroke-dasharray=");
+    // head: still a hand-drawn sketch path carrying the selected roughness
+    expect(svg.match(/<path /g)?.length ?? 0).toBeGreaterThanOrEqual(1);
+  });
 });

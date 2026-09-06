@@ -174,6 +174,14 @@ function convertElement(
       const pts = normalizePoints(el.points);
       if (pts.length < 2) return null;
       const lastPt = pts[pts.length - 1];
+      const startType = el.startArrowhead === "arrow" ? "arrow"
+        : el.startArrowhead === "triangle" ? "triangle"
+        : el.startArrowhead === "circle" ? "circle"
+        : "none";
+      const endType = el.endArrowhead === "arrow" ? "arrow"
+        : el.endArrowhead === "triangle" ? "triangle"
+        : el.endArrowhead === "circle" ? "circle"
+        : "none";
       return {
         ...base,
         type: "arrow" as const,
@@ -182,6 +190,8 @@ function convertElement(
         lineType: "straight" as const,
         startBinding: mapBinding(el.startBinding),
         endBinding: mapBinding(el.endBinding),
+        startArrowhead: startType,
+        endArrowhead: endType,
       };
     }
     case "text": {

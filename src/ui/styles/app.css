@@ -585,7 +585,7 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  max-height: calc(100% - 300px);
+  max-height: calc(100% - 324px);
   overflow-y: auto;
   scrollbar-width: none;
   min-width: 180px;
@@ -865,6 +865,26 @@ button {
 
 .line-style-btn svg {
   display: block;
+}
+
+/* ---- arrowhead selector: 2 rows (start/end) x 4 options --------------- */
+.arrowhead-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.arrowhead-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+}
+
+.arrowhead-btn {
+  width: 26px;
+  height: 26px;
 }
 
 /* ---- spacing row (caption offset controls) ---- */

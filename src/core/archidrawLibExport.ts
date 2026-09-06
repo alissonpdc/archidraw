@@ -98,8 +98,8 @@ function elementToExcalidraw(el: Element): ExcalidrawElement | null {
     pts.push({ x: el.width, y: el.height });
     base.points = pts;
     if (el.type === "arrow") {
-      base.startArrowhead = "arrow";
-      base.endArrowhead = "arrow";
+      base.startArrowhead = el.startArrowhead ?? "none";
+      base.endArrowhead = el.endArrowhead ?? "arrow";
     }
   }
 
