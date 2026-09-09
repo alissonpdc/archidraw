@@ -814,42 +814,6 @@ export function PropertiesPanel() {
             </Group>
           )}
           {hasArrow && (
-            <Group title="Animation">
-              <button
-                className={`size-btn text-btn ${allAnimated ? "active" : ""}`}
-                aria-label="Animate arrow"
-                data-tip={
-                  animationDisabled
-                    ? "Animation needs a dashed, dotted or dash-dot stroke"
-                    : "Flowing dashes along the arrow"
-                }
-                disabled={animationDisabled}
-                onClick={() => apply({ animated: !allAnimated })}
-              >
-                <svg width="20" height="14" viewBox="0 0 20 14">
-                  <line
-                    x1="2"
-                    y1="7"
-                    x2="14"
-                    y2="7"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeDasharray="3 2"
-                  />
-                  <path
-                    d="M14 4 L18 7 L14 10"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            </Group>
-          )}
-          {hasArrow && (
             <Group title="Arrowheads">
 <div className="arrowhead-grid">
                   <div className="arrowhead-row">
@@ -917,6 +881,42 @@ export function PropertiesPanel() {
                   ))}
                 </div>
               </div>
+            </Group>
+          )}
+          {hasArrow && (
+            <Group title="Animation">
+              <button
+                className={`size-btn text-btn ${allAnimated ? "active" : ""}`}
+                aria-label="Animate arrow"
+                data-tip={
+                  animationDisabled
+                    ? "Animation needs a dashed, dotted or dash-dot stroke"
+                    : "Flowing dashes along the arrow"
+                }
+                disabled={animationDisabled}
+                onClick={() => apply({ animated: !allAnimated })}
+              >
+                <svg width="20" height="14" viewBox="0 0 20 14">
+                  <line
+                    x1="2"
+                    y1="7"
+                    x2="14"
+                    y2="7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="3 2"
+                  />
+                  <path
+                    d="M14 4 L18 7 L14 10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </Group>
           )}
         </Section>
