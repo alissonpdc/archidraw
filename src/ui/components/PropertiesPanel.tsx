@@ -921,6 +921,8 @@ export function PropertiesPanel() {
           )}
         </Section>
 
+        <div style={{ height: 1, background: "var(--border)", margin: "var(--space-2) 0" }} />
+
         {hasFillable && (
           <Section title="Fill">
             <Group title="Color">
