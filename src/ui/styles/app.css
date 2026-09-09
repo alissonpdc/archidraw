@@ -585,7 +585,7 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  max-height: calc(100% - 324px);
+  max-height: calc(100% - 100px);
   overflow-y: auto;
   scrollbar-width: none;
   min-width: 180px;
