@@ -13,7 +13,7 @@ Documento de planejamento e evolução dos recursos do menu de contexto (botão 
 
 ### 1.2. Organização e Camadas (Z-Index)
 * ~~**1.2.1. Trazer para a Frente (`Bring to Front`)**: Move os elementos selecionados para o topo da pilha visual.~~
-* **1.2.2. Enviar para o Fundo (`Send to Back`)**: Envia os elementos selecionados para o fundo da pilha visual.
+* ~~**1.2.2. Enviar para o Fundo (`Send to Back`)**: Envia os elementos selecionados para o fundo da pilha visual.~~
 * **1.2.3. Avançar / Recuar Camada (`Bring Forward / Send Backward`)**: Ajuste fino de ordenação entre elementos adjacentes.
 
 ### 1.3. Agrupamento e Estruturação

@@ -406,3 +406,13 @@ export function BringToFrontIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function SendToBackIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="11" y="6" width="7" height="7" rx="1" />
+      <path d="M7 17l4 4 4-4" />
+      <rect x="3" y="11" width="7" height="7" rx="1" opacity="0.4" />
+    </svg>
+  );
+}
