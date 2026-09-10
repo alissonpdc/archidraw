@@ -6,6 +6,7 @@ import type {
   ArrowBinding,
   ArrowElement,
   ArrowHeadType,
+  BaseElement,
   Bounds,
   Camera,
   ComponentElement,
@@ -1257,6 +1258,49 @@ strokeOpacity?: number;
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
     return clones.length;
+  }
+
+  // ---- copy/paste style -----------------------------------------------
+  private copiedStyle: Partial<BaseElement> | null = null;
+
+  copyStyle() {
+    if (this.selectedIds.size === 0) return;
+    const el = this.doc.elements.find((e) => this.selectedIds.has(e.id));
+    if (!el) return;
+    this.copiedStyle = {
+      strokeColor: el.strokeColor,
+      backgroundColor: el.backgroundColor,
+      strokeWidth: el.strokeWidth,
+      opacity: el.opacity,
+      strokeOpacity: el.strokeOpacity,
+      fillOpacity: el.fillOpacity,
+      strokeStyle: el.strokeStyle,
+      fillStyle: el.fillStyle,
+      roughness: el.roughness,
+      borderRadius: el.borderRadius,
+      fontFamily: el.fontFamily,
+      bold: el.bold,
+      italic: el.italic,
+      underline: el.underline,
+      textColor: el.textColor,
+      fontSize: el.fontSize,
+      textAlign: el.textAlign,
+      textVAlign: el.textVAlign,
+      lineSpacing: el.lineSpacing,
+    };
+  }
+
+  pasteStyle() {
+    if (!this.copiedStyle || this.selectedIds.size === 0) return;
+    this.commitHistory();
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) => {
+        if (!this.selectedIds.has(el.id)) return el;
+        return { ...el, ...this.copiedStyle } as Element;
+      }),
+    };
+    this.emit();
   }
 
   // ---- keyboard -------------------------------------------------------
