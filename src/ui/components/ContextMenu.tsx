@@ -10,7 +10,7 @@ import {
 import { unionBounds } from "../../core/utils";
 import type { Element } from "../../core/types";
 import { toast } from "../toasts";
-import { CopyIcon, CutIcon, DeleteIcon, DuplicateIcon } from "./icons";
+import { BringToFrontIcon, CopyIcon, CutIcon, DeleteIcon, DuplicateIcon } from "./icons";
 import { MOD } from "../platform";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Shift", "Alt"]);
@@ -158,6 +158,11 @@ export function ContextMenu() {
     close();
   };
 
+  const bringToFrontElements = () => {
+    editor.bringToFront();
+    close();
+  };
+
   /** serializa a seleção como SVG standalone (documento só com os ítens) */
   const addToLibrary = () => {
     const selected = saveElements(menu?.saveIds ?? null);
@@ -241,6 +246,16 @@ export function ContextMenu() {
                 <DeleteIcon size={14} />
                 <span>Delete</span>
                 <span className="context-menu-item-shortcut">Delete</span>
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-bring-to-front"
+                onClick={bringToFrontElements}
+              >
+                <BringToFrontIcon size={14} />
+                <span>Bring to Front</span>
               </button>
               <div className="context-menu-divider" />
               <div
