@@ -35,14 +35,13 @@ test.describe("group / ungroup (context menu)", () => {
     await expect(page.getByTestId("context-menu-group")).toHaveText(/Group/);
   });
 
-  test("right-click on single element shows Group but disabled", async ({ page }) => {
+  test("right-click on single element hides Group", async ({ page }) => {
     await open(page);
     await drawRect(page);
 
     await rightClickElement(page, 260, 185);
 
-    await expect(page.getByTestId("context-menu-group")).toBeVisible();
-    await expect(page.getByTestId("context-menu-group")).toBeDisabled();
+    await expect(page.getByTestId("context-menu-group")).toHaveCount(0);
   });
 
   test("Group via context menu assigns same groupId to all selected", async ({
@@ -87,7 +86,7 @@ test.describe("group / ungroup (context menu)", () => {
     }
   });
 
-  test("Ungroup is disabled when no element has a groupId", async ({
+  test("Ungroup is hidden when no element has a groupId", async ({
     page,
   }) => {
     await open(page);
@@ -97,8 +96,7 @@ test.describe("group / ungroup (context menu)", () => {
 
     await rightClickElement(page, 260, 185);
 
-    await expect(page.getByTestId("context-menu-ungroup")).toBeVisible();
-    await expect(page.getByTestId("context-menu-ungroup")).toBeDisabled();
+    await expect(page.getByTestId("context-menu-ungroup")).toHaveCount(0);
   });
 
   test("context menu closes after Group click", async ({ page }) => {

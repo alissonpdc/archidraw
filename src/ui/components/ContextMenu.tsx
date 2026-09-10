@@ -231,6 +231,13 @@ export function ContextMenu() {
           }}
         >
           {menu.targetId ? (
+            (() => {
+              const snap = editor.getSnapshot();
+              const canGroup = snap.selectedIds.size >= 2;
+              const canUngroup = snap.doc.elements.some(
+                (el) => snap.selectedIds.has(el.id) && el.groupId,
+              );
+              return (
             <>
               <button
                 className="context-menu-item"
@@ -310,37 +317,31 @@ export function ContextMenu() {
                 <span>Send Backward</span>
               </button>
               <div className="context-menu-divider" />
-              <button
-                className="context-menu-item"
-                role="menuitem"
-                data-testid="context-menu-group"
-                disabled={editor.getSnapshot().selectedIds.size < 2}
-                onClick={groupElements}
-              >
-                <GroupIcon size={14} />
-                <span>Group</span>
-                <span className="context-menu-item-shortcut">{MOD}+G</span>
-              </button>
-              <button
-                className="context-menu-item"
-                role="menuitem"
-                data-testid="context-menu-ungroup"
-                disabled={
-                  !editor
-                    .getSnapshot()
-                    .doc.elements.some(
-                      (el) =>
-                        editor.getSnapshot().selectedIds.has(el.id) &&
-                        el.groupId,
-                    )
-                }
-                onClick={ungroupElements}
-              >
-                <UngroupIcon size={14} />
-                <span>Ungroup</span>
-                <span className="context-menu-item-shortcut">{MOD}+Shift+G</span>
-              </button>
-              <div className="context-menu-divider" />
+              {canGroup && (
+                <button
+                  className="context-menu-item"
+                  role="menuitem"
+                  data-testid="context-menu-group"
+                  onClick={groupElements}
+                >
+                  <GroupIcon size={14} />
+                  <span>Group</span>
+                  <span className="context-menu-item-shortcut">{MOD}+G</span>
+                </button>
+              )}
+              {canUngroup && (
+                <button
+                  className="context-menu-item"
+                  role="menuitem"
+                  data-testid="context-menu-ungroup"
+                  onClick={ungroupElements}
+                >
+                  <UngroupIcon size={14} />
+                  <span>Ungroup</span>
+                  <span className="context-menu-item-shortcut">{MOD}+Shift+G</span>
+                </button>
+              )}
+              {(canGroup || canUngroup) && <div className="context-menu-divider" />}
               <div
                 className="context-menu-header"
                 data-testid="context-menu-save-header"
@@ -376,6 +377,8 @@ export function ContextMenu() {
                 Additional Information
               </button>
             </>
+            );
+            })()
           ) : (
             <div className="context-menu-empty" data-testid="context-menu-empty">
               No actions available
