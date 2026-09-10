@@ -416,3 +416,25 @@ export function SendToBackIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function BringForwardIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="11" width="7" height="7" rx="1" />
+      <path d="M8 6v9" />
+      <path d="M5.5 9L8 6l2.5 3" />
+      <rect x="11" y="6" width="7" height="7" rx="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+export function SendBackwardIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="11" y="6" width="7" height="7" rx="1" />
+      <path d="M8 18V9" />
+      <path d="M5.5 12L8 15l2.5-3" />
+      <rect x="3" y="11" width="7" height="7" rx="1" opacity="0.4" />
+    </svg>
+  );
+}
