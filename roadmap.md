@@ -9,7 +9,7 @@ Documento de planejamento e evolução dos recursos do menu de contexto (botão 
 ### 1.1. Operações Básicas de Manipulação de Elementos
 * ~~**1.1.1. Copiar e Recortar Elementos (`Copy`, `Cut`)**: Copia e recorta os elementos selecionados do canvas.~~
 * ~~**1.1.2. Duplicar Elemento (`Duplicate`)**: Duplica a seleção com deslocamento (offset) rápido no canvas.~~
-* **1.1.3. Excluir Elemento (`Delete`)**: Remove os elementos selecionados do canvas.
+* ~~**1.1.3. Excluir Elemento (`Delete`)**: Remove os elementos selecionados do canvas.~~
 
 ### 1.2. Organização e Camadas (Z-Index)
 * **1.2.1. Trazer para a Frente (`Bring to Front`)**: Move os elementos selecionados para o topo da pilha visual.
