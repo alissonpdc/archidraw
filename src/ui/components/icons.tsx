@@ -459,3 +459,23 @@ export function UngroupIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function CopyStyleIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="8" width="13" height="11" rx="2" fill="none" />
+      <path d="M7 8V5a3 3 0 0 1 6 0v3" fill="none" />
+      <circle cx="12" cy="14" r="2" fill="currentColor" opacity="0.4" />
+    </svg>
+  );
+}
+
+export function PasteStyleIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="8" width="13" height="11" rx="2" fill="none" />
+      <path d="M7 8V5a3 3 0 0 1 6 0v3" fill="none" />
+      <path d="M10 12v4M8 14h4" strokeWidth="2" />
+    </svg>
+  );
+}
