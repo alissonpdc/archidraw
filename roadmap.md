@@ -17,8 +17,8 @@ Documento de planejamento e evolução dos recursos do menu de contexto (botão 
 * ~~**1.2.3. Avançar / Recuar Camada (`Bring Forward / Send Backward`)**: Ajuste fino de ordenação entre elementos adjacentes.~~
 
 ### 1.3. Agrupamento e Estruturação
-* **1.3.1. Agrupar Seleção (`Group`)**: Une dois ou mais elementos selecionados em um grupo editável.
-* **1.3.2. Desagrupar (`Ungroup`)**: Dissolve o grupo selecionado mantendo os elementos individuais.
+* ~~**1.3.1. Agrupar Seleção (`Group`)**: Une dois ou mais elementos selecionados em um grupo editável.~~
+* ~~**1.3.2. Desagrupar (`Ungroup`)**: Dissolve o grupo selecionado mantendo os elementos individuais.~~
 
 ### 1.4. Trava e Ajustes Rápidos de Estilo
 * **1.4.1. Bloquear / Desbloquear Elemento (`Lock / Unlock`)**: Impede movimentação, redimensionamento ou exclusão acidental de elementos-chave da arquitetura.

@@ -10,7 +10,7 @@ import {
 import { unionBounds } from "../../core/utils";
 import type { Element } from "../../core/types";
 import { toast } from "../toasts";
-import { BringForwardIcon, BringToFrontIcon, CopyIcon, CutIcon, DeleteIcon, DuplicateIcon, SendBackwardIcon, SendToBackIcon } from "./icons";
+import { BringForwardIcon, BringToFrontIcon, CopyIcon, CutIcon, DeleteIcon, DuplicateIcon, GroupIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon } from "./icons";
 import { MOD } from "../platform";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Shift", "Alt"]);
@@ -178,6 +178,16 @@ export function ContextMenu() {
     close();
   };
 
+  const groupElements = () => {
+    editor.groupSelected();
+    close();
+  };
+
+  const ungroupElements = () => {
+    editor.ungroupSelected();
+    close();
+  };
+
   /** serializa a seleção como SVG standalone (documento só com os ítens) */
   const addToLibrary = () => {
     const selected = saveElements(menu?.saveIds ?? null);
@@ -298,6 +308,37 @@ export function ContextMenu() {
               >
                 <SendBackwardIcon size={14} />
                 <span>Send Backward</span>
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-group"
+                disabled={editor.getSnapshot().selectedIds.size < 2}
+                onClick={groupElements}
+              >
+                <GroupIcon size={14} />
+                <span>Group</span>
+                <span className="context-menu-item-shortcut">{MOD}+G</span>
+              </button>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-ungroup"
+                disabled={
+                  !editor
+                    .getSnapshot()
+                    .doc.elements.some(
+                      (el) =>
+                        editor.getSnapshot().selectedIds.has(el.id) &&
+                        el.groupId,
+                    )
+                }
+                onClick={ungroupElements}
+              >
+                <UngroupIcon size={14} />
+                <span>Ungroup</span>
+                <span className="context-menu-item-shortcut">{MOD}+Shift+G</span>
               </button>
               <div className="context-menu-divider" />
               <div
