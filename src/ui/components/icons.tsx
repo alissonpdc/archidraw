@@ -375,3 +375,12 @@ export function CutIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function DuplicateIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="8" y="8" width="12" height="12" rx="2" />
+      <path d="M4 16H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v1" />
+    </svg>
+  );
+}
