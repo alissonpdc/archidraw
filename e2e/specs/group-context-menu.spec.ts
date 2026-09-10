@@ -44,6 +44,25 @@ test.describe("group / ungroup (context menu)", () => {
     await expect(page.getByTestId("context-menu-group")).toHaveCount(0);
   });
 
+  test("right-click on a single group hides Group", async ({ page, editorState }) => {
+    await open(page);
+    await drawRect(page, RECT.a, RECT.b);
+    await drawRect(page, RECT2.a, RECT2.b);
+    await selectBoth(page);
+
+    // group them
+    await rightClickElement(page, 260, 185);
+    await page.getByTestId("context-menu-group").click();
+
+    // deselect, then click one element of the group (selects whole group)
+    await page.mouse.click(600, 400);
+    await page.mouse.click(260, 185);
+
+    await rightClickElement(page, 260, 185);
+
+    await expect(page.getByTestId("context-menu-group")).toHaveCount(0);
+  });
+
   test("Group via context menu assigns same groupId to all selected", async ({
     page,
     editorState,

@@ -233,10 +233,17 @@ export function ContextMenu() {
           {menu.targetId ? (
             (() => {
               const snap = editor.getSnapshot();
-              const canGroup = snap.selectedIds.size >= 2;
-              const canUngroup = snap.doc.elements.some(
-                (el) => snap.selectedIds.has(el.id) && el.groupId,
+              const selectedEls = snap.doc.elements.filter((el) =>
+                snap.selectedIds.has(el.id),
               );
+              const groupIds = new Set(
+                selectedEls.map((el) => el.groupId).filter(Boolean),
+              );
+              const singleGroup =
+                groupIds.size === 1 &&
+                selectedEls.every((el) => el.groupId);
+              const canGroup = snap.selectedIds.size >= 2 && !singleGroup;
+              const canUngroup = selectedEls.some((el) => el.groupId);
               return (
             <>
               <button
