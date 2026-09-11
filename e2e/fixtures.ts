@@ -43,7 +43,9 @@ export const test = base.extend<TestFixtures>({
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
       await use();
       const [jsCoverage] = await Promise.all([page.coverage.stopJSCoverage()]);
-      await addCoverageReport(jsCoverage, test.info());
+      if (jsCoverage && jsCoverage.length) {
+        await addCoverageReport(jsCoverage, test.info());
+      }
     },
     { scope: "test", auto: true },
   ],
