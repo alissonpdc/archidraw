@@ -10,7 +10,7 @@ import {
 import { unionBounds } from "../../core/utils";
 import type { Element } from "../../core/types";
 import { toast } from "../toasts";
-import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, DeleteIcon, DuplicateIcon, FitIcon, GroupIcon, PasteIcon, PasteStyleIcon, SelectAllIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon } from "./icons";
+import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, DeleteIcon, DuplicateIcon, FitIcon, GroupIcon, HighlightDependenciesIcon, PasteIcon, PasteStyleIcon, SelectAllIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon } from "./icons";
 import { MOD } from "../platform";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Shift", "Alt"]);
@@ -217,6 +217,11 @@ export function ContextMenu() {
     close();
   };
 
+  const highlightDeps = () => {
+    editor.highlightDependencies();
+    close();
+  };
+
   /** serializa a seleção como SVG standalone (documento só com os ítens) */
   const addToLibrary = () => {
     const selected = saveElements(menu?.saveIds ?? null);
@@ -413,6 +418,16 @@ export function ContextMenu() {
               >
                 <PasteStyleIcon size={14} />
                 <span>Paste Style</span>
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-highlight-deps"
+                onClick={highlightDeps}
+              >
+                <HighlightDependenciesIcon size={14} />
+                <span>Highlight Flow</span>
               </button>
               <div className="context-menu-divider" />
               <div

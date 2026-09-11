@@ -497,3 +497,15 @@ export function SelectAllIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function HighlightDependenciesIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="8" cy="8" r="3" fill="none" />
+      <circle cx="14" cy="14" r="2" fill="none" opacity="0.4" />
+      <path d="M10.5 9.5L12.5 12" strokeWidth="1.5" />
+      <circle cx="4" cy="14" r="1.5" fill="none" opacity="0.4" />
+      <path d="M6 13L5.5 14" strokeWidth="1.5" />
+    </svg>
+  );
+}

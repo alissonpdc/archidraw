@@ -56,6 +56,8 @@ export interface RenderState {
   hiddenTextId?: string | null;
   /** animation clock for flowing-dash arrow strokes (cycle value in scene units) */
   animationPhase?: number;
+  /** set of element ids to keep at full opacity (all others are dimmed) */
+  highlightedIds?: ReadonlySet<string>;
 }
 
 const DEFAULT_COLORS: RenderColors = {
@@ -506,7 +508,7 @@ function drawHachureFill(
   ctx.save();
   ctx.strokeStyle = hatchColor;
   ctx.lineCap = "round";
-  ctx.globalAlpha = el.fillOpacity;
+  ctx.globalAlpha *= el.fillOpacity;
   traceShape(ctx, el);
   ctx.clip();
   const span = Math.max(b.w, b.h) * 1.5;
@@ -562,7 +564,7 @@ function drawElement(
     if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
       if (el.backgroundColor !== "transparent") {
         ctx.save();
-        ctx.globalAlpha = el.fillOpacity;
+        ctx.globalAlpha *= el.fillOpacity;
         ctx.beginPath();
         ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
         ctx.fill();
@@ -574,7 +576,7 @@ function drawElement(
     // strokeWidth 0 = borderless (library components)
     if (el.strokeWidth > 0) {
       ctx.save();
-      ctx.globalAlpha = el.strokeOpacity;
+      ctx.globalAlpha *= el.strokeOpacity;
       ctx.beginPath();
       if (el.roughness === 0) {
         ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
@@ -606,7 +608,7 @@ function drawElement(
     if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
       if (el.backgroundColor !== "transparent") {
         ctx.save();
-        ctx.globalAlpha = el.fillOpacity;
+        ctx.globalAlpha *= el.fillOpacity;
         ctx.beginPath();
         ctx.moveTo(v[0].x, v[0].y);
         for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
@@ -618,7 +620,7 @@ function drawElement(
       drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
     ctx.save();
-    ctx.globalAlpha = el.strokeOpacity;
+    ctx.globalAlpha *= el.strokeOpacity;
     ctx.beginPath();
     if (el.roughness === 0) {
       ctx.moveTo(v[0].x, v[0].y);
@@ -638,7 +640,7 @@ function drawElement(
     if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
       if (el.backgroundColor !== "transparent") {
         ctx.save();
-        ctx.globalAlpha = el.fillOpacity;
+        ctx.globalAlpha *= el.fillOpacity;
         ctx.beginPath();
         ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -648,7 +650,7 @@ function drawElement(
       drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
     ctx.save();
-    ctx.globalAlpha = el.strokeOpacity;
+    ctx.globalAlpha *= el.strokeOpacity;
     ctx.beginPath();
     if (el.roughness === 0) {
       ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
@@ -670,7 +672,7 @@ function drawElement(
     const tip = { x: b.x, y: endY };
 
     ctx.save();
-    ctx.globalAlpha = el.strokeOpacity;
+    ctx.globalAlpha *= el.strokeOpacity;
     ctx.beginPath();
     if (lineType === "straight") {
       strokeEdge(ctx, el, [[a, tip]], seedOf(el.id));
@@ -702,7 +704,7 @@ function drawElement(
     const endType = el.endArrowhead ?? "arrow";
 
     ctx.save();
-    ctx.globalAlpha = el.strokeOpacity;
+    ctx.globalAlpha *= el.strokeOpacity;
     ctx.beginPath();
     if (lineType === "straight") {
       strokeEdge(ctx, el, [[a, tip]], seedOf(el.id), true);
@@ -732,7 +734,7 @@ function drawElement(
     ctx.restore();
   } else if (el.type === "text") {
     ctx.save();
-    ctx.globalAlpha = el.opacity;
+    ctx.globalAlpha *= el.opacity;
     ctx.fillStyle = resolveTextColor(el, colors);
     ctx.font = resolveFont(el);
     ctx.textBaseline = "top";
@@ -971,7 +973,7 @@ function drawSelectionBox(
 function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderColors) {
   if (el.type === "text" || !el.label) return;
   ctx.save();
-  ctx.globalAlpha = el.opacity;
+  ctx.globalAlpha *= el.opacity;
   ctx.fillStyle = resolveTextColor(el, colors);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -1270,10 +1272,13 @@ export function render(
   for (const el of state.doc.elements) {
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
+    const dim =
+      state.highlightedIds && state.highlightedIds.size > 0 && !state.highlightedIds.has(el.id);
+    if (dim) ctx.save();
+    if (dim) ctx.globalAlpha = 0.15;
     drawElement(ctx, el, colors, state.animationPhase ?? 0);
-    // label is ALWAYS painted (even while its text is being edited) so the
-    // invisible overlay textarea stays WYSIWYG with the final style
     drawLabel(ctx, el, colors);
+    if (dim) ctx.restore();
     drawDetailsBadge(ctx, el, cam.zoom, colors);
     if (state.selectedIds.has(el.id) && !isEditingThisLabel)
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);

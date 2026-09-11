@@ -22,15 +22,15 @@ Documento de planejamento e evolução dos recursos do menu de contexto (botão 
 
 ### 1.4. Trava e Ajustes Rápidos de Estilo
 * **1.4.1. Bloquear / Desbloquear Elemento (`Lock / Unlock`)**: Impede movimentação, redimensionamento ou exclusão acidental de elementos-chave da arquitetura.
-* **1.4.2. Copiar Estilo (`Copy Style`)**: Copia atributos visuais (cor de preenchimento, borda, fonte, estilo de linha).
-* **1.4.3. Colar Estilo (`Paste Style`)**: Aplica os atributos visuais copiados em outros elementos selecionados.
+* ~~**1.4.2. Copiar Estilo (`Copy Style`)**: Copia atributos visuais (cor de preenchimento, borda, fonte, estilo de linha).~~
+* ~~**1.4.3. Colar Estilo (`Paste Style`)**: Aplica os atributos visuais copiados em outros elementos selecionados.~~
 
 ---
 
 ## 2. Recursos Específicos para Arquitetura de Software
 
 ### 2.1. Análise de Conexões e Dependências
-* **2.1.1. Destaque de Conexões e Dependências (`Highlight Dependencies`)**: Destaca visualmente todos os conectores de entrada (*Upstream*) e saída (*Downstream*) do componente selecionado, esmaecendo o restante do diagrama.
+* ~~**2.1.1. Destaque de Conexões e Dependências (`Highlight Flow`)**: Destaca visualmente todos os conectores de entrada (*Upstream*) e saída (*Downstream*) do componente selecionado, incluindo conexões indiretas na cadeia de dependências, esmaecendo o restante do diagrama.~~
 
 ---
 
@@ -45,8 +45,8 @@ Documento de planejamento e evolução dos recursos do menu de contexto (botão 
 ## 4. Ações no Canvas Vazio (Clique sem Elemento Selecionado)
 
 ### 4.1. Interações Globais
-* **4.1.1. Colar no Cursor (`Paste Here`)**: Cola os elementos do clipboard no ponto exato do clique.
-* **4.1.2. Resetar Zoom e Enquadrar (`Reset Zoom / Fit to View`)**: Ajusta o zoom e a câmera para exibir todo o diagrama.
-* **4.1.3. Selecionar Tudo (`Select All`)**: Seleciona todos os elementos do canvas.
+* ~~**4.1.1. Colar no Cursor (`Paste Here`)**: Cola os elementos do clipboard no ponto exato do clique.~~
+* ~~**4.1.2. Resetar Zoom e Enquadrar (`Reset Zoom / Fit to View`)**: Ajusta o zoom e a câmera para exibir todo o diagrama.~~
+* ~~**4.1.3. Selecionar Tudo (`Select All`)**: Seleciona todos os elementos do canvas.~~
 
 ---
