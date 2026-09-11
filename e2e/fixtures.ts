@@ -1,4 +1,5 @@
 import { test as base, expect, type Page } from "@playwright/test";
+import { addCoverageReport } from "monocart-reporter";
 
 interface ConsoleIssue {
   kind: "console" | "pageerror";
@@ -9,6 +10,8 @@ type TestFixtures = {
   page: Page;
   editorState: () => Promise<EditorSnapshotLike>;
 };
+
+const collectCoverage = process.env.E2E_COVERAGE === "1";
 
 export interface EditorSnapshotLike {
   tool: string;
@@ -31,6 +34,20 @@ export interface EditorSnapshotLike {
 }
 
 export const test = base.extend<TestFixtures>({
+  autoCoverage: [
+    async ({ page }, use) => {
+      if (!collectCoverage) {
+        await use();
+        return;
+      }
+      await page.coverage.startJSCoverage({ resetOnNavigation: false });
+      await use();
+      const [jsCoverage] = await Promise.all([page.coverage.stopJSCoverage()]);
+      await addCoverageReport(jsCoverage, test.info());
+    },
+    { scope: "test", auto: true },
+  ],
+
   page: async ({ page }, use) => {
     const issues: ConsoleIssue[] = [];
     page.on("console", (msg) => {

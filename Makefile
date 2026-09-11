@@ -1,4 +1,4 @@
-.PHONY: build container run-container test run install lint gate help
+.PHONY: build container run-container test run install lint gate coverage help
 
 build: node_modules
 	npm run build
@@ -12,6 +12,11 @@ run-container:
 
 test: node_modules
 	E2E_PORT=$$((RANDOM % 20000 + 30000)) npm run test:e2e
+
+coverage: node_modules
+	E2E_PORT=$$((RANDOM % 20000 + 30000)) E2E_COVERAGE=1 npm run test:e2e
+	@echo ""
+	@echo "Coverage report: test-results/monocart/coverage/index.html"
 
 run: node_modules
 	npm run dev
@@ -35,6 +40,7 @@ help:
 	@echo "  make container      - Docker image build"
 	@echo "  make run-container  - Pull & run pre-built image from Docker Hub"
 	@echo "  make test           - Playwright E2E tests"
+	@echo "  make coverage       - E2E tests with coverage report"
 	@echo "  make run            - Vite dev server"
 	@echo "  make install        - npm ci + Playwright browsers"
 	@echo "  make lint           - oxlint"
