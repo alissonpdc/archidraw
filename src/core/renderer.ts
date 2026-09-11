@@ -865,6 +865,41 @@ function drawDetailsBadge(
   ctx.restore();
 }
 
+function drawLockBadge(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  zoom: number,
+  colors: RenderColors,
+  cam: Camera,
+) {
+  if (!el.locked) return;
+  const b = elementBounds(el);
+  const screenX = (b.x1 + BADGE_INSET_PX / zoom) * cam.zoom + cam.scrollX;
+  const screenY = (b.y1 + BADGE_INSET_PX / zoom) * cam.zoom + cam.scrollY;
+  const r = BADGE_RADIUS_PX;
+  const dpr = window.devicePixelRatio || 1;
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = colors.canvasBg || DEFAULT_COLORS.canvasBg;
+  ctx.beginPath();
+  ctx.arc(screenX, screenY, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = colors.muted || DEFAULT_COLORS.muted;
+  ctx.lineWidth = Math.max(1, 1.4 * (r / 7));
+  const sw = ctx.lineWidth;
+  const bw = r * 0.7;
+  const bh = r * 0.55;
+  ctx.beginPath();
+  ctx.arc(screenX, screenY - bh * 0.15, bw, Math.PI, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.roundRect(screenX - bw, screenY - bh * 0.15, bw * 2, bh * 1.3, sw * 0.4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element): Bounds {
   const eb = elementBounds(el);
   let x1 = eb.x1;
@@ -1275,6 +1310,7 @@ export function render(
     // invisible overlay textarea stays WYSIWYG with the final style
     drawLabel(ctx, el, colors);
     drawDetailsBadge(ctx, el, cam.zoom, colors);
+    drawLockBadge(ctx, el, cam.zoom, colors, cam);
     if (state.selectedIds.has(el.id) && !isEditingThisLabel)
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }
@@ -1284,6 +1320,7 @@ export function render(
     const sel = state.doc.elements.find((el) => state.selectedIds.has(el.id));
     if (
       sel &&
+      !sel.locked &&
       (sel.type === "rectangle" ||
         sel.type === "diamond" ||
         sel.type === "ellipse" ||

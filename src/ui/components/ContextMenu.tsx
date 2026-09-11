@@ -10,7 +10,7 @@ import {
 import { unionBounds } from "../../core/utils";
 import type { Element } from "../../core/types";
 import { toast } from "../toasts";
-import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, DeleteIcon, DuplicateIcon, GroupIcon, PasteStyleIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon } from "./icons";
+import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, DeleteIcon, DuplicateIcon, GroupIcon, LockIcon, PasteStyleIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon, UnlockIcon } from "./icons";
 import { MOD } from "../platform";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Shift", "Alt"]);
@@ -200,6 +200,11 @@ export function ContextMenu() {
     close();
   };
 
+  const toggleLockElements = () => {
+    editor.toggleLockSelected();
+    close();
+  };
+
   /** serializa a seleção como SVG standalone (documento só com os ítens) */
   const addToLibrary = () => {
     const selected = saveElements(menu?.saveIds ?? null);
@@ -256,6 +261,7 @@ export function ContextMenu() {
                 selectedEls.every((el) => el.groupId);
               const canGroup = snap.selectedIds.size >= 2 && !singleGroup;
               const canUngroup = selectedEls.some((el) => el.groupId);
+              const allLocked = selectedEls.length > 0 && selectedEls.every((el) => el.locked);
               return (
             <>
               <button
@@ -361,6 +367,17 @@ export function ContextMenu() {
                 </button>
               )}
               {(canGroup || canUngroup) && <div className="context-menu-divider" />}
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-toggle-lock"
+                onClick={toggleLockElements}
+              >
+                {allLocked ? <UnlockIcon size={14} /> : <LockIcon size={14} />}
+                <span>{allLocked ? "Unlock" : "Lock"}</span>
+                <span className="context-menu-item-shortcut">{MOD}+Shift+L</span>
+              </button>
+              <div className="context-menu-divider" />
               <button
                 className="context-menu-item"
                 role="menuitem"
