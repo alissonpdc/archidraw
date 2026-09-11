@@ -359,6 +359,7 @@ export class Editor {
   private lastBorderRadius = 0;
   private lastFillStyle: FillStyle = "solid";
   private focusMode = false;
+  private highlightedIds = new Set<string>();
 
   private listeners = new Set<() => void>();
   private snapshotCache: EditorSnapshot | null = null;
@@ -431,6 +432,7 @@ export class Editor {
   setTool(tool: Tool) {
     this.tool = tool;
     if (tool !== "selection") this.selectedIds.clear();
+    this.highlightedIds = new Set();
     this.emit();
   }
 
@@ -442,6 +444,51 @@ export class Editor {
   exitFocusMode() {
     if (!this.focusMode) return;
     this.focusMode = false;
+    this.emit();
+  }
+
+  highlightDependencies() {
+    if (this.selectedIds.size === 0) return;
+    const edges = this.doc.elements.filter(
+      (el) => el.type === "arrow" || el.type === "line",
+    );
+    const adj = new Map<string, Set<string>>();
+    for (const el of edges) {
+      const s = el.startBinding?.elementId;
+      const e = el.endBinding?.elementId;
+      if (s && e) {
+        if (!adj.has(s)) adj.set(s, new Set());
+        if (!adj.has(e)) adj.set(e, new Set());
+        adj.get(s)!.add(e);
+        adj.get(e)!.add(s);
+      }
+    }
+    const visited = new Set<string>();
+    const queue = [...this.selectedIds];
+    for (const id of queue) visited.add(id);
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      for (const next of adj.get(cur) ?? []) {
+        if (!visited.has(next)) {
+          visited.add(next);
+          queue.push(next);
+        }
+      }
+    }
+    for (const el of edges) {
+      const s = el.startBinding?.elementId;
+      const e = el.endBinding?.elementId;
+      if ((s && visited.has(s)) || (e && visited.has(e))) {
+        visited.add(el.id);
+      }
+    }
+    this.highlightedIds = visited;
+    this.emit();
+  }
+
+  clearHighlight() {
+    if (this.highlightedIds.size === 0) return;
+    this.highlightedIds = new Set();
     this.emit();
   }
 
@@ -789,6 +836,7 @@ borderRadius: 20,
     this.editingKind = "text";
     this.editingInitial = null;
     this.bindingPreview = null;
+    this.highlightedIds = new Set();
     this.emit();
   }
 
@@ -1545,6 +1593,7 @@ strokeOpacity?: number;
           }
         } else {
           this.selectedIds.clear();
+          this.highlightedIds = new Set();
           this.interaction = { kind: "marquee", startScene: scene };
         }
         break;
@@ -2172,6 +2221,7 @@ strokeOpacity?: number;
           this.editingKind === "label" ? this.editingTextId : null,
         hiddenTextId: this.editingKind === "text" ? this.editingTextId : null,
         animationPhase: performance.now() / 60,
+        highlightedIds: this.highlightedIds,
       },
       w,
       h,
