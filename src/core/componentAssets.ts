@@ -16,12 +16,32 @@ const kubernetesModules = import.meta.glob("./assets/kubernetes/*.svg", {
   eager: true,
 }) as Record<string, string>;
 
+const gcpModules = import.meta.glob("./assets/gcp/*.svg", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
+const azureModules = import.meta.glob("./assets/azure/*.svg", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
 const dataUris = new Map<string, string>();
 for (const [path, svg] of Object.entries(modules)) {
   const m = path.match(/\/([^/]+)\.svg$/);
   if (m) dataUris.set(m[1], `data:image/svg+xml;base64,${btoa(svg)}`);
 }
 for (const [path, svg] of Object.entries(kubernetesModules)) {
+  const m = path.match(/\/([^/]+)\.svg$/);
+  if (m) dataUris.set(m[1], `data:image/svg+xml;base64,${btoa(svg)}`);
+}
+for (const [path, svg] of Object.entries(gcpModules)) {
+  const m = path.match(/\/([^/]+)\.svg$/);
+  if (m) dataUris.set(m[1], `data:image/svg+xml;base64,${btoa(svg)}`);
+}
+for (const [path, svg] of Object.entries(azureModules)) {
   const m = path.match(/\/([^/]+)\.svg$/);
   if (m) dataUris.set(m[1], `data:image/svg+xml;base64,${btoa(svg)}`);
 }

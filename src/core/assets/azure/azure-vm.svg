@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256px" height="256px" viewBox="0 0 256 256" version="1.1" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid">
+    <title>Azure Virtual Machines</title>
+    <rect fill="#0078D4" x="0" y="0" width="256" height="256" rx="48"></rect>
+    <g fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="72" y="72" width="112" height="112" rx="8"></rect>
+        <path d="M96 112 H160 M96 144 H160"></path>
+        <path d="M96 48 V72 M160 48 V72"></path>
+        <path d="M96 184 V208 M160 184 V208"></path>
+    </g>
+</svg>

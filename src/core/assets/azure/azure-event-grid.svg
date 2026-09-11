@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256px" height="256px" viewBox="0 0 256 256" version="1.1" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid">
+    <title>Azure Event Grid</title>
+    <rect fill="#0078D4" x="0" y="0" width="256" height="256" rx="48"></rect>
+    <g fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="128" cy="128" r="28"></circle>
+        <path d="M104 104 L64 64 M152 104 L192 64 M104 152 L64 192 M152 152 L192 192"></path>
+        <circle cx="56" cy="56" r="20"></circle>
+        <circle cx="200" cy="56" r="20"></circle>
+        <circle cx="56" cy="200" r="20"></circle>
+        <circle cx="200" cy="200" r="20"></circle>
+    </g>
+</svg>

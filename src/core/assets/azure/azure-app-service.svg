@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256px" height="256px" viewBox="0 0 256 256" version="1.1" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid">
+    <title>Azure App Service</title>
+    <rect fill="#0078D4" x="0" y="0" width="256" height="256" rx="48"></rect>
+    <g fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="48" y="56" width="160" height="144" rx="8"></rect>
+        <path d="M48 96 H208"></path>
+        <path d="M72 76 H80 M96 76 H104"></path>
+        <path d="M88 136 L120 160 L88 184"></path>
+    </g>
+</svg>
