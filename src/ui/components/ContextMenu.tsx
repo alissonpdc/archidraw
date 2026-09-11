@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { editor } from "../hooks/useEditor";
 import { AdditionalInfoModal } from "./AdditionalInfoModal";
-import { buildSvgString, exportSVG } from "../../core/exporter";
+import { buildSvgString, copyPngToClipboard, copySvgToClipboard, exportSVG } from "../../core/exporter";
 import {
   addCustomItem,
   nextCustomNumber,
@@ -226,6 +226,24 @@ export function ContextMenu() {
     close();
   };
 
+  const [copySubmenu, setCopySubmenu] = useState(false);
+
+  const copyAsSvg = async () => {
+    const selected = saveElements(menu?.saveIds ?? null);
+    if (selected.length === 0) return;
+    const ok = await copySvgToClipboard({ schemaVersion: 1, elements: selected });
+    toast(ok ? "SVG copied to clipboard" : "Failed to copy SVG");
+    close();
+  };
+
+  const copyAsPng = async () => {
+    const selected = saveElements(menu?.saveIds ?? null);
+    if (selected.length === 0) return;
+    const ok = await copyPngToClipboard({ schemaVersion: 1, elements: selected });
+    toast(ok ? "PNG copied to clipboard" : "Failed to copy PNG");
+    close();
+  };
+
   if (!menu && !editingId) return null;
 
   return createPortal(
@@ -402,6 +420,38 @@ export function ContextMenu() {
               >
                 Download SVG Image
               </button>
+              <div className="context-menu-divider" />
+              <div
+                className="context-menu-item context-menu-parent"
+                role="menuitem"
+                data-testid="context-menu-copy-image"
+                onMouseEnter={() => setCopySubmenu(true)}
+                onMouseLeave={() => setCopySubmenu(false)}
+              >
+                <CopyIcon size={14} />
+                <span>Copy...</span>
+                <span className="context-menu-item-shortcut">&#9656;</span>
+                {copySubmenu && (
+                  <div className="context-menu-submenu">
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-copy-svg"
+                      onClick={copyAsSvg}
+                    >
+                      Copy as SVG
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-copy-png"
+                      onClick={copyAsPng}
+                    >
+                      Copy as PNG
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="context-menu-divider" />
               <button
                 className="context-menu-item"
