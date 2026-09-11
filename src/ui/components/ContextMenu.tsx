@@ -10,7 +10,7 @@ import {
 import { unionBounds } from "../../core/utils";
 import type { Element } from "../../core/types";
 import { toast } from "../toasts";
-import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, DeleteIcon, DuplicateIcon, GroupIcon, PasteStyleIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon } from "./icons";
+import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, DeleteIcon, DuplicateIcon, FitIcon, GroupIcon, PasteIcon, PasteStyleIcon, SelectAllIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon } from "./icons";
 import { MOD } from "../platform";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Shift", "Alt"]);
@@ -197,6 +197,23 @@ export function ContextMenu() {
   const pasteStyleElements = () => {
     editor.pasteStyle();
     toast("Style pasted");
+    close();
+  };
+
+  const pasteHere = () => {
+    if (!menu) return;
+    const count = editor.pasteAt({ x: menu.x, y: menu.y });
+    if (count > 0) toast("Pasted");
+    close();
+  };
+
+  const fitToView = () => {
+    editor.zoomToFit();
+    close();
+  };
+
+  const selectAllElements = () => {
+    editor.selectAll();
     close();
   };
 
@@ -418,9 +435,39 @@ export function ContextMenu() {
             );
             })()
           ) : (
-            <div className="context-menu-empty" data-testid="context-menu-empty">
-              No actions available
-            </div>
+            <>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-paste-here"
+                onClick={pasteHere}
+              >
+                <PasteIcon size={14} />
+                <span>Paste Here</span>
+                <span className="context-menu-item-shortcut">{MOD}+V</span>
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-fit-view"
+                onClick={fitToView}
+              >
+                <FitIcon size={14} />
+                <span>Fit to View</span>
+                <span className="context-menu-item-shortcut">Shift+1</span>
+              </button>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-select-all"
+                onClick={selectAllElements}
+              >
+                <SelectAllIcon size={14} />
+                <span>Select All</span>
+                <span className="context-menu-item-shortcut">{MOD}+A</span>
+              </button>
+            </>
           )}
         </div>
       )}
