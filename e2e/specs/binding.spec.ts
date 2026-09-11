@@ -350,7 +350,9 @@ test.describe("edge binding to elements", () => {
     expect(afterDrag.bendPoints).toBeDefined();
     expect(afterDrag.bendPoints.length).toBeGreaterThan(0);
 
-    // move the first rectangle
+    // move the first rectangle (clear selection first so the left
+    // properties panel hides and pointerDown lands on the canvas)
+    await page.keyboard.press("Escape");
     await drag(page, { x: 150, y: 150 }, { x: 250, y: 250 });
 
     const afterMove = await page.evaluate(() => {

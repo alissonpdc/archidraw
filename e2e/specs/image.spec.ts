@@ -139,16 +139,14 @@ test.describe("image features", () => {
     context,
   }) => {
     await open(page);
-    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
-      origin: "http://localhost:4173",
-    });
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 
     // cenário do bug reportado: algo do canvas está copiado no clipboard
     // interno (localStorage) E o clipboard do SO tem uma imagem externa.
     await selectTool(page, "2");
-    await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
+    await drag(page, { x: 300, y: 100 }, { x: 420, y: 180 });
     await selectTool(page, "1");
-    await page.mouse.click(150, 140); // seleciona o retângulo
+    await page.mouse.click(360, 140); // seleciona o retângulo
     await page.keyboard.press("Control+c");
     const before = await page.evaluate(
       () => window.__editor__.getSnapshot().doc.elements.length,

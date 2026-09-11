@@ -24,7 +24,9 @@ test.describe("additional information (hover info box)", () => {
     await page.mouse.click(700, 500, { button: "right" });
     await expect(page.getByTestId("context-menu")).toBeVisible();
     await expect(page.getByTestId("context-menu-info")).toHaveCount(0);
-    await expect(page.getByTestId("context-menu-empty")).toBeVisible();
+    await expect(page.getByTestId("context-menu-paste-here")).toBeVisible();
+    await expect(page.getByTestId("context-menu-fit-view")).toBeVisible();
+    await expect(page.getByTestId("context-menu-select-all")).toBeVisible();
   });
 
   test("context menu closes on a left click outside", async ({ page }) => {

@@ -8,9 +8,10 @@ async function createRects(page: Page) {
   await selectTool(page, "1");
 }
 
-/** marquee-selects both rectangles */
+/** marquee-selects both rectangles (y=30 starts above the left
+ *  properties panel so pointerDown lands on the canvas) */
 async function selectBoth(page: Page) {
-  await drag(page, { x: 80, y: 80 }, { x: 360, y: 180 });
+  await drag(page, { x: 80, y: 30 }, { x: 360, y: 180 });
 }
 
 /** opens the Layers tab of the properties panel */
