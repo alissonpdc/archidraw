@@ -479,3 +479,21 @@ export function PasteStyleIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function PasteIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-6-6z" />
+      <path d="M15 3v6h6" />
+    </svg>
+  );
+}
+
+export function SelectAllIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="3" width="18" height="18" rx="2" strokeDasharray="4 2" />
+      <path d="M9 3v18M15 3v18M3 9h18M3 15h18" strokeWidth="1" />
+    </svg>
+  );
+}

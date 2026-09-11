@@ -1260,6 +1260,37 @@ strokeOpacity?: number;
     return clones.length;
   }
 
+  pasteAt(screenPoint: Point): number {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(Editor.CLIPBOARD_KEY);
+    } catch {
+      raw = null;
+    }
+    if (!raw) return 0;
+    let items: Element[];
+    try {
+      items = JSON.parse(raw);
+    } catch {
+      return 0;
+    }
+    if (!Array.isArray(items) || items.length === 0) return 0;
+
+    const scene = screenToScene(screenPoint, this.camera);
+    const b = unionBounds(items);
+    const dx = b ? scene.x - (b.x1 + b.x2) / 2 : 0;
+    const dy = b ? scene.y - (b.y1 + b.y2) / 2 : 0;
+    const clones = this.cloneElements(items, dx, dy);
+    this.commitHistory();
+    this.doc = {
+      ...this.doc,
+      elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
+    };
+    this.selectedIds = new Set(clones.map((c) => c.id));
+    this.emit();
+    return clones.length;
+  }
+
   // ---- copy/paste style -----------------------------------------------
   private copiedStyle: Partial<BaseElement> | null = null;
 
