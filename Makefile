@@ -11,7 +11,7 @@ run-container:
 	docker run --rm -p 5000:5000 alissonpdc/archidraw:latest
 
 test: node_modules
-	npm run test:e2e
+	E2E_PORT=$$((RANDOM % 20000 + 30000)) npm run test:e2e
 
 run: node_modules
 	npm run dev
