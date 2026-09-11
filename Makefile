@@ -11,11 +11,10 @@ run-container:
 	docker run --rm -p 5000:5000 alissonpdc/archidraw:latest
 
 test: node_modules
-	E2E_PORT=$$((RANDOM % 20000 + 30000)) npm run test:e2e
-
-coverage: node_modules
 	E2E_PORT=$$((RANDOM % 20000 + 30000)) E2E_COVERAGE=1 npm run test:e2e
-	@echo ""
+
+coverage: test
+	@node scripts/coverage-gate.mjs
 	@echo "Coverage report: test-results/monocart/coverage/index.html"
 
 run: node_modules
@@ -39,8 +38,8 @@ help:
 	@echo "  make build          - TypeScript compile + Vite build"
 	@echo "  make container      - Docker image build"
 	@echo "  make run-container  - Pull & run pre-built image from Docker Hub"
-	@echo "  make test           - Playwright E2E tests"
-	@echo "  make coverage       - E2E tests with coverage report"
+	@echo "  make test           - Playwright E2E tests with coverage report"
+	@echo "  make coverage       - test + hard gate: 90% coverage in all analyses"
 	@echo "  make run            - Vite dev server"
 	@echo "  make install        - npm ci + Playwright browsers"
 	@echo "  make lint           - oxlint"
