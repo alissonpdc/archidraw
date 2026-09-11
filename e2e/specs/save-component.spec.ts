@@ -63,14 +63,12 @@ test.describe("save components (context menu → SAVE)", () => {
 
     await rightClickMenu(page, 260, 185);
 
-    await expect(page.getByTestId("context-menu-save-header")).toHaveText(
-      "SAVE",
-    );
     await expect(page.getByTestId("context-menu-add-library")).toHaveText(
       "Add to Library",
     );
+    await page.getByTestId("context-menu-download").hover();
     await expect(page.getByTestId("context-menu-download-svg")).toHaveText(
-      "Download SVG Image",
+      "Download as SVG",
     );
   });
 
@@ -193,6 +191,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
     await rightClickMenu(page, 260, 185);
     const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("context-menu-download").hover();
     await page.getByTestId("context-menu-download-svg").click();
     const download = await downloadPromise;
 
@@ -241,6 +240,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
     await rightClickMenu(page, 370, 175);
     const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("context-menu-download").hover();
     await page.getByTestId("context-menu-download-svg").click();
     const download = await downloadPromise;
     const stream = await download.createReadStream();
@@ -553,6 +553,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
     await rightClickMenu(page, 350, 200);
     const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("context-menu-download").hover();
     await page.getByTestId("context-menu-download-svg").click();
     const download = await downloadPromise;
     const stream = await download.createReadStream();

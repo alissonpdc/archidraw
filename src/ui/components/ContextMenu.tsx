@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { editor } from "../hooks/useEditor";
 import { AdditionalInfoModal } from "./AdditionalInfoModal";
-import { buildSvgString, copyPngToClipboard, copySvgToClipboard, exportSVG } from "../../core/exporter";
+import { buildSvgString, copyPngToClipboard, copySvgToClipboard, exportPNG, exportSVG } from "../../core/exporter";
 import {
   addCustomItem,
   nextCustomNumber,
@@ -10,7 +10,7 @@ import {
 import { unionBounds } from "../../core/utils";
 import type { Element } from "../../core/types";
 import { toast } from "../toasts";
-import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, DeleteIcon, DuplicateIcon, FitIcon, GroupIcon, HighlightDependenciesIcon, LockIcon, PasteIcon, PasteStyleIcon, SelectAllIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon, UnlockIcon } from "./icons";
+import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, DeleteIcon, DownloadIcon, DuplicateIcon, FitIcon, GroupIcon, HighlightDependenciesIcon, InfoIcon, LayersIcon, LibraryIcon, LockIcon, PasteIcon, PasteStyleIcon, SelectAllIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon, UnlockIcon } from "./icons";
 import { MOD } from "../platform";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Shift", "Alt"]);
@@ -253,7 +253,18 @@ export function ContextMenu() {
     close();
   };
 
+  const downloadAsPng = async () => {
+    const selected = saveElements(menu?.saveIds ?? null);
+    if (selected.length === 0) return;
+    const name = `custom-${nextCustomNumber()}`;
+    const ok = await exportPNG({ schemaVersion: 1, elements: selected }, name);
+    if (ok) toast(`PNG "${name}.png" downloaded`);
+    close();
+  };
+
   const [copySubmenu, setCopySubmenu] = useState(false);
+  const [layersSubmenu, setLayersSubmenu] = useState(false);
+  const [downloadSubmenu, setDownloadSubmenu] = useState(false);
 
   const copyAsSvg = async () => {
     const selected = saveElements(menu?.saveIds ?? null);
@@ -345,42 +356,57 @@ export function ContextMenu() {
                 <span className="context-menu-item-shortcut">Delete</span>
               </button>
               <div className="context-menu-divider" />
-              <button
-                className="context-menu-item"
+              <div
+                className="context-menu-item context-menu-parent"
                 role="menuitem"
-                data-testid="context-menu-bring-to-front"
-                onClick={bringToFrontElements}
+                data-testid="context-menu-layers"
+                onMouseEnter={() => setLayersSubmenu(true)}
+                onMouseLeave={() => setLayersSubmenu(false)}
               >
-                <BringToFrontIcon size={14} />
-                <span>Bring to Front</span>
-              </button>
-              <button
-                className="context-menu-item"
-                role="menuitem"
-                data-testid="context-menu-send-to-back"
-                onClick={sendToBackElements}
-              >
-                <SendToBackIcon size={14} />
-                <span>Send to Back</span>
-              </button>
-              <button
-                className="context-menu-item"
-                role="menuitem"
-                data-testid="context-menu-bring-forward"
-                onClick={bringForwardElements}
-              >
-                <BringForwardIcon size={14} />
-                <span>Bring Forward</span>
-              </button>
-              <button
-                className="context-menu-item"
-                role="menuitem"
-                data-testid="context-menu-send-backward"
-                onClick={sendBackwardElements}
-              >
-                <SendBackwardIcon size={14} />
-                <span>Send Backward</span>
-              </button>
+                <LayersIcon size={14} />
+                <span>Layers</span>
+                <span className="context-menu-item-shortcut">&#9656;</span>
+                {layersSubmenu && (
+                  <div className="context-menu-submenu">
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-bring-to-front"
+                      onClick={bringToFrontElements}
+                    >
+                      <BringToFrontIcon size={14} />
+                      <span>Bring to Front</span>
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-send-to-back"
+                      onClick={sendToBackElements}
+                    >
+                      <SendToBackIcon size={14} />
+                      <span>Send to Back</span>
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-bring-forward"
+                      onClick={bringForwardElements}
+                    >
+                      <BringForwardIcon size={14} />
+                      <span>Bring Forward</span>
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-send-backward"
+                      onClick={sendBackwardElements}
+                    >
+                      <SendBackwardIcon size={14} />
+                      <span>Send Backward</span>
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="context-menu-divider" />
               {canGroup && (
                 <button
@@ -447,29 +473,46 @@ export function ContextMenu() {
                 <span>Highlight Flow</span>
               </button>
               <div className="context-menu-divider" />
-              <div
-                className="context-menu-header"
-                data-testid="context-menu-save-header"
-              >
-                SAVE
-              </div>
               <button
                 className="context-menu-item"
                 role="menuitem"
                 data-testid="context-menu-add-library"
                 onClick={addToLibrary}
               >
-                Add to Library
+                <LibraryIcon size={14} />
+                <span>Add to Library</span>
               </button>
-              <button
-                className="context-menu-item"
+              <div
+                className="context-menu-item context-menu-parent"
                 role="menuitem"
-                data-testid="context-menu-download-svg"
-                onClick={downloadSvgImage}
+                data-testid="context-menu-download"
+                onMouseEnter={() => setDownloadSubmenu(true)}
+                onMouseLeave={() => setDownloadSubmenu(false)}
               >
-                Download SVG Image
-              </button>
-              <div className="context-menu-divider" />
+                <DownloadIcon size={14} />
+                <span>Download</span>
+                <span className="context-menu-item-shortcut">&#9656;</span>
+                {downloadSubmenu && (
+                  <div className="context-menu-submenu">
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-download-png"
+                      onClick={downloadAsPng}
+                    >
+                      Download as PNG
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-download-svg"
+                      onClick={downloadSvgImage}
+                    >
+                      Download as SVG
+                    </button>
+                  </div>
+                )}
+              </div>
               <div
                 className="context-menu-item context-menu-parent"
                 role="menuitem"
@@ -478,7 +521,7 @@ export function ContextMenu() {
                 onMouseLeave={() => setCopySubmenu(false)}
               >
                 <CopyIcon size={14} />
-                <span>Copy...</span>
+                <span>Copy</span>
                 <span className="context-menu-item-shortcut">&#9656;</span>
                 {copySubmenu && (
                   <div className="context-menu-submenu">
@@ -511,7 +554,8 @@ export function ContextMenu() {
                   close();
                 }}
               >
-                Additional Information
+                <InfoIcon size={14} />
+                <span>Additional Information</span>
               </button>
             </>
             );
