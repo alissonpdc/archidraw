@@ -7,7 +7,7 @@ export default defineConfig({
   testDir: "./e2e/specs",
   timeout: 30_000,
   retries: 0,
-  workers: 10,
+  workers: 15,
   reporter: withCoverage
     ? [
         ["list"],
