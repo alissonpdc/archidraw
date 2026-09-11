@@ -37,8 +37,8 @@ Documento de planejamento e evolução dos recursos do menu de contexto (botão 
 ## 3. Developer Experience & Exportação Avançada
 
 ### 3.1. Copiar Recursos Visualizados
-* **3.1.1. Copiar Imagem SVG para Clipboard (`Copy as SVG`)**: Copia o vetor SVG diretamente para a área de transferência para colagem rápida em PRs, Slack ou Notion.
-* **3.1.2. Copiar Imagem PNG para Clipboard (`Copy as PNG`)**: Exporta a seleção renderizada como imagem bitmap em alta resolução no clipboard.
+* ~~**3.1.1. Copiar Imagem SVG para Clipboard (`Copy as SVG`)**: Copia o vetor SVG diretamente para a área de transferência para colagem rápida em PRs, Slack ou Notion.~~
+* ~~**3.1.2. Copiar Imagem PNG para Clipboard (`Copy as PNG`)**: Exporta a seleção renderizada como imagem bitmap em alta resolução no clipboard.~~
 
 ---
 

@@ -125,6 +125,11 @@ export function App() {
         }
         return;
       }
+      if (mod && e.shiftKey && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        editor.toggleLockSelected();
+        return;
+      }
       if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
         setSaveOpen(true);

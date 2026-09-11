@@ -126,6 +126,7 @@ function resizeHandleAt(
 
 /** element types that expose resize handles in single selection */
 function hasResizeHandles(el: Element): boolean {
+  if (el.locked) return false;
   return (
     el.type === "rectangle" ||
     el.type === "diamond" ||
@@ -494,8 +495,16 @@ export class Editor {
 
   deleteSelected() {
     if (this.selectedIds.size === 0) return;
+    const lockedIds = new Set(
+      this.doc.elements
+        .filter((el) => this.selectedIds.has(el.id) && el.locked)
+        .map((el) => el.id),
+    );
+    const deletedIds = new Set(
+      [...this.selectedIds].filter((id) => !lockedIds.has(id)),
+    );
+    if (deletedIds.size === 0) return;
     this.commitHistory();
-    const deletedIds = this.selectedIds;
     this.doc = {
       ...this.doc,
       elements: this.doc.elements
@@ -512,7 +521,7 @@ export class Editor {
           return el;
         }),
     };
-    this.selectedIds.clear();
+    this.selectedIds = lockedIds;
     this.emit();
   }
 
@@ -622,6 +631,22 @@ export class Editor {
       ...this.doc,
       elements: this.doc.elements.map((el) =>
         el.groupId && gids.has(el.groupId) ? { ...el, groupId: undefined } : el,
+      ),
+    };
+    this.emit();
+  }
+
+  // ---- lock / unlock ---------------------------------------------------
+  toggleLockSelected() {
+    if (this.selectedIds.size === 0) return;
+    this.commitHistory();
+    const allLocked = this.doc.elements
+      .filter((el) => this.selectedIds.has(el.id))
+      .every((el) => el.locked);
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) =>
+        this.selectedIds.has(el.id) ? { ...el, locked: !allLocked } : el,
       ),
     };
     this.emit();
@@ -1063,6 +1088,7 @@ borderRadius: 20,
       .find((el) => hitTest(el, scene));
 
     if (hitEl?.type === "text") {
+      if (hitEl.locked) return;
       this.beginTextEdit(hitEl.id, "text");
       this.emit();
       return;
@@ -1076,6 +1102,7 @@ borderRadius: 20,
         hitEl.type === "arrow" ||
         hitEl.type === "component")
     ) {
+      if (hitEl.locked) return;
       if (!this.selectedIds.has(hitEl.id)) {
         this.selectedIds = new Set([hitEl.id]);
       }
@@ -1516,7 +1543,7 @@ strokeOpacity?: number;
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (selected && labelHandleAt(scene, selected, this.camera.zoom)) {
+          if (selected && !selected.locked && labelHandleAt(scene, selected, this.camera.zoom)) {
             this.commitHistory();
             this.interaction = { kind: "label-move", id: selected.id };
             break;
@@ -1527,7 +1554,7 @@ strokeOpacity?: number;
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (selected && hasResizeHandles(selected)) {
+          if (selected && !selected.locked && hasResizeHandles(selected)) {
             const handle = resizeHandleAt(
               scene,
               visualBounds(selected),
@@ -1550,7 +1577,7 @@ strokeOpacity?: number;
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (selected && controlPointHandleAt(scene, selected, this.camera.zoom)) {
+          if (selected && !selected.locked && controlPointHandleAt(scene, selected, this.camera.zoom)) {
             this.commitHistory();
             // initialize controlPoint from fallback if not yet explicit
             if (isEdge(selected) && !selected.controlPoint) {
@@ -1573,7 +1600,7 @@ strokeOpacity?: number;
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (selected && isEdge(selected)) {
+          if (selected && !selected.locked && isEdge(selected)) {
             const seg = autoSegmentAt(scene, selected);
             if (seg && seg.dist * this.camera.zoom <= HANDLE_TOLERANCE_PX) {
               this.commitHistory();
@@ -1788,7 +1815,7 @@ strokeOpacity?: number;
         const moved = new Map(
           this.interaction.originals.map((el) => [
             el.id,
-            translateElement(el, dx, dy),
+            el.locked ? el : translateElement(el, dx, dy),
           ]),
         );
         this.interaction.moved =
