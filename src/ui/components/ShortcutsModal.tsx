@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { MOD } from "../platform";
+import { MOD, ALT } from "../platform";
 
 type ShortcutItem = { keys: string; desc: string };
 type ShortcutGroup = { title: string; items: ShortcutItem[] };
@@ -54,6 +54,13 @@ const EDITING: ShortcutGroup = {
   ],
 };
 
+const APPEARANCE: ShortcutGroup = {
+  title: "Appearance",
+  items: [
+    { keys: `Shift+${ALT}+D`, desc: "Toggle light/dark" },
+  ],
+};
+
 function Section({ group }: { group: ShortcutGroup }) {
   return (
     <div className="shortcuts-section">
@@ -102,6 +109,7 @@ export function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () =
           <div className="shortcuts-column">
             <Section group={CANVAS} />
             <Section group={EDITING} />
+            <Section group={APPEARANCE} />
           </div>
         </div>
       </div>

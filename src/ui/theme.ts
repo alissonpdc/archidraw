@@ -45,6 +45,7 @@ export function applyThemePref(pref: ThemePref) {
   } catch {
     // best-effort
   }
+  window.dispatchEvent(new Event("archidraw:theme"));
 }
 
 export function applySkinPref(skin: SkinPref) {
@@ -60,6 +61,18 @@ export function applySkinPref(skin: SkinPref) {
 
 export function cycleThemePref(current: ThemePref): ThemePref {
   const next = PREFS[(PREFS.indexOf(current) + 1) % PREFS.length];
+  applyThemePref(next);
+  return next;
+}
+
+export function toggleLightDark(): ThemePref {
+  const current = loadThemePref();
+  let next: "light" | "dark";
+  if (current === "dark") {
+    next = "light";
+  } else {
+    next = "dark";
+  }
   applyThemePref(next);
   return next;
 }

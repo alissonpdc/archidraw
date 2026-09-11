@@ -5,3 +5,6 @@ export const isMac = /Mac|iPhone|iPad/.test(
 
 /** platform-appropriate modifier label for tooltips/shortcuts */
 export const MOD = isMac ? "⌘" : "Ctrl";
+
+/** platform-appropriate alt/option label for shortcuts */
+export const ALT = isMac ? "⌥" : "Alt";

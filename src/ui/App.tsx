@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { editor } from "./hooks/useEditor";
+import { toggleLightDark } from "./theme";
 import { CanvasHost } from "./components/CanvasHost";
 import { Toolbar } from "./components/Toolbar";
 import { PropertiesPanel } from "./components/PropertiesPanel";
@@ -93,6 +94,11 @@ export function App() {
       if (mod && e.key.toLowerCase() === "d") {
         e.preventDefault();
         editor.duplicateSelected();
+        return;
+      }
+      if (!mod && e.shiftKey && e.altKey && e.code === "KeyD") {
+        e.preventDefault();
+        toggleLightDark();
         return;
       }
       if (mod && e.key.toLowerCase() === "a") {
