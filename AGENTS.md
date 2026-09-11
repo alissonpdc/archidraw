@@ -1,49 +1,56 @@
 # AGENTS.md
 
-ArchiDraw: React 19 + Vite + TypeScript canvas app for drawing software architecture. No unit tests — verification is E2E-only (Playwright).
+## Definition of Done (MANDATORY)
 
-Full conventions: see `CONTRIBUTING.md` (branch/PR flow, release pipeline, code style). This file covers what agents most often get wrong.
+**No task is complete until `make gate` passes.** Not "almost done", not "works locally" — green gate or it's not done.
 
-## Verification (Definition of Done)
-
-Run the full GATE before reporting any task complete:
-
-```bash
-npm run lint && npm run build && npm run test:e2e
+```
+make gate  →  make lint && make build && make test
 ```
 
-- `npm run build` includes typecheck (`tsc -b`). There is no separate typecheck script (`CI` typechecks standalone).
-- `tsconfig.app.json` sets `verbatimModuleSyntax` + `erasableSyntaxOnly`: type-only imports **must** use `import type`, and enums/namespaces/parameter-properties are compile errors.
-- Run a single E2E spec: `npx playwright test e2e/specs/history.spec.ts`
-- First run requires: `npm install && npx playwright install chromium`
-- Node 22+ required (CI runs Node 22).
+Run it at the end of EVERY change: new feature, bug fix, refactor, config edit — everything. If gate fails, fix it before reporting done. No exceptions.
 
-## E2E gotchas
+## Commands
 
-- Playwright's `webServer` builds in **test mode** and previews on port 4173 with `reuseExistingServer: false` — it will fail if something else holds that port, and a plain `npm run dev` server won't be used. A test build (`build:test`) is what exposes `window.__editor__`; `npm run dev` also exposes it (`MODE === "test" || DEV` in `src/main.tsx`).
-- Always import `test`/`expect` from `e2e/fixtures.ts`, never `@playwright/test` directly. The fixture fails the test if **any** `console.error`/`console.warning`/`pageerror` occurs — React key warnings etc. will break CI.
-- Use `open(page)` to navigate and wait for hydration (`__appReady__`); read editor state via the `editorState()` fixture (`window.__editor__.getSnapshot()`).
-- Never simulate paste with `Control+v`/`Meta+v` (platform-dependent in headless); use the `pressPaste()` helper (synthetic `ClipboardEvent` dispatch).
-- Tests run with `workers: 1` and no retries.
+```bash
+make install      # npm install + playwright install chromium
+make run          # Vite dev server (port 5173)
+make build        # tsc -b && vite build
+make lint         # oxlint (NOT eslint)
+make test         # Playwright E2E against a real preview build
+make gate         # lint + build + test — run before finishing any work
+```
 
-## Architecture rules
+Single spec: `make build && npx playwright test e2e/specs/<name>.spec.ts`
 
-- `src/core/` is pure, framework-free logic (document model, `Editor` state machine, renderer, history, hit-testing). `src/ui/` is a thin React presentation shell; state/interaction must live in core.
-- `Editor.getSnapshot()` must return a **stable reference** (only invalidated on `emit()`). Allocating a new object per call causes an infinite render loop with `useSyncExternalStore`.
+## Architecture
 
-## Read `.agents/knowledge/` before UI work
+- **`src/core/`** — pure logic, no React. `Editor` class (state machine), `types.ts` (document model), `renderer.ts` (Canvas 2D), `history.ts`, `hitTest.ts`, `roughPath.ts`.
+- **`src/ui/`** — thin React 19 shell. Subscribes via `useSyncExternalStore(editor.subscribe, editor.getSnapshot)`.
+- All state and interaction logic lives in `src/core/`. `src/ui/` is presentation only.
 
-Recurring-bug rules with mandatory patterns — check them before implementing canvas/UI interactions:
-- `clipboard-paste.md` — paste only via the native `paste` event; never `navigator.clipboard.read()` in mod+V keydown, never `preventDefault()` there.
-- `context-menu.md` — right-click (`button === 2`) must early-return in `pointerDown`; portal-based menus with viewport clamping.
-- `tooltip-clipping.md` — tooltips inside `overflow-*`/`transform` ancestors must use portal + `position: fixed`, not CSS `::after`.
-- `arrow-tip-guard.md` — pixel-sampling tests must deselect first (tip selection handle pollutes the region); clamped arrow tips need a zero-translation rigid pivot.
+## Critical rules
 
-When fixing a recurring bug, add a new entry there and reference it in `AGENTS.md`.
+1. **`Editor.getSnapshot()` must return a stable reference.** Cache invalidation only on `emit()`. Creating a new object per call → infinite render loop.
+2. **E2E tests use `test` from `e2e/fixtures.ts`**, not from `@playwright/test`. The fixture monitors `console.error/warning` and `pageerror` — any of these fails the suite.
+3. **Use `open(page)` helper** to navigate and wait for `__appReady__`.
+4. **Editor internals** are exposed in test builds via `window.__editor__`. Read state via the `editorState()` fixture.
+5. **Clipboard/paste**: NEVER call `navigator.clipboard.read()` in `keydown` of Cmd+V — use native `paste` event only. NEVER use `Meta+v` or `Control+v` in tests — use `pressPaste()` from `e2e/fixtures.ts` (cross-platform synthetic event).
+6. **Tooltips in overflow containers**: Use `createPortal` + `position: fixed` with viewport clamp. CSS `::after` tooltips are only allowed in containers without `overflow` or `transform`. See `.agents/knowledge/tooltip-clipping.md`.
+7. **Context menu**: `pointerDown` must return early on `button === 2`. Suppress native context menu only inside `.canvas-host`, not when a textarea is focused. See `.agents/knowledge/context-menu.md`.
+8. **No comments in code** unless requested.
+9. **Arrow pixel sampling**: Deselect elements before sampling canvas pixels (selection handles contaminate samples). See `.agents/knowledge/arrow-tip-guard.md`.
 
-## Workflow constraints
+## Branches and CI
 
-- Branch names must use a conventional prefix (`feat/`, `fix/`, `chore/`, …) — **other prefixes don't trigger CI**. On green CI, a PR to `main` is opened automatically.
-- Commits follow Conventional Commits (pt-BR or English); the message type drives automatic semver on merge (`feat` → minor, `!:`/`BREAKING CHANGE` → major, else patch).
-- Lint is oxlint (`.oxlintrc.json`); it ignores `e2e/**`.
-- **No code comments** unless strictly necessary (differs from the global "keep comments" rule in `~/.agents/rules/development.md`).
+- Branches MUST use conventional prefixes: `feat/`, `fix/`, `chore/`, `refactor/`, `perf/`, `test/`, `docs/`, `ci/`, `style/`, `build/`.
+- Push triggers CI (`.github/workflows/ci.yml`): lint, typecheck, security audit, E2E, build — in parallel. Auto-PR to `main` opens when green.
+- Merge to `main` triggers release (`.github/workflows/release.yml`): semver bump from conventional commits, GitHub Release, Docker Hub push.
+
+## Conventions
+
+- Conventional Commits (pt-BR or English, be consistent).
+- Node.js 22+.
+- Linter: oxlint.
+- Testing: E2E-only (Playwright, single worker). No unit tests.
+- Knowledge base: `.agents/knowledge/` — check before fixing recurring bugs.
