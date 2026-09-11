@@ -1736,6 +1736,24 @@ button {
   color: var(--text-muted);
 }
 
+.context-menu-parent {
+  position: relative;
+}
+
+.context-menu-submenu {
+  position: absolute;
+  left: 100%;
+  top: -1px;
+  min-width: 160px;
+  padding: var(--space-1);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+}
+
 /* ---- additional information modal ---- */
 .details-modal {
   width: min(480px, calc(100vw - 48px));

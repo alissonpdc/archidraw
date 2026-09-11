@@ -388,3 +388,82 @@ export function exportSVG(doc: Document, filename: string): boolean {
   downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `${filename}.svg`);
   return true;
 }
+
+// ---- clipboard copy ------------------------------------------------------
+
+export async function copySvgToClipboard(doc: Document): Promise<boolean> {
+  const svg = buildSvgString(doc);
+  if (!svg) return false;
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "image/svg+xml": new Blob([svg], { type: "image/svg+xml" }),
+      }),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function copyPngToClipboard(doc: Document): Promise<boolean> {
+  const bounds = unionBounds(doc.elements);
+  if (!bounds) return false;
+
+  await waitForComponentImages(
+    doc.elements
+      .filter((el) => el.type === "component")
+      .map((el) => (el as { componentId: string }).componentId),
+  );
+  const embeddedSrcs: string[] = [];
+  for (const el of doc.elements) {
+    if (el.type === "component" && typeof el.src === "string" && el.src !== "") {
+      embeddedSrcs.push(el.src);
+    }
+  }
+  if (embeddedSrcs.length > 0) {
+    await Promise.all(embeddedSrcs.map(waitForImage));
+  }
+
+  const w = bounds.x2 - bounds.x1 + EXPORT_PADDING * 2;
+  const h = bounds.y2 - bounds.y1 + EXPORT_PADDING * 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(w * PNG_SCALE);
+  canvas.height = Math.ceil(h * PNG_SCALE);
+  const ctx = canvas.getContext("2d")!;
+  ctx.scale(PNG_SCALE, PNG_SCALE);
+
+  render(
+    ctx,
+    {
+      doc,
+      camera: {
+        scrollX: -bounds.x1 + EXPORT_PADDING,
+        scrollY: -bounds.y1 + EXPORT_PADDING,
+        zoom: 1,
+      },
+      selectedIds: new Set(),
+      draft: null,
+      marquee: null,
+    },
+    w,
+    h,
+  );
+
+  return new Promise<boolean>((resolve) => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        resolve(false);
+        return;
+      }
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
+        resolve(true);
+      } catch {
+        resolve(false);
+      }
+    }, "image/png");
+  });
+}
