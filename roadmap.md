@@ -21,7 +21,7 @@ Documento de planejamento e evolução dos recursos do menu de contexto (botão 
 * ~~**1.3.2. Desagrupar (`Ungroup`)**: Dissolve o grupo selecionado mantendo os elementos individuais.~~
 
 ### 1.4. Trava e Ajustes Rápidos de Estilo
-* **1.4.1. Bloquear / Desbloquear Elemento (`Lock / Unlock`)**: Impede movimentação, redimensionamento ou exclusão acidental de elementos-chave da arquitetura.
+* ~~**1.4.1. Bloquear / Desbloquear Elemento (`Lock / Unlock`)**: Impede movimentação, redimensionamento ou exclusão acidental de elementos-chave da arquitetura.~~
 * ~~**1.4.2. Copiar Estilo (`Copy Style`)**: Copia atributos visuais (cor de preenchimento, borda, fonte, estilo de linha).~~
 * ~~**1.4.3. Colar Estilo (`Paste Style`)**: Aplica os atributos visuais copiados em outros elementos selecionados.~~
 
