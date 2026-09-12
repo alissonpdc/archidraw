@@ -27,14 +27,17 @@ install:
 lint:
 	npm run lint
 
+BACKUP_DIR = .coverage-baseline
+
 quality:
-	@mkdir -p test-results/coverage-backup
-	@if [ -f test-results/monocart/coverage/coverage-report.json ]; then \
-		echo "[quality] Previous coverage found — backing up..."; \
-		mv test-results/monocart/coverage/coverage-report.json test-results/coverage-backup/coverage-report.json; \
-	fi
+	@mkdir -p $(BACKUP_DIR)
 	$(MAKE) coverage
-	@node scripts/compare-coverage.mjs
+	@if [ -f $(BACKUP_DIR)/coverage-report.json ]; then \
+		node scripts/compare-coverage.mjs; \
+	else \
+		echo "[quality] No previous coverage — saving baseline for next run."; \
+	fi
+	@cp test-results/monocart/coverage/coverage-report.json $(BACKUP_DIR)/coverage-report.json
 
 gate: lint build quality
 
