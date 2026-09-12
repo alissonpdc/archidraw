@@ -1,4 +1,4 @@
-.PHONY: build container run-container test run install lint gate coverage help
+.PHONY: build container run-container test run install lint gate coverage quality help
 
 build: node_modules
 	npm run build
@@ -27,7 +27,16 @@ install:
 lint:
 	npm run lint
 
-gate: lint build test
+quality:
+	@mkdir -p test-results/coverage-backup
+	@if [ -f test-results/monocart/coverage/coverage-report.json ]; then \
+		echo "[quality] Previous coverage found — backing up..."; \
+		mv test-results/monocart/coverage/coverage-report.json test-results/coverage-backup/coverage-report.json; \
+	fi
+	$(MAKE) coverage
+	@node scripts/compare-coverage.mjs
+
+gate: lint build quality
 
 node_modules: package-lock.json
 	npm install
@@ -40,6 +49,7 @@ help:
 	@echo "  make run-container  - Pull & run pre-built image from Docker Hub"
 	@echo "  make test           - Playwright E2E tests with coverage report"
 	@echo "  make coverage       - test + hard gate: 90% coverage in all analyses"
+	@echo "  make quality        - coverage gate + regression check against previous run"
 	@echo "  make run            - Vite dev server"
 	@echo "  make install        - npm ci + Playwright browsers"
 	@echo "  make lint           - oxlint"
