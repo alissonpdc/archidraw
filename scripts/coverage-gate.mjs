@@ -1,12 +1,13 @@
 import { readFile } from "node:fs/promises";
 
 const THRESHOLD = 90;
-const METRICS = ["lines", "statements", "functions", "branches"];
+const METRICS = ["lines", "statements", "functions", "branches", "bytes"];
 const LABELS = {
   lines: "Lines",
   statements: "Statements",
   functions: "Functions",
   branches: "Branches",
+  bytes: "Bytes",
 };
 const REPORT_PATH = "test-results/monocart/coverage/coverage-report.json";
 

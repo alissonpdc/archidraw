@@ -15,6 +15,13 @@ import { initImportedLibraries } from "./core/importedLibraries";
 import { initImportedImages } from "./core/importedImages";
 import { initCustomLibrary } from "./core/customLibrary";
 import { elementVisualBounds, detailsBadgeAnchor } from "./core/renderer";
+import {
+  parseColor,
+  ensureContrast,
+  themeColor,
+  contrastRatio,
+  relativeLuminance,
+} from "./core/color";
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__editor__ = editor;
@@ -22,6 +29,13 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
     elementVisualBounds;
   (window as unknown as Record<string, unknown>).__detailsBadgeAnchor__ =
     detailsBadgeAnchor;
+  (window as unknown as Record<string, unknown>).__color__ = {
+    parseColor,
+    ensureContrast,
+    themeColor,
+    contrastRatio,
+    relativeLuminance,
+  };
 }
 
 // restore theme preference before first render (no flash of wrong theme)
