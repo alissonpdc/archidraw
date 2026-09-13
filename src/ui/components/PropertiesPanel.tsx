@@ -6,7 +6,10 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { editor, useEditor } from "../hooks/useEditor";
+import { editor, useEditorSelector } from "../hooks/useEditor";
+import type { Element } from "../../core/types";
+
+const EMPTY_ELEMENTS: Element[] = [];
 
 /** 10 basic colors shared by stroke and fill */
 const BASE_COLORS: { name: string; color: string }[] = [
@@ -413,7 +416,17 @@ function MiniSlider({
 }
 
 export function PropertiesPanel() {
-  const snap = useEditor();
+  const selected = useEditorSelector(
+    (s) => {
+      if (s.selectedIds.size === 0) return EMPTY_ELEMENTS;
+      return s.doc.elements.filter((el) => s.selectedIds.has(el.id));
+    },
+    (a, b) => {
+      if (a === b) return true;
+      if (a.length !== b.length) return false;
+      return a.every((el, i) => el === b[i]);
+    },
+  );
   const [tip, setTip] = useState<TipState | null>(null);
   const [activeTab, setActiveTab] = useState<"style" | "text" | "layers">("style");
   const [maxTabHeight, setMaxTabHeight] = useState<number | null>(null);
@@ -421,9 +434,6 @@ export function PropertiesPanel() {
   const styleRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<HTMLDivElement>(null);
-  const selected = snap.doc.elements.filter((el) =>
-    snap.selectedIds.has(el.id),
-  );
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {

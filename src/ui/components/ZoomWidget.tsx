@@ -1,9 +1,8 @@
-import { editor, useEditor } from "../hooks/useEditor";
+import { editor, useEditorSelector } from "../hooks/useEditor";
 import { FitIcon, FocusIcon, MinusIcon, PlusIcon, TargetIcon } from "./icons";
 
 export function ZoomWidget() {
-  const snap = useEditor();
-  const pct = Math.round(snap.camera.zoom * 100);
+  const pct = useEditorSelector((s) => Math.round(s.camera.zoom * 100));
 
   return (
     <div className="zoom-widget">

@@ -1,4 +1,4 @@
-import { readFile, cp, rename } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 
 const REPORT_PATH = "test-results/monocart/coverage/coverage-report.json";

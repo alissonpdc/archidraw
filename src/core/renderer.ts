@@ -22,6 +22,7 @@ import {
   ellipseLoop,
   roundedRectLoop,
   seedOf,
+  sketchStrokePath2D,
   sketchStrokeSegments,
 } from "./roughPath";
 
@@ -30,11 +31,8 @@ export interface RenderColors {
   gridDot: string;
   gridLine: string;
   gridLineMaster: string;
-  /** theme-appropriate stroke for elements using the default color */
   elementStroke: string;
-  /** canvas background color (plates behind edge labels must match it) */
   canvasBg: string;
-  /** muted gray used by the details badge ("i" icon) */
   muted: string;
 }
 
@@ -42,21 +40,15 @@ export interface RenderState {
   doc: Document;
   camera: Camera;
   selectedIds: ReadonlySet<string>;
-  /** in-progress creation draft (scene coords, already normalized) */
   draft: Element | null;
   marquee: { x1: number; y1: number; x2: number; y2: number } | null;
   colors?: RenderColors;
   gridMode?: "none" | "dots" | "lines";
   guides?: { orientation: "h" | "v"; pos: number }[] | null;
-  /** live anchor highlights while drawing/dragging an edge endpoint */
   bindingPreview?: { start: ArrowBinding | null; end: ArrowBinding | null } | null;
-  /** element whose label is being edited (suppresses selection box/handles) */
   hiddenLabelId?: string | null;
-  /** free text element being edited (suppresses resize handles) */
   hiddenTextId?: string | null;
-  /** animation clock for flowing-dash arrow strokes (cycle value in scene units) */
   animationPhase?: number;
-  /** set of element ids to keep at full opacity (all others are dimmed) */
   highlightedIds?: ReadonlySet<string>;
 }
 
@@ -72,6 +64,108 @@ const DEFAULT_COLORS: RenderColors = {
 
 const GRID_STEP = 20;
 
+interface ElementGeometryCache {
+  bounds?: Bounds;
+  strokePath?: Path2D;
+  fillPath?: Path2D;
+  hachurePath?: Path2D;
+  textLayout?: {
+    lines: string[];
+    lineWidths: number[];
+    maxWidth: number;
+  };
+}
+
+const geometryCache = new WeakMap<Element, ElementGeometryCache>();
+
+function getElementCache(el: Element): ElementGeometryCache {
+  let cache = geometryCache.get(el);
+  if (!cache) {
+    cache = {};
+    geometryCache.set(el, cache);
+  }
+  return cache;
+}
+
+function getCachedBounds(el: Element): Bounds {
+  const cache = getElementCache(el);
+  if (!cache.bounds) {
+    cache.bounds = computeVisualBounds(el);
+  }
+  return cache.bounds;
+}
+
+function computeVisualBounds(el: Element): Bounds {
+  if (el.type === "arrow" || el.type === "line") {
+    const [a, b] = arrowPoints(el);
+    const lineType = el.lineType ?? "straight";
+    if (lineType === "curved") {
+      const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+      const cp = curvedArrowControl(el, a, tip);
+      return {
+        x1: Math.min(a.x, tip.x, cp.x),
+        y1: Math.min(a.y, tip.y, cp.y),
+        x2: Math.max(a.x, tip.x, cp.x),
+        y2: Math.max(a.y, tip.y, cp.y),
+      };
+    }
+    if (lineType === "auto") {
+      const pts = edgePathPoints(el);
+      let minX = pts[0].x;
+      let minY = pts[0].y;
+      let maxX = minX;
+      let maxY = minY;
+      for (let i = 1; i < pts.length; i++) {
+        if (pts[i].x < minX) minX = pts[i].x;
+        if (pts[i].y < minY) minY = pts[i].y;
+        if (pts[i].x > maxX) maxX = pts[i].x;
+        if (pts[i].y > maxY) maxY = pts[i].y;
+      }
+      return { x1: minX, y1: minY, x2: maxX, y2: maxY };
+    }
+    return {
+      x1: Math.min(a.x, b.x),
+      y1: Math.min(a.y, b.y),
+      x2: Math.max(a.x, b.x),
+      y2: Math.max(a.y, b.y),
+    };
+  }
+  return {
+    x1: Math.min(el.x, el.x + el.width),
+    y1: Math.min(el.y, el.y + el.height),
+    x2: Math.max(el.x, el.x + el.width),
+    y2: Math.max(el.y, el.y + el.height),
+  };
+}
+
+const dotPatternCache = new Map<string, CanvasPattern>();
+
+function getGridDotPattern(ctx: CanvasRenderingContext2D, color: string): CanvasPattern | null {
+  let pattern = dotPatternCache.get(color);
+  if (!pattern && typeof document !== "undefined") {
+    const tile = document.createElement("canvas");
+    tile.width = GRID_STEP;
+    tile.height = GRID_STEP;
+    const tctx = tile.getContext("2d");
+    if (tctx) {
+      tctx.fillStyle = color;
+      const r = 1.3;
+      const drawCorner = (cx: number, cy: number) => {
+        tctx.beginPath();
+        tctx.arc(cx, cy, r, 0, Math.PI * 2);
+        tctx.fill();
+      };
+      drawCorner(0, 0);
+      drawCorner(GRID_STEP, 0);
+      drawCorner(0, GRID_STEP);
+      drawCorner(GRID_STEP, GRID_STEP);
+      pattern = ctx.createPattern(tile, "repeat") ?? undefined;
+      if (pattern) dotPatternCache.set(color, pattern);
+    }
+  }
+  return pattern ?? null;
+}
+
 function drawGridDots(
   ctx: CanvasRenderingContext2D,
   vx1: number,
@@ -80,6 +174,14 @@ function drawGridDots(
   vy2: number,
   color: string,
 ) {
+  const pattern = getGridDotPattern(ctx, color);
+  if (pattern) {
+    ctx.save();
+    ctx.fillStyle = pattern;
+    ctx.fillRect(vx1, vy1, vx2 - vx1, vy2 - vy1);
+    ctx.restore();
+    return;
+  }
   const step = GRID_STEP;
   const r = 1.3;
   ctx.save();
@@ -106,26 +208,30 @@ function drawGridLines(
 ) {
   const step = GRID_STEP;
   const masterEvery = 5;
+  const countX = (vx2 - vx1) / step;
+  const countY = (vy2 - vy1) / step;
+  const skipMicro = countX > 350 || countY > 350;
+
   ctx.save();
 
-  // micro lines (dashed)
-  ctx.strokeStyle = colorMicro;
-  ctx.lineWidth = 0.7;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  for (let x = Math.floor(vx1 / step) * step; x <= vx2; x += step) {
-    if (Math.round(x / step) % masterEvery === 0) continue;
-    ctx.moveTo(x, vy1);
-    ctx.lineTo(x, vy2);
+  if (!skipMicro) {
+    ctx.strokeStyle = colorMicro;
+    ctx.lineWidth = 0.7;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    for (let x = Math.floor(vx1 / step) * step; x <= vx2; x += step) {
+      if (Math.round(x / step) % masterEvery === 0) continue;
+      ctx.moveTo(x, vy1);
+      ctx.lineTo(x, vy2);
+    }
+    for (let y = Math.floor(vy1 / step) * step; y <= vy2; y += step) {
+      if (Math.round(y / step) % masterEvery === 0) continue;
+      ctx.moveTo(vx1, y);
+      ctx.lineTo(vx2, y);
+    }
+    ctx.stroke();
   }
-  for (let y = Math.floor(vy1 / step) * step; y <= vy2; y += step) {
-    if (Math.round(y / step) % masterEvery === 0) continue;
-    ctx.moveTo(vx1, y);
-    ctx.lineTo(vx2, y);
-  }
-  ctx.stroke();
 
-  // master lines (solid, thicker)
   ctx.strokeStyle = colorMaster;
   ctx.lineWidth = 0.9;
   ctx.setLineDash([]);
@@ -247,24 +353,7 @@ function sketchStroke(
   }
 }
 
-/** edge shaft stroke: sketch only on solid strokes — dashed/dotted/dash-dot
- *  edges keep a clean ruler-drawn path (the draft style lives on the heads) */
-function strokeEdge(
-  ctx: CanvasRenderingContext2D,
-  el: Element,
-  polylines: Point[][],
-  seedBase: number,
-  clampEnd = false,
-) {
-  if (el.strokeStyle === "solid") {
-    sketchStroke(ctx, polylines, el.roughness, seedBase, 1, false, clampEnd);
-    return;
-  }
-  for (const pts of polylines) {
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-  }
-}
+
 
 // ---- library icon rendering (Path2D cache) ------------------------------
 
@@ -494,23 +583,8 @@ function boundsOf(el: Element): { x: number; y: number; w: number; h: number } {
 
 const HACHURE_SPACING = 6;
 
-function drawHachureFill(
-  ctx: CanvasRenderingContext2D,
-  el: Element,
-  colors: RenderColors,
-  withCross: boolean,
-) {
+function buildHachurePath(el: Element, withCross: boolean): Path2D {
   const b = boundsOf(el);
-  const hatchColor =
-    el.backgroundColor !== "transparent"
-      ? el.backgroundColor
-      : resolveStroke(el, colors);
-  ctx.save();
-  ctx.strokeStyle = hatchColor;
-  ctx.lineCap = "round";
-  ctx.globalAlpha *= el.fillOpacity;
-  traceShape(ctx, el);
-  ctx.clip();
   const span = Math.max(b.w, b.h) * 1.5;
   const cx = b.x + b.w / 2;
   const cy = b.y + b.h / 2;
@@ -527,22 +601,53 @@ function drawHachureFill(
       ]);
     }
   }
-  // hachure follows the stroke style: clean lines at roughness 0, hand-drawn
-  // wobble when the outline is sketched (each line wobbles independently)
-  ctx.lineWidth = el.roughness > 0 ? Math.max(el.strokeWidth * 0.6, 1) : 1.2;
-  ctx.beginPath();
+  const path = new Path2D();
   if (el.roughness === 0) {
     for (const l of lines) {
-      ctx.moveTo(l[0].x, l[0].y);
-      ctx.lineTo(l[1].x, l[1].y);
+      path.moveTo(l[0].x, l[0].y);
+      path.lineTo(l[1].x, l[1].y);
     }
   } else {
     const seedBase = seedOf(el.id) + 7;
     lines.forEach((l, j) => {
-      sketchStroke(ctx, [l], el.roughness, seedBase + j * 17);
+      const segs = sketchStrokeSegments([l], el.roughness, seedBase + j * 17);
+      for (const seg of segs) {
+        path.moveTo(seg.moveTo.x, seg.moveTo.y);
+        for (const c of seg.curves) {
+          if (c.kind === "quad" && c.ctrl) {
+            path.quadraticCurveTo(c.ctrl.x, c.ctrl.y, c.to.x, c.to.y);
+          } else {
+            path.lineTo(c.to.x, c.to.y);
+          }
+        }
+      }
     });
   }
-  ctx.stroke();
+  return path;
+}
+
+function drawHachureFill(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  colors: RenderColors,
+  withCross: boolean,
+) {
+  const hatchColor =
+    el.backgroundColor !== "transparent"
+      ? el.backgroundColor
+      : resolveStroke(el, colors);
+  ctx.save();
+  ctx.strokeStyle = hatchColor;
+  ctx.lineCap = "round";
+  ctx.globalAlpha *= el.fillOpacity;
+  traceShape(ctx, el);
+  ctx.clip();
+  ctx.lineWidth = el.roughness > 0 ? Math.max(el.strokeWidth * 0.6, 1) : 1.2;
+  const cache = getElementCache(el);
+  if (!cache.hachurePath) {
+    cache.hachurePath = buildHachurePath(el, withCross);
+  }
+  ctx.stroke(cache.hachurePath);
   ctx.restore();
 }
 
@@ -552,6 +657,7 @@ function drawElement(
   colors: RenderColors,
   animationPhase: number = 0,
 ) {
+  const cache = getElementCache(el);
   ctx.save();
   ctx.strokeStyle = resolveStroke(el, colors);
   ctx.fillStyle = el.backgroundColor;
@@ -560,45 +666,48 @@ function drawElement(
   ctx.lineJoin = "round";
 
   if (el.type === "rectangle" || el.type === "component") {
-    // fill always uses a clean closed shape so it never breaks
     if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
       if (el.backgroundColor !== "transparent") {
         ctx.save();
         ctx.globalAlpha *= el.fillOpacity;
-        ctx.beginPath();
-        ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-        ctx.fill();
+        if (!cache.fillPath) {
+          const p = new Path2D();
+          p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+          cache.fillPath = p;
+        }
+        ctx.fill(cache.fillPath);
         ctx.restore();
       }
     } else {
       drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
-    // strokeWidth 0 = borderless (library components)
     if (el.strokeWidth > 0) {
       ctx.save();
       ctx.globalAlpha *= el.strokeOpacity;
-      ctx.beginPath();
-      if (el.roughness === 0) {
-        ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-      } else {
-        sketchStroke(
-          ctx,
-          [
-            roundedRectLoop(
-              el.x,
-              el.y,
-              el.width,
-              el.height,
-              cornerRadius(el),
-            ),
-          ],
-          el.roughness,
-          seedOf(el.id),
-          cornerRadius(el) > 0 ? 0.30 : 1,
-        );
+      if (!cache.strokePath) {
+        if (el.roughness === 0) {
+          const p = new Path2D();
+          p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+          cache.strokePath = p;
+        } else {
+          cache.strokePath = sketchStrokePath2D(
+            [
+              roundedRectLoop(
+                el.x,
+                el.y,
+                el.width,
+                el.height,
+                cornerRadius(el),
+              ),
+            ],
+            el.roughness,
+            seedOf(el.id),
+            cornerRadius(el) > 0 ? 0.30 : 1,
+          );
+        }
       }
       applyDash(ctx, el, el.strokeWidth);
-      ctx.stroke();
+      ctx.stroke(cache.strokePath);
       ctx.restore();
     }
 
@@ -609,11 +718,14 @@ function drawElement(
       if (el.backgroundColor !== "transparent") {
         ctx.save();
         ctx.globalAlpha *= el.fillOpacity;
-        ctx.beginPath();
-        ctx.moveTo(v[0].x, v[0].y);
-        for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
-        ctx.closePath();
-        ctx.fill();
+        if (!cache.fillPath) {
+          const p = new Path2D();
+          p.moveTo(v[0].x, v[0].y);
+          for (let i = 1; i < v.length; i++) p.lineTo(v[i].x, v[i].y);
+          p.closePath();
+          cache.fillPath = p;
+        }
+        ctx.fill(cache.fillPath);
         ctx.restore();
       }
     } else {
@@ -621,16 +733,19 @@ function drawElement(
     }
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    ctx.beginPath();
-    if (el.roughness === 0) {
-      ctx.moveTo(v[0].x, v[0].y);
-      for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
-      ctx.closePath();
-    } else {
-      sketchStroke(ctx, [diamondLoop(el)], el.roughness, seedOf(el.id));
+    if (!cache.strokePath) {
+      if (el.roughness === 0) {
+        const p = new Path2D();
+        p.moveTo(v[0].x, v[0].y);
+        for (let i = 1; i < v.length; i++) p.lineTo(v[i].x, v[i].y);
+        p.closePath();
+        cache.strokePath = p;
+      } else {
+        cache.strokePath = sketchStrokePath2D([diamondLoop(el)], el.roughness, seedOf(el.id));
+      }
     }
     applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke();
+    ctx.stroke(cache.strokePath);
     ctx.restore();
   } else if (el.type === "ellipse") {
     const rx = Math.abs(el.width) / 2;
@@ -641,9 +756,12 @@ function drawElement(
       if (el.backgroundColor !== "transparent") {
         ctx.save();
         ctx.globalAlpha *= el.fillOpacity;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        ctx.fill();
+        if (!cache.fillPath) {
+          const p = new Path2D();
+          p.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+          cache.fillPath = p;
+        }
+        ctx.fill(cache.fillPath);
         ctx.restore();
       }
     } else {
@@ -651,19 +769,21 @@ function drawElement(
     }
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    ctx.beginPath();
-    if (el.roughness === 0) {
-      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-    } else {
-      sketchStroke(
-        ctx,
-        [ellipseLoop(el.x, el.y, el.width, el.height)],
-        el.roughness,
-        seedOf(el.id),
-      );
+    if (!cache.strokePath) {
+      if (el.roughness === 0) {
+        const p = new Path2D();
+        p.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        cache.strokePath = p;
+      } else {
+        cache.strokePath = sketchStrokePath2D(
+          [ellipseLoop(el.x, el.y, el.width, el.height)],
+          el.roughness,
+          seedOf(el.id),
+        );
+      }
     }
     applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke();
+    ctx.stroke(cache.strokePath);
     ctx.restore();
   } else if (el.type === "line") {
     const [a, b] = arrowPoints(el);
@@ -673,24 +793,36 @@ function drawElement(
 
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    ctx.beginPath();
-    if (lineType === "straight") {
-      strokeEdge(ctx, el, [[a, tip]], seedOf(el.id));
-      applyDash(ctx, el, el.strokeWidth);
-      ctx.stroke();
-    } else if (lineType === "curved") {
-      const cp = curvedArrowControl(el, a, tip);
-      ctx.moveTo(a.x, a.y);
-      ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
-      applyDash(ctx, el, el.strokeWidth);
-      ctx.stroke();
-    } else {
-      // auto: polyline through bend points (or L-shaped default)
-      const pts = edgePathPoints(el);
-      strokeEdge(ctx, el, [pts], seedOf(el.id));
-      applyDash(ctx, el, el.strokeWidth);
-      ctx.stroke();
+    if (!cache.strokePath) {
+      if (lineType === "straight") {
+        if (el.strokeStyle === "solid" && el.roughness > 0) {
+          cache.strokePath = sketchStrokePath2D([[a, tip]], el.roughness, seedOf(el.id));
+        } else {
+          const p = new Path2D();
+          p.moveTo(a.x, a.y);
+          p.lineTo(tip.x, tip.y);
+          cache.strokePath = p;
+        }
+      } else if (lineType === "curved") {
+        const cp = curvedArrowControl(el, a, tip);
+        const p = new Path2D();
+        p.moveTo(a.x, a.y);
+        p.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+        cache.strokePath = p;
+      } else {
+        const pts = edgePathPoints(el);
+        if (el.strokeStyle === "solid" && el.roughness > 0) {
+          cache.strokePath = sketchStrokePath2D([pts], el.roughness, seedOf(el.id));
+        } else {
+          const p = new Path2D();
+          p.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
+          cache.strokePath = p;
+        }
+      }
     }
+    applyDash(ctx, el, el.strokeWidth);
+    ctx.stroke(cache.strokePath);
     ctx.restore();
   } else if (el.type === "arrow") {
     const [a, b] = arrowPoints(el);
@@ -705,27 +837,45 @@ function drawElement(
 
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    ctx.beginPath();
+    if (!cache.strokePath) {
+      if (lineType === "straight") {
+        if (el.strokeStyle === "solid" && el.roughness > 0) {
+          cache.strokePath = sketchStrokePath2D([[a, tip]], el.roughness, seedOf(el.id), 1, false, true);
+        } else {
+          const p = new Path2D();
+          p.moveTo(a.x, a.y);
+          p.lineTo(tip.x, tip.y);
+          cache.strokePath = p;
+        }
+      } else if (lineType === "curved") {
+        const cp = curvedArrowControl(el, a, tip);
+        const p = new Path2D();
+        p.moveTo(a.x, a.y);
+        p.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+        cache.strokePath = p;
+      } else {
+        const pts = edgePathPoints(el);
+        if (el.strokeStyle === "solid" && el.roughness > 0) {
+          cache.strokePath = sketchStrokePath2D([pts], el.roughness, seedOf(el.id), 1, false, true);
+        } else {
+          const p = new Path2D();
+          p.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
+          cache.strokePath = p;
+        }
+      }
+    }
+    applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
+    ctx.stroke(cache.strokePath);
     if (lineType === "straight") {
-      strokeEdge(ctx, el, [[a, tip]], seedOf(el.id), true);
-      applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
-      ctx.stroke();
       drawArrowHead(ctx, tip, a, headSize, headColor, el.roughness, headSeed, endType);
       drawArrowHead(ctx, a, tip, headSize, headColor, el.roughness, headSeed + 3, startType);
     } else if (lineType === "curved") {
       const cp = curvedArrowControl(el, a, tip);
-      ctx.moveTo(a.x, a.y);
-      ctx.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
-      applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
-      ctx.stroke();
       drawArrowHead(ctx, tip, cp, headSize, headColor, el.roughness, headSeed, endType);
       drawArrowHead(ctx, a, cp, headSize, headColor, el.roughness, headSeed + 3, startType);
     } else {
-      // auto: polyline through bend points (or L-shaped default)
       const pts = edgePathPoints(el);
-      strokeEdge(ctx, el, [pts], seedOf(el.id), true);
-      applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
-      ctx.stroke();
       const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
       drawArrowHead(ctx, tip, prevPt, headSize, headColor, el.roughness, headSeed, endType);
       const nextPt = pts.length >= 2 ? pts[1] : tip;
@@ -1007,6 +1157,7 @@ function drawSelectionBox(
 
 function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderColors) {
   if (el.type === "text" || !el.label) return;
+  const cache = getElementCache(el);
   ctx.save();
   ctx.globalAlpha *= el.opacity;
   ctx.fillStyle = resolveTextColor(el, colors);
@@ -1018,7 +1169,13 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     ctx.font = resolveFont(el, layout.labelFont);
     const fs = layout.labelFont;
     const lh = lineHeight(el);
-    const lines = el.label.split("\n");
+    if (!cache.textLayout) {
+      const lines = el.label.split("\n");
+      const lineWidths = lines.map((l) => ctx.measureText(l).width);
+      const maxWidth = Math.max(...lineWidths, 1);
+      cache.textLayout = { lines, lineWidths, maxWidth };
+    }
+    const { lines, lineWidths } = cache.textLayout;
     const step = fs * lh;
     const vShift = ((lines.length - 1) * step) / 2;
     ctx.fillText(lines[0], layout.labelCx, layout.labelCy - vShift);
@@ -1028,8 +1185,8 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     if (underlineOn) {
       let maxLw = 0;
       let bestY = layout.labelCy;
-      lines.forEach((line, i) => {
-        const lw = ctx.measureText(line).width;
+      lines.forEach((_line, i) => {
+        const lw = lineWidths[i];
         if (lw > maxLw) {
           maxLw = lw;
           bestY = layout.labelCy + i * step - vShift;
@@ -1052,7 +1209,6 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     let cx: number;
     let cy: number;
     if (el.type === "line" || el.type === "arrow") {
-      // edges: label slides along the stroke (labelT, default center)
       const anchor = edgeLabelAnchor(el)!;
       cx = anchor.x;
       cy = anchor.y;
@@ -1068,14 +1224,17 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     const fontSize = el.fontSize ?? 20;
     ctx.font = resolveFont(el, fontSize);
     const lh = lineHeight(el);
-    const lines = el.label.split("\n");
+    if (!cache.textLayout) {
+      const lines = el.label.split("\n");
+      const lineWidths = lines.map((l) => ctx.measureText(l).width);
+      const maxWidth = Math.max(...lineWidths, 1);
+      cache.textLayout = { lines, lineWidths, maxWidth };
+    }
+    const { lines, lineWidths, maxWidth } = cache.textLayout;
     const step = fontSize * lh;
-    // edges: opaque plate in the canvas background color sits between the
-    // stroke and the text so the line does not cut through the label
-    // (never hardcoded — matches the live canvas background via the theme)
     if (el.type === "line" || el.type === "arrow") {
       const pad = Math.max(2, fontSize * 0.3);
-      const tw = Math.max(...lines.map((l: string) => ctx.measureText(l).width), 1);
+      const tw = maxWidth;
       const bh = textBlockHeight(fontSize, lines.length, lh);
       const blockCy =
         textVAlign === "top"
@@ -1087,10 +1246,6 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
         textAlign === "left" ? cx : textAlign === "right" ? cx - tw : cx - tw / 2;
       ctx.save();
       ctx.globalAlpha = 1;
-      // fallback defends against callers with a stale colors object (e.g.
-      // React state created before canvasBg existed): assigning an undefined
-      // fillStyle is silently ignored and would reuse the TEXT color,
-      // painting an opaque block instead of a plate
       ctx.fillStyle = colors.canvasBg || DEFAULT_COLORS.canvasBg;
       ctx.fillRect(bx - pad, blockCy - bh / 2 - pad, tw + pad * 2, bh + pad * 2);
       ctx.restore();
@@ -1102,7 +1257,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
       else ly = cy + i * step - ((lines.length - 1) * step) / 2;
       ctx.fillText(line, cx, ly);
       if (underlineOn) {
-        const lw = ctx.measureText(line).width;
+        const lw = lineWidths[i];
         if (lw > 0) {
           ctx.strokeStyle = resolveTextColor(el, colors);
           ctx.lineWidth = Math.max(1.5, fontSize * 0.07);
@@ -1304,7 +1459,17 @@ export function render(
     }
   }
 
+  const cullPadding = 80 / Math.min(cam.zoom, 1);
+  const viewX1 = -cam.scrollX / cam.zoom - cullPadding;
+  const viewY1 = -cam.scrollY / cam.zoom - cullPadding;
+  const viewX2 = (-cam.scrollX + canvasWidth) / cam.zoom + cullPadding;
+  const viewY2 = (-cam.scrollY + canvasHeight) / cam.zoom + cullPadding;
+
   for (const el of state.doc.elements) {
+    const b = getCachedBounds(el);
+    if (b.x2 < viewX1 || b.x1 > viewX2 || b.y2 < viewY1 || b.y1 > viewY2) {
+      continue;
+    }
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
     const dim =

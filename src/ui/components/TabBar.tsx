@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
-import { editor, useEditor } from "../hooks/useEditor";
+import { editor, useEditorSelector } from "../hooks/useEditor";
 import type { TabInfo } from "../../core/editor";
 import { CloseIcon, PlusIcon } from "./icons";
 
@@ -14,7 +14,13 @@ interface DragState {
 }
 
 export function TabBar() {
-  const snap = useEditor();
+  const { tabs: snapTabs, activeTabId } = useEditorSelector(
+    (s) => ({ tabs: s.tabs, activeTabId: s.activeTabId }),
+    (a, b) =>
+      a.activeTabId === b.activeTabId &&
+      a.tabs.length === b.tabs.length &&
+      a.tabs.every((t, i) => t.id === b.tabs[i].id && t.name === b.tabs[i].name),
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [confirmTab, setConfirmTab] = useState<{ id: string; name: string } | null>(null);
@@ -47,9 +53,9 @@ export function TabBar() {
 
   const tabs: readonly TabInfo[] = orderOverride
     ? orderOverride
-        .map((id) => snap.tabs.find((t) => t.id === id))
+        .map((id) => snapTabs.find((t) => t.id === id))
         .filter((t): t is TabInfo => !!t)
-    : snap.tabs;
+    : snapTabs;
 
   const startRename = (id: string, name: string) => {
     setDraftName(name);
@@ -65,7 +71,7 @@ export function TabBar() {
     setConfirmTab({ id: tab.id, name: tab.name });
   };
 
-  const currentOrder = () => orderOverride ?? snap.tabs.map((t) => t.id);
+  const currentOrder = () => orderOverride ?? snapTabs.map((t) => t.id);
 
   const onSegPointerDown = (e: React.PointerEvent, tab: TabInfo) => {
     if (e.button !== 0) return;
@@ -123,8 +129,8 @@ export function TabBar() {
       {tabs.map((tab, i) => (
         <div key={tab.id} className="tabbar-seg-wrap">
           {i > 0 &&
-            tabs[i - 1].id !== snap.activeTabId &&
-            tab.id !== snap.activeTabId && (
+            tabs[i - 1].id !== activeTabId &&
+            tab.id !== activeTabId && (
               <span className="tabbar-dot" aria-hidden>
                 ·
               </span>
@@ -150,7 +156,7 @@ export function TabBar() {
                 if (el) segRefs.current.set(tab.id, el);
                 else segRefs.current.delete(tab.id);
               }}
-              className={`tabbar-seg ${tab.id === snap.activeTabId ? "active" : ""} ${dragId === tab.id ? "dragging" : ""}`}
+              className={`tabbar-seg ${tab.id === activeTabId ? "active" : ""} ${dragId === tab.id ? "dragging" : ""}`}
               data-testid={`tab-seg-${tab.name}`}
               onPointerDown={(e) => onSegPointerDown(e, tab)}
               onPointerMove={onSegPointerMove}
@@ -166,7 +172,7 @@ export function TabBar() {
               <button className="tabbar-seg-name" title={tab.name}>
                 {tab.name}
               </button>
-              {tab.id === snap.activeTabId && (
+              {tab.id === activeTabId && (
                 <button
                   className="tab-close"
                   data-tip={`Close ${tab.name}`}

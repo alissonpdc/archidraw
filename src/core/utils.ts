@@ -605,7 +605,8 @@ function getMeasureCtx(): CanvasRenderingContext2D | null {
   return measureCtx;
 }
 
-/** measures a multiline text block; falls back to a heuristic without DOM */
+const measureCache = new Map<string, { width: number; height: number }>();
+
 export function measureText(
   text: string,
   fontSize: number,
@@ -614,14 +615,25 @@ export function measureText(
   italic?: boolean,
   lineSpacing: number = DEFAULT_LINE_HEIGHT,
 ): { width: number; height: number } {
+  const key = `${text}:${fontSize}:${fontFamily || DEFAULT_FONT_FAMILY}:${bold ? 1 : 0}:${italic ? 1 : 0}:${lineSpacing}`;
+  const hit = measureCache.get(key);
+  if (hit) return hit;
+
   const lines = text.split("\n");
   const height = textBlockHeight(fontSize, lines.length, lineSpacing);
   const ctx = getMeasureCtx();
+  let result: { width: number; height: number };
   if (ctx) {
     ctx.font = buildFontString(fontSize, fontFamily || DEFAULT_FONT_FAMILY, bold, italic);
     const widest = Math.max(...lines.map((l) => ctx.measureText(l).width), 1);
-    return { width: Math.ceil(widest), height };
+    result = { width: Math.ceil(widest), height };
+  } else {
+    const widestChars = Math.max(...lines.map((l) => l.length), 1);
+    result = { width: widestChars * fontSize * 0.6, height };
   }
-  const widestChars = Math.max(...lines.map((l) => l.length), 1);
-  return { width: widestChars * fontSize * 0.6, height };
+  if (measureCache.size >= 3000) {
+    measureCache.clear();
+  }
+  measureCache.set(key, result);
+  return result;
 }
