@@ -20,6 +20,7 @@ import { strokeDashArray, strokeRoundCap } from "./strokeStyle";
 import {
   diamondLoop,
   ellipseLoop,
+  jitter,
   roundedRectLoop,
   seedOf,
   sketchStrokePath2D,
@@ -585,19 +586,19 @@ const HACHURE_SPACING = 6;
 
 function buildHachurePath(el: Element, withCross: boolean): Path2D {
   const b = boundsOf(el);
-  const span = Math.max(b.w, b.h) * 1.5;
+  const halfSpan = (b.w + b.h) / 2 + HACHURE_SPACING;
   const cx = b.x + b.w / 2;
   const cy = b.y + b.h / 2;
   const lines: Point[][] = [];
-  for (let d = -span; d <= span; d += HACHURE_SPACING) {
+  for (let d = -halfSpan; d <= halfSpan; d += HACHURE_SPACING) {
     lines.push([
-      { x: cx + d - span, y: cy - span },
-      { x: cx + d + span, y: cy + span },
+      { x: cx + d - halfSpan, y: cy - halfSpan },
+      { x: cx + d + halfSpan, y: cy + halfSpan },
     ]);
     if (withCross) {
       lines.push([
-        { x: cx + d - span, y: cy + span },
-        { x: cx + d + span, y: cy - span },
+        { x: cx + d - halfSpan, y: cy + halfSpan },
+        { x: cx + d + halfSpan, y: cy - halfSpan },
       ]);
     }
   }
@@ -609,19 +610,16 @@ function buildHachurePath(el: Element, withCross: boolean): Path2D {
     }
   } else {
     const seedBase = seedOf(el.id) + 7;
-    lines.forEach((l, j) => {
-      const segs = sketchStrokeSegments([l], el.roughness, seedBase + j * 17);
-      for (const seg of segs) {
-        path.moveTo(seg.moveTo.x, seg.moveTo.y);
-        for (const c of seg.curves) {
-          if (c.kind === "quad" && c.ctrl) {
-            path.quadraticCurveTo(c.ctrl.x, c.ctrl.y, c.to.x, c.to.y);
-          } else {
-            path.lineTo(c.to.x, c.to.y);
-          }
-        }
-      }
-    });
+    const r = el.roughness;
+    for (let j = 0; j < lines.length; j++) {
+      const l = lines[j];
+      const jx1 = jitter(seedBase + j * 19) * r * 1.2;
+      const jy1 = jitter(seedBase + j * 19 + 5) * r * 1.2;
+      const jx2 = jitter(seedBase + j * 23 + 11) * r * 1.2;
+      const jy2 = jitter(seedBase + j * 23 + 17) * r * 1.2;
+      path.moveTo(l[0].x + jx1, l[0].y + jy1);
+      path.lineTo(l[1].x + jx2, l[1].y + jy2);
+    }
   }
   return path;
 }

@@ -435,7 +435,7 @@ export function PropertiesPanel() {
   const textRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<HTMLDivElement>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const selKey = selected.map((el) => el.id).join(",");
   useLayoutEffect(() => {
     const heights = [styleRef, textRef, layersRef]
       .map((r) => r.current?.scrollHeight ?? 0)
@@ -447,7 +447,7 @@ export function PropertiesPanel() {
         setMaxTabHeight(max);
       }
     }
-  });
+  }, [selKey, activeTab]);
 
   if (selected.length === 0) return null;
 
