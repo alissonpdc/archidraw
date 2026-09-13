@@ -5,7 +5,7 @@
 **No task is complete until `make gate` passes.** Not "almost done", not "works locally" — green gate or it's not done.
 
 ```
-make gate  →  make lint && make build && make test
+make gate  →  make lint && make build && make quality
 ```
 
 Run it at the end of EVERY change: new feature, bug fix, refactor, config edit — everything. If gate fails, fix it before reporting done. No exceptions.
@@ -18,7 +18,9 @@ make run          # Vite dev server (port 5173)
 make build        # tsc -b && vite build
 make lint         # oxlint (NOT eslint)
 make test         # Playwright E2E against a real preview build
-make gate         # lint + build + test — run before finishing any work
+make coverage     # Test coverage
+make quality      # Avoid regression on test coverage
+make gate         # lint + build + quality — run before finishing any work
 ```
 
 Single spec: `make build && npx playwright test e2e/specs/<name>.spec.ts`

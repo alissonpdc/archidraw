@@ -5,7 +5,8 @@ export type ElementType =
   | "line"
   | "arrow"
   | "text"
-  | "component";
+  | "component"
+  | "context";
 
 /** line pattern: continuous, dashed, dotted or dash-dot */
 export type StrokeStyle = "solid" | "dashed" | "dotted" | "dashdot";
@@ -34,6 +35,7 @@ export interface Bounds {
 export type TextAlign = "left" | "center" | "right";
 export type TextVAlign = "top" | "middle" | "bottom";
 export type CaptionPosition = "top" | "bottom" | "left" | "right";
+export type LabelPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 export interface BaseElement {
   id: string;
@@ -181,6 +183,18 @@ export interface ComponentElement extends BaseElement {
   fill?: boolean;
 }
 
+/** container element (Bounded Context / DDD) — groups elements visually and logically */
+export interface ContextElement extends BaseElement {
+  type: "context";
+  label?: string;
+  /** which corner of the context the label anchors to */
+  labelPosition?: LabelPosition;
+  /** whether the label renders outside the bounds (default) or inside it */
+  labelSide?: "internal" | "external";
+  /** ids of elements contained within this context */
+  childIds?: string[];
+}
+
 export type Element =
   | RectangleElement
   | DiamondElement
@@ -188,7 +202,8 @@ export type Element =
   | LineElement
   | ArrowElement
   | TextElement
-  | ComponentElement;
+  | ComponentElement
+  | ContextElement;
 
 export interface Document {
   schemaVersion: 1;
@@ -203,7 +218,8 @@ export type Tool =
   | "ellipse"
   | "line"
   | "arrow"
-  | "text";
+  | "text"
+  | "bounded-context";
 
 export interface Camera {
   /** scene -> screen offset */
@@ -216,3 +232,8 @@ export const DEFAULT_CAMERA: Camera = { scrollX: 0, scrollY: 0, zoom: 1 };
 
 export const DEFAULT_STROKE = "#3d4248";
 export const DEFAULT_BG = "transparent";
+
+/** neutral "boundary" stroke used by context containers: light gray on light
+ *  themes, its dark inverse on dark themes (resolved by themeColor) */
+export const CONTEXT_STROKE = "#c4c7ca";
+export const CONTEXT_STROKE_DARK = "#3b3835";

@@ -50,7 +50,6 @@ export function CanvasHost() {
   useEffect(() => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
-
     let raf = 0;
     const resizeAndRender = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -185,6 +184,38 @@ export function CanvasHost() {
           cy = layout.labelCy;
           align = "center";
           vAlignMode = "middle"; // component captions are always centered
+        } else if (el.type === "context") {
+          // corner label, internal/external (mirrors drawLabel's context branch)
+          const side = el.labelSide ?? "external";
+          const pos = el.labelPosition ?? "top-left";
+          const isTop = pos === "top-left" || pos === "top-right";
+          const isLeft = pos === "top-left" || pos === "bottom-left";
+          fontSize = el.fontSize ?? 16;
+          const s = fontSize * lh;
+          const blockCenter = ((lines.length - 1) * s) / 2;
+          const blockH = (lines.length - 1) * s + fontSize;
+          const base = el.textOffsetGlobal ?? 8;
+          const distH = base + (isLeft ? (el.textOffsetLeft ?? 0) : (el.textOffsetRight ?? 0));
+          const distV = base + (isTop ? (el.textOffsetTop ?? 0) : (el.textOffsetBottom ?? 0));
+          const hOff = isLeft ? (el.textOffsetLeft ?? 0) : (el.textOffsetRight ?? 0);
+          // cyRender is the first line's baseline-middle anchor (mirrors drawLabel)
+          const cyRender =
+            side === "internal"
+              ? isTop
+                ? el.y + distV + fontSize / 2
+                : el.y + el.height - distV - blockH + fontSize / 2
+              : isTop
+                ? el.y - distV - blockCenter
+                : el.y + el.height + distV + blockCenter;
+          align = isLeft ? "left" : "right";
+          if (side === "internal") {
+            hx = isLeft ? el.x + distH : el.x + el.width - distH;
+          } else {
+            // external: flush with the border horizontally
+            hx = isLeft ? el.x + hOff : el.x + el.width - hOff;
+          }
+          cy = cyRender + blockCenter;
+          vAlignMode = "middle";
         } else {
           align = el.textAlign ?? "center";
           vAlignMode = el.textVAlign ?? "middle";
@@ -295,6 +326,38 @@ export function CanvasHost() {
         x: anchor.x * cam.zoom + cam.scrollX,
         y: anchor.y * cam.zoom + cam.scrollY,
       };
+    } else if (editingEl.type === "context") {
+      const pos = editingEl.labelPosition ?? "top-left";
+      const side = editingEl.labelSide ?? "external";
+      const isTop = pos === "top-left" || pos === "top-right";
+      const isLeft = pos === "top-left" || pos === "bottom-left";
+      const b = editingEl;
+      const base = editingEl.textOffsetGlobal ?? 8;
+      const distH = base + (isLeft ? (editingEl.textOffsetLeft ?? 0) : (editingEl.textOffsetRight ?? 0));
+      const distV = base + (isTop ? (editingEl.textOffsetTop ?? 0) : (editingEl.textOffsetBottom ?? 0));
+      const hOff = isLeft ? (editingEl.textOffsetLeft ?? 0) : (editingEl.textOffsetRight ?? 0);
+      // textarea is invisible; place its center over the block center
+      const lx =
+        side === "internal"
+          ? isLeft
+            ? b.x + distH
+            : b.x + b.width - distH
+          : isLeft
+            ? b.x + hOff
+            : b.x + b.width - hOff;
+      const ly =
+        side === "internal"
+          ? isTop
+            ? b.y + distV
+            : b.y + b.height - distV
+          : isTop
+            ? b.y - distV
+            : b.y + b.height + distV;
+      labelPos = {
+        x: lx * cam.zoom + cam.scrollX,
+        y: ly * cam.zoom + cam.scrollY,
+      };
+      labelFontSize = (editingEl.fontSize ?? 16) * cam.zoom;
     } else {
       labelPos = {
         x: (editingEl.x + editingEl.width / 2) * cam.zoom + cam.scrollX,

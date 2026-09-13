@@ -1,4 +1,4 @@
-import type { ArrowBinding, ArrowElement, ArrowHeadType, Bounds, Camera, ComponentElement, Document, Element, LineElement, Point } from "./types";
+import type { ArrowBinding, ArrowElement, ArrowHeadType, Bounds, Camera, ComponentElement, ContextElement, Document, Element, LineElement, Point } from "./types";
 import {
   arrowHeadVectors,
   arrowPoints,
@@ -58,6 +58,8 @@ export interface RenderState {
   animationPhase?: number;
   /** set of element ids to keep at full opacity (all others are dimmed) */
   highlightedIds?: ReadonlySet<string>;
+  /** context element highlighted as a drop target while dragging elements in */
+  highlightedContextId?: string | null;
 }
 
 const DEFAULT_COLORS: RenderColors = {
@@ -455,7 +457,7 @@ function traceShape(
   ctx: CanvasRenderingContext2D,
   el: Element,
 ) {
-  if (el.type === "rectangle" || el.type === "component") {
+  if (el.type === "rectangle" || el.type === "component" || el.type === "context") {
     ctx.beginPath();
     ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
   } else if (el.type === "diamond") {
@@ -603,6 +605,42 @@ function drawElement(
     }
 
     if (el.type === "component") drawComponentIcon(ctx, el);
+  } else if (el.type === "context") {
+    if (el.backgroundColor !== "transparent") {
+      ctx.save();
+      ctx.globalAlpha *= el.fillOpacity;
+      ctx.beginPath();
+      ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+      ctx.fill();
+      ctx.restore();
+    }
+    if (el.strokeWidth > 0) {
+      ctx.save();
+      ctx.globalAlpha *= el.strokeOpacity;
+      ctx.beginPath();
+      if (el.roughness === 0) {
+        ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+      } else {
+        sketchStroke(
+          ctx,
+          [
+            roundedRectLoop(
+              el.x,
+              el.y,
+              el.width,
+              el.height,
+              cornerRadius(el),
+            ),
+          ],
+          el.roughness,
+          seedOf(el.id),
+          cornerRadius(el) > 0 ? 0.30 : 1,
+        );
+      }
+      applyDash(ctx, el, el.strokeWidth);
+      ctx.stroke();
+      ctx.restore();
+    }
   } else if (el.type === "diamond") {
     const v = diamondVertices(el);
     if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
@@ -1045,6 +1083,44 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
         ctx.stroke();
       }
     }
+  } else if (el.type === "context") {
+    const ctxEl = el as ContextElement;
+    const pos = ctxEl.labelPosition ?? "top-left";
+    const side = ctxEl.labelSide ?? "external";
+    const isTop = pos === "top-left" || pos === "top-right";
+    const isLeft = pos === "top-left" || pos === "bottom-left";
+    const fontSize = ctxEl.fontSize ?? 16;
+    ctx.font = resolveFont(ctxEl, fontSize);
+    const lh = lineHeight(ctxEl);
+    const lines = el.label.split("\n");
+    const step = fontSize * lh;
+    const base = ctxEl.textOffsetGlobal ?? 8;
+    const distH = base + (isLeft ? (ctxEl.textOffsetLeft ?? 0) : (ctxEl.textOffsetRight ?? 0));
+    const distV = base + (isTop ? (ctxEl.textOffsetTop ?? 0) : (ctxEl.textOffsetBottom ?? 0));
+    const hOff = isLeft ? (ctxEl.textOffsetLeft ?? 0) : (ctxEl.textOffsetRight ?? 0);
+    const blockCenter = ((lines.length - 1) * step) / 2;
+    const blockH = (lines.length - 1) * step + fontSize;
+    let cx: number;
+    let cy: number;
+    if (side === "internal") {
+      // inside the bounds, anchored to the corner with a small inset
+      ctx.textAlign = isLeft ? "left" : "right";
+      cx = isLeft ? el.x + distH : el.x + el.width - distH;
+      cy = isTop
+        ? el.y + distV + fontSize / 2
+        : el.y + el.height - distV - blockH + fontSize / 2;
+    } else {
+      // external: flush with the border horizontally, clear of it vertically
+      ctx.textAlign = isLeft ? "left" : "right";
+      cx = isLeft ? el.x + hOff : el.x + el.width - hOff;
+      cy = isTop
+        ? el.y - distV - blockCenter
+        : el.y + el.height + distV + blockCenter;
+    }
+    const drawCtxLine = (line: string, i: number) => {
+      ctx.fillText(line, cx, cy + i * step);
+    };
+    lines.forEach(drawCtxLine);
   } else {
     const textAlign = el.textAlign ?? "center";
     const textVAlign = el.textVAlign ?? "middle";
@@ -1276,6 +1352,36 @@ function drawBindingPreview(
   }
 }
 
+/** draws a focus ring around a context being hovered as a drop target */
+function drawContextHighlight(
+  ctx: CanvasRenderingContext2D,
+  el: ContextElement,
+  zoom: number,
+  color: string,
+) {
+  const b = elementBounds(el);
+  const w = b.x2 - b.x1;
+  const h = b.y2 - b.y1;
+  const r = cornerRadius(el);
+  ctx.save();
+
+  // emphasize the existing background
+  ctx.fillStyle = color + "22";
+  ctx.beginPath();
+  ctx.roundRect(b.x1, b.y1, w, h, r);
+  ctx.fill();
+
+  // re-trace the context's own outline (same geometry, no new ring) so the
+  // existing border itself is highlighted, thickened in the selection color
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2.5, el.strokeWidth * 2.5) / zoom;
+  ctx.beginPath();
+  ctx.roundRect(b.x1, b.y1, w, h, r);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 export function render(
   ctx: CanvasRenderingContext2D,
   state: RenderState,
@@ -1304,7 +1410,19 @@ export function render(
     }
   }
 
-  for (const el of state.doc.elements) {
+  const sortedElements = [...state.doc.elements].sort((a, b) => {
+    if (a.type === "context" && b.type !== "context") {
+      const ctx = a as ContextElement;
+      if (ctx.childIds?.includes(b.id)) return -1;
+    }
+    if (b.type === "context" && a.type !== "context") {
+      const ctx = b as ContextElement;
+      if (ctx.childIds?.includes(a.id)) return 1;
+    }
+    return 0;
+  });
+
+  for (const el of sortedElements) {
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
     const dim =
@@ -1320,6 +1438,16 @@ export function render(
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }
 
+  // drop-target ring for the context being hovered during a drag
+  if (state.highlightedContextId) {
+    const ctxEl = state.doc.elements.find(
+      (el) => el.id === state.highlightedContextId && el.type === "context",
+    ) as ContextElement | undefined;
+    if (ctxEl) {
+      drawContextHighlight(ctx, ctxEl, cam.zoom, colors.selection);
+    }
+  }
+
   // resize handles for single selection of a shape/arrow/text
   if (!state.draft && state.selectedIds.size === 1) {
     const sel = state.doc.elements.find((el) => state.selectedIds.has(el.id));
@@ -1332,7 +1460,8 @@ export function render(
         sel.type === "line" ||
         sel.type === "arrow" ||
         sel.type === "component" ||
-        sel.type === "text") &&
+        sel.type === "text" ||
+        sel.type === "context") &&
       !(state.hiddenLabelId && sel.id === state.hiddenLabelId) &&
       !(state.hiddenTextId && sel.id === state.hiddenTextId)
     ) {

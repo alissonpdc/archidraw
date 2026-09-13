@@ -1,4 +1,4 @@
-import { DEFAULT_STROKE } from "./types";
+import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_STROKE } from "./types";
 
 /**
  * Color utilities for the canvas renderer. Keeps shapes legible on any
@@ -170,5 +170,10 @@ export function themeColor(
 ): string {
   if (color === "" || color === "transparent") return "transparent";
   if (color === DEFAULT_STROKE) return elementStroke;
+  if (color === CONTEXT_STROKE) {
+    const bg = parseColor(canvasBg);
+    const dark = bg !== null && relativeLuminance(bg) < 0.5;
+    return dark ? CONTEXT_STROKE_DARK : CONTEXT_STROKE;
+  }
   return ensureContrast(color, canvasBg);
 }

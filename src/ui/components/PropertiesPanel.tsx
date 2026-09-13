@@ -41,6 +41,16 @@ const CAPTION_POSITIONS = [
   { label: "Left", value: "left" as const },
   { label: "Right", value: "right" as const },
 ];
+const LABEL_POSITIONS = [
+  { label: "Top Left", value: "top-left" as const },
+  { label: "Top Right", value: "top-right" as const },
+  { label: "Bottom Left", value: "bottom-left" as const },
+  { label: "Bottom Right", value: "bottom-right" as const },
+];
+const LABEL_SIDES = [
+  { label: "Internal", value: "internal" as const },
+  { label: "External", value: "external" as const },
+];
 const TEXT_VALIGNS = [
   { label: "Top", value: "top" as const },
   { label: "Middle", value: "middle" as const },
@@ -73,6 +83,8 @@ type Patch = Partial<{
   textOffsetLeft: number;
   textOffsetRight: number;
   captionPosition: "top" | "bottom" | "left" | "right";
+  labelPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  labelSide: "internal" | "external";
   captionGap: number;
   captionOffsetTop: number;
   captionOffsetBottom: number;
@@ -468,14 +480,16 @@ export function PropertiesPanel() {
       el.type === "ellipse" ||
       el.type === "line" ||
       el.type === "arrow" ||
-      el.type === "component",
+      el.type === "component" ||
+      el.type === "context",
   );
   const hasFillable = selected.some(
     (el) =>
       el.type === "rectangle" ||
       el.type === "diamond" ||
       el.type === "ellipse" ||
-      el.type === "component",
+      el.type === "component" ||
+      el.type === "context",
   );
   const hasComponent = selected.some((el) => el.type === "component");
   /** elements that use the icon+caption label model (components — incl. imagens) */
@@ -484,6 +498,7 @@ export function PropertiesPanel() {
   const hasDiamond = selected.some((el) => el.type === "diamond");
   const hasEllipse = selected.some((el) => el.type === "ellipse");
   const hasArrow = selected.some((el) => el.type === "arrow");
+  const hasContext = selected.some((el) => el.type === "context");
   const isOnlyText = selected.length > 0 && selected.every((el) => el.type === "text");
 
   // pure text has no Style tab; auto-switch away from it
@@ -527,7 +542,12 @@ export function PropertiesPanel() {
       textEls.length > 0 &&
       textEls.every(
         (el) =>
-          (el.fontSize ?? (el.type === "component" ? 12 : 20)) === v,
+          (el.fontSize ??
+            (el.type === "component"
+              ? 12
+              : el.type === "context"
+                ? 16
+                : 20)) === v,
       )
     );
   };
@@ -545,7 +565,9 @@ export function PropertiesPanel() {
       : null;
   })();
   const radiusValue = (() => {
-    const rects = selected.filter((el) => el.type === "rectangle");
+    const rects = selected.filter(
+      (el) => el.type === "rectangle" || el.type === "context",
+    );
     if (rects.length === 0) return null;
     const first = rects[0].borderRadius;
     return rects.every((r) => r.borderRadius === first) ? first : null;
@@ -563,6 +585,10 @@ export function PropertiesPanel() {
     selected.every((el) => (el.textVAlign ?? "middle") === v);
   const allCaptionPos = (v: string) =>
     selected.every((el) => (el.captionPosition ?? "bottom") === v);
+  const allLabelPos = (v: string) =>
+    selected.every((el) => ((el as any).labelPosition ?? "top-left") === v);
+  const allLabelSide = (v: string) =>
+    selected.every((el) => ((el as any).labelSide ?? "external") === v);
 
   const textColorValue = (() => {
     const first = selected[0].textColor ?? "";
@@ -765,7 +791,7 @@ export function PropertiesPanel() {
               ))}
             </Group>
           )}
-          {hasRectangle && (
+          {(hasRectangle || hasContext) && (
             <Group title="Roundness">
               <div className="v-stack">
                 <div className="border-presets">
@@ -1138,6 +1164,118 @@ export function PropertiesPanel() {
             </Group>
           )}
 
+          {hasContext && (
+            <>
+              <Group title="Label side">
+                {LABEL_SIDES.map((sd) => (
+                  <button
+                    key={sd.value}
+                    className={`size-btn ${allLabelSide(sd.value) ? "active" : ""}`}
+                    aria-label={`Label ${sd.label}`}
+                    data-tip={sd.label}
+                    onClick={() => apply({ labelSide: sd.value })}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16">
+                      <rect
+                        x="3"
+                        y="3"
+                        width="10"
+                        height="10"
+                        rx="1.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                      />
+                      {sd.value === "internal" ? (
+                        <>
+                          <rect
+                            x="3.6"
+                            y="3.6"
+                            width="8.8"
+                            height="8.8"
+                            rx="1"
+                            fill="currentColor"
+                            opacity="0.14"
+                          />
+                          <rect
+                            x="4"
+                            y="4"
+                            width="5"
+                            height="1.7"
+                            rx="0.85"
+                            fill="currentColor"
+                          />
+                        </>
+                      ) : (
+                        <rect
+                          x="4"
+                          y="0.5"
+                          width="5"
+                          height="1.7"
+                          rx="0.85"
+                          fill="currentColor"
+                        />
+                      )}
+                    </svg>
+                  </button>
+                ))}
+              </Group>
+              <Group title="Label position">
+                {LABEL_POSITIONS.map((lp) => {
+                  const inside = (selected[0] as any).labelSide === "internal";
+                  const bars: Record<string, { x: number; y: number }> = {
+                    "top-left": inside ? { x: 3.8, y: 3.9 } : { x: 3, y: 1.4 },
+                    "top-right": inside ? { x: 7.2, y: 3.9 } : { x: 7, y: 1.4 },
+                    "bottom-left": inside ? { x: 3.8, y: 10.5 } : { x: 3, y: 13.6 },
+                    "bottom-right": inside ? { x: 7.2, y: 10.5 } : { x: 7, y: 13.6 },
+                  };
+                  const bar = bars[lp.value];
+                  return (
+                    <button
+                      key={lp.value}
+                      className={`size-btn ${allLabelPos(lp.value) ? "active" : ""}`}
+                      aria-label={`Label ${lp.label}`}
+                      data-tip={lp.label}
+                      onClick={() => apply({ labelPosition: lp.value })}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16">
+                        <rect
+                          x="3"
+                          y="3"
+                          width="10"
+                          height="10"
+                          rx="1.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                        />
+                        {inside && (
+                          <rect
+                            x="3.6"
+                            y="3.6"
+                            width="8.8"
+                            height="8.8"
+                            rx="1"
+                            fill="currentColor"
+                            opacity="0.12"
+                          />
+                        )}
+                        <rect
+                          x={bar.x}
+                          y={bar.y}
+                          width="5"
+                          height="1.7"
+                          rx="0.85"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    </button>
+                  );
+                })}
+              </Group>
+            </>
+          )}
+
           <Group title="Line spacing">
             <MiniSlider
               value={lineSpacingValue ?? 1.25}
@@ -1173,55 +1311,60 @@ export function PropertiesPanel() {
             </Group>
           )}
 
-          {(hasCaption || hasRectangle || hasDiamond || hasEllipse) && (
+          {(hasCaption || hasRectangle || hasDiamond || hasEllipse || hasContext) && (
             <Group title="Text offset (px)" vertical>
                 <SpacingRow
                   label="Global"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionGap" : "textOffsetGlobal", hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? 2 : 8)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionGap" : "textOffsetGlobal", hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? 2 : 8)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionGap = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetGlobal = v;
+                    if (hasContext) patch.textOffsetGlobal = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Left"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetLeft" : "textOffsetLeft", 0)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetLeft" : "textOffsetLeft", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetLeft = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetLeft = v;
+                    if (hasContext) patch.textOffsetLeft = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Right"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetRight" : "textOffsetRight", 0)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetRight" : "textOffsetRight", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetRight = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetRight = v;
+                    if (hasContext) patch.textOffsetRight = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Top"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetTop" : "textOffsetTop", 0)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetTop" : "textOffsetTop", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetTop = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetTop = v;
+                    if (hasContext) patch.textOffsetTop = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Bottom"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetBottom" : "textOffsetBottom", 0)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetBottom" : "textOffsetBottom", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetBottom = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetBottom = v;
+                    if (hasContext) patch.textOffsetBottom = v;
                     apply(patch);
                   }}
                 />

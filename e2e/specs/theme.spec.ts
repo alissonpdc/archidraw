@@ -2,6 +2,7 @@ import { test, expect, drag, selectTool, open } from "../fixtures";
 
 import type { Page } from "@playwright/test";
 import { ensureContrast, themeColor, parseColor, contrastRatio } from "../../src/core/color";
+import { CONTEXT_STROKE, CONTEXT_STROKE_DARK } from "../../src/core/types";
 
 /**
  * Canvas colors must follow the mode: elements using the theme default stroke
@@ -78,6 +79,19 @@ test.describe("color resolution", () => {
     expect(themeColor("transparent", "#e2e7ee", "#0b0d11")).toBe("transparent");
   });
 
+  test("context stroke stays the light neutral on light bg and flips to its dark inverse on dark bg", () => {
+    expect(themeColor(CONTEXT_STROKE, "#1c2229", "#ffffff")).toBe(
+      CONTEXT_STROKE,
+    );
+    expect(themeColor(CONTEXT_STROKE, "#dde3e9", "#0b0d11")).toBe(
+      CONTEXT_STROKE_DARK,
+    );
+    // subtle by design: the neutral is never contrast-clamped
+    expect(themeColor(CONTEXT_STROKE, "#dde3e9", "#141414")).toBe(
+      CONTEXT_STROKE_DARK,
+    );
+  });
+
   test("ensureContrast keeps legible colors but clamps dark ones on dark bg", () => {
     expect(ensureContrast("#f5c518", "#0b0d11", 3)).toBe("#f5c518");
     expect(ensureContrast("#1a2028", "#f4f6f8", 3)).toBe("#1a2028");
@@ -145,6 +159,35 @@ test.describe("theme", () => {
     // near-black on near-black must be re-resolved lighter, not left invisible
     const s = await sampleStroke(page, REGION);
     expect(s.lighter).toBeGreaterThan(50);
+    expect(s.darker).toBe(0);
+  });
+
+  test("context outline stays the light neutral in light mode", async ({
+    page,
+  }) => {
+    await open(page);
+    await selectTool(page, "8");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
+    await page.keyboard.press("Escape");
+
+    // internal top-left label, rendered inside the box (same neutral color,
+// near-full alpha glyphs)
+    const s = await sampleStroke(page, { x1: 195, y1: 202, x2: 320, y2: 240 });
+    expect(s.darker).toBeGreaterThan(5);
+    expect(s.lighter).toBe(0);
+  });
+
+  test("context outline flips to its dark inverse in dark mode", async ({
+    page,
+  }) => {
+    await open(page);
+    await setTheme(page, "dark");
+    await selectTool(page, "8");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
+    await page.keyboard.press("Escape");
+
+    const s = await sampleStroke(page, { x1: 195, y1: 202, x2: 320, y2: 240 });
+    expect(s.lighter).toBeGreaterThan(5);
     expect(s.darker).toBe(0);
   });
 });

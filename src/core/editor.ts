@@ -10,6 +10,7 @@ import type {
   Bounds,
   Camera,
   ComponentElement,
+  ContextElement,
   DiamondElement,
   Document,
   Element,
@@ -32,6 +33,7 @@ import {
   translateElement,
   unionBounds,
   elementBounds,
+  boundsContain,
   measureText,
   edgeLabelAnchor,
   edgeParamAt,
@@ -44,7 +46,7 @@ import {
   autoDragSegmentBends,
   snapSegmentDelta,
 } from "./utils";
-import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
+import { CONTEXT_STROKE, DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { DEFAULT_FONT_FAMILY } from "./textStyle";
 import { getLibraryItem, isBuiltinLibraryItem } from "./library";
 import { componentAssetDataUri } from "./componentAssets";
@@ -134,7 +136,8 @@ function hasResizeHandles(el: Element): boolean {
     el.type === "line" ||
     el.type === "arrow" ||
     el.type === "component" ||
-    el.type === "text"
+    el.type === "text" ||
+    el.type === "context"
   );
 }
 
@@ -293,7 +296,15 @@ type Interaction =
   | { kind: "none" }
   | { kind: "pan"; lastScreen: Point }
   | { kind: "draw"; startScene: Point; id: string }
-  | { kind: "move"; startScene: Point; originals: Element[]; moved?: boolean }
+  | {
+      kind: "move";
+      startScene: Point;
+      originals: Element[];
+      /** original snapshots of context children, so they translate from a
+       *  stable base (their live positions move every frame during the drag) */
+      contextBase?: Map<string, Element>;
+      moved?: boolean;
+    }
   | { kind: "resize"; handle: HandleId; original: Element }
   | { kind: "label-move"; id: string; moved?: boolean }
   | { kind: "control-point"; id: string; original: Element }
@@ -350,6 +361,8 @@ export class Editor {
   private marquee: { x1: number; y1: number; x2: number; y2: number } | null =
     null;
   private guides: SnapGuide[] | null = null;
+  /** context element being highlighted while elements are being dragged into it */
+  private highlightedContextId: string | null = null;
   private interaction: Interaction = { kind: "none" };
   private spacePressed = false;
   private shiftPressed = false;
@@ -510,13 +523,22 @@ export class Editor {
       elements: this.doc.elements
         .filter((el) => !deletedIds.has(el.id))
         .map((el) => {
-          if (!isEdge(el)) return el;
-          const startBinding = el.startBinding && deletedIds.has(el.startBinding.elementId)
-            ? undefined : el.startBinding;
-          const endBinding = el.endBinding && deletedIds.has(el.endBinding.elementId)
-            ? undefined : el.endBinding;
-          if (startBinding !== el.startBinding || endBinding !== el.endBinding) {
-            return { ...el, startBinding, endBinding };
+          if (isEdge(el)) {
+            const startBinding = el.startBinding && deletedIds.has(el.startBinding.elementId)
+              ? undefined : el.startBinding;
+            const endBinding = el.endBinding && deletedIds.has(el.endBinding.elementId)
+              ? undefined : el.endBinding;
+            if (startBinding !== el.startBinding || endBinding !== el.endBinding) {
+              return { ...el, startBinding, endBinding };
+            }
+          } else if (el.type === "context") {
+            // drop references to deleted contained elements
+            const childIds = (el.childIds ?? []).filter(
+              (cid) => !deletedIds.has(cid),
+            );
+            if (childIds.length !== (el.childIds ?? []).length) {
+              return { ...el, childIds };
+            }
           }
           return el;
         }),
@@ -536,6 +558,7 @@ export class Editor {
       ...this.doc,
       elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
     };
+    this.captureInContexts(this.cloneGroupIds(clones));
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
   }
@@ -553,6 +576,17 @@ export class Editor {
       return { ...el, id, x: el.x + dx, y: el.y + dy };
     });
     return clones.map((el) => {
+      if (el.type === "context") {
+        // container membership follows the clones: keep only children that
+        // were cloned too, remapped to their new ids
+        const childIds = ((el as ContextElement).childIds ?? [])
+          .filter((cid) => idMap.has(cid))
+          .map((cid) => idMap.get(cid)!);
+        if (childIds.length !== (el.childIds ?? []).length) {
+          return { ...el, childIds };
+        }
+        return el;
+      }
       if (!isEdge(el)) return el;
       const startBinding =
         el.startBinding && idMap.has(el.startBinding.elementId)
@@ -564,6 +598,34 @@ export class Editor {
           : el.endBinding;
       return { ...el, startBinding, endBinding };
     });
+  }
+
+  /**
+   * adds each element (that isn't a context itself) to the childIds of every
+   * context fully containing it, so any creation path — text tool, library
+   * insert, paste, duplicate — keeps container membership in sync.
+   */
+  private captureInContexts(elements: Element[]): void {
+    let changed = false;
+    for (const added of elements) {
+      if (added.type === "context") continue;
+      const ab = elementBounds(added);
+      const updated = this.doc.elements.map((el) => {
+        if (el.type !== "context") return el;
+        const ctx = el as ContextElement;
+        if (ctx.childIds?.includes(added.id)) return el;
+        const b = elementBounds(ctx);
+        if (
+          ab.x1 >= b.x1 && ab.x2 <= b.x2 &&
+          ab.y1 >= b.y1 && ab.y2 <= b.y2
+        ) {
+          changed = true;
+          return { ...ctx, childIds: [...(ctx.childIds ?? []), added.id] };
+        }
+        return el;
+      });
+      if (changed) this.doc = { ...this.doc, elements: updated };
+    }
   }
 
   // ---- layer reorder ---------------------------------------------------
@@ -825,6 +887,7 @@ borderRadius: 20,
       ...(item.fill === true ? { fill: true } : {}),
     };
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
+    this.captureInContexts([el]);
     this.tool = "selection";
     this.selectedIds = new Set([el.id]);
     this.emit();
@@ -850,6 +913,7 @@ borderRadius: 20,
       ...this.doc,
       elements: [...this.doc.elements, ...grouped],
     };
+    this.captureInContexts(grouped);
     this.tool = "selection";
     this.selectedIds = new Set(grouped.map((el) => el.id));
     this.emit();
@@ -1100,7 +1164,8 @@ borderRadius: 20,
         hitEl.type === "ellipse" ||
         hitEl.type === "line" ||
         hitEl.type === "arrow" ||
-        hitEl.type === "component")
+        hitEl.type === "component" ||
+        hitEl.type === "context")
     ) {
       if (hitEl.locked) return;
       if (!this.selectedIds.has(hitEl.id)) {
@@ -1135,6 +1200,7 @@ borderRadius: 20,
       borderRadius: 0,
     };
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
+    this.captureInContexts([el]);
     this.beginTextEdit(el.id, "text");
     this.emit();
   }
@@ -1182,6 +1248,8 @@ strokeOpacity?: number;
       textOffsetLeft?: number;
       textOffsetRight?: number;
       captionPosition?: import("./types").CaptionPosition;
+      labelPosition?: import("./types").LabelPosition;
+      labelSide?: "internal" | "external";
       captionGap?: number;
       captionOffsetTop?: number;
       captionOffsetBottom?: number;
@@ -1326,10 +1394,12 @@ strokeOpacity?: number;
     const offset = 16 * this.pasteCount;
     const clones = this.cloneElements(items, offset, offset);
     this.commitHistory();
+    const grouped = this.cloneGroupIds(clones);
     this.doc = {
       ...this.doc,
-      elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
+      elements: [...this.doc.elements, ...grouped],
     };
+    this.captureInContexts(grouped);
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
     return clones.length;
@@ -1357,10 +1427,12 @@ strokeOpacity?: number;
     const dy = b ? scene.y - (b.y1 + b.y2) / 2 : 0;
     const clones = this.cloneElements(items, dx, dy);
     this.commitHistory();
+    const grouped = this.cloneGroupIds(clones);
     this.doc = {
       ...this.doc,
-      elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
+      elements: [...this.doc.elements, ...grouped],
     };
+    this.captureInContexts(grouped);
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
     return clones.length;
@@ -1464,7 +1536,8 @@ strokeOpacity?: number;
       case "diamond":
       case "ellipse":
       case "line":
-      case "arrow": {
+      case "arrow":
+      case "bounded-context": {
         this.commitHistory();
         const base = {
           id: newId(),
@@ -1489,6 +1562,22 @@ strokeOpacity?: number;
           el = { ...base, type: "ellipse", ...bbox } satisfies EllipseElement;
         } else if (this.tool === "line") {
           el = { ...base, type: "line", strokeWidth: 1, ...bbox } satisfies LineElement;
+        } else if (this.tool === "bounded-context") {
+          el = {
+            ...base,
+            type: "context",
+            ...bbox,
+            strokeColor: CONTEXT_STROKE,
+            strokeWidth: 1,
+            strokeStyle: "solid",
+            backgroundColor: "transparent",
+            borderRadius: 10,
+            fontSize: 16,
+            label: "Context",
+            labelPosition: "top-left",
+            labelSide: "internal",
+            childIds: [],
+          } satisfies ContextElement;
         } else {
           el = { ...base, type: "arrow", strokeWidth: 1, ...bbox, startArrowhead: "none", endArrowhead: "arrow" } satisfies ArrowElement;
         }
@@ -1533,6 +1622,7 @@ strokeOpacity?: number;
           borderRadius: 0,
         };
         this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
+        this.captureInContexts([el]);
         this.tool = "selection";
         this.beginTextEdit(el.id);
         break;
@@ -1641,12 +1731,24 @@ strokeOpacity?: number;
           }
           if (this.selectedIds.size > 0) {
             this.commitHistory();
+            const originals = this.doc.elements.filter((el) =>
+              this.selectedIds.has(el.id),
+            );
+            // capture the original geometry of context children (their live
+            // positions drift while the container is dragged)
+            const contextBase = new Map<string, Element>();
+            for (const el of originals) {
+              if (el.type !== "context" || !el.childIds) continue;
+              for (const cid of el.childIds) {
+                const child = this.doc.elements.find((e) => e.id === cid);
+                if (child && !contextBase.has(cid)) contextBase.set(cid, child);
+              }
+            }
             this.interaction = {
               kind: "move",
               startScene: scene,
-              originals: this.doc.elements.filter((el) =>
-                this.selectedIds.has(el.id),
-              ),
+              originals,
+              contextBase: contextBase.size > 0 ? contextBase : undefined,
             };
           }
         } else {
@@ -1753,8 +1855,12 @@ strokeOpacity?: number;
 
         // smart snap guides against other elements
         const movingIds = new Set(this.interaction.originals.map((el) => el.id));
+        const childIds = new Set(this.interaction.contextBase?.keys() ?? []);
         const others = this.doc.elements.filter(
-          (el) => !movingIds.has(el.id) && !isEdge(el),
+          (el) =>
+            !movingIds.has(el.id) &&
+            !childIds.has(el.id) &&
+            !isEdge(el),
         );
         const movingBoxRaw = unionBounds(this.interaction.originals);
         if (movingBoxRaw && others.length > 0) {
@@ -1818,6 +1924,21 @@ strokeOpacity?: number;
             el.locked ? el : translateElement(el, dx, dy),
           ]),
         );
+        // when a context is moved, translate its children by the same delta
+        // (from their captured original geometry so the offset never compounds)
+        const base = this.interaction.contextBase;
+        for (const original of this.interaction.originals) {
+          if (original.type === "context" && original.childIds && original.childIds.length > 0) {
+            for (const childId of original.childIds) {
+              if (moved.has(childId)) continue;
+              const child = base?.get(childId) ??
+                this.doc.elements.find((e) => e.id === childId);
+              if (child && !child.locked) {
+                moved.set(childId, translateElement(child, dx, dy));
+              }
+            }
+          }
+        }
         this.interaction.moved =
           Math.abs(dx) > 1e-6 || Math.abs(dy) > 1e-6;
         // keep bindings coherent: edges bound to moved shapes follow their
@@ -1845,6 +1966,28 @@ strokeOpacity?: number;
           ...this.doc,
           elements: updatedElements,
         };
+        // live containment highlight: the last context that fully contains
+        // the shifted union bounds gets highlighted as a drop target
+        let highlight: string | null = null;
+        const movedSet = new Set(moved.keys());
+        const movedBox = unionBounds(
+          [...moved.values()].filter((el) => !isEdge(el)),
+        );
+        if (movedBox) {
+          for (const el of this.doc.elements) {
+            if (el.type !== "context" || movedSet.has(el.id)) continue;
+            const cb = elementBounds(el);
+            if (
+              cb.x1 <= movedBox.x1 &&
+              cb.y1 <= movedBox.y1 &&
+              cb.x2 >= movedBox.x2 &&
+              cb.y2 >= movedBox.y2
+            ) {
+              highlight = el.id;
+            }
+          }
+        }
+        this.highlightedContextId = highlight;
         break;
       }
       case "label-move": {
@@ -2121,11 +2264,75 @@ strokeOpacity?: number;
         // bindings were resolved live during the draw (draft carries them)
         this.doc = { ...this.doc, elements: [...this.doc.elements, this.draft] };
         this.selectedIds = new Set([this.draft.id]);
+        // when a context is drawn, it captures every element inside its bounds
+        if (this.draft.type === "context") {
+          const ctxBounds = elementBounds(this.draft);
+          const childIds = this.doc.elements
+            .filter(
+              (el) =>
+                el.id !== this.draft!.id &&
+                el.type !== "context" &&
+                boundsContain(ctxBounds, elementBounds(el)),
+            )
+            .map((el) => el.id);
+          if (childIds.length > 0) {
+            this.doc = {
+              ...this.doc,
+              elements: this.doc.elements.map((el) =>
+                el.id === this.draft!.id ? { ...el, childIds } : el,
+              ),
+            };
+          }
+        } else {
+          // containment: if the new element was drawn inside a context, add it
+          this.captureInContexts([this.draft]);
+        }
       }
       this.draft = null;
     }
     if (this.interaction.kind === "move" && !this.interaction.moved) {
       this.history.pop(); // click without drag: drop the useless snapshot
+    }
+    // containment detection: after a move, check if non-context elements
+    // ended up inside a context, or moved out of one
+    if (this.interaction.kind === "move" && this.interaction.moved) {
+      const movedIds = new Set(this.interaction.originals.map((el) => el.id));
+      let containmentChanged = false;
+      const nextElements = this.doc.elements.map((el) => {
+        if (el.type !== "context" || movedIds.has(el.id)) return el;
+        const ctx = el as ContextElement;
+        const b = elementBounds(ctx);
+        const newChildIds = (ctx.childIds ?? []).filter((cid) => {
+          if (movedIds.has(cid)) return false;
+          const child = this.doc.elements.find((e) => e.id === cid);
+          if (!child) return false;
+          const cb = elementBounds(child);
+          return (
+            cb.x1 >= b.x1 && cb.x2 <= b.x2 && cb.y1 >= b.y1 && cb.y2 <= b.y2
+          );
+        });
+        // add newly contained elements
+        for (const movedId of movedIds) {
+          if (newChildIds.includes(movedId)) continue;
+          const movedEl = this.doc.elements.find((e) => e.id === movedId);
+          if (!movedEl || movedEl.type === "context") continue;
+          const mb = elementBounds(movedEl);
+          if (
+            mb.x1 >= b.x1 && mb.x2 <= b.x2 &&
+            mb.y1 >= b.y1 && mb.y2 <= b.y2
+          ) {
+            newChildIds.push(movedId);
+          }
+        }
+        if (newChildIds.length !== (ctx.childIds ?? []).length) {
+          containmentChanged = true;
+          return { ...ctx, childIds: newChildIds };
+        }
+        return el;
+      });
+      if (containmentChanged) {
+        this.doc = { ...this.doc, elements: nextElements };
+      }
     }
     if (this.interaction.kind === "label-move" && !this.interaction.moved) {
       this.history.pop(); // handle grabbed without dragging: drop snapshot
@@ -2136,6 +2343,7 @@ strokeOpacity?: number;
     this.marquee = null;
     this.guides = null;
     this.bindingPreview = null;
+    this.highlightedContextId = null;
     this.interaction = { kind: "none" };
     this.emit();
   }
@@ -2280,6 +2488,7 @@ strokeOpacity?: number;
         hiddenTextId: this.editingKind === "text" ? this.editingTextId : null,
         animationPhase: performance.now() / 60,
         highlightedIds: this.highlightedIds,
+        highlightedContextId: this.highlightedContextId,
       },
       w,
       h,

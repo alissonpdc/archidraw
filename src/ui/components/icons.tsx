@@ -557,3 +557,12 @@ export function InfoIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function ContextIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="5" width="18" height="14" rx="2" strokeDasharray="4 2" />
+      <line x1="3" y1="9" x2="9" y2="9" />
+    </svg>
+  );
+}

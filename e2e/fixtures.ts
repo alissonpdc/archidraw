@@ -130,7 +130,7 @@ export async function drag(
 
 export async function selectTool(
   page: Page,
-  key: "1" | "h" | "2" | "3" | "4" | "5" | "6" | "7",
+  key: "1" | "h" | "2" | "3" | "4" | "5" | "6" | "7" | "8",
 ) {
   await page.keyboard.press(key);
 }

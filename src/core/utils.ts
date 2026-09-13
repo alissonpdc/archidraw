@@ -26,7 +26,12 @@ export const clamp = (v: number, min: number, max: number) =>
 
 /** corner radius in scene px for a rectangle/component (0–100% of the smaller side) */
 export function cornerRadius(el: Element): number {
-  if ((el.type !== "rectangle" && el.type !== "component") || el.borderRadius <= 0)
+  if (
+    (el.type !== "rectangle" &&
+      el.type !== "context" &&
+      el.type !== "component") ||
+    el.borderRadius <= 0
+  )
     return 0;
   const max = Math.min(Math.abs(el.width), Math.abs(el.height)) / 2;
   return (Math.min(100, el.borderRadius) / 100) * max;
