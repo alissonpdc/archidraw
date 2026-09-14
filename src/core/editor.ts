@@ -411,6 +411,7 @@ export class Editor {
   }
 
   private histories = new Map<string, History>();
+  private wheelDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ---- subscriptions -------------------------------------------------
   subscribe = (cb: () => void) => {
@@ -1776,7 +1777,10 @@ strokeOpacity?: number;
           scrollX: this.camera.scrollX + dx,
           scrollY: this.camera.scrollY + dy,
         };
-        break;
+        if (this.snapshotCache) {
+          this.snapshotCache = { ...this.snapshotCache, camera: this.camera };
+        }
+        return;
       }
       case "draw": {
         if (!this.draft) break;
@@ -2384,7 +2388,14 @@ strokeOpacity?: number;
         scrollX: this.camera.scrollX - delta.x,
         scrollY: this.camera.scrollY - delta.y,
       };
-      this.emit();
+      if (this.snapshotCache) {
+        this.snapshotCache = { ...this.snapshotCache, camera: this.camera };
+      }
+      if (this.wheelDebounceTimer) clearTimeout(this.wheelDebounceTimer);
+      this.wheelDebounceTimer = setTimeout(() => {
+        this.wheelDebounceTimer = null;
+        this.emit();
+      }, 80);
     }
   }
 

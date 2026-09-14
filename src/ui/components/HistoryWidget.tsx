@@ -1,9 +1,12 @@
-import { editor, useEditor } from "../hooks/useEditor";
+import { editor, useEditorSelector } from "../hooks/useEditor";
 import { RedoIcon, UndoIcon } from "./icons";
 import { MOD } from "../platform";
 
 export function HistoryWidget() {
-  useEditor(); // re-render on every emit so canUndo/canRedo stay fresh
+  const { canUndo, canRedo } = useEditorSelector(
+    () => ({ canUndo: editor.canUndo(), canRedo: editor.canRedo() }),
+    (a, b) => a.canUndo === b.canUndo && a.canRedo === b.canRedo,
+  );
 
   return (
     <div className="zoom-widget">
@@ -11,7 +14,7 @@ export function HistoryWidget() {
         className="zoom-btn tip-up"
         data-tip={`Undo (${MOD}+Z)`}
         aria-label="Undo"
-        disabled={!editor.canUndo()}
+        disabled={!canUndo}
         onClick={() => editor.undo()}
       >
         <UndoIcon size={14} />
@@ -20,7 +23,7 @@ export function HistoryWidget() {
         className="zoom-btn tip-up"
         data-tip={`Redo (${MOD}+Y)`}
         aria-label="Redo"
-        disabled={!editor.canRedo()}
+        disabled={!canRedo}
         onClick={() => editor.redo()}
       >
         <RedoIcon size={14} />
