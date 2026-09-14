@@ -14,7 +14,7 @@ import {
 } from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage, getCachedImage } from "./componentAssets";
-import { resolveFont, resolveTextColor, lineHeight, textBlockHeight } from "./textStyle";
+import { resolveFont, resolveTextColor, lineHeight, textBlockHeight, fontFamilyOf } from "./textStyle";
 import { themeColor } from "./color";
 import { strokeDashArray, strokeRoundCap } from "./strokeStyle";
 import {
@@ -428,7 +428,7 @@ function captionLayout(
   const step = labelFont * lh;
   const n = Math.max(lines.length, 1);
   const tw = hasLabel
-    ? measureText(el.label!, labelFont, el.fontFamily, el.bold, el.italic).width
+    ? measureText(el.label!, labelFont, fontFamilyOf(el), el.bold, el.italic).width
     : 0;
   const vShift = hasLabel ? ((n - 1) * step) / 2 : 0;
   const cx = box.x + box.width / 2;
@@ -1557,9 +1557,13 @@ export function render(
   const elementsToRender = hasContext
     ? [...state.doc.elements].sort((a, b) => {
         if (a.type === "context" && b.type !== "context") {
-          if ((a as ContextElement).childIds?.includes(b.id)) return -1;
+          const ctx = a as ContextElement;
+          if (ctx.childIds?.includes(b.id)) return -1;
+          if (state.selectedIds?.has(b.id) && !state.selectedIds?.has(a.id)) return -1;
         } else if (b.type === "context" && a.type !== "context") {
-          if ((b as ContextElement).childIds?.includes(a.id)) return 1;
+          const ctx = b as ContextElement;
+          if (ctx.childIds?.includes(a.id)) return 1;
+          if (state.selectedIds?.has(a.id) && !state.selectedIds?.has(b.id)) return 1;
         }
         return 0;
       })
@@ -1579,6 +1583,13 @@ export function render(
       ctx.globalAlpha = 0.15;
     }
     drawElement(ctx, el, colors, state.animationPhase ?? 0);
+    if (
+      state.highlightedContextId &&
+      el.id === state.highlightedContextId &&
+      el.type === "context"
+    ) {
+      drawContextHighlight(ctx, el as ContextElement, cam.zoom, colors.selection);
+    }
     drawLabel(ctx, el, colors);
     if (dim) {
       ctx.restore();
@@ -1587,16 +1598,6 @@ export function render(
     drawLockBadge(ctx, el, cam.zoom, colors, cam);
     if (state.selectedIds.has(el.id) && !isEditingThisLabel)
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
-  }
-
-  // drop-target ring for the context being hovered during a drag
-  if (state.highlightedContextId) {
-    const ctxEl = state.doc.elements.find(
-      (el) => el.id === state.highlightedContextId && el.type === "context",
-    ) as ContextElement | undefined;
-    if (ctxEl) {
-      drawContextHighlight(ctx, ctxEl, cam.zoom, colors.selection);
-    }
   }
 
   // resize handles for single selection of a shape/arrow/text

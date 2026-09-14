@@ -99,4 +99,73 @@ test.describe("PropertiesPanel text controls", () => {
     p = await elemProps(page);
     expect(p.textVAlign).toBe("bottom");
   });
+
+  test("draft or higher style elements default to sketch font in properties panel", async ({
+    page,
+  }) => {
+    await open(page);
+    await selectTool(page, "2");
+    await drag(page, { x: 200, y: 150 }, { x: 360, y: 260 });
+    await selectTool(page, "1");
+    await page.mouse.click(280, 205);
+    await openPanel(page, "Style");
+
+    await page.getByRole("button", { name: "Roughness Draft" }).click();
+    await openPanel(page, "Text");
+
+    const sketchBtn = page.locator('.properties-panel .size-btn[data-tip="Sketch"]');
+    const sansBtn = page.locator('.properties-panel .size-btn[data-tip="Sans"]');
+    await expect(sketchBtn).toHaveClass(/active/);
+    await expect(sansBtn).not.toHaveClass(/active/);
+
+    await openPanel(page, "Style");
+    await page.getByRole("button", { name: "Roughness Architect" }).click();
+    await openPanel(page, "Text");
+    await expect(sansBtn).toHaveClass(/active/);
+    await expect(sketchBtn).not.toHaveClass(/active/);
+
+    await openPanel(page, "Style");
+    await page.getByRole("button", { name: "Roughness Sketchy" }).click();
+    await openPanel(page, "Text");
+    await expect(sketchBtn).toHaveClass(/active/);
+
+    await openPanel(page, "Style");
+    await page.getByRole("button", { name: "Roughness Chaos" }).click();
+    await openPanel(page, "Text");
+    await expect(sketchBtn).toHaveClass(/active/);
+
+    await sansBtn.click();
+    await expect(sansBtn).toHaveClass(/active/);
+    await expect(sketchBtn).not.toHaveClass(/active/);
+
+    await openPanel(page, "Style");
+    await page.getByRole("button", { name: "Roughness Draft" }).click();
+    await openPanel(page, "Text");
+    await expect(sansBtn).toHaveClass(/active/);
+    await expect(sketchBtn).not.toHaveClass(/active/);
+  });
+
+  test("text element created under draft style inherits sketch font default", async ({
+    page,
+  }) => {
+    await open(page);
+    await selectTool(page, "2");
+    await drag(page, { x: 100, y: 100 }, { x: 200, y: 180 });
+    await selectTool(page, "1");
+    await page.mouse.click(150, 140);
+    await openPanel(page, "Style");
+    await page.getByRole("button", { name: "Roughness Draft" }).click();
+
+    await selectTool(page, "7");
+    await page.mouse.click(350, 200);
+    await page.keyboard.type("Draft text");
+    await page.keyboard.press("Escape");
+
+    await selectTool(page, "1");
+    await page.mouse.click(370, 205);
+    await openPanel(page, "Text");
+
+    const sketchBtn = page.locator('.properties-panel .size-btn[data-tip="Sketch"]');
+    await expect(sketchBtn).toHaveClass(/active/);
+  });
 });

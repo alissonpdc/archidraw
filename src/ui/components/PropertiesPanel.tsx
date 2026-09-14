@@ -8,6 +8,11 @@ import {
 import { createPortal } from "react-dom";
 import { editor, useEditorSelector } from "../hooks/useEditor";
 import type { Element } from "../../core/types";
+import {
+  DEFAULT_FONT_FAMILY,
+  SKETCH_FONT_FAMILY,
+  fontFamilyOf,
+} from "../../core/textStyle";
 
 const EMPTY_ELEMENTS: Element[] = [];
 
@@ -33,8 +38,8 @@ const FONT_SIZES = [
   { label: "XL", value: 36 },
 ];
 const FONT_FAMILIES = [
-  { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', glyph: "Aa" },
-  { label: "Sketch", value: '"Architects Daughter", cursive', glyph: "Aa" },
+  { label: "Sans", value: DEFAULT_FONT_FAMILY, glyph: "Aa" },
+  { label: "Sketch", value: SKETCH_FONT_FAMILY, glyph: "Aa" },
   { label: "Serif", value: 'Georgia, "Times New Roman", serif', glyph: "Aa" },
   { label: "Consolas", value: 'Consolas, "SF Mono", monospace', glyph: "Aa" },
 ];
@@ -1062,7 +1067,7 @@ export function PropertiesPanel() {
               <button
                 key={f.value}
                 className={`size-btn ${
-                  selected.every((el) => (el.fontFamily || FONT_FAMILIES[0].value) === f.value)
+                  selected.every((el) => fontFamilyOf(el) === f.value)
                     ? "active"
                     : ""
                 }`}

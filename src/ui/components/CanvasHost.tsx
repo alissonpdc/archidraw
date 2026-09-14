@@ -196,7 +196,7 @@ export function CanvasHost() {
           n === 1 ? fontSize : (n - 1) * fontSize * lh + fontSize;
         const vOffset = Math.max(0, (el.height - textBlockH) / 2);
         for (let i = 0; i < n; i++) {
-          const lw = measureText(lines[i], fontSize, el.fontFamily, el.bold, el.italic).width;
+          const lw = measureText(lines[i], fontSize, fontFamilyOf(el), el.bold, el.italic).width;
           leftEdges.push(
             align === "left" ? el.x :
             align === "right" ? el.x + el.width - lw :
@@ -271,7 +271,7 @@ export function CanvasHost() {
         }
         const step = fontSize * lh;
         for (let i = 0; i < lines.length; i++) {
-          const lw = measureText(lines[i], fontSize, el.fontFamily, el.bold, el.italic).width;
+          const lw = measureText(lines[i], fontSize, fontFamilyOf(el), el.bold, el.italic).width;
           leftEdges.push(
             align === "center" ? hx - lw / 2 :
             align === "right" ? hx - lw : hx,
@@ -285,7 +285,7 @@ export function CanvasHost() {
       }
 
       const fontOf = (s: string) =>
-        measureText(s, fontSize, editingEl.fontFamily, editingEl.bold, editingEl.italic);
+        measureText(s, fontSize, fontFamilyOf(editingEl), editingEl.bold, editingEl.italic);
 
       const offsetToPos = (off: number): { li: number; col: number } => {
         let rem = Math.max(0, Math.min(off, value.length));

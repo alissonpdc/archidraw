@@ -46,9 +46,10 @@ import {
   autoDragSegmentBends,
   snapSegmentDelta,
   determineBindingSide,
+  ensureContextZOrder,
 } from "./utils";
 import { CONTEXT_STROKE, DEFAULT_BG, DEFAULT_STROKE } from "./types";
-import { DEFAULT_FONT_FAMILY } from "./textStyle";
+import { fontFamilyOf } from "./textStyle";
 import { getLibraryItem, isBuiltinLibraryItem } from "./library";
 import { componentAssetDataUri } from "./componentAssets";
 import { addImportedImage } from "./importedImages";
@@ -635,7 +636,7 @@ export class Editor {
         }
         return el;
       });
-      if (changed) this.doc = { ...this.doc, elements: updated };
+      if (changed) this.doc = { ...this.doc, elements: ensureContextZOrder(updated) };
     }
   }
 
@@ -649,25 +650,25 @@ export class Editor {
     if (direction === "front") {
       const toMove = elems.filter((el) => idSet.has(el.id));
       const rest = elems.filter((el) => !idSet.has(el.id));
-      this.doc = { ...this.doc, elements: [...rest, ...toMove] };
+      this.doc = { ...this.doc, elements: ensureContextZOrder([...rest, ...toMove]) };
     } else if (direction === "back") {
       const toMove = elems.filter((el) => idSet.has(el.id));
       const rest = elems.filter((el) => !idSet.has(el.id));
-      this.doc = { ...this.doc, elements: [...toMove, ...rest] };
+      this.doc = { ...this.doc, elements: ensureContextZOrder([...toMove, ...rest]) };
     } else if (direction === "forward") {
       for (let i = elems.length - 2; i >= 0; i--) {
         if (idSet.has(elems[i].id) && !idSet.has(elems[i + 1].id)) {
           [elems[i], elems[i + 1]] = [elems[i + 1], elems[i]];
         }
       }
-      this.doc = { ...this.doc, elements: elems };
+      this.doc = { ...this.doc, elements: ensureContextZOrder(elems) };
     } else if (direction === "backward") {
       for (let i = 1; i < elems.length; i++) {
         if (idSet.has(elems[i].id) && !idSet.has(elems[i - 1].id)) {
           [elems[i], elems[i - 1]] = [elems[i - 1], elems[i]];
         }
       }
-      this.doc = { ...this.doc, elements: elems };
+      this.doc = { ...this.doc, elements: ensureContextZOrder(elems) };
     }
     this.emit();
   }
@@ -1198,7 +1199,6 @@ borderRadius: 20,
       height: 0,
       text: "",
       fontSize: 20,
-      fontFamily: DEFAULT_FONT_FAMILY,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
       strokeWidth: 1,
@@ -1207,7 +1207,7 @@ borderRadius: 20,
       fillOpacity: 1,
       strokeStyle: "solid",
       fillStyle: this.lastFillStyle,
-      roughness: 0,
+      roughness: this.lastRoughness,
       borderRadius: 0,
     };
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
@@ -1284,9 +1284,9 @@ strokeOpacity?: number;
         if (next.type === "arrow" && next.strokeStyle === "solid")
           next = { ...next, animated: false };
         // recalculate text dimensions when font-related props change
-        if (next.type === "text" && (patch.fontSize !== undefined || patch.fontFamily !== undefined || patch.bold !== undefined || patch.italic !== undefined || patch.lineSpacing !== undefined)) {
+        if (next.type === "text" && (patch.fontSize !== undefined || patch.fontFamily !== undefined || patch.bold !== undefined || patch.italic !== undefined || patch.lineSpacing !== undefined || patch.roughness !== undefined)) {
           const te = next as TextElement;
-          const { width, height } = measureText(te.text || " ", te.fontSize, te.fontFamily, te.bold, te.italic, te.lineSpacing);
+          const { width, height } = measureText(te.text || " ", te.fontSize, fontFamilyOf(te), te.bold, te.italic, te.lineSpacing);
           te.width = Math.max(width, 8);
           te.height = height;
         }
@@ -1311,7 +1311,7 @@ strokeOpacity?: number;
       ...this.doc,
       elements: this.doc.elements.map((el) => {
         if (!(el.id === id && el.type === "text")) return el;
-        const { width, height } = measureText(text || " ", el.fontSize, el.fontFamily, el.bold, el.italic, el.lineSpacing);
+        const { width, height } = measureText(text || " ", el.fontSize, fontFamilyOf(el), el.bold, el.italic, el.lineSpacing);
         return { ...el, text, width: Math.max(width, 8), height };
       }),
     };
@@ -1620,7 +1620,6 @@ strokeOpacity?: number;
           height: 0,
           text: "",
           fontSize: 20,
-          fontFamily: DEFAULT_FONT_FAMILY,
           strokeColor: stroke,
           backgroundColor: DEFAULT_BG,
           strokeWidth: 1,
@@ -2206,7 +2205,7 @@ strokeOpacity?: number;
           const scaleY = (nb.y2 - nb.y1) / oH;
           const scale = Math.max(scaleX, scaleY);
           const newFontSize = Math.max(1, Math.round(orig.fontSize * scale));
-          const { width, height } = measureText(orig.text || " ", newFontSize, orig.fontFamily, orig.bold, orig.italic, orig.lineSpacing);
+          const { width, height } = measureText(orig.text || " ", newFontSize, fontFamilyOf(orig), orig.bold, orig.italic, orig.lineSpacing);
           this.doc = {
             ...this.doc,
             elements: this.doc.elements.map((el) =>
@@ -2290,25 +2289,32 @@ strokeOpacity?: number;
             )
             .map((el) => el.id);
           if (childIds.length > 0) {
+            const firstChildIdx = this.doc.elements.findIndex((el) =>
+              childIds.includes(el.id),
+            );
+            const withoutDraft = this.doc.elements.filter(
+              (el) => el.id !== this.draft!.id,
+            );
+            const draftWithChildren = { ...this.draft, childIds };
+            if (firstChildIdx !== -1) {
+              withoutDraft.splice(firstChildIdx, 0, draftWithChildren);
+            } else {
+              withoutDraft.push(draftWithChildren);
+            }
             this.doc = {
               ...this.doc,
-              elements: this.doc.elements.map((el) =>
-                el.id === this.draft!.id ? { ...el, childIds } : el,
-              ),
+              elements: ensureContextZOrder(withoutDraft),
             };
           }
         } else {
-          // containment: if the new element was drawn inside a context, add it
           this.captureInContexts([this.draft]);
         }
       }
       this.draft = null;
     }
     if (this.interaction.kind === "move" && !this.interaction.moved) {
-      this.history.pop(); // click without drag: drop the useless snapshot
+      this.history.pop();
     }
-    // containment detection: after a move, check if non-context elements
-    // ended up inside a context, or moved out of one
     if (this.interaction.kind === "move" && this.interaction.moved) {
       const movedIds = new Set(this.interaction.originals.map((el) => el.id));
       let containmentChanged = false;
@@ -2325,7 +2331,6 @@ strokeOpacity?: number;
             cb.x1 >= b.x1 && cb.x2 <= b.x2 && cb.y1 >= b.y1 && cb.y2 <= b.y2
           );
         });
-        // add newly contained elements
         for (const movedId of movedIds) {
           if (newChildIds.includes(movedId)) continue;
           const movedEl = this.doc.elements.find((e) => e.id === movedId);
@@ -2345,7 +2350,12 @@ strokeOpacity?: number;
         return el;
       });
       if (containmentChanged) {
-        this.doc = { ...this.doc, elements: nextElements };
+        this.doc = { ...this.doc, elements: ensureContextZOrder(nextElements) };
+      } else {
+        const reordered = ensureContextZOrder(this.doc.elements);
+        if (reordered !== this.doc.elements) {
+          this.doc = { ...this.doc, elements: reordered };
+        }
       }
     }
     if (this.interaction.kind === "label-move" && !this.interaction.moved) {

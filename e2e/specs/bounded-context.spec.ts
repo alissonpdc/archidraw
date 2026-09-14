@@ -995,4 +995,114 @@ test.describe("bounded context", () => {
     });
     expect(square).toBe(0);
   });
+
+  test("dragging an element into a context always gives it superior z-index over the context", async ({
+    page,
+  }) => {
+    await selectTool(page, "2");
+    await drag(page, { x: 600, y: 200 }, { x: 700, y: 300 });
+
+    await selectTool(page, "8");
+    await drag(page, { x: 100, y: 100 }, { x: 500, y: 400 });
+
+    const initialOrder = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const elements = ed.getSnapshot().doc.elements;
+      return {
+        rectIdx: elements.findIndex((el: any) => el.type === "rectangle"),
+        ctxIdx: elements.findIndex((el: any) => el.type === "context"),
+      };
+    });
+    expect(initialOrder.rectIdx).toBe(0);
+    expect(initialOrder.ctxIdx).toBe(1);
+    expect(initialOrder.rectIdx).toBeLessThan(initialOrder.ctxIdx);
+
+    await selectTool(page, "1");
+    await drag(page, { x: 650, y: 250 }, { x: 250, y: 250 });
+
+    const afterDragOrder = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const elements = ed.getSnapshot().doc.elements;
+      const ctx = elements.find((el: any) => el.type === "context");
+      const rect = elements.find((el: any) => el.type === "rectangle");
+      return {
+        rectIdx: elements.findIndex((el: any) => el.type === "rectangle"),
+        ctxIdx: elements.findIndex((el: any) => el.type === "context"),
+        childIds: ctx.childIds ?? [],
+        rectId: rect.id,
+      };
+    });
+    expect(afterDragOrder.childIds).toContain(afterDragOrder.rectId);
+    expect(afterDragOrder.rectIdx).toBeGreaterThan(afterDragOrder.ctxIdx);
+
+    await page.mouse.click(50, 50);
+    await page.mouse.click(250, 250);
+    const selected = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const ids = Array.from(ed.getSnapshot().selectedIds);
+      const elements = ed.getSnapshot().doc.elements;
+      const selectedEl = elements.find((el: any) => ids.includes(el.id));
+      return selectedEl ? selectedEl.type : null;
+    });
+    expect(selected).toBe("rectangle");
+  });
+
+  test("drawing a context around an existing element places context behind it with inferior z-index", async ({
+    page,
+  }) => {
+    await selectTool(page, "2");
+    await drag(page, { x: 200, y: 200 }, { x: 300, y: 300 });
+
+    await selectTool(page, "8");
+    await drag(page, { x: 100, y: 100 }, { x: 500, y: 400 });
+
+    const order = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const elements = ed.getSnapshot().doc.elements;
+      return {
+        rectIdx: elements.findIndex((el: any) => el.type === "rectangle"),
+        ctxIdx: elements.findIndex((el: any) => el.type === "context"),
+      };
+    });
+    expect(order.rectIdx).toBeGreaterThan(order.ctxIdx);
+
+    await selectTool(page, "1");
+    await page.mouse.click(50, 50);
+    await page.mouse.click(250, 250);
+    const selected = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const ids = Array.from(ed.getSnapshot().selectedIds);
+      const elements = ed.getSnapshot().doc.elements;
+      const selectedEl = elements.find((el: any) => ids.includes(el.id));
+      return selectedEl ? selectedEl.type : null;
+    });
+    expect(selected).toBe("rectangle");
+  });
+
+  test("context layer reorder preserves superior z-index for children", async ({
+    page,
+  }) => {
+    await selectTool(page, "8");
+    await drag(page, { x: 100, y: 100 }, { x: 500, y: 400 });
+
+    await selectTool(page, "2");
+    await drag(page, { x: 200, y: 200 }, { x: 300, y: 300 });
+
+    await selectTool(page, "1");
+    await page.mouse.click(150, 150);
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      ed.bringToFront();
+    });
+
+    const order = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const elements = ed.getSnapshot().doc.elements;
+      return {
+        rectIdx: elements.findIndex((el: any) => el.type === "rectangle"),
+        ctxIdx: elements.findIndex((el: any) => el.type === "context"),
+      };
+    });
+    expect(order.rectIdx).toBeGreaterThan(order.ctxIdx);
+  });
 });

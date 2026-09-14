@@ -1424,17 +1424,18 @@ test.describe("renderer.ts component with label underline", () => {
       el("clu1", "component", 200, 200, 64, 64, {
         componentId: "ec1",
         src: svgData,
-        label: "Underline Comp",
+        label: "Underline\nComp",
         underline: true,
         textAlign: "right",
       }),
     ]);
+    await page.waitForTimeout(100);
     const s = await page.evaluate(() => {
       const snap = (window as any).__editor__.getSnapshot();
       const e = snap.doc.elements[0];
       return { label: e.label, underline: e.underline, textAlign: e.textAlign };
     });
-    expect(s.label).toBe("Underline Comp");
+    expect(s.label).toBe("Underline\nComp");
     expect(s.underline).toBe(true);
     expect(s.textAlign).toBe("right");
   });

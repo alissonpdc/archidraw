@@ -384,7 +384,11 @@ test.describe("excalidraw library import", () => {
     await importLibOk(page, "my-icons.excalidrawlib", fakeLibContent());
 
     await page.reload();
-    await open(page);
+    await page.waitForFunction(
+      () =>
+        (window as any).__editor__ !== undefined &&
+        (window as any).__appReady__ === true,
+    );
     await page.keyboard.press("l");
 
     const group = page.locator('[data-testid="library-imported-group"]');

@@ -3,6 +3,7 @@ import type {
   ArrowElement,
   Bounds,
   Camera,
+  ContextElement,
   Element,
   LineElement,
   Point,
@@ -829,4 +830,39 @@ export function measureText(
   }
   const widestChars = Math.max(...lines.map((l) => l.length), 1);
   return { width: widestChars * fontSize * 0.6, height };
+}
+
+export function ensureContextZOrder(elements: Element[]): Element[] {
+  let result = [...elements];
+  let changed = true;
+  let passes = 0;
+  while (changed && passes < result.length) {
+    changed = false;
+    passes++;
+    for (const el of result) {
+      if (el.type !== "context") continue;
+      const ctx = el as ContextElement;
+      if (!ctx.childIds || ctx.childIds.length === 0) continue;
+      const childSet = new Set(ctx.childIds);
+      const ctxIdx = result.findIndex((e) => e.id === ctx.id);
+
+      const before: Element[] = [];
+      const rest: Element[] = [];
+      for (let j = 0; j < result.length; j++) {
+        if (j < ctxIdx && childSet.has(result[j].id)) {
+          before.push(result[j]);
+        } else {
+          rest.push(result[j]);
+        }
+      }
+      if (before.length > 0) {
+        const newCtxIdx = rest.findIndex((e) => e.id === ctx.id);
+        rest.splice(newCtxIdx + 1, 0, ...before);
+        result = rest;
+        changed = true;
+        break;
+      }
+    }
+  }
+  return result;
 }

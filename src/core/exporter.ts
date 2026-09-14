@@ -1,6 +1,6 @@
 import { render, componentIconLayout } from "./renderer";
 import type { ArrowHeadType, Document, Element, Point } from "./types";
-import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, escapeXml, unionBounds } from "./utils";
+import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, ensureContextZOrder, escapeXml, unionBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { componentAssetDataUri, waitForComponentImages, waitForImage } from "./componentAssets";
 import { strokeDashArray } from "./strokeStyle";
@@ -279,7 +279,7 @@ export function buildSvgString(doc: Document): string | null {
   const h = bounds.y2 - bounds.y1 + EXPORT_PADDING * 2;
 
   const parts: string[] = [];
-  for (const el of doc.elements) {
+  for (const el of ensureContextZOrder(doc.elements)) {
     const stroke =
       el.strokeWidth > 0
         ? `stroke="${el.strokeColor}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round"`
