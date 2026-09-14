@@ -227,6 +227,7 @@ test.describe("wheel pan", () => {
     await open(page);
     await page.mouse.move(640, 400);
     await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(100);
 
     const s = await editorState();
     expect(s.camera.scrollY).not.toBe(0);

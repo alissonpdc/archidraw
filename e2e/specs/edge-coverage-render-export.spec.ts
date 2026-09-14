@@ -109,16 +109,89 @@ test.describe("renderer.ts edge cases", () => {
     expect(gridMode).toBe("lines");
   });
 
+  test("grid dots mode renders", async ({ page }) => {
+    await open(page);
+    await page.getByTestId("app-menu-button").click();
+    await page
+      .locator(".menu-item--submenu", { hasText: "Grid" })
+      .click();
+    await page.locator("button.menu-item", { hasText: "Dots" }).click();
+    await page.waitForTimeout(200);
+
+    const gridMode = await page.evaluate(() =>
+      localStorage.getItem("archidraw:grid"),
+    );
+    expect(gridMode).toBe("dots");
+  });
+
   test("highlightedIds dims non-highlighted elements", async ({ page }) => {
     await loadScene(page, [
       el("h1", "rectangle", 200, 200, 100, 80),
       el("h2", "rectangle", 400, 200, 100, 80),
+      el("h3", "rectangle", 600, 200, 100, 80),
+      {
+        id: "a1",
+        type: "arrow",
+        x: 250,
+        y: 200,
+        width: 150,
+        height: 0,
+        strokeColor: "#000000",
+        backgroundColor: "transparent",
+        fillStyle: "solid",
+        strokeWidth: 2,
+        roughness: 0,
+        opacity: 1,
+        startBinding: { elementId: "h1", focus: 0, gap: 0 },
+        endBinding: { elementId: "h2", focus: 0, gap: 0 },
+      } as any,
     ]);
-    const s = await page.evaluate(() => {
-      const snap = (window as any).__editor__.getSnapshot();
-      return { count: snap.doc.elements.length };
+    const s = await page.evaluate(async () => {
+      const ed = (window as any).__editor__;
+      ed.selectedIds = new Set(["h1"]);
+      ed.highlightDependencies();
+      await new Promise((r) => requestAnimationFrame(r));
+      const count = ed.doc.elements.length;
+      const highlighted = ed.highlightedIds.size;
+      ed.clearHighlight();
+      ed.clearHighlight();
+      return { count, highlighted };
     });
-    expect(s.count).toBe(2);
+    expect(s.count).toBe(4);
+    expect(s.highlighted).toBe(3);
+  });
+
+  test("highlightedContextId renders context highlight", async ({ page }) => {
+    await loadScene(page, [
+      {
+        id: "ctx-hl",
+        type: "context",
+        x: 150,
+        y: 150,
+        width: 300,
+        height: 200,
+        strokeColor: "#888888",
+        backgroundColor: "transparent",
+        fillStyle: "solid",
+        strokeWidth: 1,
+        roughness: 0,
+        opacity: 1,
+        childIds: ["child1"],
+      } as any,
+      el("child1", "rectangle", 180, 180, 80, 60),
+      el("nonChild", "rectangle", 600, 600, 80, 60),
+    ]);
+    await page.evaluate(async () => {
+      const ed = (window as any).__editor__;
+      ed.highlightedContextId = "ctx-hl";
+      ed.emit();
+      await new Promise((r) => requestAnimationFrame(r));
+      ed.highlightedContextId = "non-existent";
+      ed.emit();
+      await new Promise((r) => requestAnimationFrame(r));
+      ed.highlightedContextId = null;
+      ed.emit();
+    });
   });
 
   test("component with empty icon paths does not crash", async ({ page }) => {

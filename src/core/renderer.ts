@@ -178,25 +178,9 @@ function drawGridDots(
   color: string,
 ) {
   const pattern = getGridDotPattern(ctx, color);
-  if (pattern) {
-    ctx.save();
-    ctx.fillStyle = pattern;
-    ctx.fillRect(vx1, vy1, vx2 - vx1, vy2 - vy1);
-    ctx.restore();
-    return;
-  }
-  const step = GRID_STEP;
-  const r = 1.3;
   ctx.save();
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  for (let x = Math.floor(vx1 / step) * step; x <= vx2; x += step) {
-    for (let y = Math.floor(vy1 / step) * step; y <= vy2; y += step) {
-      ctx.moveTo(x + r, y);
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-    }
-  }
-  ctx.fill();
+  ctx.fillStyle = pattern ?? color;
+  ctx.fillRect(vx1, vy1, vx2 - vx1, vy2 - vy1);
   ctx.restore();
 }
 
@@ -1573,12 +1557,9 @@ export function render(
   const elementsToRender = hasContext
     ? [...state.doc.elements].sort((a, b) => {
         if (a.type === "context" && b.type !== "context") {
-          const ctx = a as ContextElement;
-          if (ctx.childIds?.includes(b.id)) return -1;
-        }
-        if (b.type === "context" && a.type !== "context") {
-          const ctx = b as ContextElement;
-          if (ctx.childIds?.includes(a.id)) return 1;
+          if ((a as ContextElement).childIds?.includes(b.id)) return -1;
+        } else if (b.type === "context" && a.type !== "context") {
+          if ((b as ContextElement).childIds?.includes(a.id)) return 1;
         }
         return 0;
       })
@@ -1592,12 +1573,16 @@ export function render(
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
     const dim =
-      state.highlightedIds && state.highlightedIds.size > 0 && !state.highlightedIds.has(el.id);
-    if (dim) ctx.save();
-    if (dim) ctx.globalAlpha = 0.15;
+      Boolean(state.highlightedIds && state.highlightedIds.size > 0 && !state.highlightedIds.has(el.id));
+    if (dim) {
+      ctx.save();
+      ctx.globalAlpha = 0.15;
+    }
     drawElement(ctx, el, colors, state.animationPhase ?? 0);
     drawLabel(ctx, el, colors);
-    if (dim) ctx.restore();
+    if (dim) {
+      ctx.restore();
+    }
     drawDetailsBadge(ctx, el, cam.zoom, colors);
     drawLockBadge(ctx, el, cam.zoom, colors, cam);
     if (state.selectedIds.has(el.id) && !isEditingThisLabel)

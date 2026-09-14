@@ -627,18 +627,13 @@ export function measureText(
   const lines = text.split("\n");
   const height = textBlockHeight(fontSize, lines.length, lineSpacing);
   const ctx = getMeasureCtx();
-  let result: { width: number; height: number };
   if (ctx) {
     ctx.font = buildFontString(fontSize, fontFamily || DEFAULT_FONT_FAMILY, bold, italic);
     const widest = Math.max(...lines.map((l) => ctx.measureText(l).width), 1);
-    result = { width: Math.ceil(widest), height };
-  } else {
-    const widestChars = Math.max(...lines.map((l) => l.length), 1);
-    result = { width: widestChars * fontSize * 0.6, height };
+    const result = { width: Math.ceil(widest), height };
+    measureCache.set(key, result);
+    return result;
   }
-  if (measureCache.size >= 3000) {
-    measureCache.clear();
-  }
-  measureCache.set(key, result);
-  return result;
+  const widestChars = Math.max(...lines.map((l) => l.length), 1);
+  return { width: widestChars * fontSize * 0.6, height };
 }
