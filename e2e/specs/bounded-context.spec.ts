@@ -127,7 +127,9 @@ test.describe("bounded context", () => {
 
     const colorChip = page.getByRole("button", { name: "Text color Red" });
     await colorChip.click();
-    await page.getByRole("button", { name: "Text color shade 1" }).click();
+    await page
+      .getByRole("button", { name: "Text color Red intensity 1" })
+      .click();
     const color = await page.evaluate(() => {
       const ed = (window as any).__editor__;
       return ed.getSnapshot().doc.elements[0].textColor;

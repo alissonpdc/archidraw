@@ -1,7 +1,6 @@
 import {
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -13,22 +12,9 @@ import {
   SKETCH_FONT_FAMILY,
   fontFamilyOf,
 } from "../../core/textStyle";
+import { ColorRampPicker } from "./ColorRampPicker";
 
 const EMPTY_ELEMENTS: Element[] = [];
-
-/** 10 basic colors shared by stroke and fill */
-const BASE_COLORS: { name: string; color: string }[] = [
-  { name: "Grey", color: "#868e96" },
-  { name: "Red", color: "#e03131" },
-  { name: "Orange", color: "#f08c00" },
-  { name: "Yellow", color: "#f5c518" },
-  { name: "Green", color: "#2f9e44" },
-  { name: "Cyan", color: "#0c8599" },
-  { name: "Blue", color: "#1971c2" },
-  { name: "Purple", color: "#6741d9" },
-  { name: "Pink", color: "#d6336c" },
-  { name: "Brown", color: "#a65e3f" },
-];
 
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
 const FONT_SIZES = [
@@ -104,56 +90,6 @@ type Patch = Partial<{
   endArrowhead: "none" | "circle" | "arrow" | "triangle";
 }>;
 
-// ---- color helpers -----------------------------------------------------
-
-function hexToHsl(hex: string): [number, number, number] {
-  const m = hex.replace("#", "");
-  const r = parseInt(m.slice(0, 2), 16) / 255;
-  const g = parseInt(m.slice(2, 4), 16) / 255;
-  const b = parseInt(m.slice(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  if (max === min) return [0, 0, l];
-  const d = max - min;
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h: number;
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-  else if (max === g) h = ((b - r) / d + 2) / 6;
-  else h = ((r - g) / d + 4) / 6;
-  return [h * 360, s * 100, l * 100];
-}
-
-function hslToHex(h: number, s: number, l: number): string {
-  s /= 100;
-  l /= 100;
-  const k = (n: number) => (n + h / 30) % 12;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) =>
-    Math.round(
-      255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))),
-    );
-  return (
-    "#" +
-    [f(0), f(8), f(4)]
-      .map((v) => v.toString(16).padStart(2, "0"))
-      .join("")
-  );
-}
-
-/** 5 shades of the color (light → dark), with original color in the middle */
-function shadesOf(hex: string): string[] {
-  const [h, s] = hexToHsl(hex);
-  const sat = Math.max(s, 8);
-  return [
-    hslToHex(h, sat * 0.55, 92),
-    hslToHex(h, sat * 0.75, 78),
-    hex,
-    hslToHex(h, sat, 42),
-    hslToHex(h, sat, 26),
-  ];
-}
-
 // ---- components ---------------------------------------------------------
 
 interface TipState {
@@ -224,105 +160,6 @@ function Section({
     <div className="panel-section">
       <div className="panel-section-heading">{title}</div>
       <div className="panel-section-body">{children}</div>
-    </div>
-  );
-}
-
-const PALETTE_COLS = 5;
-const SWATCH_STEP = 28; // 24px swatch + 4px gap
-
-function PaletteGrid({
-  current,
-  onPick,
-  label,
-}: {
-  current: string;
-  onPick: (color: string) => void;
-  label: string;
-}) {
-  const [expanded, setExpanded] = useState<number | null>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [popPos, setPopPos] = useState<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (expanded === null) return;
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as HTMLElement;
-      if (!wrapRef.current?.contains(t) && !t.closest(".color-popover--portal")) setExpanded(null);
-    };
-    window.addEventListener("pointerdown", onDown);
-    return () => window.removeEventListener("pointerdown", onDown);
-  }, [expanded]);
-
-  const expandedShades =
-    expanded !== null && expanded > 0
-      ? shadesOf(BASE_COLORS[expanded - 1].color)
-      : null;
-
-  const groupShades = useMemo(
-    () => BASE_COLORS.map((e) => shadesOf(e.color)),
-    [],
-  );
-
-  const handleSwatchClick = (i: number, e: React.MouseEvent<HTMLButtonElement>) => {
-    if (expanded === i + 1) {
-      setExpanded(null);
-      setPopPos(null);
-    } else {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const popoverW = PALETTE_COLS * SWATCH_STEP + 8;
-      let x = rect.left;
-      if (x + popoverW > window.innerWidth - 8) x = window.innerWidth - popoverW - 8;
-      if (x < 8) x = 8;
-      setPopPos({ x, y: rect.bottom + 6 });
-      setExpanded(i + 1);
-    }
-  };
-
-  return (
-    <div className="palette-wrap" ref={wrapRef}>
-      <div className="swatch-row swatch-row-5">
-        {BASE_COLORS.map((entry, i) => {
-          const isThisGroup =
-            current === entry.color || groupShades[i].includes(current);
-          return (
-            <button
-              key={entry.name}
-              className={`swatch ${isThisGroup ? "active" : ""}`}
-              style={{ background: isThisGroup ? current : entry.color }}
-              aria-label={`${label} ${entry.name}`}
-              data-tip={entry.name}
-              onClick={(e) => handleSwatchClick(i, e)}
-            />
-          );
-        })}
-      </div>
-      {expandedShades && popPos && createPortal(
-        <div
-          className="color-popover color-popover--portal"
-          style={{ left: popPos.x, top: popPos.y }}
-          role="menu"
-          aria-label={`${label} shades`}
-        >
-          <div className="swatch-shade-row">
-            {expandedShades.map((shade, i) => (
-              <button
-                key={shade}
-                className={`swatch ${current === shade ? "active" : ""}`}
-                style={{ background: shade }}
-                aria-label={`${label} shade ${i + 1}`}
-                data-tip={shade.toUpperCase()}
-                onClick={() => {
-                  onPick(shade);
-                  setExpanded(null);
-                  setPopPos(null);
-                }}
-              />
-            ))}
-          </div>
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }
@@ -666,20 +503,13 @@ export function PropertiesPanel() {
       <div ref={styleRef} className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
         <Section title="Stroke">
           <Group title="Color">
-            <PaletteGrid
+            <ColorRampPicker
               current={selected[0].strokeColor}
               onPick={(strokeColor) => apply({ strokeColor })}
               label="Stroke color"
-            />
-          </Group>
-          <Group title="Opacity">
-            <MiniSlider
-              value={strokeOpacityValue ?? 100}
-              min={0}
-              max={100}
-              step={5}
-              ariaLabel="Stroke opacity"
-              onChange={(v) => apply({ strokeOpacity: v / 100 })}
+              kind="stroke"
+              opacity={strokeOpacityValue}
+              onOpacity={(v) => apply({ strokeOpacity: v / 100 })}
             />
           </Group>
           {hasShape && (
@@ -967,20 +797,13 @@ export function PropertiesPanel() {
         {hasFillable && (
           <Section title="Fill">
             <Group title="Color">
-              <PaletteGrid
+              <ColorRampPicker
                 current={selected[0].backgroundColor}
                 onPick={(backgroundColor) => apply({ backgroundColor })}
                 label="Fill"
-              />
-            </Group>
-            <Group title="Opacity">
-              <MiniSlider
-                value={fillOpacityValue ?? 100}
-                min={0}
-                max={100}
-                step={5}
-                ariaLabel="Fill opacity"
-                onChange={(v) => apply({ fillOpacity: v / 100 })}
+                kind="fill"
+                opacity={fillOpacityValue}
+                onOpacity={(v) => apply({ fillOpacity: v / 100 })}
               />
             </Group>
             <Group title="Type">
@@ -1042,10 +865,13 @@ export function PropertiesPanel() {
         </div>
       <div ref={textRef} className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
         <Group title="Text color">
-            <PaletteGrid
+            <ColorRampPicker
               current={textColorValue ?? "\u0000"}
               onPick={(textColor) => apply({ textColor })}
               label="Text color"
+              kind="text"
+              allowAuto
+              autoColor={selected[0].strokeColor}
             />
           </Group>
 

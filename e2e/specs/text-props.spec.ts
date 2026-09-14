@@ -67,14 +67,14 @@ test.describe("PropertiesPanel text controls", () => {
     await page.mouse.click(320, 310);
     await openPanel(page, "Text");
 
-    // the base swatch expands the shade row; pick a shade to apply
+    // the base dot opens the intensity popover; pick a ramp cell to apply
     await page.getByRole("button", { name: "Text color Red" }).click();
-    const shadeRow = page.locator(".color-popover--portal .swatch-shade-row");
-    await expect(shadeRow).toBeVisible();
-    await shadeRow.locator(".swatch").nth(3).click();
+    const popover = page.locator(".color-popover");
+    await expect(popover).toBeVisible();
+    await popover.locator(".ramp-cell").nth(3).click();
 
     const p = await elemProps(page);
-    expect(p.textColor).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(p.textColor).toBe("#ba1c1c");
   });
 
   test("vertical alignment of a rectangle label via the panel", async ({

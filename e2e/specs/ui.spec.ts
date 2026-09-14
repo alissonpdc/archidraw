@@ -296,7 +296,11 @@ test.describe("ui widgets", () => {
     await page.keyboard.press("1");
 
     await page.getByRole("button", { name: "Thickness 4" }).click();
-    await page.getByRole("slider", { name: "Stroke opacity" }).fill("50");
+    // opacity lives inside the stroke color popover now
+    await page.getByRole("button", { name: "Stroke color current" }).click();
+    await page
+      .getByRole("slider", { name: "Opacity" })
+      .fill("50");
 
     const el = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
@@ -357,7 +361,7 @@ test.describe("ui widgets", () => {
     expect(radius).toBe(40);
   });
 
-  test("color swatch opens intensity popover that applies the color", async ({
+  test("color dot opens intensity popover that applies the color", async ({
     page,
   }) => {
     await open(page);
@@ -365,11 +369,11 @@ test.describe("ui widgets", () => {
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
     await page.keyboard.press("1");
 
-    // palette has exactly 10 base colors
-    const swatches = page.locator(".panel-group").first().locator(".swatch");
-    await expect(swatches).toHaveCount(10);
+    // palette has exactly 8 base colors
+    const dots = page.locator(".panel-section").first().locator(".base-dot");
+    await expect(dots).toHaveCount(8);
 
-    // clicking a color opens the floating intensity submenu
+    // clicking a base dot opens the floating intensity popover
     await page
       .getByRole("button", { name: "Stroke color Blue" })
       .click();
@@ -377,12 +381,12 @@ test.describe("ui widgets", () => {
     await expect(popover).toBeVisible();
 
     // picking an intensity applies it to the selection
-    await popover.getByRole("button", { name: /shade 3/ }).click();
+    await popover.locator(".ramp-cell").nth(2).click();
     const color = await page.evaluate(
       () =>
         (window as any).__editor__.getSnapshot().doc.elements[0].strokeColor,
     );
-    expect(color).toMatch(/^#[0-9a-f]{6}$/);
+    expect(color).toBe("#1971c2");
   });
 
   test("font size group appears only for text selections", async ({

@@ -43,13 +43,20 @@ test.describe("PropertiesPanel style controls", () => {
     await selectAll(page);
     await page.waitForTimeout(200);
 
-    const stroke = page.locator('input[aria-label="Stroke opacity"]');
+    // opacity lives inside each color picker's popover
+    await page.getByRole("button", { name: "Stroke color current" }).click();
+    const strokePopover = page.locator(".color-popover--portal");
+    const stroke = strokePopover.locator('input[aria-label="Opacity"]');
     await stroke.press("ArrowLeft"); // 100 → 95
     await stroke.press("ArrowLeft"); // → 90
     let p = await props(page);
     expect(p.strokeOpacity).toBeCloseTo(0.9, 5);
+    await page.keyboard.press("Escape");
 
-    const fill = page.locator('input[aria-label="Fill opacity"]');
+    await page.getByRole("button", { name: "Fill current" }).click();
+    const fill = page
+      .locator(".color-popover--portal")
+      .locator('input[aria-label="Opacity"]');
     await fill.press("ArrowLeft"); // → 95
     p = await props(page);
     expect(p.fillOpacity).toBeCloseTo(0.95, 5);

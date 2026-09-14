@@ -106,8 +106,8 @@ test.describe("color popover", () => {
     await page.getByRole("button", { name: "Stroke color Red" }).click();
     const popover = page.locator(".color-popover--portal");
     await expect(popover).toBeVisible();
-    const shade = popover.locator(".swatch").nth(2);
-    await shade.click();
+    const cell = popover.locator(".ramp-cell").nth(2);
+    await cell.click();
 
     await expect(popover).toHaveCount(0);
     const stroke = await page.evaluate(() => {

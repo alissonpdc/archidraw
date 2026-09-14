@@ -134,9 +134,12 @@ test.describe("edge bindings via drag", () => {
     await drag(page, { x: 400, y: 300 }, { x: 160, y: 140 });
     await selectTool(page, "1");
 
-    // move the rectangle away
-    await page.mouse.click(160, 140);
+    // move the rectangle away — point stays clear of the properties panel
+    // (panel right edge is x=196), so the click always reaches the canvas
+    await page.mouse.click(200, 160);
     await page.mouse.down();
+    await page.mouse.move(420, 360, { steps: 6 });
+    await page.mouse.up();
     await page.mouse.move(420, 360, { steps: 6 });
     await page.mouse.up();
 
