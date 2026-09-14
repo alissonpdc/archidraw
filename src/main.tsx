@@ -22,6 +22,7 @@ import {
   contrastRatio,
   relativeLuminance,
 } from "./core/color";
+import { edgePathPoints, defaultAutoPath, determineBindingSide } from "./core/utils";
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__editor__ = editor;
@@ -35,6 +36,11 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
     themeColor,
     contrastRatio,
     relativeLuminance,
+  };
+  (window as unknown as Record<string, unknown>).__archidrawUtils__ = {
+    edgePathPoints,
+    defaultAutoPath,
+    determineBindingSide,
   };
 }
 

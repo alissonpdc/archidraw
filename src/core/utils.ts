@@ -24,6 +24,9 @@ export function escapeXml(s: string): string {
 export const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
 
+export const ORTHO_EPS = 0.01;
+export const BOUND_ENDPOINT_MARGIN = 16;
+
 /** corner radius in scene px for a rectangle/component (0–100% of the smaller side) */
 export function cornerRadius(el: Element): number {
   if (
@@ -70,6 +73,14 @@ export function boundsContain(outer: Bounds, inner: Bounds): boolean {
     outer.x2 >= inner.x2 &&
     outer.y2 >= inner.y2
   );
+}
+
+export function bindingPoint(el: Element, binding: ArrowBinding): Point {
+  const b = elementBounds(el);
+  return {
+    x: b.x1 + clamp(binding.nx, 0, 1) * (b.x2 - b.x1),
+    y: b.y1 + clamp(binding.ny, 0, 1) * (b.y2 - b.y1),
+  };
 }
 
 export function distanceToSegment(p: Point, a: Point, b: Point): number {
@@ -125,6 +136,247 @@ export function curvedArrowControl(el: EdgeElement, a: Point, tip: Point): Point
   return el.controlPoint ?? fallback;
 }
 
+export function simplifyPolyline(pts: Point[]): Point[] {
+  const dedup: Point[] = [];
+  for (const p of pts) {
+    const last = dedup[dedup.length - 1];
+    if (
+      last &&
+      Math.abs(last.x - p.x) < ORTHO_EPS &&
+      Math.abs(last.y - p.y) < ORTHO_EPS
+    ) {
+      continue;
+    }
+    dedup.push(p);
+  }
+  let out = dedup;
+  for (;;) {
+    let removed = false;
+    const next: Point[] = [];
+    for (let i = 0; i < out.length; i++) {
+      if (i > 0 && i < out.length - 1) {
+        const ax = out[i].x - out[i - 1].x;
+        const ay = out[i].y - out[i - 1].y;
+        const bx = out[i + 1].x - out[i].x;
+        const by = out[i + 1].y - out[i].y;
+        if (Math.abs(ax * by - ay * bx) < ORTHO_EPS) {
+          removed = true;
+          continue;
+        }
+      }
+      next.push(out[i]);
+    }
+    out = next;
+    if (!removed) break;
+  }
+  return out;
+}
+
+export function determineBindingSide(
+  binding?: ArrowBinding,
+  target?: Element,
+  point?: Point,
+): "top" | "bottom" | "left" | "right" | undefined {
+  if (binding?.side) return binding.side;
+  if (target) {
+    const b = elementBounds(target);
+    const p = point ?? (binding ? bindingPoint(target, binding) : undefined);
+    if (p) {
+      if (target.type === "diamond") {
+        const cx = (b.x1 + b.x2) / 2;
+        const cy = (b.y1 + b.y2) / 2;
+        const dTop = Math.hypot(p.x - cx, p.y - b.y1);
+        const dBottom = Math.hypot(p.x - cx, p.y - b.y2);
+        const dLeft = Math.hypot(p.x - b.x1, p.y - cy);
+        const dRight = Math.hypot(p.x - b.x2, p.y - cy);
+        const minD = Math.min(dTop, dBottom, dLeft, dRight);
+        if (minD <= 20) {
+          if (minD === dTop) return "top";
+          if (minD === dBottom) return "bottom";
+          if (minD === dLeft) return "left";
+          return "right";
+        }
+      } else if (target.type === "ellipse") {
+        const cx = (b.x1 + b.x2) / 2;
+        const cy = (b.y1 + b.y2) / 2;
+        const dTop = Math.hypot(p.x - cx, p.y - b.y1);
+        const dBottom = Math.hypot(p.x - cx, p.y - b.y2);
+        const dLeft = Math.hypot(p.x - b.x1, p.y - cy);
+        const dRight = Math.hypot(p.x - b.x2, p.y - cy);
+        const minD = Math.min(dTop, dBottom, dLeft, dRight);
+        if (minD <= 20) {
+          if (minD === dTop) return "top";
+          if (minD === dBottom) return "bottom";
+          if (minD === dLeft) return "left";
+          return "right";
+        }
+      } else {
+        const dTop = Math.abs(p.y - b.y1);
+        const dBottom = Math.abs(p.y - b.y2);
+        const dLeft = Math.abs(p.x - b.x1);
+        const dRight = Math.abs(p.x - b.x2);
+        const minD = Math.min(dTop, dBottom, dLeft, dRight);
+        if (minD === dTop) return "top";
+        if (minD === dBottom) return "bottom";
+        if (minD === dLeft) return "left";
+        return "right";
+      }
+    }
+  }
+  if (binding) {
+    const dTop = Math.abs(binding.ny - 0);
+    const dBottom = Math.abs(binding.ny - 1);
+    const dLeft = Math.abs(binding.nx - 0);
+    const dRight = Math.abs(binding.nx - 1);
+    const min = Math.min(dTop, dBottom, dLeft, dRight);
+    if (min === dTop) return "top";
+    if (min === dBottom) return "bottom";
+    if (min === dLeft) return "left";
+    return "right";
+  }
+  return undefined;
+}
+
+export function defaultAutoPath(
+  a: Point,
+  tip: Point,
+  startSide?: "top" | "bottom" | "left" | "right",
+  endSide?: "top" | "bottom" | "left" | "right",
+): Point[] {
+  if (!startSide && !endSide) {
+    return [a, { x: tip.x, y: a.y }, tip];
+  }
+
+  const M = BOUND_ENDPOINT_MARGIN;
+
+  if (startSide && !endSide) {
+    if (startSide === "right") {
+      if (tip.x >= a.x + M) return [a, { x: tip.x, y: a.y }, tip];
+      return [a, { x: a.x + M, y: a.y }, { x: a.x + M, y: tip.y }, tip];
+    }
+    if (startSide === "left") {
+      if (tip.x <= a.x - M) return [a, { x: tip.x, y: a.y }, tip];
+      return [a, { x: a.x - M, y: a.y }, { x: a.x - M, y: tip.y }, tip];
+    }
+    if (startSide === "bottom") {
+      if (tip.y >= a.y + M) return [a, { x: a.x, y: tip.y }, tip];
+      return [a, { x: a.x, y: a.y + M }, { x: tip.x, y: a.y + M }, tip];
+    }
+    if (startSide === "top") {
+      if (tip.y <= a.y - M) return [a, { x: a.x, y: tip.y }, tip];
+      return [a, { x: a.x, y: a.y - M }, { x: tip.x, y: a.y - M }, tip];
+    }
+  }
+
+  if (!startSide && endSide) {
+    if (endSide === "left") {
+      if (a.x <= tip.x - M) return [a, { x: a.x, y: tip.y }, tip];
+      return [a, { x: tip.x - M, y: a.y }, { x: tip.x - M, y: tip.y }, tip];
+    }
+    if (endSide === "right") {
+      if (a.x >= tip.x + M) return [a, { x: a.x, y: tip.y }, tip];
+      return [a, { x: tip.x + M, y: a.y }, { x: tip.x + M, y: tip.y }, tip];
+    }
+    if (endSide === "top") {
+      if (a.y <= tip.y - M) return [a, { x: tip.x, y: a.y }, tip];
+      return [a, { x: a.x, y: tip.y - M }, { x: tip.x, y: tip.y - M }, tip];
+    }
+    if (endSide === "bottom") {
+      if (a.y >= tip.y + M) return [a, { x: tip.x, y: a.y }, tip];
+      return [a, { x: a.x, y: tip.y + M }, { x: tip.x, y: tip.y + M }, tip];
+    }
+  }
+
+  const isHorizStart = startSide === "left" || startSide === "right";
+  const isHorizEnd = endSide === "left" || endSide === "right";
+
+  if (isHorizStart && isHorizEnd) {
+    if (startSide === "right" && endSide === "left") {
+      if (tip.x >= a.x + 2 * M) {
+        const midX = (a.x + tip.x) / 2;
+        return [a, { x: midX, y: a.y }, { x: midX, y: tip.y }, tip];
+      }
+      const x1 = a.x + M;
+      const x2 = tip.x - M;
+      const midY = (a.y + tip.y) / 2;
+      return [a, { x: x1, y: a.y }, { x: x1, y: midY }, { x: x2, y: midY }, { x: x2, y: tip.y }, tip];
+    }
+    if (startSide === "left" && endSide === "right") {
+      if (tip.x <= a.x - 2 * M) {
+        const midX = (a.x + tip.x) / 2;
+        return [a, { x: midX, y: a.y }, { x: midX, y: tip.y }, tip];
+      }
+      const x1 = a.x - M;
+      const x2 = tip.x + M;
+      const midY = (a.y + tip.y) / 2;
+      return [a, { x: x1, y: a.y }, { x: x1, y: midY }, { x: x2, y: midY }, { x: x2, y: tip.y }, tip];
+    }
+    if (startSide === "right" && endSide === "right") {
+      const maxX = Math.max(a.x, tip.x) + M;
+      return [a, { x: maxX, y: a.y }, { x: maxX, y: tip.y }, tip];
+    }
+    if (startSide === "left" && endSide === "left") {
+      const minX = Math.min(a.x, tip.x) - M;
+      return [a, { x: minX, y: a.y }, { x: minX, y: tip.y }, tip];
+    }
+  }
+
+  if (!isHorizStart && !isHorizEnd) {
+    if (startSide === "bottom" && endSide === "top") {
+      if (tip.y >= a.y + 2 * M) {
+        const midY = (a.y + tip.y) / 2;
+        return [a, { x: a.x, y: midY }, { x: tip.x, y: midY }, tip];
+      }
+      const y1 = a.y + M;
+      const y2 = tip.y - M;
+      const midX = (a.x + tip.x) / 2;
+      return [a, { x: a.x, y: y1 }, { x: midX, y: y1 }, { x: midX, y: y2 }, { x: tip.x, y: y2 }, tip];
+    }
+    if (startSide === "top" && endSide === "bottom") {
+      if (tip.y <= a.y - 2 * M) {
+        const midY = (a.y + tip.y) / 2;
+        return [a, { x: a.x, y: midY }, { x: tip.x, y: midY }, tip];
+      }
+      const y1 = a.y - M;
+      const y2 = tip.y + M;
+      const midX = (a.x + tip.x) / 2;
+      return [a, { x: a.x, y: y1 }, { x: midX, y: y1 }, { x: midX, y: y2 }, { x: tip.x, y: y2 }, tip];
+    }
+    if (startSide === "bottom" && endSide === "bottom") {
+      const maxY = Math.max(a.y, tip.y) + M;
+      return [a, { x: a.x, y: maxY }, { x: tip.x, y: maxY }, tip];
+    }
+    if (startSide === "top" && endSide === "top") {
+      const minY = Math.min(a.y, tip.y) - M;
+      return [a, { x: a.x, y: minY }, { x: tip.x, y: minY }, tip];
+    }
+  }
+
+  if (isHorizStart && !isHorizEnd) {
+    const validX = startSide === "right" ? tip.x >= a.x + M : tip.x <= a.x - M;
+    const validY = endSide === "top" ? tip.y >= a.y + M : tip.y <= a.y - M;
+    if (validX && validY) {
+      return [a, { x: tip.x, y: a.y }, tip];
+    }
+    const x1 = startSide === "right" ? a.x + M : a.x - M;
+    const y2 = endSide === "top" ? tip.y - M : tip.y + M;
+    return [a, { x: x1, y: a.y }, { x: x1, y: y2 }, { x: tip.x, y: y2 }, tip];
+  }
+
+  if (!isHorizStart && isHorizEnd) {
+    const validY = startSide === "bottom" ? tip.y >= a.y + M : tip.y <= a.y - M;
+    const validX = endSide === "left" ? tip.x >= a.x + M : tip.x <= a.x - M;
+    if (validY && validX) {
+      return [a, { x: a.x, y: tip.y }, tip];
+    }
+    const y1 = startSide === "bottom" ? a.y + M : a.y - M;
+    const x2 = endSide === "left" ? tip.x - M : tip.x + M;
+    return [a, { x: a.x, y: y1 }, { x: x2, y: y1 }, { x: x2, y: tip.y }, tip];
+  }
+
+  return [a, { x: tip.x, y: a.y }, tip];
+}
+
 /** polyline approximation of an edge path (curved edges are sampled) */
 export function edgePathPoints(el: EdgeElement, samples = 32): Point[] {
   const [a, b] = arrowPoints(el);
@@ -146,8 +398,9 @@ export function edgePathPoints(el: EdgeElement, samples = 32): Point[] {
   if (lineType === "auto") {
     const bends = el.bendPoints ?? [];
     if (bends.length === 0) {
-      // default L-shaped routing (horizontal then vertical)
-      return [a, { x: tip.x, y: a.y }, tip];
+      const startSide = determineBindingSide(el.startBinding);
+      const endSide = determineBindingSide(el.endBinding);
+      return simplifyPolyline(defaultAutoPath(a, tip, startSide, endSide));
     }
     return [a, ...bends, tip];
   }
@@ -240,15 +493,6 @@ export function translateElement(el: Element, dx: number, dy: number): Element {
     }
   }
   return next;
-}
-
-/** absolute point of a binding (normalized position within element bounds) */
-export function bindingPoint(el: Element, binding: ArrowBinding): Point {
-  const b = elementBounds(el);
-  return {
-    x: b.x1 + clamp(binding.nx, 0, 1) * (b.x2 - b.x1),
-    y: b.y1 + clamp(binding.ny, 0, 1) * (b.y2 - b.y1),
-  };
 }
 
 /** nearest point on the element outline from p (per-shape geometry) */
@@ -379,15 +623,6 @@ export function findInsertPosition(
   return { index: bestIndex, point: bestPoint };
 }
 
-/** tolerance for treating auto-path coordinates as axis-aligned (scene units) */
-const ORTHO_EPS = 0.01;
-
-/**
- * closest orthogonal segment of an auto-mode path to point p, with the drag
- * axis it exposes: "x" for a vertical segment (drags horizontally), "y" for
- * a horizontal one (drags vertically). Diagonal segments produced by free
- * bend points are not draggable. Null for non-auto edges.
- */
 export function autoSegmentAt(
   p: Point,
   el: EdgeElement,
@@ -406,48 +641,6 @@ export function autoSegmentAt(
   }
   return best;
 }
-
-/** drops duplicate and collinear middle points from a polyline */
-function simplifyPolyline(pts: Point[]): Point[] {
-  const dedup: Point[] = [];
-  for (const p of pts) {
-    const last = dedup[dedup.length - 1];
-    if (
-      last &&
-      Math.abs(last.x - p.x) < ORTHO_EPS &&
-      Math.abs(last.y - p.y) < ORTHO_EPS
-    ) {
-      continue;
-    }
-    dedup.push(p);
-  }
-  let out = dedup;
-  for (;;) {
-    let removed = false;
-    const next: Point[] = [];
-    for (let i = 0; i < out.length; i++) {
-      if (i > 0 && i < out.length - 1) {
-        const ax = out[i].x - out[i - 1].x;
-        const ay = out[i].y - out[i - 1].y;
-        const bx = out[i + 1].x - out[i].x;
-        const by = out[i + 1].y - out[i].y;
-        if (Math.abs(ax * by - ay * bx) < ORTHO_EPS) {
-          removed = true;
-          continue;
-        }
-      }
-      next.push(out[i]);
-    }
-    out = next;
-    if (!removed) break;
-  }
-  return out;
-}
-
-/** lead-out margin (scene units) kept between a bound shape's anchor and
- *  the first turn of a dragged auto path, so the routed line never rides
- *  on the shape outline right at the binding point */
-const BOUND_ENDPOINT_MARGIN = 16;
 
 /**
  * bends for an auto-mode edge after dragging the polyline segment `index`

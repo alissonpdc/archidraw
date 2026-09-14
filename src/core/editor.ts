@@ -45,6 +45,7 @@ import {
   autoSegmentAt,
   autoDragSegmentBends,
   snapSegmentDelta,
+  determineBindingSide,
 } from "./utils";
 import { CONTEXT_STROKE, DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { DEFAULT_FONT_FAMILY } from "./textStyle";
@@ -213,31 +214,32 @@ function findNearestBinding(
     const h = b.y2 - b.y1;
     const inside =
       point.x >= b.x1 && point.x <= b.x2 && point.y >= b.y1 && point.y <= b.y2;
-    const candidates: { p: Point; score: number }[] = [];
+    const candidates: { p: Point; score: number; side?: "top" | "bottom" | "left" | "right" }[] = [];
     // free anchor: nearest outline point (any position is bindable)
     const op = nearestOutlinePoint(el, point);
     const freeDist = Math.hypot(point.x - op.x, point.y - op.y);
     if (inside || freeDist <= BIND_TOLERANCE) {
-      candidates.push({ p: op, score: freeDist });
+      candidates.push({ p: op, score: freeDist, side: determineBindingSide(undefined, el, op) });
     }
     // subtle center snap: top/bottom (vertical axis) and left/right
     // (horizontal axis) midpoints of the outline
     const cx = (b.x1 + b.x2) / 2;
     const cy = (b.y1 + b.y2) / 2;
     for (const c of [
-      { x: cx, y: b.y1 },
-      { x: cx, y: b.y2 },
-      { x: b.x1, y: cy },
-      { x: b.x2, y: cy },
+      { p: { x: cx, y: b.y1 }, side: "top" as const },
+      { p: { x: cx, y: b.y2 }, side: "bottom" as const },
+      { p: { x: b.x1, y: cy }, side: "left" as const },
+      { p: { x: b.x2, y: cy }, side: "right" as const },
     ]) {
-      const cd = Math.hypot(point.x - c.x, point.y - c.y);
-      if (cd <= CENTER_SNAP_RADIUS) candidates.push({ p: c, score: cd - CENTER_SNAP_BONUS });
+      const cd = Math.hypot(point.x - c.p.x, point.y - c.p.y);
+      if (cd <= CENTER_SNAP_RADIUS) candidates.push({ p: c.p, score: cd - CENTER_SNAP_BONUS, side: c.side });
     }
     for (const c of candidates) {
-      const binding = {
+      const binding: ArrowBinding = {
         elementId: el.id,
         nx: w === 0 ? 0.5 : (c.p.x - b.x1) / w,
         ny: h === 0 ? 0.5 : (c.p.y - b.y1) / h,
+        side: c.side,
       };
       if (!best || c.score < best.score) {
         best = { binding, point: c.p, score: c.score };
@@ -266,26 +268,34 @@ function snapEdgeEndpoints(
   let y = el.y;
   let w = el.width;
   let h = el.height;
-  if (el.startBinding) {
-    const target = resolve(el.startBinding.elementId);
+  let startBinding = el.startBinding;
+  let endBinding = el.endBinding;
+  if (startBinding) {
+    const target = resolve(startBinding.elementId);
     if (target) {
-      const ap = bindingPoint(target, el.startBinding);
+      const ap = bindingPoint(target, startBinding);
       // pivot on the free end: it stays where it is
       w = x + w - ap.x;
       h = y + h - ap.y;
       x = ap.x;
       y = ap.y;
+      if (!startBinding.side) {
+        startBinding = { ...startBinding, side: determineBindingSide(startBinding, target, ap) };
+      }
     }
   }
-  if (el.endBinding) {
-    const target = resolve(el.endBinding.elementId);
+  if (endBinding) {
+    const target = resolve(endBinding.elementId);
     if (target) {
-      const ap = bindingPoint(target, el.endBinding);
+      const ap = bindingPoint(target, endBinding);
       w = ap.x - x;
       h = ap.y - y;
+      if (!endBinding.side) {
+        endBinding = { ...endBinding, side: determineBindingSide(endBinding, target, ap) };
+      }
     }
   }
-  const patch: Partial<LineElement | ArrowElement> = { x, y, width: w, height: h };
+  const patch: Partial<LineElement | ArrowElement> = { x, y, width: w, height: h, startBinding, endBinding };
   if ((el.lineType ?? "straight") === "auto" && el.bendPoints) {
     patch.bendPoints = undefined;
   }

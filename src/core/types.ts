@@ -139,6 +139,7 @@ export interface ArrowBinding {
    *  stays glued to the outline as the shape moves/resizes */
   nx: number;
   ny: number;
+  side?: "top" | "bottom" | "left" | "right";
 }
 
 /** x,y = start; x+width,y+height = end (axis-aligned box used as bounds).
