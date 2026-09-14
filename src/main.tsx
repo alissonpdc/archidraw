@@ -21,6 +21,10 @@ import {
   themeColor,
   contrastRatio,
   relativeLuminance,
+  BASE_COLORS,
+  shadesOf,
+  locate,
+  isPaletteColor,
 } from "./core/color";
 import { edgePathPoints, defaultAutoPath, determineBindingSide } from "./core/utils";
 
@@ -36,6 +40,10 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
     themeColor,
     contrastRatio,
     relativeLuminance,
+    BASE_COLORS,
+    shadesOf,
+    locate,
+    isPaletteColor,
   };
   (window as unknown as Record<string, unknown>).__archidrawUtils__ = {
     edgePathPoints,

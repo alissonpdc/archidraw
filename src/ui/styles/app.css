@@ -880,13 +880,28 @@ button {
   padding: 0;
   cursor: pointer;
   position: relative;
-  transition: transform var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
-.ramp-cell:hover { transform: translateY(-2px); }
+.ramp-cell:hover,
+.ramp-cell.hovered {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 2px var(--accent);
+  z-index: 2;
+}
 
 .ramp-cell.selected {
   box-shadow: 0 0 0 1.5px var(--bg-surface), 0 0 0 3px var(--accent);
+  z-index: 1;
+}
+
+.ramp-cell.selected:hover,
+.ramp-cell.selected.hovered {
+  box-shadow: 0 0 0 1.5px var(--bg-surface), 0 0 0 3px var(--accent);
+  transform: translateY(-2px);
+  z-index: 2;
 }
 
 .ramp-cell.selected::after {

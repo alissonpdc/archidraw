@@ -158,6 +158,82 @@ function clampForBg(
   return null;
 }
 
+export const BASE_COLORS: { name: string; color: string }[] = [
+  { name: "Grey", color: "#868e96" },
+  { name: "Red", color: "#e03131" },
+  { name: "Orange", color: "#f08c00" },
+  { name: "Yellow", color: "#f5c518" },
+  { name: "Green", color: "#2f9e44" },
+  { name: "Blue", color: "#1971c2" },
+  { name: "Purple", color: "#6741d9" },
+  { name: "Pink", color: "#d6336c" },
+];
+
+export function hexToHsl(hex: string): [number, number, number] {
+  const m = hex.replace("#", "");
+  const r = parseInt(m.slice(0, 2), 16) / 255;
+  const g = parseInt(m.slice(2, 4), 16) / 255;
+  const b = parseInt(m.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h: number;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return [h * 360, s * 100, l * 100];
+}
+
+export function hslToHex(h: number, s: number, l: number): string {
+  s /= 100;
+  l /= 100;
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) =>
+    Math.round(
+      255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))),
+    );
+  return (
+    "#" +
+    [f(0), f(8), f(4)]
+      .map((v) => v.toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
+
+export function shadesOf(hex: string): string[] {
+  const [h, s] = hexToHsl(hex);
+  const sat = Math.max(s, 8);
+  return [
+    hslToHex(h, sat * 0.55, 92),
+    hslToHex(h, sat * 0.75, 78),
+    hex,
+    hslToHex(h, sat, 42),
+    hslToHex(h, sat, 26),
+  ];
+}
+
+export function locate(hex: string): { base: number; intensity: number } | null {
+  const norm = hex.trim().toLowerCase();
+  for (let i = 0; i < BASE_COLORS.length; i++) {
+    const shades = shadesOf(BASE_COLORS[i].color);
+    const idx = shades.findIndex((s) => s.toLowerCase() === norm);
+    if (idx !== -1) return { base: i, intensity: idx };
+  }
+  return null;
+}
+
+const PALETTE_SHADES = new Set(
+  BASE_COLORS.flatMap((b) => shadesOf(b.color).map((s) => s.toLowerCase())),
+);
+
+export function isPaletteColor(hex: string): boolean {
+  return PALETTE_SHADES.has(hex.trim().toLowerCase());
+}
+
 /**
  * Resolve a color as stored on an element to the color actually drawn:
  *  - the theme default sentinel → the active theme's `--element-stroke`;
@@ -175,5 +251,6 @@ export function themeColor(
     const dark = bg !== null && relativeLuminance(bg) < 0.5;
     return dark ? CONTEXT_STROKE_DARK : CONTEXT_STROKE;
   }
+  if (isPaletteColor(color)) return color;
   return ensureContrast(color, canvasBg);
 }

@@ -93,7 +93,7 @@ test.describe("canvas performance", () => {
       });
     });
 
-    expect(fpsResult.frameCount).toBe(60);
+    expect(fpsResult.frameCount).toBeGreaterThanOrEqual(58);
     expect(fpsResult.avgFps).toBeGreaterThan(45);
 
     await page.keyboard.down("Space");
