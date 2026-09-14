@@ -25,7 +25,7 @@ export const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
 
 export const ORTHO_EPS = 0.01;
-export const BOUND_ENDPOINT_MARGIN = 16;
+export const BOUND_ENDPOINT_MARGIN = 25;
 
 /** corner radius in scene px for a rectangle/component (0–100% of the smaller side) */
 export function cornerRadius(el: Element): number {

@@ -291,9 +291,9 @@ test.describe("path types for lines and arrows", () => {
       return s.doc.elements[2];
     });
     expect(el.bendPoints).toHaveLength(4);
-    expect(el.bendPoints[0].x).toBeCloseTo(216, 0);
+    expect(el.bendPoints[0].x).toBeCloseTo(225, 0);
     expect(el.bendPoints[0].y).toBeCloseTo(150, 0);
-    expect(el.bendPoints[1].x).toBeCloseTo(216, 0);
+    expect(el.bendPoints[1].x).toBeCloseTo(225, 0);
     expect(el.bendPoints[1].y).toBeCloseTo(230, 0);
     expect(el.bendPoints[2].x).toBeCloseTo(300, 0);
     expect(el.bendPoints[2].y).toBeCloseTo(230, 0);
@@ -313,9 +313,9 @@ test.describe("path types for lines and arrows", () => {
     expect(el.bendPoints[0].y).toBeCloseTo(150, 0);
     expect(el.bendPoints[1].x).toBeCloseTo(300, 0);
     expect(el.bendPoints[1].y).toBeCloseTo(270, 0);
-    expect(el.bendPoints[2].x).toBeCloseTo(384, 0);
+    expect(el.bendPoints[2].x).toBeCloseTo(375, 0);
     expect(el.bendPoints[2].y).toBeCloseTo(270, 0);
-    expect(el.bendPoints[3].x).toBeCloseTo(384, 0);
+    expect(el.bendPoints[3].x).toBeCloseTo(375, 0);
     expect(el.bendPoints[3].y).toBeCloseTo(350, 0);
   });
 
