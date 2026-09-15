@@ -6,59 +6,68 @@ test.describe("canvas performance", () => {
     await open(page);
   });
 
-  test("renders 500 elements and maintains high FPS during panning", async ({
+  test("renders elements and maintains high FPS during panning", async ({
     page,
     editorState,
   }) => {
-    await page.evaluate(() => {
-      const ed = (window as any).__editor__;
-      const elements: Element[] = [];
-      const types: ElementType[] = [
-        "rectangle",
-        "diamond",
-        "ellipse",
-        "text",
-      ];
-      let id = 1;
-      for (let r = 0; r < 20; r++) {
-        for (let c = 0; c < 25; c++) {
-          const type = types[(r + c) % types.length];
-          const x = c * 140;
-          const y = r * 100;
-          const el: any = {
-            id: `perf-el-${id++}`,
-            type,
-            x,
-            y,
-            width: 100,
-            height: 60,
-            strokeColor: "#3d4248",
-            backgroundColor: (r + c) % 3 === 0 ? "#6965db1a" : "transparent",
-            strokeWidth: 2,
-            opacity: 1,
-            strokeOpacity: 1,
-            fillOpacity: 1,
-            strokeStyle: "solid",
-            fillStyle: (r + c) % 3 === 0 ? "hachure" : "solid",
-            roughness: 1,
-            borderRadius: 8,
-          };
-          if (type === "text") {
-            el.text = `Node ${id}`;
-            el.fontSize = 16;
-          } else {
-            el.label = `Node ${id}`;
-            el.fontSize = 14;
+    const PERF_COUNT = Number(process.env.PERF_ELEMENTS) || 500;
+    const MIN_FPS = Number(process.env.PERF_MIN_FPS) || 45;
+    const cols = Math.ceil(Math.sqrt(PERF_COUNT * 1.4));
+    const rows = Math.ceil(PERF_COUNT / cols);
+
+    await page.evaluate(
+      ({ count, cols }: { count: number; cols: number }) => {
+        const ed = (window as any).__editor__;
+        const elements: Element[] = [];
+        const types: ElementType[] = [
+          "rectangle",
+          "diamond",
+          "ellipse",
+          "text",
+        ];
+        let id = 1;
+        for (let r = 0; r < Math.ceil(count / cols); r++) {
+          for (let c = 0; c < cols && elements.length < count; c++) {
+            const type = types[(r + c) % types.length];
+            const x = c * 140;
+            const y = r * 100;
+            const el: any = {
+              id: `perf-el-${id++}`,
+              type,
+              x,
+              y,
+              width: 100,
+              height: 60,
+              strokeColor: "#3d4248",
+              backgroundColor:
+                (r + c) % 3 === 0 ? "#6965db1a" : "transparent",
+              strokeWidth: 2,
+              opacity: 1,
+              strokeOpacity: 1,
+              fillOpacity: 1,
+              strokeStyle: "solid",
+              fillStyle: (r + c) % 3 === 0 ? "hachure" : "solid",
+              roughness: 1,
+              borderRadius: 8,
+            };
+            if (type === "text") {
+              el.text = `Node ${id}`;
+              el.fontSize = 16;
+            } else {
+              el.label = `Node ${id}`;
+              el.fontSize = 14;
+            }
+            elements.push(el);
           }
-          elements.push(el);
         }
-      }
-      ed.doc = { ...ed.doc, elements };
-      ed.emit();
-    });
+        ed.doc = { ...ed.doc, elements };
+        ed.emit();
+      },
+      { count: PERF_COUNT, cols },
+    );
 
     const s = await editorState();
-    expect(s.elements.length).toBe(500);
+    expect(s.elements.length).toBe(PERF_COUNT);
 
     const fpsResult = await page.evaluate(async () => {
       const ed = (window as any).__editor__;
@@ -94,7 +103,7 @@ test.describe("canvas performance", () => {
     });
 
     expect(fpsResult.frameCount).toBeGreaterThanOrEqual(58);
-    expect(fpsResult.avgFps).toBeGreaterThan(45);
+    expect(fpsResult.avgFps).toBeGreaterThan(MIN_FPS);
 
     await page.keyboard.down("Space");
     await drag(page, { x: 500, y: 300 }, { x: 300, y: 200 });

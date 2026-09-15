@@ -6,8 +6,8 @@ const withCoverage = process.env.E2E_COVERAGE === "1";
 export default defineConfig({
   testDir: "./e2e/specs",
   timeout: 30_000,
-  retries: 0,
-  workers: 15,
+  retries: Number(process.env.E2E_RETRIES) || 0,
+  workers: Number(process.env.E2E_WORKERS) || 15,
   reporter: withCoverage
     ? [
         ["list"],
