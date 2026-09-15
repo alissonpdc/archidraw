@@ -13,9 +13,9 @@ export interface BgPaletteEntry {
 export const BG_PALETTE: BgPaletteEntry[] = [
   { id: "#ffffff", label: "White", pair: "#090a0c" },
   { id: "#f6f7f8", label: "Cool Gray", pair: "#101215" },
-  { id: "#f7f2ea", label: "Cream", pair: "#0b0d11" },
-  { id: "#edf1f7", label: "Ice Blue", pair: "#0e1217" },
-  { id: "#f0f0ee", label: "Parchment", pair: "#121314" },
+  { id: "#f7f2ea", label: "Cream", pair: "#0c0a07" },
+  { id: "#edf1f7", label: "Ice Blue", pair: "#080c13" },
+  { id: "#f0f0ee", label: "Parchment", pair: "#0e0e0b" },
 ];
 
 export const BG_PALETTE_LIGHT = BG_PALETTE;
