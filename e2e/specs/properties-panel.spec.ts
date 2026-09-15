@@ -57,9 +57,9 @@ test.describe("PropertiesPanel style controls", () => {
     const fill = page
       .locator(".color-popover--portal")
       .locator('input[aria-label="Opacity"]');
-    await fill.press("ArrowLeft"); // → 95
+    await fill.press("ArrowRight"); // 0 → 5
     p = await props(page);
-    expect(p.fillOpacity).toBeCloseTo(0.95, 5);
+    expect(p.fillOpacity).toBeCloseTo(0.05, 5);
   });
 
   test("border radius custom value is applied", async ({ page }) => {

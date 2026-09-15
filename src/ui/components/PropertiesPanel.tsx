@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
 import { editor, useEditorSelector } from "../hooks/useEditor";
@@ -13,6 +14,42 @@ import {
   fontFamilyOf,
 } from "../../core/textStyle";
 import { ColorBox, ColorSubmenu, type PickerKind } from "./ColorRampPicker";
+import { themeColor } from "../../core/color";
+
+function resolveThemeColor(color: string): string {
+  const s = getComputedStyle(document.documentElement);
+  const elementStroke = s.getPropertyValue("--element-stroke").trim() || "#26292c";
+  const canvasBg = s.getPropertyValue("--bg-canvas").trim() || "#ffffff";
+  return themeColor(color, elementStroke, canvasBg);
+}
+
+const themeListeners = new Set<() => void>();
+
+function subscribeTheme(cb: () => void): () => void {
+  themeListeners.add(cb);
+  return () => themeListeners.delete(cb);
+}
+
+function getThemeSnap(): number {
+  return themeTick;
+}
+
+let themeTick = 0;
+
+if (typeof document !== "undefined") {
+  const obs = new MutationObserver(() => {
+    themeTick++;
+    themeListeners.forEach((cb) => cb());
+  });
+  obs.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme", "data-skin"],
+  });
+  window.addEventListener("archidraw:bg-change", () => {
+    themeTick++;
+    themeListeners.forEach((cb) => cb());
+  });
+}
 
 const EMPTY_ELEMENTS: Element[] = [];
 
@@ -270,6 +307,7 @@ function MiniSlider({
 }
 
 export function PropertiesPanel() {
+  useSyncExternalStore(subscribeTheme, getThemeSnap, getThemeSnap);
   const selected = useEditorSelector(
     (s) => {
       if (s.selectedIds.size === 0) return EMPTY_ELEMENTS;
@@ -485,7 +523,7 @@ export function PropertiesPanel() {
       ? {
           label: "Stroke color",
           kind: "stroke" as const,
-          current: selected[0].strokeColor,
+          current: resolveThemeColor(selected[0].strokeColor),
           onPick: (strokeColor: string) => apply({ strokeColor }),
           opacity: strokeOpacityValue,
           onOpacity: (v: number) => apply({ strokeOpacity: v / 100 }),
@@ -494,7 +532,7 @@ export function PropertiesPanel() {
         ? {
             label: "Fill",
             kind: "fill" as const,
-            current: selected[0].backgroundColor,
+            current: resolveThemeColor(selected[0].backgroundColor),
             onPick: (backgroundColor: string) => apply({ backgroundColor }),
             opacity: fillOpacityValue,
             onOpacity: (v: number) => apply({ fillOpacity: v / 100 }),
@@ -549,7 +587,7 @@ export function PropertiesPanel() {
         <Section title="Stroke">
           <Group title="Color">
             <ColorBox
-              current={selected[0].strokeColor}
+              current={resolveThemeColor(selected[0].strokeColor)}
               label="Stroke color"
               kind="stroke"
               isOpen={openPicker === "stroke"}
@@ -844,7 +882,7 @@ export function PropertiesPanel() {
           <Section title="Fill">
             <Group title="Color">
               <ColorBox
-                current={selected[0].backgroundColor}
+                current={resolveThemeColor(selected[0].backgroundColor)}
                 label="Fill"
                 kind="fill"
                 isOpen={openPicker === "fill"}
@@ -917,7 +955,7 @@ export function PropertiesPanel() {
               label="Text color"
               kind="text"
               allowAuto
-              autoColor={selected[0].strokeColor}
+              autoColor={resolveThemeColor(selected[0].strokeColor)}
               isOpen={openPicker === "text"}
               onToggle={() =>
                 setOpenPicker((curr) => (curr === "text" ? null : "text"))

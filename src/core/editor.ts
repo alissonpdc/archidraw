@@ -880,7 +880,7 @@ export class Editor {
       strokeWidth: 0,
       opacity: 1,
       strokeOpacity: 1,
-      fillOpacity: 1,
+      fillOpacity: 0,
       strokeStyle: "solid",
       fillStyle: this.lastFillStyle,
       roughness: 0,
@@ -1205,7 +1205,7 @@ borderRadius: 20,
       strokeWidth: 1,
       opacity: 1,
       strokeOpacity: 1,
-      fillOpacity: 1,
+      fillOpacity: 0,
       strokeStyle: "solid",
       fillStyle: this.lastFillStyle,
       roughness: this.lastRoughness,
@@ -1558,7 +1558,7 @@ strokeOpacity?: number;
           strokeWidth: 2,
           opacity: 1,
           strokeOpacity: 1,
-          fillOpacity: 1,
+          fillOpacity: 0,
           strokeStyle: this.lastStrokeStyle,
           fillStyle: this.lastFillStyle,
           roughness: this.lastRoughness,
@@ -1626,7 +1626,7 @@ strokeOpacity?: number;
           strokeWidth: 1,
           opacity: 1,
           strokeOpacity: 1,
-          fillOpacity: 1,
+          fillOpacity: 0,
           strokeStyle: this.lastStrokeStyle,
           fillStyle: this.lastFillStyle,
           roughness: this.lastRoughness,
@@ -2618,7 +2618,11 @@ strokeOpacity?: number;
         }
       }
 
-      if (backgroundColor && backgroundColor !== "transparent") {
+      if (
+        backgroundColor &&
+        backgroundColor !== "transparent" &&
+        backgroundColor !== DEFAULT_BG
+      ) {
         const nextBg = correlateIntensity(backgroundColor);
         if (nextBg !== backgroundColor) {
           backgroundColor = nextBg;

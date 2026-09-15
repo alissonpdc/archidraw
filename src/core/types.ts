@@ -232,7 +232,7 @@ export interface Camera {
 export const DEFAULT_CAMERA: Camera = { scrollX: 0, scrollY: 0, zoom: 1 };
 
 export const DEFAULT_STROKE = "#3d4248";
-export const DEFAULT_BG = "transparent";
+export const DEFAULT_BG = "#dfe0e2";
 
 /** neutral "boundary" stroke used by context containers: light gray on light
  *  themes, its dark inverse on dark themes (resolved by themeColor) */

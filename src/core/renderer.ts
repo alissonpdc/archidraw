@@ -56,7 +56,7 @@ export interface RenderState {
 
 const DEFAULT_COLORS: RenderColors = {
   selection: "#6965db",
-  elementStroke: "#3d4248",
+  elementStroke: "#26292c",
   gridDot: "rgba(0,0,0,0.07)",
   gridLine: "rgba(0,0,0,0.05)",
   gridLineMaster: "rgba(0,0,0,0.07)",
@@ -304,6 +304,12 @@ function drawArrowHead(
 /** resolves the element stroke; empty / legacy auto values → transparent */
 function resolveStroke(el: Element, colors: RenderColors): string {
   return themeColor(el.strokeColor, colors.elementStroke, colors.canvasBg);
+}
+
+/** resolves the element fill; transparent / DEFAULT_BG sentinel → theme-aware grey */
+function resolveFill(el: Element, colors: RenderColors): string {
+  if (!el.backgroundColor || el.backgroundColor === "transparent") return "transparent";
+  return themeColor(el.backgroundColor, colors.elementStroke, colors.canvasBg);
 }
 
 /**
@@ -623,8 +629,8 @@ function drawHachureFill(
   withCross: boolean,
 ) {
   const hatchColor =
-    el.backgroundColor !== "transparent"
-      ? el.backgroundColor
+    el.backgroundColor && el.backgroundColor !== "transparent"
+      ? resolveFill(el, colors)
       : resolveStroke(el, colors);
   ctx.save();
   ctx.strokeStyle = hatchColor;
@@ -650,14 +656,14 @@ function drawElement(
   const cache = getElementCache(el);
   ctx.save();
   ctx.strokeStyle = resolveStroke(el, colors);
-  ctx.fillStyle = el.backgroundColor;
+  ctx.fillStyle = resolveFill(el, colors);
   ctx.lineWidth = el.strokeWidth;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
   if (el.type === "rectangle" || el.type === "component") {
     if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
-      if (el.backgroundColor !== "transparent") {
+      if (el.fillOpacity > 0) {
         ctx.save();
         ctx.globalAlpha *= el.fillOpacity;
         if (!cache.fillPath) {
@@ -703,7 +709,7 @@ function drawElement(
 
     if (el.type === "component") drawComponentIcon(ctx, el);
   } else if (el.type === "context") {
-    if (el.backgroundColor !== "transparent") {
+    if (el.fillOpacity > 0) {
       ctx.save();
       ctx.globalAlpha *= el.fillOpacity;
       ctx.beginPath();
@@ -741,7 +747,7 @@ function drawElement(
   } else if (el.type === "diamond") {
     const v = diamondVertices(el);
     if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
-      if (el.backgroundColor !== "transparent") {
+      if (el.fillOpacity > 0) {
         ctx.save();
         ctx.globalAlpha *= el.fillOpacity;
         if (!cache.fillPath) {
@@ -779,7 +785,7 @@ function drawElement(
     const cx = el.x + el.width / 2;
     const cy = el.y + el.height / 2;
     if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
-      if (el.backgroundColor !== "transparent") {
+      if (el.fillOpacity > 0) {
         ctx.save();
         ctx.globalAlpha *= el.fillOpacity;
         if (!cache.fillPath) {

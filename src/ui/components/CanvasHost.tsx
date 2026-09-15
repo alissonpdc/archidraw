@@ -12,7 +12,7 @@ function readThemeColors(): RenderColors & { elementStroke: string } {
   const style = getComputedStyle(document.documentElement);
   return {
     selection: style.getPropertyValue("--selection-color").trim() || "#6965db",
-    elementStroke: style.getPropertyValue("--element-stroke").trim() || "#3d4248",
+    elementStroke: style.getPropertyValue("--element-stroke").trim() || "#26292c",
     gridDot: style.getPropertyValue("--grid-dot").trim() || "rgba(0,0,0,0.07)",
     gridLine: style.getPropertyValue("--grid-line").trim() || "rgba(0,0,0,0.05)",
     gridLineMaster: style.getPropertyValue("--grid-line-master").trim() || "rgba(0,0,0,0.07)",

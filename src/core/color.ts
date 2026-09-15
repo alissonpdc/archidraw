@@ -1,4 +1,4 @@
-import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_STROKE } from "./types";
+import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_BG, DEFAULT_STROKE } from "./types";
 
 /**
  * Color utilities for the canvas renderer. Keeps shapes legible on any
@@ -235,6 +235,7 @@ export function locate(hex: string): { base: number; intensity: number } | null 
     if (idx !== -1) return { base: i, intensity: idx };
   }
   if (norm === DEFAULT_STROKE.toLowerCase()) return { base: 0, intensity: 4 };
+  if (norm === DEFAULT_BG.toLowerCase()) return { base: 0, intensity: 0 };
   return null;
 }
 
@@ -251,6 +252,8 @@ export function isPaletteColor(hex: string): boolean {
  *  - the theme default sentinel → the active theme's `--element-stroke`;
  *  - any explicit color → clamped for minimum contrast on the canvas.
  */
+const GREY_5 = "#26292c";
+
 export function themeColor(
   color: string,
   elementStroke: string,
@@ -258,6 +261,11 @@ export function themeColor(
 ): string {
   if (color === "" || color === "transparent") return "transparent";
   if (color === DEFAULT_STROKE) return elementStroke;
+  if (color === DEFAULT_BG) {
+    const bg = parseColor(canvasBg);
+    const dark = bg !== null && relativeLuminance(bg) < 0.5;
+    return dark ? GREY_5 : DEFAULT_BG;
+  }
   if (color === CONTEXT_STROKE) {
     const bg = parseColor(canvasBg);
     const dark = bg !== null && relativeLuminance(bg) < 0.5;
