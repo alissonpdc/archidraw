@@ -67,8 +67,8 @@ test.describe("PropertiesPanel text controls", () => {
     await page.mouse.click(320, 310);
     await openPanel(page, "Text");
 
-    // the base dot opens the intensity popover; pick a ramp cell to apply
-    await page.getByRole("button", { name: "Text color Red" }).click();
+    await page.getByRole("button", { name: "Text color current" }).click();
+    await page.getByRole("button", { name: "Text color Red", exact: true }).click();
     const popover = page.locator(".color-popover");
     await expect(popover).toBeVisible();
     await popover.locator(".ramp-cell").nth(3).click();

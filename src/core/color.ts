@@ -161,12 +161,19 @@ function clampForBg(
 export const BASE_COLORS: { name: string; color: string }[] = [
   { name: "Grey", color: "#868e96" },
   { name: "Red", color: "#e03131" },
-  { name: "Orange", color: "#f08c00" },
-  { name: "Yellow", color: "#f5c518" },
-  { name: "Green", color: "#2f9e44" },
-  { name: "Blue", color: "#1971c2" },
-  { name: "Purple", color: "#6741d9" },
   { name: "Pink", color: "#d6336c" },
+  { name: "Grape", color: "#ae3ec9" },
+  { name: "Purple", color: "#6741d9" },
+  { name: "Indigo", color: "#4c6ef5" },
+  { name: "Blue", color: "#1971c2" },
+  { name: "Cyan", color: "#22b8cf" },
+  { name: "Teal", color: "#20c997" },
+  { name: "Green", color: "#2f9e44" },
+  { name: "Lime", color: "#94d82d" },
+  { name: "Yellow", color: "#f5c518" },
+  { name: "Orange", color: "#f08c00" },
+  { name: "Coral", color: "#f76707" },
+  { name: "Brown", color: "#a65e3f" },
 ];
 
 export function hexToHsl(hex: string): [number, number, number] {
@@ -205,14 +212,16 @@ export function hslToHex(h: number, s: number, l: number): string {
 }
 
 export function shadesOf(hex: string): string[] {
-  const [h, s] = hexToHsl(hex);
+  const [h, s, baseL] = hexToHsl(hex);
   const sat = Math.max(s, 8);
+  const l3 = baseL >= 42 ? 42 : Math.max(16, Math.round(baseL * 0.75));
+  const l4 = baseL >= 42 ? 26 : Math.max(8, Math.round(l3 * 0.6));
   return [
     hslToHex(h, sat * 0.55, 92),
     hslToHex(h, sat * 0.75, 78),
     hex,
-    hslToHex(h, sat, 42),
-    hslToHex(h, sat, 26),
+    hslToHex(h, sat, l3),
+    hslToHex(h, sat, l4),
   ];
 }
 

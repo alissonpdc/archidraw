@@ -361,7 +361,7 @@ test.describe("ui widgets", () => {
     expect(radius).toBe(40);
   });
 
-  test("color dot opens intensity popover that applies the color", async ({
+  test("clicking color box opens submenu with 3x5 matrix and intensity applies color", async ({
     page,
   }) => {
     await open(page);
@@ -369,18 +369,20 @@ test.describe("ui widgets", () => {
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
     await page.keyboard.press("1");
 
-    // palette has exactly 8 base colors
+    // left panel has no base dots
     const dots = page.locator(".panel-section").first().locator(".base-dot");
-    await expect(dots).toHaveCount(8);
+    await expect(dots).toHaveCount(0);
 
-    // clicking a base dot opens the floating intensity popover
+    // clicking the color box opens submenu with 15 colors
     await page
-      .getByRole("button", { name: "Stroke color Blue" })
+      .getByRole("button", { name: "Stroke color current" })
       .click();
     const popover = page.locator(".color-popover");
     await expect(popover).toBeVisible();
+    await expect(popover.locator(".matrix-cell")).toHaveCount(15);
 
-    // picking an intensity applies it to the selection
+    // picking a color and intensity applies it to the selection
+    await page.getByRole("button", { name: "Stroke color Blue", exact: true }).click();
     await popover.locator(".ramp-cell").nth(2).click();
     const color = await page.evaluate(
       () =>

@@ -260,7 +260,7 @@ test.describe("image features", () => {
     await page.locator(".panel-tab", { hasText: "Text" }).click();
     const imageTitles = await panelGroupTitles(page);
     expect(imageTitles).toEqual([
-      "Text color",
+      "Color",
       "Size",
       "Family",
       "Style",

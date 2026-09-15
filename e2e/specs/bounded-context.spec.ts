@@ -125,7 +125,8 @@ test.describe("bounded context", () => {
     });
     expect(ls).toBe(1.6);
 
-    const colorChip = page.getByRole("button", { name: "Text color Red" });
+    await page.getByRole("button", { name: "Text color current" }).click();
+    const colorChip = page.getByRole("button", { name: "Text color Red", exact: true });
     await colorChip.click();
     await page
       .getByRole("button", { name: "Text color Red intensity 1" })

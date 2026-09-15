@@ -14,12 +14,13 @@ test.describe("ColorRampPicker intensity alignment", () => {
   }) => {
     await createRectangleSelection(page);
 
+    await page.getByRole("button", { name: "Stroke color current" }).click();
     await page.getByRole("button", { name: "Stroke color Blue" }).click();
     const popover = page.locator(".color-popover");
     await expect(popover).toBeVisible();
 
     const title = popover.locator(".pop-title");
-    await expect(title).toHaveText("Blue · 3");
+    await expect(title).toHaveText("BLUE · 3");
 
     const selectedCells = popover.locator(".ramp-cell.selected");
     await expect(selectedCells).toHaveCount(1);
@@ -34,6 +35,7 @@ test.describe("ColorRampPicker intensity alignment", () => {
   }) => {
     await createRectangleSelection(page);
 
+    await page.getByRole("button", { name: "Stroke color current" }).click();
     await page.getByRole("button", { name: "Stroke color Blue" }).click();
     const popover = page.locator(".color-popover");
     await expect(popover).toBeVisible();
@@ -64,6 +66,7 @@ test.describe("ColorRampPicker intensity alignment", () => {
   }) => {
     await createRectangleSelection(page);
 
+    await page.getByRole("button", { name: "Stroke color current" }).click();
     await page.getByRole("button", { name: "Stroke color Blue" }).click();
     const popover = page.locator(".color-popover");
     await expect(popover).toBeVisible();
@@ -71,9 +74,9 @@ test.describe("ColorRampPicker intensity alignment", () => {
     await popover.locator(".ramp-cell").nth(0).click();
     await expect(popover).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Stroke color Blue" }).click();
+    await page.getByRole("button", { name: "Stroke color current" }).click();
     await expect(popover).toBeVisible();
-    await expect(popover.locator(".pop-title")).toHaveText("Blue · 1");
+    await expect(popover.locator(".pop-title")).toHaveText("BLUE · 1");
 
     const selectedCells = popover.locator(".ramp-cell.selected");
     await expect(selectedCells).toHaveCount(1);
@@ -87,7 +90,7 @@ test.describe("ColorRampPicker intensity alignment", () => {
 
     await page.getByRole("button", { name: "Stroke color current" }).click();
     await expect(popover).toBeVisible();
-    await expect(popover.locator(".pop-title")).toHaveText("Blue · 5");
+    await expect(popover.locator(".pop-title")).toHaveText("BLUE · 5");
 
     const reselectedCells = popover.locator(".ramp-cell.selected");
     await expect(reselectedCells).toHaveCount(1);
@@ -102,6 +105,7 @@ test.describe("ColorRampPicker intensity alignment", () => {
   }) => {
     await createRectangleSelection(page);
 
+    await page.getByRole("button", { name: "Stroke color current" }).click();
     await page.getByRole("button", { name: "Stroke color Blue" }).click();
     const popover = page.locator(".color-popover");
     await expect(popover).toBeVisible();
@@ -116,7 +120,7 @@ test.describe("ColorRampPicker intensity alignment", () => {
     const cell0 = popover.locator(".ramp-cell").nth(0);
     await cell0.hover();
 
-    await expect(popover.locator(".pop-title")).toHaveText("Blue · 1");
+    await expect(popover.locator(".pop-title")).toHaveText("BLUE · 1");
     await expect(cell0).toHaveClass(/hovered/);
     await expect(cell0).not.toHaveClass(/selected/);
 
@@ -143,6 +147,7 @@ test.describe("ColorRampPicker intensity alignment", () => {
   }) => {
     await createRectangleSelection(page);
 
+    await page.getByRole("button", { name: "Stroke color current" }).click();
     await page.getByRole("button", { name: "Stroke color Red" }).click();
     const popover = page.locator(".color-popover");
     await expect(popover).toBeVisible();

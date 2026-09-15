@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Modelo 2 — Rampa com preview ao vivo · seleção de cor base + intensidade</title>
+  <link rel="stylesheet" href="02-ramp-preview.css" />
+</head>
+<body>
+  <main class="canvas">
+    <svg class="scene" viewBox="0 0 640 420" role="img" aria-label="Pré-visualização do desenho">
+      <rect x="120" y="70" width="180" height="130" rx="6"
+            fill="none" stroke="var(--element-stroke)" stroke-width="2" opacity="0.45" />
+      <line x1="300" y1="200" x2="360" y2="200" stroke="var(--element-stroke)" stroke-width="2" opacity="0.45" />
+      <text x="470" y="330" class="anno">3.20 m</text>
+      <rect id="el-main" x="180" y="120" width="280" height="200" rx="6"
+            stroke-width="3" stroke-linejoin="round" />
+      <rect id="el-selection" x="173" y="113" width="294" height="214" rx="9"
+            fill="none" stroke="var(--selection-color)" stroke-width="1.5" stroke-dasharray="6 4" />
+      <text id="el-label" x="320" y="226" text-anchor="middle">Sala 01</text>
+    </svg>
+  </main>
+
+  <aside class="properties-panel">
+    <div class="panel-tabs">
+      <button class="panel-tab active" type="button">Style</button>
+      <button class="panel-tab" type="button">Text</button>
+      <button class="panel-tab" type="button">Layers</button>
+    </div>
+    <div class="panel-divider"></div>
+
+    <section class="panel-section">
+      <div class="panel-section-heading">Stroke</div>
+      <div class="panel-group">
+        <div class="panel-subtitle-row">
+          <span class="panel-subtitle">Color</span>
+          <span class="hex-readout" id="hex-stroke"></span>
+        </div>
+        <button class="current-color" type="button" id="chip-stroke" aria-label="Stroke color">
+          <span class="chip-swatch" id="chip-swatch-stroke"></span>
+          <span class="chip-name" id="chip-name-stroke"></span>
+        </button>
+        <div class="base-dots" id="dots-stroke"></div>
+      </div>
+    </section>
+
+    <section class="panel-section">
+      <div class="panel-section-heading">Fill</div>
+      <div class="panel-group">
+        <div class="panel-subtitle-row">
+          <span class="panel-subtitle">Color</span>
+          <span class="hex-readout" id="hex-fill"></span>
+        </div>
+        <button class="current-color" type="button" id="chip-fill" aria-label="Fill color">
+          <span class="chip-swatch" id="chip-swatch-fill"></span>
+          <span class="chip-name" id="chip-name-fill"></span>
+        </button>
+        <div class="base-dots" id="dots-fill"></div>
+      </div>
+    </section>
+
+    <div class="panel-group">
+      <div class="panel-subtitle-row">
+        <span class="panel-subtitle">Text color</span>
+        <span class="hex-readout" id="hex-text"></span>
+      </div>
+      <button class="current-color" type="button" id="chip-text" aria-label="Text color">
+        <span class="chip-swatch" id="chip-swatch-text"></span>
+        <span class="chip-name" id="chip-name-text"></span>
+      </button>
+      <div class="base-dots" id="dots-text"></div>
+    </div>
+  </aside>
+
+  <div class="mockup-tag">
+    <strong>Modelo 2</strong> — Rampa com preview ao vivo
+    <span>8 bases · 5 intensidades + opacidade dentro do popover</span>
+  </div>
+  <button class="theme-toggle" type="button" aria-label="Alternar tema">☾</button>
+
+  <script src="02-ramp-preview.js"></script>
+</body>
+</html>

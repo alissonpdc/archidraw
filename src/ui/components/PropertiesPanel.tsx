@@ -12,7 +12,7 @@ import {
   SKETCH_FONT_FAMILY,
   fontFamilyOf,
 } from "../../core/textStyle";
-import { ColorRampPicker } from "./ColorRampPicker";
+import { ColorBox, ColorSubmenu, type PickerKind } from "./ColorRampPicker";
 
 const EMPTY_ELEMENTS: Element[] = [];
 
@@ -288,6 +288,20 @@ export function PropertiesPanel() {
   const styleRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<HTMLDivElement>(null);
+  const [openPicker, setOpenPicker] = useState<PickerKind | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openPicker) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement;
+      if (!containerRef.current?.contains(t)) {
+        setOpenPicker(null);
+      }
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [openPicker]);
 
   const selKey = selected.map((el) => el.id).join(",");
   useLayoutEffect(() => {
@@ -466,14 +480,45 @@ export function PropertiesPanel() {
       : null;
   };
 
+  const activeColorProps =
+    openPicker === "stroke"
+      ? {
+          label: "Stroke color",
+          kind: "stroke" as const,
+          current: selected[0].strokeColor,
+          onPick: (strokeColor: string) => apply({ strokeColor }),
+          opacity: strokeOpacityValue,
+          onOpacity: (v: number) => apply({ strokeOpacity: v / 100 }),
+        }
+      : openPicker === "fill" && hasFillable
+        ? {
+            label: "Fill",
+            kind: "fill" as const,
+            current: selected[0].backgroundColor,
+            onPick: (backgroundColor: string) => apply({ backgroundColor }),
+            opacity: fillOpacityValue,
+            onOpacity: (v: number) => apply({ fillOpacity: v / 100 }),
+          }
+        : openPicker === "text"
+          ? {
+              label: "Text color",
+              kind: "text" as const,
+              current: textColorValue ?? "\u0000",
+              onPick: (textColor: string) => apply({ textColor }),
+              allowAuto: true,
+              autoColor: selected[0].strokeColor,
+            }
+          : null;
+
   return (
-    <div
-      className="properties-panel"
-      style={maxTabHeight ? { minHeight: maxTabHeight } : undefined}
-      onMouseOver={showTip}
-      onMouseLeave={() => setTip(null)}
-      onScroll={() => setTip(null)}
-    >
+    <div className="properties-panel-container" ref={containerRef}>
+      <div
+        className="properties-panel"
+        style={maxTabHeight ? { minHeight: maxTabHeight } : undefined}
+        onMouseOver={showTip}
+        onMouseLeave={() => setTip(null)}
+        onScroll={() => setTip(null)}
+      >
       <PanelTooltip tip={tip} />
       {/* Tab bar */}
       <div className="panel-tabs">
@@ -503,13 +548,14 @@ export function PropertiesPanel() {
       <div ref={styleRef} className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
         <Section title="Stroke">
           <Group title="Color">
-            <ColorRampPicker
+            <ColorBox
               current={selected[0].strokeColor}
-              onPick={(strokeColor) => apply({ strokeColor })}
               label="Stroke color"
               kind="stroke"
-              opacity={strokeOpacityValue}
-              onOpacity={(v) => apply({ strokeOpacity: v / 100 })}
+              isOpen={openPicker === "stroke"}
+              onToggle={() =>
+                setOpenPicker((curr) => (curr === "stroke" ? null : "stroke"))
+              }
             />
           </Group>
           {hasShape && (
@@ -797,13 +843,14 @@ export function PropertiesPanel() {
         {hasFillable && (
           <Section title="Fill">
             <Group title="Color">
-              <ColorRampPicker
+              <ColorBox
                 current={selected[0].backgroundColor}
-                onPick={(backgroundColor) => apply({ backgroundColor })}
                 label="Fill"
                 kind="fill"
-                opacity={fillOpacityValue}
-                onOpacity={(v) => apply({ fillOpacity: v / 100 })}
+                isOpen={openPicker === "fill"}
+                onToggle={() =>
+                  setOpenPicker((curr) => (curr === "fill" ? null : "fill"))
+                }
               />
             </Group>
             <Group title="Type">
@@ -864,14 +911,17 @@ export function PropertiesPanel() {
 
         </div>
       <div ref={textRef} className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
-        <Group title="Text color">
-            <ColorRampPicker
+        <Group title="Color">
+            <ColorBox
               current={textColorValue ?? "\u0000"}
-              onPick={(textColor) => apply({ textColor })}
               label="Text color"
               kind="text"
               allowAuto
               autoColor={selected[0].strokeColor}
+              isOpen={openPicker === "text"}
+              onToggle={() =>
+                setOpenPicker((curr) => (curr === "text" ? null : "text"))
+              }
             />
           </Group>
 
@@ -1409,5 +1459,13 @@ export function PropertiesPanel() {
           </Group>
       </div>
     </div>
-  );
+    {activeColorProps && (
+      <ColorSubmenu
+        key={activeColorProps.kind}
+        {...activeColorProps}
+        onClose={() => setOpenPicker(null)}
+      />
+    )}
+  </div>
+);
 }

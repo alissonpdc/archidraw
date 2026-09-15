@@ -103,7 +103,8 @@ test.describe("color popover", () => {
     await page.evaluate(() => (window as any).__editor__.selectAll());
     await page.waitForTimeout(200);
 
-    await page.getByRole("button", { name: "Stroke color Red" }).click();
+    await page.getByRole("button", { name: "Stroke color current" }).click();
+    await page.getByRole("button", { name: "Stroke color Red", exact: true }).click();
     const popover = page.locator(".color-popover--portal");
     await expect(popover).toBeVisible();
     const cell = popover.locator(".ramp-cell").nth(2);
