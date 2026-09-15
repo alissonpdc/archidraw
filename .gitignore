@@ -27,3 +27,4 @@ ui-audit/
 .worktrees
 
 test-results
+.coverage-baseline

@@ -23,6 +23,14 @@ test.describe("history", () => {
     expect(s.elementCount).toBe(1);
   });
 
+  test("Ctrl+Y also redoes an undone element", async ({ page, editorState }) => {
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+y");
+
+    const s = await editorState();
+    expect(s.elementCount).toBe(1);
+  });
+
   test("Cmd/Ctrl+D duplicates selection", async ({ page, editorState }) => {
     await page.mouse.click(160, 150); // select
     await page.keyboard.press("Control+d");

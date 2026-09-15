@@ -63,14 +63,12 @@ test.describe("save components (context menu → SAVE)", () => {
 
     await rightClickMenu(page, 260, 185);
 
-    await expect(page.getByTestId("context-menu-save-header")).toHaveText(
-      "SAVE",
-    );
     await expect(page.getByTestId("context-menu-add-library")).toHaveText(
       "Add to Library",
     );
+    await page.getByTestId("context-menu-download").hover();
     await expect(page.getByTestId("context-menu-download-svg")).toHaveText(
-      "Download SVG Image",
+      "Download as SVG",
     );
   });
 
@@ -138,7 +136,7 @@ test.describe("save components (context menu → SAVE)", () => {
     await open(page);
     await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
     await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
-    await drag(page, { x: 140, y: 90 }, { x: 560, y: 290 });
+    await drag(page, { x: 140, y: 30 }, { x: 560, y: 290 });
     await expect
       .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
       .toBe(2);
@@ -193,6 +191,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
     await rightClickMenu(page, 260, 185);
     const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("context-menu-download").hover();
     await page.getByTestId("context-menu-download-svg").click();
     const download = await downloadPromise;
 
@@ -212,7 +211,7 @@ test.describe("save components (context menu → SAVE)", () => {
     await drawRect(page, { x: 200, y: 150 }, { x: 280, y: 200 });
     await drawDiamond(page, { x: 320, y: 150 }, { x: 420, y: 200 });
     await drawEllipse(page, { x: 450, y: 150 }, { x: 560, y: 200 });
-    await drag(page, { x: 140, y: 90 }, { x: 640, y: 260 });
+    await drag(page, { x: 140, y: 30 }, { x: 640, y: 260 });
     await expect
       .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
       .toBe(3);
@@ -234,13 +233,14 @@ test.describe("save components (context menu → SAVE)", () => {
     await drawRect(page, { x: 200, y: 150 }, { x: 280, y: 200 });
     await drawDiamond(page, { x: 320, y: 150 }, { x: 420, y: 200 });
     await drawEllipse(page, { x: 450, y: 150 }, { x: 560, y: 200 });
-    await drag(page, { x: 140, y: 90 }, { x: 640, y: 260 });
+    await drag(page, { x: 140, y: 30 }, { x: 640, y: 260 });
     await expect
       .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
       .toBe(3);
 
     await rightClickMenu(page, 370, 175);
     const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("context-menu-download").hover();
     await page.getByTestId("context-menu-download-svg").click();
     const download = await downloadPromise;
     const stream = await download.createReadStream();
@@ -287,7 +287,7 @@ test.describe("save components (context menu → SAVE)", () => {
     await drawRect(page, RECT2.a, RECT2.b);
 
     // marquee-select both rectangles
-    await drag(page, { x: 140, y: 90 }, { x: 560, y: 290 });
+    await drag(page, { x: 140, y: 30 }, { x: 560, y: 290 });
     await expect
       .poll(async () => (await editorState()).selectedIds.length)
       .toBe(2);
@@ -331,8 +331,9 @@ test.describe("save components (context menu → SAVE)", () => {
     await page.keyboard.press("Escape");
 
     // marquee that only touches the FIRST member of the group (box right edge
-    // 335 < the second member's left edge 360; 140,90 is empty canvas)
-    await drag(page, { x: 140, y: 90 }, { x: 335, y: 240 });
+    // 335 < the second member's left edge 360; 140,30 is empty canvas above
+    // the left properties panel)
+    await drag(page, { x: 140, y: 30 }, { x: 335, y: 240 });
     const partialIds = await page.evaluate(() => [
       ...(window as any).__editor__.getSnapshot().selectedIds,
     ]);
@@ -359,7 +360,7 @@ test.describe("save components (context menu → SAVE)", () => {
     await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
 
     // marquee-select both rectangles
-    await drag(page, { x: 140, y: 90 }, { x: 560, y: 290 });
+    await drag(page, { x: 140, y: 30 }, { x: 560, y: 290 });
     await expect
       .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
       .toBe(2);
@@ -374,7 +375,7 @@ test.describe("save components (context menu → SAVE)", () => {
       .toBe(1); // the arrow is the only selection now
 
     // re-select ONLY the two rectangles (the arrow stays below the box)
-    await drag(page, { x: 140, y: 90 }, { x: 560, y: 290 });
+    await drag(page, { x: 140, y: 30 }, { x: 560, y: 290 });
     await expect
       .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
       .toBe(2);
@@ -420,7 +421,7 @@ test.describe("save components (context menu → SAVE)", () => {
     await open(page);
     await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
     await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
-    await drag(page, { x: 140, y: 90 }, { x: 560, y: 290 });
+    await drag(page, { x: 140, y: 30 }, { x: 560, y: 290 });
     await expect
       .poll(async () => (await page.evaluate(() => [...(window as any).__editor__.getSnapshot().selectedIds].length)))
       .toBe(2);
@@ -553,6 +554,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
     await rightClickMenu(page, 350, 200);
     const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("context-menu-download").hover();
     await page.getByTestId("context-menu-download-svg").click();
     const download = await downloadPromise;
     const stream = await download.createReadStream();

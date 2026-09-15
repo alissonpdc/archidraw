@@ -132,12 +132,12 @@ test.describe("shift constraints", () => {
   }) => {
     await open(page);
     await selectTool(page, "2");
-    await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
+    await drag(page, { x: 300, y: 100 }, { x: 420, y: 180 });
     await selectTool(page, "1");
 
     await page.keyboard.down("Shift");
-    // grab N handle (160,100) and pull up: w follows h * (120/80)
-    await drag(page, { x: 160, y: 100 }, { x: 180, y: 40 });
+    // grab N handle (360,100) and pull up: w follows h * (120/80)
+    await drag(page, { x: 360, y: 100 }, { x: 380, y: 40 });
     await page.keyboard.up("Shift");
 
     const el = await lastElement(page);

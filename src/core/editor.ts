@@ -6,9 +6,11 @@ import type {
   ArrowBinding,
   ArrowElement,
   ArrowHeadType,
+  BaseElement,
   Bounds,
   Camera,
   ComponentElement,
+  ContextElement,
   DiamondElement,
   Document,
   Element,
@@ -31,6 +33,7 @@ import {
   translateElement,
   unionBounds,
   elementBounds,
+  boundsContain,
   measureText,
   edgeLabelAnchor,
   edgeParamAt,
@@ -42,9 +45,12 @@ import {
   autoSegmentAt,
   autoDragSegmentBends,
   snapSegmentDelta,
+  determineBindingSide,
+  ensureContextZOrder,
 } from "./utils";
-import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
-import { DEFAULT_FONT_FAMILY } from "./textStyle";
+import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_BG, DEFAULT_STROKE } from "./types";
+import { correlateIntensity } from "./color";
+import { fontFamilyOf } from "./textStyle";
 import { getLibraryItem, isBuiltinLibraryItem } from "./library";
 import { componentAssetDataUri } from "./componentAssets";
 import { addImportedImage } from "./importedImages";
@@ -125,6 +131,7 @@ function resizeHandleAt(
 
 /** element types that expose resize handles in single selection */
 function hasResizeHandles(el: Element): boolean {
+  if (el.locked) return false;
   return (
     el.type === "rectangle" ||
     el.type === "diamond" ||
@@ -132,7 +139,8 @@ function hasResizeHandles(el: Element): boolean {
     el.type === "line" ||
     el.type === "arrow" ||
     el.type === "component" ||
-    el.type === "text"
+    el.type === "text" ||
+    el.type === "context"
   );
 }
 
@@ -208,31 +216,32 @@ function findNearestBinding(
     const h = b.y2 - b.y1;
     const inside =
       point.x >= b.x1 && point.x <= b.x2 && point.y >= b.y1 && point.y <= b.y2;
-    const candidates: { p: Point; score: number }[] = [];
+    const candidates: { p: Point; score: number; side?: "top" | "bottom" | "left" | "right" }[] = [];
     // free anchor: nearest outline point (any position is bindable)
     const op = nearestOutlinePoint(el, point);
     const freeDist = Math.hypot(point.x - op.x, point.y - op.y);
     if (inside || freeDist <= BIND_TOLERANCE) {
-      candidates.push({ p: op, score: freeDist });
+      candidates.push({ p: op, score: freeDist, side: determineBindingSide(undefined, el, op) });
     }
     // subtle center snap: top/bottom (vertical axis) and left/right
     // (horizontal axis) midpoints of the outline
     const cx = (b.x1 + b.x2) / 2;
     const cy = (b.y1 + b.y2) / 2;
     for (const c of [
-      { x: cx, y: b.y1 },
-      { x: cx, y: b.y2 },
-      { x: b.x1, y: cy },
-      { x: b.x2, y: cy },
+      { p: { x: cx, y: b.y1 }, side: "top" as const },
+      { p: { x: cx, y: b.y2 }, side: "bottom" as const },
+      { p: { x: b.x1, y: cy }, side: "left" as const },
+      { p: { x: b.x2, y: cy }, side: "right" as const },
     ]) {
-      const cd = Math.hypot(point.x - c.x, point.y - c.y);
-      if (cd <= CENTER_SNAP_RADIUS) candidates.push({ p: c, score: cd - CENTER_SNAP_BONUS });
+      const cd = Math.hypot(point.x - c.p.x, point.y - c.p.y);
+      if (cd <= CENTER_SNAP_RADIUS) candidates.push({ p: c.p, score: cd - CENTER_SNAP_BONUS, side: c.side });
     }
     for (const c of candidates) {
-      const binding = {
+      const binding: ArrowBinding = {
         elementId: el.id,
         nx: w === 0 ? 0.5 : (c.p.x - b.x1) / w,
         ny: h === 0 ? 0.5 : (c.p.y - b.y1) / h,
+        side: c.side,
       };
       if (!best || c.score < best.score) {
         best = { binding, point: c.p, score: c.score };
@@ -261,26 +270,34 @@ function snapEdgeEndpoints(
   let y = el.y;
   let w = el.width;
   let h = el.height;
-  if (el.startBinding) {
-    const target = resolve(el.startBinding.elementId);
+  let startBinding = el.startBinding;
+  let endBinding = el.endBinding;
+  if (startBinding) {
+    const target = resolve(startBinding.elementId);
     if (target) {
-      const ap = bindingPoint(target, el.startBinding);
+      const ap = bindingPoint(target, startBinding);
       // pivot on the free end: it stays where it is
       w = x + w - ap.x;
       h = y + h - ap.y;
       x = ap.x;
       y = ap.y;
+      if (!startBinding.side) {
+        startBinding = { ...startBinding, side: determineBindingSide(startBinding, target, ap) };
+      }
     }
   }
-  if (el.endBinding) {
-    const target = resolve(el.endBinding.elementId);
+  if (endBinding) {
+    const target = resolve(endBinding.elementId);
     if (target) {
-      const ap = bindingPoint(target, el.endBinding);
+      const ap = bindingPoint(target, endBinding);
       w = ap.x - x;
       h = ap.y - y;
+      if (!endBinding.side) {
+        endBinding = { ...endBinding, side: determineBindingSide(endBinding, target, ap) };
+      }
     }
   }
-  const patch: Partial<LineElement | ArrowElement> = { x, y, width: w, height: h };
+  const patch: Partial<LineElement | ArrowElement> = { x, y, width: w, height: h, startBinding, endBinding };
   if ((el.lineType ?? "straight") === "auto" && el.bendPoints) {
     patch.bendPoints = undefined;
   }
@@ -291,7 +308,15 @@ type Interaction =
   | { kind: "none" }
   | { kind: "pan"; lastScreen: Point }
   | { kind: "draw"; startScene: Point; id: string }
-  | { kind: "move"; startScene: Point; originals: Element[]; moved?: boolean }
+  | {
+      kind: "move";
+      startScene: Point;
+      originals: Element[];
+      /** original snapshots of context children, so they translate from a
+       *  stable base (their live positions move every frame during the drag) */
+      contextBase?: Map<string, Element>;
+      moved?: boolean;
+    }
   | { kind: "resize"; handle: HandleId; original: Element }
   | { kind: "label-move"; id: string; moved?: boolean }
   | { kind: "control-point"; id: string; original: Element }
@@ -348,6 +373,8 @@ export class Editor {
   private marquee: { x1: number; y1: number; x2: number; y2: number } | null =
     null;
   private guides: SnapGuide[] | null = null;
+  /** context element being highlighted while elements are being dragged into it */
+  private highlightedContextId: string | null = null;
   private interaction: Interaction = { kind: "none" };
   private spacePressed = false;
   private shiftPressed = false;
@@ -358,6 +385,7 @@ export class Editor {
   private lastBorderRadius = 0;
   private lastFillStyle: FillStyle = "solid";
   private focusMode = false;
+  private highlightedIds = new Set<string>();
 
   private listeners = new Set<() => void>();
   private snapshotCache: EditorSnapshot | null = null;
@@ -395,6 +423,7 @@ export class Editor {
   }
 
   private histories = new Map<string, History>();
+  private wheelDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ---- subscriptions -------------------------------------------------
   subscribe = (cb: () => void) => {
@@ -430,6 +459,7 @@ export class Editor {
   setTool(tool: Tool) {
     this.tool = tool;
     if (tool !== "selection") this.selectedIds.clear();
+    this.highlightedIds = new Set();
     this.emit();
   }
 
@@ -444,27 +474,89 @@ export class Editor {
     this.emit();
   }
 
+  highlightDependencies() {
+    if (this.selectedIds.size === 0) return;
+    const edges = this.doc.elements.filter(
+      (el) => el.type === "arrow" || el.type === "line",
+    );
+    const adj = new Map<string, Set<string>>();
+    for (const el of edges) {
+      const s = el.startBinding?.elementId;
+      const e = el.endBinding?.elementId;
+      if (s && e) {
+        if (!adj.has(s)) adj.set(s, new Set());
+        if (!adj.has(e)) adj.set(e, new Set());
+        adj.get(s)!.add(e);
+        adj.get(e)!.add(s);
+      }
+    }
+    const visited = new Set<string>();
+    const queue = [...this.selectedIds];
+    for (const id of queue) visited.add(id);
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      for (const next of adj.get(cur) ?? []) {
+        if (!visited.has(next)) {
+          visited.add(next);
+          queue.push(next);
+        }
+      }
+    }
+    for (const el of edges) {
+      const s = el.startBinding?.elementId;
+      const e = el.endBinding?.elementId;
+      if ((s && visited.has(s)) || (e && visited.has(e))) {
+        visited.add(el.id);
+      }
+    }
+    this.highlightedIds = visited;
+    this.emit();
+  }
+
+  clearHighlight() {
+    if (this.highlightedIds.size === 0) return;
+    this.highlightedIds = new Set();
+    this.emit();
+  }
+
   deleteSelected() {
     if (this.selectedIds.size === 0) return;
+    const lockedIds = new Set(
+      this.doc.elements
+        .filter((el) => this.selectedIds.has(el.id) && el.locked)
+        .map((el) => el.id),
+    );
+    const deletedIds = new Set(
+      [...this.selectedIds].filter((id) => !lockedIds.has(id)),
+    );
+    if (deletedIds.size === 0) return;
     this.commitHistory();
-    const deletedIds = this.selectedIds;
     this.doc = {
       ...this.doc,
       elements: this.doc.elements
         .filter((el) => !deletedIds.has(el.id))
         .map((el) => {
-          if (!isEdge(el)) return el;
-          const startBinding = el.startBinding && deletedIds.has(el.startBinding.elementId)
-            ? undefined : el.startBinding;
-          const endBinding = el.endBinding && deletedIds.has(el.endBinding.elementId)
-            ? undefined : el.endBinding;
-          if (startBinding !== el.startBinding || endBinding !== el.endBinding) {
-            return { ...el, startBinding, endBinding };
+          if (isEdge(el)) {
+            const startBinding = el.startBinding && deletedIds.has(el.startBinding.elementId)
+              ? undefined : el.startBinding;
+            const endBinding = el.endBinding && deletedIds.has(el.endBinding.elementId)
+              ? undefined : el.endBinding;
+            if (startBinding !== el.startBinding || endBinding !== el.endBinding) {
+              return { ...el, startBinding, endBinding };
+            }
+          } else if (el.type === "context") {
+            // drop references to deleted contained elements
+            const childIds = (el.childIds ?? []).filter(
+              (cid) => !deletedIds.has(cid),
+            );
+            if (childIds.length !== (el.childIds ?? []).length) {
+              return { ...el, childIds };
+            }
           }
           return el;
         }),
     };
-    this.selectedIds.clear();
+    this.selectedIds = lockedIds;
     this.emit();
   }
 
@@ -479,6 +571,7 @@ export class Editor {
       ...this.doc,
       elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
     };
+    this.captureInContexts(this.cloneGroupIds(clones));
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
   }
@@ -496,6 +589,17 @@ export class Editor {
       return { ...el, id, x: el.x + dx, y: el.y + dy };
     });
     return clones.map((el) => {
+      if (el.type === "context") {
+        // container membership follows the clones: keep only children that
+        // were cloned too, remapped to their new ids
+        const childIds = ((el as ContextElement).childIds ?? [])
+          .filter((cid) => idMap.has(cid))
+          .map((cid) => idMap.get(cid)!);
+        if (childIds.length !== (el.childIds ?? []).length) {
+          return { ...el, childIds };
+        }
+        return el;
+      }
       if (!isEdge(el)) return el;
       const startBinding =
         el.startBinding && idMap.has(el.startBinding.elementId)
@@ -509,6 +613,34 @@ export class Editor {
     });
   }
 
+  /**
+   * adds each element (that isn't a context itself) to the childIds of every
+   * context fully containing it, so any creation path — text tool, library
+   * insert, paste, duplicate — keeps container membership in sync.
+   */
+  private captureInContexts(elements: Element[]): void {
+    let changed = false;
+    for (const added of elements) {
+      if (added.type === "context") continue;
+      const ab = elementBounds(added);
+      const updated = this.doc.elements.map((el) => {
+        if (el.type !== "context") return el;
+        const ctx = el as ContextElement;
+        if (ctx.childIds?.includes(added.id)) return el;
+        const b = elementBounds(ctx);
+        if (
+          ab.x1 >= b.x1 && ab.x2 <= b.x2 &&
+          ab.y1 >= b.y1 && ab.y2 <= b.y2
+        ) {
+          changed = true;
+          return { ...ctx, childIds: [...(ctx.childIds ?? []), added.id] };
+        }
+        return el;
+      });
+      if (changed) this.doc = { ...this.doc, elements: ensureContextZOrder(updated) };
+    }
+  }
+
   // ---- layer reorder ---------------------------------------------------
   private reorderElements(ids: string[], direction: "front" | "back" | "forward" | "backward") {
     if (ids.length === 0) return;
@@ -519,25 +651,25 @@ export class Editor {
     if (direction === "front") {
       const toMove = elems.filter((el) => idSet.has(el.id));
       const rest = elems.filter((el) => !idSet.has(el.id));
-      this.doc = { ...this.doc, elements: [...rest, ...toMove] };
+      this.doc = { ...this.doc, elements: ensureContextZOrder([...rest, ...toMove]) };
     } else if (direction === "back") {
       const toMove = elems.filter((el) => idSet.has(el.id));
       const rest = elems.filter((el) => !idSet.has(el.id));
-      this.doc = { ...this.doc, elements: [...toMove, ...rest] };
+      this.doc = { ...this.doc, elements: ensureContextZOrder([...toMove, ...rest]) };
     } else if (direction === "forward") {
       for (let i = elems.length - 2; i >= 0; i--) {
         if (idSet.has(elems[i].id) && !idSet.has(elems[i + 1].id)) {
           [elems[i], elems[i + 1]] = [elems[i + 1], elems[i]];
         }
       }
-      this.doc = { ...this.doc, elements: elems };
+      this.doc = { ...this.doc, elements: ensureContextZOrder(elems) };
     } else if (direction === "backward") {
       for (let i = 1; i < elems.length; i++) {
         if (idSet.has(elems[i].id) && !idSet.has(elems[i - 1].id)) {
           [elems[i], elems[i - 1]] = [elems[i - 1], elems[i]];
         }
       }
-      this.doc = { ...this.doc, elements: elems };
+      this.doc = { ...this.doc, elements: ensureContextZOrder(elems) };
     }
     this.emit();
   }
@@ -574,6 +706,22 @@ export class Editor {
       ...this.doc,
       elements: this.doc.elements.map((el) =>
         el.groupId && gids.has(el.groupId) ? { ...el, groupId: undefined } : el,
+      ),
+    };
+    this.emit();
+  }
+
+  // ---- lock / unlock ---------------------------------------------------
+  toggleLockSelected() {
+    if (this.selectedIds.size === 0) return;
+    this.commitHistory();
+    const allLocked = this.doc.elements
+      .filter((el) => this.selectedIds.has(el.id))
+      .every((el) => el.locked);
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) =>
+        this.selectedIds.has(el.id) ? { ...el, locked: !allLocked } : el,
       ),
     };
     this.emit();
@@ -732,7 +880,7 @@ export class Editor {
       strokeWidth: 0,
       opacity: 1,
       strokeOpacity: 1,
-      fillOpacity: 1,
+      fillOpacity: 0,
       strokeStyle: "solid",
       fillStyle: this.lastFillStyle,
       roughness: 0,
@@ -752,6 +900,7 @@ borderRadius: 20,
       ...(item.fill === true ? { fill: true } : {}),
     };
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
+    this.captureInContexts([el]);
     this.tool = "selection";
     this.selectedIds = new Set([el.id]);
     this.emit();
@@ -777,6 +926,7 @@ borderRadius: 20,
       ...this.doc,
       elements: [...this.doc.elements, ...grouped],
     };
+    this.captureInContexts(grouped);
     this.tool = "selection";
     this.selectedIds = new Set(grouped.map((el) => el.id));
     this.emit();
@@ -788,6 +938,7 @@ borderRadius: 20,
     this.editingKind = "text";
     this.editingInitial = null;
     this.bindingPreview = null;
+    this.highlightedIds = new Set();
     this.emit();
   }
 
@@ -1014,6 +1165,7 @@ borderRadius: 20,
       .find((el) => hitTest(el, scene));
 
     if (hitEl?.type === "text") {
+      if (hitEl.locked) return;
       this.beginTextEdit(hitEl.id, "text");
       this.emit();
       return;
@@ -1025,8 +1177,10 @@ borderRadius: 20,
         hitEl.type === "ellipse" ||
         hitEl.type === "line" ||
         hitEl.type === "arrow" ||
-        hitEl.type === "component")
+        hitEl.type === "component" ||
+        hitEl.type === "context")
     ) {
+      if (hitEl.locked) return;
       if (!this.selectedIds.has(hitEl.id)) {
         this.selectedIds = new Set([hitEl.id]);
       }
@@ -1046,19 +1200,19 @@ borderRadius: 20,
       height: 0,
       text: "",
       fontSize: 20,
-      fontFamily: DEFAULT_FONT_FAMILY,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
       strokeWidth: 1,
       opacity: 1,
       strokeOpacity: 1,
-      fillOpacity: 1,
+      fillOpacity: 0,
       strokeStyle: "solid",
       fillStyle: this.lastFillStyle,
-      roughness: 0,
+      roughness: this.lastRoughness,
       borderRadius: 0,
     };
     this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
+    this.captureInContexts([el]);
     this.beginTextEdit(el.id, "text");
     this.emit();
   }
@@ -1106,6 +1260,8 @@ strokeOpacity?: number;
       textOffsetLeft?: number;
       textOffsetRight?: number;
       captionPosition?: import("./types").CaptionPosition;
+      labelPosition?: import("./types").LabelPosition;
+      labelSide?: "internal" | "external";
       captionGap?: number;
       captionOffsetTop?: number;
       captionOffsetBottom?: number;
@@ -1129,9 +1285,9 @@ strokeOpacity?: number;
         if (next.type === "arrow" && next.strokeStyle === "solid")
           next = { ...next, animated: false };
         // recalculate text dimensions when font-related props change
-        if (next.type === "text" && (patch.fontSize !== undefined || patch.fontFamily !== undefined || patch.bold !== undefined || patch.italic !== undefined || patch.lineSpacing !== undefined)) {
+        if (next.type === "text" && (patch.fontSize !== undefined || patch.fontFamily !== undefined || patch.bold !== undefined || patch.italic !== undefined || patch.lineSpacing !== undefined || patch.roughness !== undefined)) {
           const te = next as TextElement;
-          const { width, height } = measureText(te.text || " ", te.fontSize, te.fontFamily, te.bold, te.italic, te.lineSpacing);
+          const { width, height } = measureText(te.text || " ", te.fontSize, fontFamilyOf(te), te.bold, te.italic, te.lineSpacing);
           te.width = Math.max(width, 8);
           te.height = height;
         }
@@ -1156,7 +1312,7 @@ strokeOpacity?: number;
       ...this.doc,
       elements: this.doc.elements.map((el) => {
         if (!(el.id === id && el.type === "text")) return el;
-        const { width, height } = measureText(text || " ", el.fontSize, el.fontFamily, el.bold, el.italic, el.lineSpacing);
+        const { width, height } = measureText(text || " ", el.fontSize, fontFamilyOf(el), el.bold, el.italic, el.lineSpacing);
         return { ...el, text, width: Math.max(width, 8), height };
       }),
     };
@@ -1250,13 +1406,91 @@ strokeOpacity?: number;
     const offset = 16 * this.pasteCount;
     const clones = this.cloneElements(items, offset, offset);
     this.commitHistory();
+    const grouped = this.cloneGroupIds(clones);
     this.doc = {
       ...this.doc,
-      elements: [...this.doc.elements, ...this.cloneGroupIds(clones)],
+      elements: [...this.doc.elements, ...grouped],
     };
+    this.captureInContexts(grouped);
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
     return clones.length;
+  }
+
+  pasteAt(screenPoint: Point): number {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(Editor.CLIPBOARD_KEY);
+    } catch {
+      raw = null;
+    }
+    if (!raw) return 0;
+    let items: Element[];
+    try {
+      items = JSON.parse(raw);
+    } catch {
+      return 0;
+    }
+    if (!Array.isArray(items) || items.length === 0) return 0;
+
+    const scene = screenToScene(screenPoint, this.camera);
+    const b = unionBounds(items);
+    const dx = b ? scene.x - (b.x1 + b.x2) / 2 : 0;
+    const dy = b ? scene.y - (b.y1 + b.y2) / 2 : 0;
+    const clones = this.cloneElements(items, dx, dy);
+    this.commitHistory();
+    const grouped = this.cloneGroupIds(clones);
+    this.doc = {
+      ...this.doc,
+      elements: [...this.doc.elements, ...grouped],
+    };
+    this.captureInContexts(grouped);
+    this.selectedIds = new Set(clones.map((c) => c.id));
+    this.emit();
+    return clones.length;
+  }
+
+  // ---- copy/paste style -----------------------------------------------
+  private copiedStyle: Partial<BaseElement> | null = null;
+
+  copyStyle() {
+    if (this.selectedIds.size === 0) return;
+    const el = this.doc.elements.find((e) => this.selectedIds.has(e.id));
+    if (!el) return;
+    this.copiedStyle = {
+      strokeColor: el.strokeColor,
+      backgroundColor: el.backgroundColor,
+      strokeWidth: el.strokeWidth,
+      opacity: el.opacity,
+      strokeOpacity: el.strokeOpacity,
+      fillOpacity: el.fillOpacity,
+      strokeStyle: el.strokeStyle,
+      fillStyle: el.fillStyle,
+      roughness: el.roughness,
+      borderRadius: el.borderRadius,
+      fontFamily: el.fontFamily,
+      bold: el.bold,
+      italic: el.italic,
+      underline: el.underline,
+      textColor: el.textColor,
+      fontSize: el.fontSize,
+      textAlign: el.textAlign,
+      textVAlign: el.textVAlign,
+      lineSpacing: el.lineSpacing,
+    };
+  }
+
+  pasteStyle() {
+    if (!this.copiedStyle || this.selectedIds.size === 0) return;
+    this.commitHistory();
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) => {
+        if (!this.selectedIds.has(el.id)) return el;
+        return { ...el, ...this.copiedStyle } as Element;
+      }),
+    };
+    this.emit();
   }
 
   // ---- keyboard -------------------------------------------------------
@@ -1314,7 +1548,8 @@ strokeOpacity?: number;
       case "diamond":
       case "ellipse":
       case "line":
-      case "arrow": {
+      case "arrow":
+      case "bounded-context": {
         this.commitHistory();
         const base = {
           id: newId(),
@@ -1323,7 +1558,7 @@ strokeOpacity?: number;
           strokeWidth: 2,
           opacity: 1,
           strokeOpacity: 1,
-          fillOpacity: 1,
+          fillOpacity: 0,
           strokeStyle: this.lastStrokeStyle,
           fillStyle: this.lastFillStyle,
           roughness: this.lastRoughness,
@@ -1339,6 +1574,22 @@ strokeOpacity?: number;
           el = { ...base, type: "ellipse", ...bbox } satisfies EllipseElement;
         } else if (this.tool === "line") {
           el = { ...base, type: "line", strokeWidth: 1, ...bbox } satisfies LineElement;
+        } else if (this.tool === "bounded-context") {
+          el = {
+            ...base,
+            type: "context",
+            ...bbox,
+            strokeColor: CONTEXT_STROKE,
+            strokeWidth: 1,
+            strokeStyle: "solid",
+            backgroundColor: "transparent",
+            borderRadius: 10,
+            fontSize: 16,
+            label: "Context",
+            labelPosition: "top-left",
+            labelSide: "internal",
+            childIds: [],
+          } satisfies ContextElement;
         } else {
           el = { ...base, type: "arrow", strokeWidth: 1, ...bbox, startArrowhead: "none", endArrowhead: "arrow" } satisfies ArrowElement;
         }
@@ -1370,19 +1621,19 @@ strokeOpacity?: number;
           height: 0,
           text: "",
           fontSize: 20,
-          fontFamily: DEFAULT_FONT_FAMILY,
           strokeColor: stroke,
           backgroundColor: DEFAULT_BG,
           strokeWidth: 1,
           opacity: 1,
           strokeOpacity: 1,
-          fillOpacity: 1,
+          fillOpacity: 0,
           strokeStyle: this.lastStrokeStyle,
           fillStyle: this.lastFillStyle,
           roughness: this.lastRoughness,
           borderRadius: 0,
         };
         this.doc = { ...this.doc, elements: [...this.doc.elements, el] };
+        this.captureInContexts([el]);
         this.tool = "selection";
         this.beginTextEdit(el.id);
         break;
@@ -1393,7 +1644,7 @@ strokeOpacity?: number;
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (selected && labelHandleAt(scene, selected, this.camera.zoom)) {
+          if (selected && !selected.locked && labelHandleAt(scene, selected, this.camera.zoom)) {
             this.commitHistory();
             this.interaction = { kind: "label-move", id: selected.id };
             break;
@@ -1404,7 +1655,7 @@ strokeOpacity?: number;
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (selected && hasResizeHandles(selected)) {
+          if (selected && !selected.locked && hasResizeHandles(selected)) {
             const handle = resizeHandleAt(
               scene,
               visualBounds(selected),
@@ -1427,7 +1678,7 @@ strokeOpacity?: number;
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (selected && controlPointHandleAt(scene, selected, this.camera.zoom)) {
+          if (selected && !selected.locked && controlPointHandleAt(scene, selected, this.camera.zoom)) {
             this.commitHistory();
             // initialize controlPoint from fallback if not yet explicit
             if (isEdge(selected) && !selected.controlPoint) {
@@ -1450,7 +1701,7 @@ strokeOpacity?: number;
           const selected = this.doc.elements.find((el) =>
             this.selectedIds.has(el.id),
           );
-          if (selected && isEdge(selected)) {
+          if (selected && !selected.locked && isEdge(selected)) {
             const seg = autoSegmentAt(scene, selected);
             if (seg && seg.dist * this.camera.zoom <= HANDLE_TOLERANCE_PX) {
               this.commitHistory();
@@ -1491,16 +1742,29 @@ strokeOpacity?: number;
           }
           if (this.selectedIds.size > 0) {
             this.commitHistory();
+            const originals = this.doc.elements.filter((el) =>
+              this.selectedIds.has(el.id),
+            );
+            // capture the original geometry of context children (their live
+            // positions drift while the container is dragged)
+            const contextBase = new Map<string, Element>();
+            for (const el of originals) {
+              if (el.type !== "context" || !el.childIds) continue;
+              for (const cid of el.childIds) {
+                const child = this.doc.elements.find((e) => e.id === cid);
+                if (child && !contextBase.has(cid)) contextBase.set(cid, child);
+              }
+            }
             this.interaction = {
               kind: "move",
               startScene: scene,
-              originals: this.doc.elements.filter((el) =>
-                this.selectedIds.has(el.id),
-              ),
+              originals,
+              contextBase: contextBase.size > 0 ? contextBase : undefined,
             };
           }
         } else {
           this.selectedIds.clear();
+          this.highlightedIds = new Set();
           this.interaction = { kind: "marquee", startScene: scene };
         }
         break;
@@ -1523,7 +1787,10 @@ strokeOpacity?: number;
           scrollX: this.camera.scrollX + dx,
           scrollY: this.camera.scrollY + dy,
         };
-        break;
+        if (this.snapshotCache) {
+          this.snapshotCache = { ...this.snapshotCache, camera: this.camera };
+        }
+        return;
       }
       case "draw": {
         if (!this.draft) break;
@@ -1602,8 +1869,12 @@ strokeOpacity?: number;
 
         // smart snap guides against other elements
         const movingIds = new Set(this.interaction.originals.map((el) => el.id));
+        const childIds = new Set(this.interaction.contextBase?.keys() ?? []);
         const others = this.doc.elements.filter(
-          (el) => !movingIds.has(el.id) && !isEdge(el),
+          (el) =>
+            !movingIds.has(el.id) &&
+            !childIds.has(el.id) &&
+            !isEdge(el),
         );
         const movingBoxRaw = unionBounds(this.interaction.originals);
         if (movingBoxRaw && others.length > 0) {
@@ -1664,9 +1935,24 @@ strokeOpacity?: number;
         const moved = new Map(
           this.interaction.originals.map((el) => [
             el.id,
-            translateElement(el, dx, dy),
+            el.locked ? el : translateElement(el, dx, dy),
           ]),
         );
+        // when a context is moved, translate its children by the same delta
+        // (from their captured original geometry so the offset never compounds)
+        const base = this.interaction.contextBase;
+        for (const original of this.interaction.originals) {
+          if (original.type === "context" && original.childIds && original.childIds.length > 0) {
+            for (const childId of original.childIds) {
+              if (moved.has(childId)) continue;
+              const child = base?.get(childId) ??
+                this.doc.elements.find((e) => e.id === childId);
+              if (child && !child.locked) {
+                moved.set(childId, translateElement(child, dx, dy));
+              }
+            }
+          }
+        }
         this.interaction.moved =
           Math.abs(dx) > 1e-6 || Math.abs(dy) > 1e-6;
         // keep bindings coherent: edges bound to moved shapes follow their
@@ -1694,6 +1980,28 @@ strokeOpacity?: number;
           ...this.doc,
           elements: updatedElements,
         };
+        // live containment highlight: the last context that fully contains
+        // the shifted union bounds gets highlighted as a drop target
+        let highlight: string | null = null;
+        const movedSet = new Set(moved.keys());
+        const movedBox = unionBounds(
+          [...moved.values()].filter((el) => !isEdge(el)),
+        );
+        if (movedBox) {
+          for (const el of this.doc.elements) {
+            if (el.type !== "context" || movedSet.has(el.id)) continue;
+            const cb = elementBounds(el);
+            if (
+              cb.x1 <= movedBox.x1 &&
+              cb.y1 <= movedBox.y1 &&
+              cb.x2 >= movedBox.x2 &&
+              cb.y2 >= movedBox.y2
+            ) {
+              highlight = el.id;
+            }
+          }
+        }
+        this.highlightedContextId = highlight;
         break;
       }
       case "label-move": {
@@ -1898,7 +2206,7 @@ strokeOpacity?: number;
           const scaleY = (nb.y2 - nb.y1) / oH;
           const scale = Math.max(scaleX, scaleY);
           const newFontSize = Math.max(1, Math.round(orig.fontSize * scale));
-          const { width, height } = measureText(orig.text || " ", newFontSize, orig.fontFamily, orig.bold, orig.italic, orig.lineSpacing);
+          const { width, height } = measureText(orig.text || " ", newFontSize, fontFamilyOf(orig), orig.bold, orig.italic, orig.lineSpacing);
           this.doc = {
             ...this.doc,
             elements: this.doc.elements.map((el) =>
@@ -1970,11 +2278,86 @@ strokeOpacity?: number;
         // bindings were resolved live during the draw (draft carries them)
         this.doc = { ...this.doc, elements: [...this.doc.elements, this.draft] };
         this.selectedIds = new Set([this.draft.id]);
+        // when a context is drawn, it captures every element inside its bounds
+        if (this.draft.type === "context") {
+          const ctxBounds = elementBounds(this.draft);
+          const childIds = this.doc.elements
+            .filter(
+              (el) =>
+                el.id !== this.draft!.id &&
+                el.type !== "context" &&
+                boundsContain(ctxBounds, elementBounds(el)),
+            )
+            .map((el) => el.id);
+          if (childIds.length > 0) {
+            const firstChildIdx = this.doc.elements.findIndex((el) =>
+              childIds.includes(el.id),
+            );
+            const withoutDraft = this.doc.elements.filter(
+              (el) => el.id !== this.draft!.id,
+            );
+            const draftWithChildren = { ...this.draft, childIds };
+            if (firstChildIdx !== -1) {
+              withoutDraft.splice(firstChildIdx, 0, draftWithChildren);
+            } else {
+              withoutDraft.push(draftWithChildren);
+            }
+            this.doc = {
+              ...this.doc,
+              elements: ensureContextZOrder(withoutDraft),
+            };
+          }
+        } else {
+          this.captureInContexts([this.draft]);
+        }
       }
       this.draft = null;
     }
     if (this.interaction.kind === "move" && !this.interaction.moved) {
-      this.history.pop(); // click without drag: drop the useless snapshot
+      this.history.pop();
+    }
+    if (this.interaction.kind === "move" && this.interaction.moved) {
+      const movedIds = new Set(this.interaction.originals.map((el) => el.id));
+      let containmentChanged = false;
+      const nextElements = this.doc.elements.map((el) => {
+        if (el.type !== "context" || movedIds.has(el.id)) return el;
+        const ctx = el as ContextElement;
+        const b = elementBounds(ctx);
+        const newChildIds = (ctx.childIds ?? []).filter((cid) => {
+          if (movedIds.has(cid)) return false;
+          const child = this.doc.elements.find((e) => e.id === cid);
+          if (!child) return false;
+          const cb = elementBounds(child);
+          return (
+            cb.x1 >= b.x1 && cb.x2 <= b.x2 && cb.y1 >= b.y1 && cb.y2 <= b.y2
+          );
+        });
+        for (const movedId of movedIds) {
+          if (newChildIds.includes(movedId)) continue;
+          const movedEl = this.doc.elements.find((e) => e.id === movedId);
+          if (!movedEl || movedEl.type === "context") continue;
+          const mb = elementBounds(movedEl);
+          if (
+            mb.x1 >= b.x1 && mb.x2 <= b.x2 &&
+            mb.y1 >= b.y1 && mb.y2 <= b.y2
+          ) {
+            newChildIds.push(movedId);
+          }
+        }
+        if (newChildIds.length !== (ctx.childIds ?? []).length) {
+          containmentChanged = true;
+          return { ...ctx, childIds: newChildIds };
+        }
+        return el;
+      });
+      if (containmentChanged) {
+        this.doc = { ...this.doc, elements: ensureContextZOrder(nextElements) };
+      } else {
+        const reordered = ensureContextZOrder(this.doc.elements);
+        if (reordered !== this.doc.elements) {
+          this.doc = { ...this.doc, elements: reordered };
+        }
+      }
     }
     if (this.interaction.kind === "label-move" && !this.interaction.moved) {
       this.history.pop(); // handle grabbed without dragging: drop snapshot
@@ -1985,6 +2368,7 @@ strokeOpacity?: number;
     this.marquee = null;
     this.guides = null;
     this.bindingPreview = null;
+    this.highlightedContextId = null;
     this.interaction = { kind: "none" };
     this.emit();
   }
@@ -2025,7 +2409,14 @@ strokeOpacity?: number;
         scrollX: this.camera.scrollX - delta.x,
         scrollY: this.camera.scrollY - delta.y,
       };
-      this.emit();
+      if (this.snapshotCache) {
+        this.snapshotCache = { ...this.snapshotCache, camera: this.camera };
+      }
+      if (this.wheelDebounceTimer) clearTimeout(this.wheelDebounceTimer);
+      this.wheelDebounceTimer = setTimeout(() => {
+        this.wheelDebounceTimer = null;
+        this.emit();
+      }, 80);
     }
   }
 
@@ -2128,6 +2519,8 @@ strokeOpacity?: number;
           this.editingKind === "label" ? this.editingTextId : null,
         hiddenTextId: this.editingKind === "text" ? this.editingTextId : null,
         animationPhase: performance.now() / 60,
+        highlightedIds: this.highlightedIds,
+        highlightedContextId: this.highlightedContextId,
       },
       w,
       h,
@@ -2202,6 +2595,91 @@ strokeOpacity?: number;
           : el,
       ),
     };
+    this.emit();
+  }
+
+  correlateColorsForTheme() {
+    const correlateEl = <T extends Element>(el: T): T => {
+      let strokeColor = el.strokeColor;
+      let backgroundColor = el.backgroundColor;
+      let textColor = el.textColor;
+      let changed = false;
+
+      if (
+        strokeColor &&
+        strokeColor !== DEFAULT_STROKE &&
+        strokeColor !== CONTEXT_STROKE &&
+        strokeColor !== CONTEXT_STROKE_DARK
+      ) {
+        const nextStroke = correlateIntensity(strokeColor);
+        if (nextStroke !== strokeColor) {
+          strokeColor = nextStroke;
+          changed = true;
+        }
+      }
+
+      if (
+        backgroundColor &&
+        backgroundColor !== "transparent" &&
+        backgroundColor !== DEFAULT_BG
+      ) {
+        const nextBg = correlateIntensity(backgroundColor);
+        if (nextBg !== backgroundColor) {
+          backgroundColor = nextBg;
+          changed = true;
+        }
+      }
+
+      if (
+        textColor &&
+        textColor !== DEFAULT_STROKE &&
+        textColor !== CONTEXT_STROKE &&
+        textColor !== CONTEXT_STROKE_DARK
+      ) {
+        const nextText = correlateIntensity(textColor);
+        if (nextText !== textColor) {
+          textColor = nextText;
+          changed = true;
+        }
+      }
+
+      return changed ? ({ ...el, strokeColor, backgroundColor, textColor } as T) : el;
+    };
+
+    this.tabs = this.tabs.map((tab) => ({
+      ...tab,
+      doc: {
+        ...tab.doc,
+        elements: tab.doc.elements.map(correlateEl),
+      },
+    }));
+
+    if (
+      this.lastDefaultStroke &&
+      this.lastDefaultStroke !== DEFAULT_STROKE &&
+      this.lastDefaultStroke !== CONTEXT_STROKE &&
+      this.lastDefaultStroke !== CONTEXT_STROKE_DARK
+    ) {
+      this.lastDefaultStroke = correlateIntensity(this.lastDefaultStroke);
+    }
+
+    for (const h of this.histories.values()) {
+      h.mapSnapshots((snapStr) => {
+        try {
+          const doc = JSON.parse(snapStr) as Document;
+          if (doc && Array.isArray(doc.elements)) {
+            return JSON.stringify({
+              ...doc,
+              elements: doc.elements.map(correlateEl),
+            });
+          }
+        } catch {
+          // ignore
+        }
+        return snapStr;
+      });
+    }
+
     this.emit();
   }
 }

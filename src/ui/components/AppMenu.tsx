@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { useState, useEffect, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { editor } from "../hooks/useEditor";
 import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
@@ -36,7 +36,7 @@ import {
   SunIcon,
 } from "./icons";
 import { toast } from "../toasts";
-import { MOD } from "../platform";
+import { MOD, ALT } from "../platform";
 
 const SKIN_OPTIONS: { id: SkinPref; label: string; icon: ReactNode }[] = [
   { id: "midnight", label: "Midnight", icon: <MoonIcon size={14} /> },
@@ -142,6 +142,12 @@ export function AppMenu({
   const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
   const [gridSubmenuOpen, setGridSubmenuOpen] = useState(false);
 
+  useEffect(() => {
+    const onThemeChange = () => setThemePref(loadThemePref());
+    window.addEventListener("archidraw:theme", onThemeChange);
+    return () => window.removeEventListener("archidraw:theme", onThemeChange);
+  }, []);
+
   // resolve the actual theme when pref is "system"
   const resolvedIsDark =
     themePref === "dark" ||
@@ -238,21 +244,24 @@ export function AppMenu({
             <MenuSection title="Appearance">
               <div className="menu-mode-wrap">
                 <div className="menu-mode-label">Mode</div>
-                <div className="menu-mode-icons">
-                  {THEME_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.id}
-                      className={`menu-mode-icon ${themePref === opt.id ? "active" : ""}`}
-                      title={opt.label}
-                      onClick={() => {
-                        if (themePref === opt.id) return;
-                        applyThemePref(opt.id);
-                        setThemePref(opt.id);
-                      }}
-                    >
-                      {opt.icon}
-                    </button>
-                  ))}
+                <div className="menu-mode-row">
+                  <div className="menu-mode-icons">
+                    {THEME_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        className={`menu-mode-icon ${themePref === opt.id ? "active" : ""}`}
+                        title={opt.label}
+                        onClick={() => {
+                          if (themePref === opt.id) return;
+                          applyThemePref(opt.id);
+                          setThemePref(opt.id);
+                        }}
+                      >
+                        {opt.icon}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="menu-mode-shortcut">Shift+{ALT}+D</span>
                 </div>
               </div>
 

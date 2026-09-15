@@ -1,9 +1,10 @@
 import type { Tool } from "../../core/types";
 import type { RefObject } from "react";
 import { Fragment } from "react";
-import { editor, useEditor } from "../hooks/useEditor";
+import { editor, useEditorSelector } from "../hooks/useEditor";
 import {
   ArrowIcon,
+  ContextIcon,
   DiamondIcon,
   EllipseIcon,
   HandIcon,
@@ -24,6 +25,7 @@ const TOOLS: { id: Tool; label: string; key: string; Icon: typeof SelectionIcon 
   { id: "line", label: "Line", key: "5", Icon: LineIcon },
   { id: "arrow", label: "Arrow", key: "6", Icon: ArrowIcon },
   { id: "text", label: "Text", key: "7", Icon: TextIcon },
+  { id: "bounded-context", label: "Bounded Context", key: "8", Icon: ContextIcon },
 ];
 
 export function Toolbar({
@@ -35,7 +37,7 @@ export function Toolbar({
   onToggleLibrary?: () => void;
   imageInputRef: RefObject<HTMLInputElement | null>;
 }) {
-  const snap = useEditor();
+  const tool = useEditorSelector((s) => s.tool);
 
   return (
     <div className="toolbar">
@@ -43,7 +45,7 @@ export function Toolbar({
         <Fragment key={id}>
           {id === "rectangle" && <div className="toolbar-sep" />}
           <button
-            className={`tool-btn ${snap.tool === id ? "active" : ""}`}
+            className={`tool-btn ${tool === id ? "active" : ""}`}
             data-tip={`${label} (${key})`}
             aria-label={label}
             onClick={() => editor.setTool(id)}

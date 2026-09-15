@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { editor } from "./hooks/useEditor";
+import { toggleLightDark } from "./theme";
 import { CanvasHost } from "./components/CanvasHost";
 import { Toolbar } from "./components/Toolbar";
 import { PropertiesPanel } from "./components/PropertiesPanel";
@@ -25,6 +26,7 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
   "5": "line",
   "6": "arrow",
   "7": "text",
+  "8": "bounded-context",
 };
 
 export function App() {
@@ -95,6 +97,11 @@ export function App() {
         editor.duplicateSelected();
         return;
       }
+      if (!mod && e.shiftKey && e.altKey && e.code === "KeyD") {
+        e.preventDefault();
+        toggleLightDark();
+        return;
+      }
       if (mod && e.key.toLowerCase() === "a") {
         e.preventDefault();
         editor.selectAll();
@@ -123,6 +130,11 @@ export function App() {
         } else {
           editor.groupSelected();
         }
+        return;
+      }
+      if (mod && e.shiftKey && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        editor.toggleLockSelected();
         return;
       }
       if (mod && e.key.toLowerCase() === "s") {

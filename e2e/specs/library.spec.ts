@@ -72,8 +72,10 @@ test.describe("component library", () => {
     const search = page.locator(".library-search");
     await search.fill("queue");
     const grid = page.locator(".library-body");
-    await expect(grid.locator(".library-card")).toHaveCount(1);
     await expect(grid.locator('[data-component-id="sqs"]')).toBeVisible();
+    await expect(
+      grid.locator('[data-component-id="azure-service-bus"]'),
+    ).toBeVisible();
 
     await search.fill("zzz-nada");
     await expect(page.locator(".library-empty")).toBeVisible();
@@ -347,6 +349,58 @@ test.describe("component library", () => {
 
     await header.click();
     await expect(tile).toHaveCount(0);
+  });
+
+  test("GCP group expands and inserts with official icon", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+
+    const header = page.locator(".library-section-header", { hasText: "GCP" });
+    await expect(header).toHaveAttribute("aria-expanded", "false");
+    await header.click();
+    await expect(header).toHaveAttribute("aria-expanded", "true");
+
+    for (const cat of ["Compute", "Network", "Database", "Storage", "Messaging", "Security"]) {
+      await expect(
+        page.locator(".library-subgroup").filter({ hasText: cat }),
+      ).toBeVisible();
+    }
+
+    const run = page.locator('.library-panel [data-component-id="gcp-cloud-run"]');
+    await expect(run.locator("img.library-card-img")).toBeVisible();
+    await run.click();
+
+    const state = await editorState();
+    expect(state.elementCount).toBe(1);
+    expect(state.elements[0].componentId).toBe("gcp-cloud-run");
+  });
+
+  test("Azure group expands and inserts with official icon", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+
+    const header = page.locator(".library-section-header", { hasText: "Azure" });
+    await expect(header).toHaveAttribute("aria-expanded", "false");
+    await header.click();
+    await expect(header).toHaveAttribute("aria-expanded", "true");
+
+    for (const cat of ["Compute", "Network", "Database", "Storage", "Messaging"]) {
+      await expect(
+        page.locator(".library-subgroup").filter({ hasText: cat }),
+      ).toBeVisible();
+    }
+
+    const vm = page.locator('.library-panel [data-component-id="azure-vm"]');
+    await expect(vm.locator("img.library-card-img")).toBeVisible();
+    await vm.click();
+
+    const state = await editorState();
+    expect(state.elementCount).toBe(1);
+    expect(state.elements[0].componentId).toBe("azure-vm");
   });
 
   test("recents appear before AWS group and are limited to 15 items", async ({

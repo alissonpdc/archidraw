@@ -1,5 +1,5 @@
 /**
- * Architecture component catalog (AWS + Kubernetes).
+ * Architecture component catalog (AWS + GCP + Kubernetes).
  * Icons are SVG stroke-only paths in viewBox 24x24, drawn
  * on canvas (Path2D), in DOM (inline svg), and in SVG export.
  */
@@ -290,6 +290,245 @@ export const LIBRARY: LibraryItem[] = [
 
 ];
 
+// ---- Google Cloud Platform -----------------------------------------------
+
+export const GCP_CATEGORIES = LIBRARY_CATEGORIES;
+
+export type GcpCategory = LibraryCategory;
+
+export const LIBRARY_GCP: LibraryItem[] = [
+  {
+    id: "gcp-compute-engine",
+    name: "Compute Engine",
+    category: "Compute",
+    keywords: ["gcp", "google", "compute engine", "gce", "instance", "server", "vm"],
+    icon: [
+      "M7 7 H17 V17 H7 Z",
+      "M7 12 H17",
+      "M10 9.5 H11 M10 14.5 H11",
+      "M14.5 9.5 H15.5 M14.5 14.5 H15.5",
+    ],
+  },
+  {
+    id: "gcp-cloud-run",
+    name: "Cloud Run",
+    category: "Compute",
+    keywords: ["gcp", "google", "cloud run", "serverless", "container", "service"],
+    icon: [
+      circle(12, 12, 8),
+      "M10.5 9.5 L14.5 12 L10.5 14.5 Z",
+    ],
+  },
+  {
+    id: "gcp-gke",
+    name: "GKE",
+    category: "Compute",
+    keywords: ["gcp", "google", "gke", "kubernetes", "k8s", "engine", "cluster", "container"],
+    icon: [
+      circle(12, 12, 8),
+      circle(12, 12, 3),
+      "M12 4 V7 M12 17 V20 M5 8 L7.6 9.5 M16.4 14.5 L19 16 M5 16 L7.6 14.5 M16.4 9.5 L19 8",
+    ],
+  },
+  {
+    id: "gcp-cloud-functions",
+    name: "Cloud Functions",
+    category: "Compute",
+    keywords: ["gcp", "google", "cloud functions", "serverless", "faas", "event-driven", "function"],
+    icon: ["M14 4 L9 13.5 H12 L11 20 L16.5 10.5 H13.5 Z"],
+  },
+  {
+    id: "gcp-vpc",
+    name: "VPC",
+    category: "Network",
+    keywords: ["gcp", "google", "vpc", "network", "subnet", "boundary"],
+    icon: [
+      "M4 8 V4 H8 M16 4 H20 V8 M20 16 V20 H16 M8 20 H4 V16",
+      circle(10, 12, 1.8),
+      circle(14, 12, 1.8),
+      "M11.8 12 H12.2",
+    ],
+  },
+  {
+    id: "gcp-bigquery",
+    name: "BigQuery",
+    category: "Database",
+    keywords: ["gcp", "google", "bigquery", "warehouse", "analytics", "sql", "data"],
+    icon: [
+      "M4 20 H20",
+      "M7 20 V14 M11 20 V10 M15 20 V15",
+      circle(17, 8, 3),
+      "M19.2 10.2 L21 12",
+    ],
+  },
+  {
+    id: "gcp-spanner",
+    name: "Cloud Spanner",
+    category: "Database",
+    keywords: ["gcp", "google", "spanner", "sql", "distributed", "relational database"],
+    icon: [
+      "M5 6 A7 2.8 0 0 0 19 6 A7 2.8 0 0 0 5 6 Z",
+      "M5 6 V18 M19 6 V18",
+      "M5 12 A7 2.8 0 0 0 19 12",
+      "M5 18 A7 2.8 0 0 0 19 18",
+      circle(12, 12, 1.4),
+    ],
+  },
+  {
+    id: "gcp-cloud-storage",
+    name: "Cloud Storage",
+    category: "Storage",
+    keywords: ["gcp", "google", "cloud storage", "gcs", "bucket", "object", "file"],
+    icon: [
+      "M5.5 6.5 H18.5 L16.8 18.3 A6.8 3.4 0 0 1 7.2 18.3 Z",
+      "M5.5 6.5 A6.5 2.6 0 0 0 18.5 6.5",
+    ],
+  },
+  {
+    id: "gcp-pubsub",
+    name: "Pub/Sub",
+    category: "Messaging",
+    keywords: ["gcp", "google", "pubsub", "pub/sub", "topic", "publish", "subscribe", "event", "messaging"],
+    icon: [
+      circle(12, 12, 1.8),
+      "M9 10 A4.5 4.5 0 0 0 9 14 M15 10 A4.5 4.5 0 0 1 15 14",
+      "M6.5 7.5 A8.5 8.5 0 0 0 6.5 16.5 M17.5 7.5 A8.5 8.5 0 0 1 17.5 16.5",
+    ],
+  },
+  {
+    id: "gcp-cloud-armor",
+    name: "Cloud Armor",
+    category: "Security",
+    keywords: ["gcp", "google", "cloud armor", "waf", "firewall", "ddos", "protection"],
+    icon: [
+      "M12 3.5 L18.5 5.8 V11.5 C18.5 15.5 16 18.2 12 20.5 C8 18.2 5.5 15.5 5.5 11.5 V5.8 Z",
+      "M9.8 11.8 L11.6 13.6 L14.5 10.5",
+    ],
+  },
+];
+
+// ---- Microsoft Azure -------------------------------------------------------
+
+export const AZURE_CATEGORIES = LIBRARY_CATEGORIES;
+
+export type AzureCategory = LibraryCategory;
+
+export const LIBRARY_AZURE: LibraryItem[] = [
+  {
+    id: "azure-vm",
+    name: "Virtual Machines",
+    category: "Compute",
+    keywords: ["azure", "microsoft", "virtual machines", "vm", "instance", "server", "compute"],
+    icon: [
+      "M7 7 H17 V17 H7 Z",
+      "M10 10.5 H14 M10 13.5 H14",
+      "M9 4 V7 M15 4 V7",
+      "M9 17 V20 M15 17 V20",
+    ],
+  },
+  {
+    id: "azure-app-service",
+    name: "App Service",
+    category: "Compute",
+    keywords: ["azure", "microsoft", "app service", "web app", "webapp", "paas", "hosting"],
+    icon: [
+      "M4 5 H20 V19 H4 Z",
+      "M4 9 H20",
+      "M7 7 H8 M10 7 H11",
+      "M8 13 L11 15.5 L8 18",
+    ],
+  },
+  {
+    id: "azure-aks",
+    name: "AKS",
+    category: "Compute",
+    keywords: ["azure", "microsoft", "aks", "kubernetes", "k8s", "container", "cluster", "orchestration"],
+    icon: [
+      "M12 3 L19.8 7.5 V16.5 L12 21 L4.2 16.5 V7.5 Z",
+      circle(12, 12, 3.4),
+      "M12 8.6 V5 M14.9 13.7 L18 15.5 M9.1 13.7 L6 15.5",
+    ],
+  },
+  {
+    id: "azure-functions",
+    name: "Azure Functions",
+    category: "Compute",
+    keywords: ["azure", "microsoft", "functions", "serverless", "faas", "event-driven", "function"],
+    icon: ["M14 4 L9 13.5 H12 L11 20 L16.5 10.5 H13.5 Z"],
+  },
+  {
+    id: "azure-vnet",
+    name: "Virtual Network",
+    category: "Network",
+    keywords: ["azure", "microsoft", "virtual network", "vnet", "network", "subnet", "boundary"],
+    icon: [
+      "M4 8 V4 H8 M16 4 H20 V8 M20 16 V20 H16 M8 20 H4 V16",
+      "M7 12 H12 M12 12 H17",
+      circle(14.5, 12, 2.5),
+    ],
+  },
+  {
+    id: "azure-cosmos-db",
+    name: "Cosmos DB",
+    category: "Database",
+    keywords: ["azure", "microsoft", "cosmos db", "cosmosdb", "nosql", "globally", "distributed", "database"],
+    icon: [
+      "M5 6 A7 2.8 0 0 0 19 6 A7 2.8 0 0 0 5 6 Z",
+      "M5 6 V18 M19 6 V18",
+      "M5 10 A7 2.8 0 0 0 19 10",
+      "M5 14 A7 2.8 0 0 0 19 14",
+      "M5 18 A7 2.8 0 0 0 19 18",
+    ],
+  },
+  {
+    id: "azure-sql",
+    name: "Azure SQL",
+    category: "Database",
+    keywords: ["azure", "microsoft", "sql", "database", "relational", "mssql", "server"],
+    icon: [
+      "M5 6 A7 2.8 0 0 0 19 6 A7 2.8 0 0 0 5 6 Z",
+      "M5 6 V18 M19 6 V18",
+      "M5 18 A7 2.8 0 0 0 19 18",
+      "M5 12 A7 2.8 0 0 0 19 12",
+    ],
+  },
+  {
+    id: "azure-blob-storage",
+    name: "Blob Storage",
+    category: "Storage",
+    keywords: ["azure", "microsoft", "blob", "storage", "bucket", "object", "file"],
+    icon: [
+      "M5.5 6.5 H18.5 L16.8 18.3 A6.8 3.4 0 0 1 7.2 18.3 Z",
+      "M5.5 6.5 A6.5 2.6 0 0 0 18.5 6.5",
+    ],
+  },
+  {
+    id: "azure-service-bus",
+    name: "Service Bus",
+    category: "Messaging",
+    keywords: ["azure", "microsoft", "service bus", "queue", "topic", "messaging", "broker"],
+    icon: [
+      "M5 5 H19 V8.5 H5 Z",
+      "M5 10.25 H19 V13.75 H5 Z",
+      "M5 15.5 H19 V19 H5 Z",
+    ],
+  },
+  {
+    id: "azure-event-grid",
+    name: "Event Grid",
+    category: "Messaging",
+    keywords: ["azure", "microsoft", "event grid", "eventgrid", "events", "routing", "pub/sub", "topic"],
+    icon: [
+      circle(12, 12, 2.6),
+      "M9.8 9.8 L6 6 M14.2 9.8 L18 6 M9.8 14.2 L6 18 M14.2 14.2 L18 18",
+      circle(5, 5, 1.9),
+      circle(19, 5, 1.9),
+      circle(5, 19, 1.9),
+      circle(19, 19, 1.9),
+    ],
+  },
+];
+
 // ---- Kubernetes ----------------------------------------------------------
 
 export const K8S_CATEGORIES = [
@@ -455,15 +694,19 @@ export function unregisterImportedLibraryItems(ids: string[]): void {
 export function getLibraryItem(id: string): LibraryItem | undefined {
   return (
     LIBRARY.find((i) => i.id === id) ??
+    LIBRARY_GCP.find((i) => i.id === id) ??
+    LIBRARY_AZURE.find((i) => i.id === id) ??
     LIBRARY_KUBERNETES.find((i) => i.id === id) ??
     importedItems.get(id)
   );
 }
 
-/** true for the bundled AWS/Kubernetes catalog (never removed at runtime) */
+/** true for the bundled AWS/GCP/Azure/Kubernetes catalog (never removed at runtime) */
 export function isBuiltinLibraryItem(id: string): boolean {
   return (
     LIBRARY.some((i) => i.id === id) ||
+    LIBRARY_GCP.some((i) => i.id === id) ||
+    LIBRARY_AZURE.some((i) => i.id === id) ||
     LIBRARY_KUBERNETES.some((i) => i.id === id)
   );
 }
@@ -471,7 +714,13 @@ export function isBuiltinLibraryItem(id: string): boolean {
 /** Simple case-insensitive search by name, keywords, and category */
 export function searchLibrary(query: string): LibraryItem[] {
   const q = query.trim().toLowerCase();
-  const pool = [...LIBRARY, ...LIBRARY_KUBERNETES, ...importedItems.values()];
+  const pool = [
+    ...LIBRARY,
+    ...LIBRARY_GCP,
+    ...LIBRARY_AZURE,
+    ...LIBRARY_KUBERNETES,
+    ...importedItems.values(),
+  ];
   if (!q) return pool;
   const terms = q.split(/\s+/);
   return pool.filter((item) => {

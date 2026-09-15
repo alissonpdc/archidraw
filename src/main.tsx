@@ -8,6 +8,7 @@ import { markSaved } from "./ui/saveStatus";
 import {
   applySkinPref,
   applyThemePref,
+  attachThemeColorCorrelation,
   loadSkinPref,
   loadThemePref,
 } from "./ui/theme";
@@ -15,6 +16,19 @@ import { initImportedLibraries } from "./core/importedLibraries";
 import { initImportedImages } from "./core/importedImages";
 import { initCustomLibrary } from "./core/customLibrary";
 import { elementVisualBounds, detailsBadgeAnchor } from "./core/renderer";
+import {
+  parseColor,
+  ensureContrast,
+  themeColor,
+  contrastRatio,
+  relativeLuminance,
+  BASE_COLORS,
+  shadesOf,
+  locate,
+  isPaletteColor,
+  correlateIntensity,
+} from "./core/color";
+import { edgePathPoints, defaultAutoPath, determineBindingSide } from "./core/utils";
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__editor__ = editor;
@@ -22,6 +36,26 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
     elementVisualBounds;
   (window as unknown as Record<string, unknown>).__detailsBadgeAnchor__ =
     detailsBadgeAnchor;
+  (window as unknown as Record<string, unknown>).__color__ = {
+    parseColor,
+    ensureContrast,
+    themeColor,
+    contrastRatio,
+    relativeLuminance,
+    BASE_COLORS,
+    shadesOf,
+    locate,
+    isPaletteColor,
+    correlateIntensity,
+  };
+  (window as unknown as Record<string, unknown>).__archidrawUtils__ = {
+    edgePathPoints,
+    defaultAutoPath,
+    determineBindingSide,
+  };
+  (window as unknown as Record<string, unknown>).__theme__ = {
+    attachThemeColorCorrelation,
+  };
 }
 
 // restore theme preference before first render (no flash of wrong theme)
@@ -41,6 +75,7 @@ if (saved) {
 }
 
 attachAutosave(editor, 400, markSaved);
+attachThemeColorCorrelation(editor);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -285,38 +285,38 @@ test.describe("path types for lines and arrows", () => {
 
   test("auto arrow: segment drag keeps a margin from the start binding", async ({ page }) => {
     await boundAutoArrow(page);
-    // drag the horizontal segment down 80px: first turn happens 16px after
-    // the binding point instead of riding on the shape outline
-    await drag(page, { x: 300, y: 150 }, { x: 300, y: 230 });
+    await drag(page, { x: 250, y: 150 }, { x: 250, y: 230 });
     const el = await page.evaluate(() => {
       const s = (window as any).__editor__.getSnapshot();
       return s.doc.elements[2];
     });
-    expect(el.bendPoints).toHaveLength(3);
-    expect(el.bendPoints[0].x).toBeCloseTo(216, 0); // 200 + margin 16
+    expect(el.bendPoints).toHaveLength(4);
+    expect(el.bendPoints[0].x).toBeCloseTo(225, 0);
     expect(el.bendPoints[0].y).toBeCloseTo(150, 0);
-    expect(el.bendPoints[1].x).toBeCloseTo(216, 0);
+    expect(el.bendPoints[1].x).toBeCloseTo(225, 0);
     expect(el.bendPoints[1].y).toBeCloseTo(230, 0);
-    expect(el.bendPoints[2].x).toBeCloseTo(400, 0);
+    expect(el.bendPoints[2].x).toBeCloseTo(300, 0);
     expect(el.bendPoints[2].y).toBeCloseTo(230, 0);
+    expect(el.bendPoints[3].x).toBeCloseTo(300, 0);
+    expect(el.bendPoints[3].y).toBeCloseTo(350, 0);
   });
 
   test("auto arrow: segment drag keeps a margin from the end binding", async ({ page }) => {
     await boundAutoArrow(page);
-    // drag the vertical segment right 60px: the approach into the bound tip
-    // stays vertical for the last 16px before the anchor
-    await drag(page, { x: 400, y: 250 }, { x: 460, y: 250 });
+    await drag(page, { x: 350, y: 350 }, { x: 350, y: 270 });
     const el = await page.evaluate(() => {
       const s = (window as any).__editor__.getSnapshot();
       return s.doc.elements[2];
     });
-    expect(el.bendPoints).toHaveLength(3);
-    expect(el.bendPoints[0].x).toBeCloseTo(460, 0);
+    expect(el.bendPoints).toHaveLength(4);
+    expect(el.bendPoints[0].x).toBeCloseTo(300, 0);
     expect(el.bendPoints[0].y).toBeCloseTo(150, 0);
-    expect(el.bendPoints[1].x).toBeCloseTo(460, 0);
-    expect(el.bendPoints[1].y).toBeCloseTo(334, 0);
-    expect(el.bendPoints[2].x).toBeCloseTo(400, 0);
-    expect(el.bendPoints[2].y).toBeCloseTo(334, 0);
+    expect(el.bendPoints[1].x).toBeCloseTo(300, 0);
+    expect(el.bendPoints[1].y).toBeCloseTo(270, 0);
+    expect(el.bendPoints[2].x).toBeCloseTo(375, 0);
+    expect(el.bendPoints[2].y).toBeCloseTo(270, 0);
+    expect(el.bendPoints[3].x).toBeCloseTo(375, 0);
+    expect(el.bendPoints[3].y).toBeCloseTo(350, 0);
   });
 
   test("auto line: magnet snaps a dragged segment onto a parallel one", async ({ page }) => {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { editor } from "../hooks/useEditor";
 import { AdditionalInfoModal } from "./AdditionalInfoModal";
-import { buildSvgString, exportSVG } from "../../core/exporter";
+import { buildSvgString, copyPngToClipboard, copySvgToClipboard, exportPNG, exportSVG } from "../../core/exporter";
 import {
   addCustomItem,
   nextCustomNumber,
@@ -10,6 +10,8 @@ import {
 import { unionBounds } from "../../core/utils";
 import type { Element } from "../../core/types";
 import { toast } from "../toasts";
+import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, DeleteIcon, DownloadIcon, DuplicateIcon, FitIcon, GroupIcon, HighlightDependenciesIcon, InfoIcon, LayersIcon, LibraryIcon, LockIcon, PasteIcon, PasteStyleIcon, SelectAllIcon, SendBackwardIcon, SendToBackIcon, UngroupIcon, UnlockIcon } from "./icons";
+import { MOD } from "../platform";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Shift", "Alt"]);
 
@@ -134,6 +136,97 @@ export function ContextMenu() {
     );
   }, [menu]);
 
+  const copyElements = () => {
+    editor.copySelected();
+    toast("Copied to clipboard");
+    close();
+  };
+
+  const cutElements = () => {
+    editor.cutSelected();
+    toast("Cut to clipboard");
+    close();
+  };
+
+  const duplicateElements = () => {
+    editor.duplicateSelected();
+    close();
+  };
+
+  const deleteElements = () => {
+    editor.deleteSelected();
+    close();
+  };
+
+  const bringToFrontElements = () => {
+    editor.bringToFront();
+    close();
+  };
+
+  const sendToBackElements = () => {
+    editor.sendToBack();
+    close();
+  };
+
+  const bringForwardElements = () => {
+    editor.bringForward();
+    close();
+  };
+
+  const sendBackwardElements = () => {
+    editor.sendBackward();
+    close();
+  };
+
+  const groupElements = () => {
+    editor.groupSelected();
+    close();
+  };
+
+  const ungroupElements = () => {
+    editor.ungroupSelected();
+    close();
+  };
+
+  const copyStyleElements = () => {
+    editor.copyStyle();
+    toast("Style copied");
+    close();
+  };
+
+  const pasteStyleElements = () => {
+    editor.pasteStyle();
+    toast("Style pasted");
+    close();
+  };
+
+  const pasteHere = () => {
+    if (!menu) return;
+    const count = editor.pasteAt({ x: menu.x, y: menu.y });
+    if (count > 0) toast("Pasted");
+    close();
+  };
+
+  const fitToView = () => {
+    editor.zoomToFit();
+    close();
+  };
+
+  const selectAllElements = () => {
+    editor.selectAll();
+    close();
+  };
+
+  const highlightDeps = () => {
+    editor.highlightDependencies();
+    close();
+  };
+
+  const toggleLockElements = () => {
+    editor.toggleLockSelected();
+    close();
+  };
+
   /** serializa a seleção como SVG standalone (documento só com os ítens) */
   const addToLibrary = () => {
     const selected = saveElements(menu?.saveIds ?? null);
@@ -160,6 +253,35 @@ export function ContextMenu() {
     close();
   };
 
+  const downloadAsPng = async () => {
+    const selected = saveElements(menu?.saveIds ?? null);
+    if (selected.length === 0) return;
+    const name = `custom-${nextCustomNumber()}`;
+    const ok = await exportPNG({ schemaVersion: 1, elements: selected }, name);
+    if (ok) toast(`PNG "${name}.png" downloaded`);
+    close();
+  };
+
+  const [copySubmenu, setCopySubmenu] = useState(false);
+  const [layersSubmenu, setLayersSubmenu] = useState(false);
+  const [downloadSubmenu, setDownloadSubmenu] = useState(false);
+
+  const copyAsSvg = async () => {
+    const selected = saveElements(menu?.saveIds ?? null);
+    if (selected.length === 0) return;
+    const ok = await copySvgToClipboard({ schemaVersion: 1, elements: selected });
+    toast(ok ? "SVG copied to clipboard" : "Failed to copy SVG");
+    close();
+  };
+
+  const copyAsPng = async () => {
+    const selected = saveElements(menu?.saveIds ?? null);
+    if (selected.length === 0) return;
+    const ok = await copyPngToClipboard({ schemaVersion: 1, elements: selected });
+    toast(ok ? "PNG copied to clipboard" : "Failed to copy PNG");
+    close();
+  };
+
   if (!menu && !editingId) return null;
 
   return createPortal(
@@ -177,29 +299,251 @@ export function ContextMenu() {
           }}
         >
           {menu.targetId ? (
+            (() => {
+              const snap = editor.getSnapshot();
+              const selectedEls = snap.doc.elements.filter((el) =>
+                snap.selectedIds.has(el.id),
+              );
+              const groupIds = new Set(
+                selectedEls.map((el) => el.groupId).filter(Boolean),
+              );
+              const singleGroup =
+                groupIds.size === 1 &&
+                selectedEls.every((el) => el.groupId);
+              const canGroup = snap.selectedIds.size >= 2 && !singleGroup;
+              const canUngroup = selectedEls.some((el) => el.groupId);
+              const allLocked = selectedEls.length > 0 && selectedEls.every((el) => el.locked);
+              return (
             <>
-              <div
-                className="context-menu-header"
-                data-testid="context-menu-save-header"
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-copy"
+                onClick={copyElements}
               >
-                SAVE
+                <CopyIcon size={14} />
+                <span>Copy</span>
+                <span className="context-menu-item-shortcut">{MOD}+C</span>
+              </button>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-cut"
+                onClick={cutElements}
+              >
+                <CutIcon size={14} />
+                <span>Cut</span>
+                <span className="context-menu-item-shortcut">{MOD}+X</span>
+              </button>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-duplicate"
+                onClick={duplicateElements}
+              >
+                <DuplicateIcon size={14} />
+                <span>Duplicate</span>
+                <span className="context-menu-item-shortcut">{MOD}+D</span>
+              </button>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-delete"
+                onClick={deleteElements}
+              >
+                <DeleteIcon size={14} />
+                <span>Delete</span>
+                <span className="context-menu-item-shortcut">Delete</span>
+              </button>
+              <div className="context-menu-divider" />
+              <div
+                className="context-menu-item context-menu-parent"
+                role="menuitem"
+                data-testid="context-menu-layers"
+                onMouseEnter={() => setLayersSubmenu(true)}
+                onMouseLeave={() => setLayersSubmenu(false)}
+              >
+                <LayersIcon size={14} />
+                <span>Layers</span>
+                <span className="context-menu-item-shortcut">&#9656;</span>
+                {layersSubmenu && (
+                  <div className="context-menu-submenu">
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-bring-to-front"
+                      onClick={bringToFrontElements}
+                    >
+                      <BringToFrontIcon size={14} />
+                      <span>Bring to Front</span>
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-send-to-back"
+                      onClick={sendToBackElements}
+                    >
+                      <SendToBackIcon size={14} />
+                      <span>Send to Back</span>
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-bring-forward"
+                      onClick={bringForwardElements}
+                    >
+                      <BringForwardIcon size={14} />
+                      <span>Bring Forward</span>
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-send-backward"
+                      onClick={sendBackwardElements}
+                    >
+                      <SendBackwardIcon size={14} />
+                      <span>Send Backward</span>
+                    </button>
+                  </div>
+                )}
               </div>
+              <div className="context-menu-divider" />
+              {canGroup && (
+                <button
+                  className="context-menu-item"
+                  role="menuitem"
+                  data-testid="context-menu-group"
+                  onClick={groupElements}
+                >
+                  <GroupIcon size={14} />
+                  <span>Group</span>
+                  <span className="context-menu-item-shortcut">{MOD}+G</span>
+                </button>
+              )}
+              {canUngroup && (
+                <button
+                  className="context-menu-item"
+                  role="menuitem"
+                  data-testid="context-menu-ungroup"
+                  onClick={ungroupElements}
+                >
+                  <UngroupIcon size={14} />
+                  <span>Ungroup</span>
+                  <span className="context-menu-item-shortcut">{MOD}+Shift+G</span>
+                </button>
+              )}
+              {(canGroup || canUngroup) && <div className="context-menu-divider" />}
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-toggle-lock"
+                onClick={toggleLockElements}
+              >
+                {allLocked ? <UnlockIcon size={14} /> : <LockIcon size={14} />}
+                <span>{allLocked ? "Unlock" : "Lock"}</span>
+                <span className="context-menu-item-shortcut">{MOD}+Shift+L</span>
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-copy-style"
+                onClick={copyStyleElements}
+              >
+                <CopyStyleIcon size={14} />
+                <span>Copy Style</span>
+              </button>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-paste-style"
+                onClick={pasteStyleElements}
+              >
+                <PasteStyleIcon size={14} />
+                <span>Paste Style</span>
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-highlight-deps"
+                onClick={highlightDeps}
+              >
+                <HighlightDependenciesIcon size={14} />
+                <span>Highlight Flow</span>
+              </button>
+              <div className="context-menu-divider" />
               <button
                 className="context-menu-item"
                 role="menuitem"
                 data-testid="context-menu-add-library"
                 onClick={addToLibrary}
               >
-                Add to Library
+                <LibraryIcon size={14} />
+                <span>Add to Library</span>
               </button>
-              <button
-                className="context-menu-item"
+              <div
+                className="context-menu-item context-menu-parent"
                 role="menuitem"
-                data-testid="context-menu-download-svg"
-                onClick={downloadSvgImage}
+                data-testid="context-menu-download"
+                onMouseEnter={() => setDownloadSubmenu(true)}
+                onMouseLeave={() => setDownloadSubmenu(false)}
               >
-                Download SVG Image
-              </button>
+                <DownloadIcon size={14} />
+                <span>Download</span>
+                <span className="context-menu-item-shortcut">&#9656;</span>
+                {downloadSubmenu && (
+                  <div className="context-menu-submenu">
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-download-png"
+                      onClick={downloadAsPng}
+                    >
+                      Download as PNG
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-download-svg"
+                      onClick={downloadSvgImage}
+                    >
+                      Download as SVG
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div
+                className="context-menu-item context-menu-parent"
+                role="menuitem"
+                data-testid="context-menu-copy-image"
+                onMouseEnter={() => setCopySubmenu(true)}
+                onMouseLeave={() => setCopySubmenu(false)}
+              >
+                <CopyIcon size={14} />
+                <span>Copy</span>
+                <span className="context-menu-item-shortcut">&#9656;</span>
+                {copySubmenu && (
+                  <div className="context-menu-submenu">
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-copy-svg"
+                      onClick={copyAsSvg}
+                    >
+                      Copy as SVG
+                    </button>
+                    <button
+                      className="context-menu-item"
+                      role="menuitem"
+                      data-testid="context-menu-copy-png"
+                      onClick={copyAsPng}
+                    >
+                      Copy as PNG
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="context-menu-divider" />
               <button
                 className="context-menu-item"
@@ -210,13 +554,46 @@ export function ContextMenu() {
                   close();
                 }}
               >
-                Additional Information
+                <InfoIcon size={14} />
+                <span>Additional Information</span>
               </button>
             </>
+            );
+            })()
           ) : (
-            <div className="context-menu-empty" data-testid="context-menu-empty">
-              No actions available
-            </div>
+            <>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-paste-here"
+                onClick={pasteHere}
+              >
+                <PasteIcon size={14} />
+                <span>Paste Here</span>
+                <span className="context-menu-item-shortcut">{MOD}+V</span>
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-fit-view"
+                onClick={fitToView}
+              >
+                <FitIcon size={14} />
+                <span>Fit to View</span>
+                <span className="context-menu-item-shortcut">Shift+1</span>
+              </button>
+              <button
+                className="context-menu-item"
+                role="menuitem"
+                data-testid="context-menu-select-all"
+                onClick={selectAllElements}
+              >
+                <SelectAllIcon size={14} />
+                <span>Select All</span>
+                <span className="context-menu-item-shortcut">{MOD}+A</span>
+              </button>
+            </>
           )}
         </div>
       )}

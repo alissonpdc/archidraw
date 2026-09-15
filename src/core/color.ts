@@ -1,4 +1,4 @@
-import { DEFAULT_STROKE } from "./types";
+import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_BG, DEFAULT_STROKE } from "./types";
 
 /**
  * Color utilities for the canvas renderer. Keeps shapes legible on any
@@ -158,11 +158,102 @@ function clampForBg(
   return null;
 }
 
+export const BASE_COLORS: { name: string; color: string }[] = [
+  { name: "Grey", color: "#868e96" },
+  { name: "Red", color: "#e03131" },
+  { name: "Pink", color: "#d6336c" },
+  { name: "Grape", color: "#ae3ec9" },
+  { name: "Purple", color: "#6741d9" },
+  { name: "Indigo", color: "#4c6ef5" },
+  { name: "Blue", color: "#1971c2" },
+  { name: "Cyan", color: "#22b8cf" },
+  { name: "Teal", color: "#20c997" },
+  { name: "Green", color: "#2f9e44" },
+  { name: "Lime", color: "#94d82d" },
+  { name: "Yellow", color: "#f5c518" },
+  { name: "Orange", color: "#f08c00" },
+  { name: "Coral", color: "#f76707" },
+  { name: "Brown", color: "#a65e3f" },
+];
+
+export function hexToHsl(hex: string): [number, number, number] {
+  const m = hex.replace("#", "");
+  const r = parseInt(m.slice(0, 2), 16) / 255;
+  const g = parseInt(m.slice(2, 4), 16) / 255;
+  const b = parseInt(m.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h: number;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return [h * 360, s * 100, l * 100];
+}
+
+export function hslToHex(h: number, s: number, l: number): string {
+  s /= 100;
+  l /= 100;
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) =>
+    Math.round(
+      255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))),
+    );
+  return (
+    "#" +
+    [f(0), f(8), f(4)]
+      .map((v) => v.toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
+
+export function shadesOf(hex: string): string[] {
+  const [h, s, baseL] = hexToHsl(hex);
+  const sat = Math.max(s, 8);
+  const l1 = 88;
+  const l5 = 16;
+  const l2 = Math.round((l1 + baseL) / 2);
+  const l4 = Math.round((baseL + l5) / 2);
+  return [
+    hslToHex(h, sat * 0.55, l1),
+    hslToHex(h, sat * 0.75, l2),
+    hex,
+    hslToHex(h, sat, l4),
+    hslToHex(h, sat, l5),
+  ];
+}
+
+export function locate(hex: string): { base: number; intensity: number } | null {
+  const norm = hex.trim().toLowerCase();
+  for (let i = 0; i < BASE_COLORS.length; i++) {
+    const shades = shadesOf(BASE_COLORS[i].color);
+    const idx = shades.findIndex((s) => s.toLowerCase() === norm);
+    if (idx !== -1) return { base: i, intensity: idx };
+  }
+  if (norm === DEFAULT_STROKE.toLowerCase()) return { base: 0, intensity: 4 };
+  if (norm === DEFAULT_BG.toLowerCase()) return { base: 0, intensity: 0 };
+  return null;
+}
+
+const PALETTE_SHADES = new Set(
+  BASE_COLORS.flatMap((b) => shadesOf(b.color).map((s) => s.toLowerCase())),
+);
+
+export function isPaletteColor(hex: string): boolean {
+  return PALETTE_SHADES.has(hex.trim().toLowerCase());
+}
+
 /**
  * Resolve a color as stored on an element to the color actually drawn:
  *  - the theme default sentinel → the active theme's `--element-stroke`;
  *  - any explicit color → clamped for minimum contrast on the canvas.
  */
+const GREY_5 = "#26292c";
+
 export function themeColor(
   color: string,
   elementStroke: string,
@@ -170,5 +261,24 @@ export function themeColor(
 ): string {
   if (color === "" || color === "transparent") return "transparent";
   if (color === DEFAULT_STROKE) return elementStroke;
+  if (color === DEFAULT_BG) {
+    const bg = parseColor(canvasBg);
+    const dark = bg !== null && relativeLuminance(bg) < 0.5;
+    return dark ? GREY_5 : DEFAULT_BG;
+  }
+  if (color === CONTEXT_STROKE) {
+    const bg = parseColor(canvasBg);
+    const dark = bg !== null && relativeLuminance(bg) < 0.5;
+    return dark ? CONTEXT_STROKE_DARK : CONTEXT_STROKE;
+  }
+  if (isPaletteColor(color)) return color;
   return ensureContrast(color, canvasBg);
+}
+
+export function correlateIntensity(color: string): string {
+  if (!color || color === "transparent") return color;
+  const loc = locate(color);
+  if (!loc) return color;
+  const targetIntensity = 4 - loc.intensity;
+  return shadesOf(BASE_COLORS[loc.base].color)[targetIntensity];
 }

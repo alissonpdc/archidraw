@@ -36,4 +36,9 @@ export class History {
     this.undoStack.push(current);
     return next;
   }
+
+  mapSnapshots(fn: (snapshot: string) => string) {
+    this.undoStack = this.undoStack.map(fn);
+    this.redoStack = this.redoStack.map(fn);
+  }
 }

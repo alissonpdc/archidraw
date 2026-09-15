@@ -50,9 +50,13 @@ test.describe("fill styles", () => {
 
   test("fill opacity keeps driving hachure alpha", async ({ page }) => {
     await drawRectangle(page);
+    // opacity lives inside the fill color picker's popover
+    await page.getByRole("button", { name: "Fill current" }).click();
     await page
-      .getByRole("slider", { name: "Fill opacity" })
+      .locator(".color-popover--portal")
+      .locator('input[aria-label="Opacity"]')
       .fill("40");
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Fill Hachure", exact: true }).click();
     const el = await firstElement(page);
     expect(el.fillOpacity).toBeCloseTo(0.4, 1);

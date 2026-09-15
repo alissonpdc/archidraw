@@ -533,3 +533,33 @@ export function closedLoopD(
   });
   return closed && loop.length > 0 ? `${d} Z` : d;
 }
+
+export function sketchStrokePath2D(
+  polylines: Point[][],
+  roughness: number,
+  seedBase: number,
+  waveScale = 1,
+  clampStart = false,
+  clampEnd = false,
+): Path2D {
+  const segs = sketchStrokeSegments(
+    polylines,
+    roughness,
+    seedBase,
+    waveScale,
+    clampStart,
+    clampEnd,
+  );
+  const path = new Path2D();
+  for (const seg of segs) {
+    path.moveTo(seg.moveTo.x, seg.moveTo.y);
+    for (const c of seg.curves) {
+      if (c.kind === "quad" && c.ctrl) {
+        path.quadraticCurveTo(c.ctrl.x, c.ctrl.y, c.to.x, c.to.y);
+      } else {
+        path.lineTo(c.to.x, c.to.y);
+      }
+    }
+  }
+  return path;
+}

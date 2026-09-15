@@ -3,6 +3,7 @@ import type { RenderColors } from "./renderer";
 import { themeColor } from "./color";
 
 export const DEFAULT_FONT_FAMILY = '"Segoe UI", system-ui, sans-serif';
+export const SKETCH_FONT_FAMILY = '"Architects Daughter", cursive';
 export const DEFAULT_LINE_HEIGHT = 1.25;
 
 /** build a CSS font string from raw text props (shared by font/measure) */
@@ -17,9 +18,12 @@ export function buildFontString(
   return `${style}${weight}${fontSize}px ${family}`;
 }
 
-/** effective font family string for an element */
-export function fontFamilyOf(el: Element): string {
-  return el.fontFamily || DEFAULT_FONT_FAMILY;
+export function defaultFontFamily(roughness: number = 0): string {
+  return roughness >= 1 ? SKETCH_FONT_FAMILY : DEFAULT_FONT_FAMILY;
+}
+
+export function fontFamilyOf(el: { fontFamily?: string; roughness?: number }): string {
+  return el.fontFamily || defaultFontFamily(el.roughness);
 }
 
 /** render height of a text block with the given line count */

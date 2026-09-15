@@ -1,26 +1,57 @@
 import {
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import { editor, useEditor } from "../hooks/useEditor";
+import { editor, useEditorSelector } from "../hooks/useEditor";
+import type { Element } from "../../core/types";
+import {
+  DEFAULT_FONT_FAMILY,
+  SKETCH_FONT_FAMILY,
+  fontFamilyOf,
+} from "../../core/textStyle";
+import { ColorBox, ColorSubmenu, type PickerKind } from "./ColorRampPicker";
+import { themeColor } from "../../core/color";
 
-/** 10 basic colors shared by stroke and fill */
-const BASE_COLORS: { name: string; color: string }[] = [
-  { name: "Grey", color: "#868e96" },
-  { name: "Red", color: "#e03131" },
-  { name: "Orange", color: "#f08c00" },
-  { name: "Yellow", color: "#f5c518" },
-  { name: "Green", color: "#2f9e44" },
-  { name: "Cyan", color: "#0c8599" },
-  { name: "Blue", color: "#1971c2" },
-  { name: "Purple", color: "#6741d9" },
-  { name: "Pink", color: "#d6336c" },
-  { name: "Brown", color: "#a65e3f" },
-];
+function resolveThemeColor(color: string): string {
+  const s = getComputedStyle(document.documentElement);
+  const elementStroke = s.getPropertyValue("--element-stroke").trim() || "#26292c";
+  const canvasBg = s.getPropertyValue("--bg-canvas").trim() || "#ffffff";
+  return themeColor(color, elementStroke, canvasBg);
+}
+
+const themeListeners = new Set<() => void>();
+
+function subscribeTheme(cb: () => void): () => void {
+  themeListeners.add(cb);
+  return () => themeListeners.delete(cb);
+}
+
+function getThemeSnap(): number {
+  return themeTick;
+}
+
+let themeTick = 0;
+
+if (typeof document !== "undefined") {
+  const obs = new MutationObserver(() => {
+    themeTick++;
+    themeListeners.forEach((cb) => cb());
+  });
+  obs.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme", "data-skin"],
+  });
+  window.addEventListener("archidraw:bg-change", () => {
+    themeTick++;
+    themeListeners.forEach((cb) => cb());
+  });
+}
+
+const EMPTY_ELEMENTS: Element[] = [];
 
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
 const FONT_SIZES = [
@@ -30,8 +61,8 @@ const FONT_SIZES = [
   { label: "XL", value: 36 },
 ];
 const FONT_FAMILIES = [
-  { label: "Sans", value: '"Segoe UI", system-ui, sans-serif', glyph: "Aa" },
-  { label: "Sketch", value: '"Architects Daughter", cursive', glyph: "Aa" },
+  { label: "Sans", value: DEFAULT_FONT_FAMILY, glyph: "Aa" },
+  { label: "Sketch", value: SKETCH_FONT_FAMILY, glyph: "Aa" },
   { label: "Serif", value: 'Georgia, "Times New Roman", serif', glyph: "Aa" },
   { label: "Consolas", value: 'Consolas, "SF Mono", monospace', glyph: "Aa" },
 ];
@@ -40,6 +71,16 @@ const CAPTION_POSITIONS = [
   { label: "Top", value: "top" as const },
   { label: "Left", value: "left" as const },
   { label: "Right", value: "right" as const },
+];
+const LABEL_POSITIONS = [
+  { label: "Top Left", value: "top-left" as const },
+  { label: "Top Right", value: "top-right" as const },
+  { label: "Bottom Left", value: "bottom-left" as const },
+  { label: "Bottom Right", value: "bottom-right" as const },
+];
+const LABEL_SIDES = [
+  { label: "Internal", value: "internal" as const },
+  { label: "External", value: "external" as const },
 ];
 const TEXT_VALIGNS = [
   { label: "Top", value: "top" as const },
@@ -73,6 +114,8 @@ type Patch = Partial<{
   textOffsetLeft: number;
   textOffsetRight: number;
   captionPosition: "top" | "bottom" | "left" | "right";
+  labelPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  labelSide: "internal" | "external";
   captionGap: number;
   captionOffsetTop: number;
   captionOffsetBottom: number;
@@ -83,56 +126,6 @@ type Patch = Partial<{
   startArrowhead: "none" | "circle" | "arrow" | "triangle";
   endArrowhead: "none" | "circle" | "arrow" | "triangle";
 }>;
-
-// ---- color helpers -----------------------------------------------------
-
-function hexToHsl(hex: string): [number, number, number] {
-  const m = hex.replace("#", "");
-  const r = parseInt(m.slice(0, 2), 16) / 255;
-  const g = parseInt(m.slice(2, 4), 16) / 255;
-  const b = parseInt(m.slice(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  if (max === min) return [0, 0, l];
-  const d = max - min;
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h: number;
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-  else if (max === g) h = ((b - r) / d + 2) / 6;
-  else h = ((r - g) / d + 4) / 6;
-  return [h * 360, s * 100, l * 100];
-}
-
-function hslToHex(h: number, s: number, l: number): string {
-  s /= 100;
-  l /= 100;
-  const k = (n: number) => (n + h / 30) % 12;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) =>
-    Math.round(
-      255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))),
-    );
-  return (
-    "#" +
-    [f(0), f(8), f(4)]
-      .map((v) => v.toString(16).padStart(2, "0"))
-      .join("")
-  );
-}
-
-/** 5 shades of the color (light → dark), with original color in the middle */
-function shadesOf(hex: string): string[] {
-  const [h, s] = hexToHsl(hex);
-  const sat = Math.max(s, 8);
-  return [
-    hslToHex(h, sat * 0.55, 92),
-    hslToHex(h, sat * 0.75, 78),
-    hex,
-    hslToHex(h, sat, 42),
-    hslToHex(h, sat, 26),
-  ];
-}
 
 // ---- components ---------------------------------------------------------
 
@@ -204,105 +197,6 @@ function Section({
     <div className="panel-section">
       <div className="panel-section-heading">{title}</div>
       <div className="panel-section-body">{children}</div>
-    </div>
-  );
-}
-
-const PALETTE_COLS = 5;
-const SWATCH_STEP = 28; // 24px swatch + 4px gap
-
-function PaletteGrid({
-  current,
-  onPick,
-  label,
-}: {
-  current: string;
-  onPick: (color: string) => void;
-  label: string;
-}) {
-  const [expanded, setExpanded] = useState<number | null>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [popPos, setPopPos] = useState<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (expanded === null) return;
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as HTMLElement;
-      if (!wrapRef.current?.contains(t) && !t.closest(".color-popover--portal")) setExpanded(null);
-    };
-    window.addEventListener("pointerdown", onDown);
-    return () => window.removeEventListener("pointerdown", onDown);
-  }, [expanded]);
-
-  const expandedShades =
-    expanded !== null && expanded > 0
-      ? shadesOf(BASE_COLORS[expanded - 1].color)
-      : null;
-
-  const groupShades = useMemo(
-    () => BASE_COLORS.map((e) => shadesOf(e.color)),
-    [],
-  );
-
-  const handleSwatchClick = (i: number, e: React.MouseEvent<HTMLButtonElement>) => {
-    if (expanded === i + 1) {
-      setExpanded(null);
-      setPopPos(null);
-    } else {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const popoverW = PALETTE_COLS * SWATCH_STEP + 8;
-      let x = rect.left;
-      if (x + popoverW > window.innerWidth - 8) x = window.innerWidth - popoverW - 8;
-      if (x < 8) x = 8;
-      setPopPos({ x, y: rect.bottom + 6 });
-      setExpanded(i + 1);
-    }
-  };
-
-  return (
-    <div className="palette-wrap" ref={wrapRef}>
-      <div className="swatch-row swatch-row-5">
-        {BASE_COLORS.map((entry, i) => {
-          const isThisGroup =
-            current === entry.color || groupShades[i].includes(current);
-          return (
-            <button
-              key={entry.name}
-              className={`swatch ${isThisGroup ? "active" : ""}`}
-              style={{ background: isThisGroup ? current : entry.color }}
-              aria-label={`${label} ${entry.name}`}
-              data-tip={entry.name}
-              onClick={(e) => handleSwatchClick(i, e)}
-            />
-          );
-        })}
-      </div>
-      {expandedShades && popPos && createPortal(
-        <div
-          className="color-popover color-popover--portal"
-          style={{ left: popPos.x, top: popPos.y }}
-          role="menu"
-          aria-label={`${label} shades`}
-        >
-          <div className="swatch-shade-row">
-            {expandedShades.map((shade, i) => (
-              <button
-                key={shade}
-                className={`swatch ${current === shade ? "active" : ""}`}
-                style={{ background: shade }}
-                aria-label={`${label} shade ${i + 1}`}
-                data-tip={shade.toUpperCase()}
-                onClick={() => {
-                  onPick(shade);
-                  setExpanded(null);
-                  setPopPos(null);
-                }}
-              />
-            ))}
-          </div>
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }
@@ -413,7 +307,18 @@ function MiniSlider({
 }
 
 export function PropertiesPanel() {
-  const snap = useEditor();
+  useSyncExternalStore(subscribeTheme, getThemeSnap, getThemeSnap);
+  const selected = useEditorSelector(
+    (s) => {
+      if (s.selectedIds.size === 0) return EMPTY_ELEMENTS;
+      return s.doc.elements.filter((el) => s.selectedIds.has(el.id));
+    },
+    (a, b) => {
+      if (a === b) return true;
+      if (a.length !== b.length) return false;
+      return a.every((el, i) => el === b[i]);
+    },
+  );
   const [tip, setTip] = useState<TipState | null>(null);
   const [activeTab, setActiveTab] = useState<"style" | "text" | "layers">("style");
   const [maxTabHeight, setMaxTabHeight] = useState<number | null>(null);
@@ -421,11 +326,22 @@ export function PropertiesPanel() {
   const styleRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<HTMLDivElement>(null);
-  const selected = snap.doc.elements.filter((el) =>
-    snap.selectedIds.has(el.id),
-  );
+  const [openPicker, setOpenPicker] = useState<PickerKind | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!openPicker) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement;
+      if (!containerRef.current?.contains(t)) {
+        setOpenPicker(null);
+      }
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [openPicker]);
+
+  const selKey = selected.map((el) => el.id).join(",");
   useLayoutEffect(() => {
     const heights = [styleRef, textRef, layersRef]
       .map((r) => r.current?.scrollHeight ?? 0)
@@ -437,7 +353,7 @@ export function PropertiesPanel() {
         setMaxTabHeight(max);
       }
     }
-  });
+  }, [selKey, activeTab]);
 
   if (selected.length === 0) return null;
 
@@ -468,14 +384,16 @@ export function PropertiesPanel() {
       el.type === "ellipse" ||
       el.type === "line" ||
       el.type === "arrow" ||
-      el.type === "component",
+      el.type === "component" ||
+      el.type === "context",
   );
   const hasFillable = selected.some(
     (el) =>
       el.type === "rectangle" ||
       el.type === "diamond" ||
       el.type === "ellipse" ||
-      el.type === "component",
+      el.type === "component" ||
+      el.type === "context",
   );
   const hasComponent = selected.some((el) => el.type === "component");
   /** elements that use the icon+caption label model (components — incl. imagens) */
@@ -484,6 +402,7 @@ export function PropertiesPanel() {
   const hasDiamond = selected.some((el) => el.type === "diamond");
   const hasEllipse = selected.some((el) => el.type === "ellipse");
   const hasArrow = selected.some((el) => el.type === "arrow");
+  const hasContext = selected.some((el) => el.type === "context");
   const isOnlyText = selected.length > 0 && selected.every((el) => el.type === "text");
 
   // pure text has no Style tab; auto-switch away from it
@@ -527,7 +446,12 @@ export function PropertiesPanel() {
       textEls.length > 0 &&
       textEls.every(
         (el) =>
-          (el.fontSize ?? (el.type === "component" ? 12 : 20)) === v,
+          (el.fontSize ??
+            (el.type === "component"
+              ? 12
+              : el.type === "context"
+                ? 16
+                : 20)) === v,
       )
     );
   };
@@ -545,7 +469,9 @@ export function PropertiesPanel() {
       : null;
   })();
   const radiusValue = (() => {
-    const rects = selected.filter((el) => el.type === "rectangle");
+    const rects = selected.filter(
+      (el) => el.type === "rectangle" || el.type === "context",
+    );
     if (rects.length === 0) return null;
     const first = rects[0].borderRadius;
     return rects.every((r) => r.borderRadius === first) ? first : null;
@@ -563,6 +489,10 @@ export function PropertiesPanel() {
     selected.every((el) => (el.textVAlign ?? "middle") === v);
   const allCaptionPos = (v: string) =>
     selected.every((el) => (el.captionPosition ?? "bottom") === v);
+  const allLabelPos = (v: string) =>
+    selected.every((el) => ((el as any).labelPosition ?? "top-left") === v);
+  const allLabelSide = (v: string) =>
+    selected.every((el) => ((el as any).labelSide ?? "external") === v);
 
   const textColorValue = (() => {
     const first = selected[0].textColor ?? "";
@@ -588,14 +518,45 @@ export function PropertiesPanel() {
       : null;
   };
 
+  const activeColorProps =
+    openPicker === "stroke"
+      ? {
+          label: "Stroke color",
+          kind: "stroke" as const,
+          current: resolveThemeColor(selected[0].strokeColor),
+          onPick: (strokeColor: string) => apply({ strokeColor }),
+          opacity: strokeOpacityValue,
+          onOpacity: (v: number) => apply({ strokeOpacity: v / 100 }),
+        }
+      : openPicker === "fill" && hasFillable
+        ? {
+            label: "Fill",
+            kind: "fill" as const,
+            current: resolveThemeColor(selected[0].backgroundColor),
+            onPick: (backgroundColor: string) => apply({ backgroundColor }),
+            opacity: fillOpacityValue,
+            onOpacity: (v: number) => apply({ fillOpacity: v / 100 }),
+          }
+        : openPicker === "text"
+          ? {
+              label: "Text color",
+              kind: "text" as const,
+              current: textColorValue ?? "\u0000",
+              onPick: (textColor: string) => apply({ textColor }),
+              allowAuto: true,
+              autoColor: selected[0].strokeColor,
+            }
+          : null;
+
   return (
-    <div
-      className="properties-panel"
-      style={maxTabHeight ? { minHeight: maxTabHeight } : undefined}
-      onMouseOver={showTip}
-      onMouseLeave={() => setTip(null)}
-      onScroll={() => setTip(null)}
-    >
+    <div className="properties-panel-container" ref={containerRef}>
+      <div
+        className="properties-panel"
+        style={maxTabHeight ? { minHeight: maxTabHeight } : undefined}
+        onMouseOver={showTip}
+        onMouseLeave={() => setTip(null)}
+        onScroll={() => setTip(null)}
+      >
       <PanelTooltip tip={tip} />
       {/* Tab bar */}
       <div className="panel-tabs">
@@ -625,20 +586,14 @@ export function PropertiesPanel() {
       <div ref={styleRef} className={`panel-tab-content${effectiveTab === "style" ? "" : " hidden"}`}>
         <Section title="Stroke">
           <Group title="Color">
-            <PaletteGrid
-              current={selected[0].strokeColor}
-              onPick={(strokeColor) => apply({ strokeColor })}
+            <ColorBox
+              current={resolveThemeColor(selected[0].strokeColor)}
               label="Stroke color"
-            />
-          </Group>
-          <Group title="Opacity">
-            <MiniSlider
-              value={strokeOpacityValue ?? 100}
-              min={0}
-              max={100}
-              step={5}
-              ariaLabel="Stroke opacity"
-              onChange={(v) => apply({ strokeOpacity: v / 100 })}
+              kind="stroke"
+              isOpen={openPicker === "stroke"}
+              onToggle={() =>
+                setOpenPicker((curr) => (curr === "stroke" ? null : "stroke"))
+              }
             />
           </Group>
           {hasShape && (
@@ -765,7 +720,7 @@ export function PropertiesPanel() {
               ))}
             </Group>
           )}
-          {hasRectangle && (
+          {(hasRectangle || hasContext) && (
             <Group title="Roundness">
               <div className="v-stack">
                 <div className="border-presets">
@@ -811,42 +766,6 @@ export function PropertiesPanel() {
                   />
                 )}
               </div>
-            </Group>
-          )}
-          {hasArrow && (
-            <Group title="Animation">
-              <button
-                className={`size-btn text-btn ${allAnimated ? "active" : ""}`}
-                aria-label="Animate arrow"
-                data-tip={
-                  animationDisabled
-                    ? "Animation needs a dashed, dotted or dash-dot stroke"
-                    : "Flowing dashes along the arrow"
-                }
-                disabled={animationDisabled}
-                onClick={() => apply({ animated: !allAnimated })}
-              >
-                <svg width="20" height="14" viewBox="0 0 20 14">
-                  <line
-                    x1="2"
-                    y1="7"
-                    x2="14"
-                    y2="7"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeDasharray="3 2"
-                  />
-                  <path
-                    d="M14 4 L18 7 L14 10"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
             </Group>
           )}
           {hasArrow && (
@@ -919,25 +838,57 @@ export function PropertiesPanel() {
               </div>
             </Group>
           )}
+          {hasArrow && (
+            <Group title="Animation">
+              <button
+                className={`size-btn text-btn ${allAnimated ? "active" : ""}`}
+                aria-label="Animate arrow"
+                data-tip={
+                  animationDisabled
+                    ? "Animation needs a dashed, dotted or dash-dot stroke"
+                    : "Flowing dashes along the arrow"
+                }
+                disabled={animationDisabled}
+                onClick={() => apply({ animated: !allAnimated })}
+              >
+                <svg width="20" height="14" viewBox="0 0 20 14">
+                  <line
+                    x1="2"
+                    y1="7"
+                    x2="14"
+                    y2="7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="3 2"
+                  />
+                  <path
+                    d="M14 4 L18 7 L14 10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </Group>
+          )}
         </Section>
+
+        <div style={{ height: 1, background: "var(--border)", margin: "var(--space-2) 0" }} />
 
         {hasFillable && (
           <Section title="Fill">
             <Group title="Color">
-              <PaletteGrid
-                current={selected[0].backgroundColor}
-                onPick={(backgroundColor) => apply({ backgroundColor })}
+              <ColorBox
+                current={resolveThemeColor(selected[0].backgroundColor)}
                 label="Fill"
-              />
-            </Group>
-            <Group title="Opacity">
-              <MiniSlider
-                value={fillOpacityValue ?? 100}
-                min={0}
-                max={100}
-                step={5}
-                ariaLabel="Fill opacity"
-                onChange={(v) => apply({ fillOpacity: v / 100 })}
+                kind="fill"
+                isOpen={openPicker === "fill"}
+                onToggle={() =>
+                  setOpenPicker((curr) => (curr === "fill" ? null : "fill"))
+                }
               />
             </Group>
             <Group title="Type">
@@ -998,11 +949,17 @@ export function PropertiesPanel() {
 
         </div>
       <div ref={textRef} className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
-        <Group title="Text color">
-            <PaletteGrid
+        <Group title="Color">
+            <ColorBox
               current={textColorValue ?? "\u0000"}
-              onPick={(textColor) => apply({ textColor })}
               label="Text color"
+              kind="text"
+              allowAuto
+              autoColor={resolveThemeColor(selected[0].strokeColor)}
+              isOpen={openPicker === "text"}
+              onToggle={() =>
+                setOpenPicker((curr) => (curr === "text" ? null : "text"))
+              }
             />
           </Group>
 
@@ -1024,7 +981,7 @@ export function PropertiesPanel() {
               <button
                 key={f.value}
                 className={`size-btn ${
-                  selected.every((el) => (el.fontFamily || FONT_FAMILIES[0].value) === f.value)
+                  selected.every((el) => fontFamilyOf(el) === f.value)
                     ? "active"
                     : ""
                 }`}
@@ -1136,6 +1093,118 @@ export function PropertiesPanel() {
             </Group>
           )}
 
+          {hasContext && (
+            <>
+              <Group title="Label side">
+                {LABEL_SIDES.map((sd) => (
+                  <button
+                    key={sd.value}
+                    className={`size-btn ${allLabelSide(sd.value) ? "active" : ""}`}
+                    aria-label={`Label ${sd.label}`}
+                    data-tip={sd.label}
+                    onClick={() => apply({ labelSide: sd.value })}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16">
+                      <rect
+                        x="3"
+                        y="3"
+                        width="10"
+                        height="10"
+                        rx="1.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                      />
+                      {sd.value === "internal" ? (
+                        <>
+                          <rect
+                            x="3.6"
+                            y="3.6"
+                            width="8.8"
+                            height="8.8"
+                            rx="1"
+                            fill="currentColor"
+                            opacity="0.14"
+                          />
+                          <rect
+                            x="4"
+                            y="4"
+                            width="5"
+                            height="1.7"
+                            rx="0.85"
+                            fill="currentColor"
+                          />
+                        </>
+                      ) : (
+                        <rect
+                          x="4"
+                          y="0.5"
+                          width="5"
+                          height="1.7"
+                          rx="0.85"
+                          fill="currentColor"
+                        />
+                      )}
+                    </svg>
+                  </button>
+                ))}
+              </Group>
+              <Group title="Label position">
+                {LABEL_POSITIONS.map((lp) => {
+                  const inside = (selected[0] as any).labelSide === "internal";
+                  const bars: Record<string, { x: number; y: number }> = {
+                    "top-left": inside ? { x: 3.8, y: 3.9 } : { x: 3, y: 1.4 },
+                    "top-right": inside ? { x: 7.2, y: 3.9 } : { x: 7, y: 1.4 },
+                    "bottom-left": inside ? { x: 3.8, y: 10.5 } : { x: 3, y: 13.6 },
+                    "bottom-right": inside ? { x: 7.2, y: 10.5 } : { x: 7, y: 13.6 },
+                  };
+                  const bar = bars[lp.value];
+                  return (
+                    <button
+                      key={lp.value}
+                      className={`size-btn ${allLabelPos(lp.value) ? "active" : ""}`}
+                      aria-label={`Label ${lp.label}`}
+                      data-tip={lp.label}
+                      onClick={() => apply({ labelPosition: lp.value })}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16">
+                        <rect
+                          x="3"
+                          y="3"
+                          width="10"
+                          height="10"
+                          rx="1.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                        />
+                        {inside && (
+                          <rect
+                            x="3.6"
+                            y="3.6"
+                            width="8.8"
+                            height="8.8"
+                            rx="1"
+                            fill="currentColor"
+                            opacity="0.12"
+                          />
+                        )}
+                        <rect
+                          x={bar.x}
+                          y={bar.y}
+                          width="5"
+                          height="1.7"
+                          rx="0.85"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    </button>
+                  );
+                })}
+              </Group>
+            </>
+          )}
+
           <Group title="Line spacing">
             <MiniSlider
               value={lineSpacingValue ?? 1.25}
@@ -1171,55 +1240,60 @@ export function PropertiesPanel() {
             </Group>
           )}
 
-          {(hasCaption || hasRectangle || hasDiamond || hasEllipse) && (
+          {(hasCaption || hasRectangle || hasDiamond || hasEllipse || hasContext) && (
             <Group title="Text offset (px)" vertical>
                 <SpacingRow
                   label="Global"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionGap" : "textOffsetGlobal", hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? 2 : 8)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionGap" : "textOffsetGlobal", hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? 2 : 8)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionGap = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetGlobal = v;
+                    if (hasContext) patch.textOffsetGlobal = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Left"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetLeft" : "textOffsetLeft", 0)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetLeft" : "textOffsetLeft", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetLeft = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetLeft = v;
+                    if (hasContext) patch.textOffsetLeft = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Right"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetRight" : "textOffsetRight", 0)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetRight" : "textOffsetRight", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetRight = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetRight = v;
+                    if (hasContext) patch.textOffsetRight = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Top"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetTop" : "textOffsetTop", 0)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetTop" : "textOffsetTop", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetTop = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetTop = v;
+                    if (hasContext) patch.textOffsetTop = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Bottom"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse ? "captionOffsetBottom" : "textOffsetBottom", 0)}
+                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetBottom" : "textOffsetBottom", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetBottom = v;
                     if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetBottom = v;
+                    if (hasContext) patch.textOffsetBottom = v;
                     apply(patch);
                   }}
                 />
@@ -1306,6 +1380,29 @@ export function PropertiesPanel() {
                   <rect x="4" y="4" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.3"/>
                   <rect x="7" y="7" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
                 </svg>
+              </button>
+            </div>
+          </Group>
+
+          <Group title="Lock">
+            <div className="layer-btns">
+              <button
+                className="size-btn"
+                data-tip={selected.every((el) => el.locked) ? "Unlock" : "Lock"}
+                aria-label={selected.every((el) => el.locked) ? "Unlock" : "Lock"}
+                onClick={() => editor.toggleLockSelected()}
+              >
+                {selected.every((el) => el.locked) ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                )}
               </button>
             </div>
           </Group>
@@ -1400,5 +1497,13 @@ export function PropertiesPanel() {
           </Group>
       </div>
     </div>
-  );
+    {activeColorProps && (
+      <ColorSubmenu
+        key={activeColorProps.kind}
+        {...activeColorProps}
+        onClose={() => setOpenPicker(null)}
+      />
+    )}
+  </div>
+);
 }

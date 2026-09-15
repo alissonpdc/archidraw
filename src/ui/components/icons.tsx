@@ -354,3 +354,215 @@ export function SaveIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function CopyIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+export function CutIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <line x1="20" y1="4" x2="8.12" y2="15.88" />
+      <line x1="14.47" y1="14.48" x2="20" y2="20" />
+      <line x1="8.12" y1="8.12" x2="12" y2="12" />
+    </svg>
+  );
+}
+
+export function DuplicateIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="8" y="8" width="12" height="12" rx="2" />
+      <path d="M4 16H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v1" />
+    </svg>
+  );
+}
+
+export function DeleteIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 3h4a1 1 0 0 1 1 1v2H9V4a1 1 0 0 1 1-1z" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  );
+}
+
+export function BringToFrontIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="11" width="7" height="7" rx="1" />
+      <path d="M7 7l4-4 4 4" />
+      <rect x="11" y="6" width="7" height="7" rx="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+export function SendToBackIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="11" y="6" width="7" height="7" rx="1" />
+      <path d="M7 17l4 4 4-4" />
+      <rect x="3" y="11" width="7" height="7" rx="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+export function BringForwardIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="11" width="7" height="7" rx="1" />
+      <path d="M8 6v9" />
+      <path d="M5.5 9L8 6l2.5 3" />
+      <rect x="11" y="6" width="7" height="7" rx="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+export function SendBackwardIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="11" y="6" width="7" height="7" rx="1" />
+      <path d="M8 18V9" />
+      <path d="M5.5 12L8 15l2.5-3" />
+      <rect x="3" y="11" width="7" height="7" rx="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+export function GroupIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="1.5" y="1.5" width="13" height="13" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.6"/>
+      <rect x="4" y="4" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.3"/>
+      <rect x="7" y="7" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  );
+}
+
+export function UngroupIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.4"/>
+      <rect x="9" y="9" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.4"/>
+      <rect x="4" y="4" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.3"/>
+      <rect x="7" y="7" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  );
+}
+
+export function CopyStyleIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="8" width="13" height="11" rx="2" fill="none" />
+      <path d="M7 8V5a3 3 0 0 1 6 0v3" fill="none" />
+      <circle cx="12" cy="14" r="2" fill="currentColor" opacity="0.4" />
+    </svg>
+  );
+}
+
+export function PasteStyleIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="8" width="13" height="11" rx="2" fill="none" />
+      <path d="M7 8V5a3 3 0 0 1 6 0v3" fill="none" />
+      <path d="M10 12v4M8 14h4" strokeWidth="2" />
+    </svg>
+  );
+}
+
+export function PasteIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-6-6z" />
+      <path d="M15 3v6h6" />
+    </svg>
+  );
+}
+
+export function LockIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+export function SelectAllIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="3" width="18" height="18" rx="2" strokeDasharray="4 2" />
+      <path d="M9 3v18M15 3v18M3 9h18M3 15h18" strokeWidth="1" />
+    </svg>
+  );
+}
+
+export function HighlightDependenciesIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="8" cy="8" r="3" fill="none" />
+      <circle cx="14" cy="14" r="2" fill="none" opacity="0.4" />
+      <path d="M10.5 9.5L12.5 12" strokeWidth="1.5" />
+      <circle cx="4" cy="14" r="1.5" fill="none" opacity="0.4" />
+      <path d="M6 13L5.5 14" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+export function UnlockIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+    </svg>
+  );
+}
+
+export function LayersIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M12 2L2 7l10 5 10-5-10-5z" />
+      <path d="M2 17l10 5 10-5" />
+      <path d="M2 12l10 5 10-5" />
+    </svg>
+  );
+}
+
+export function DownloadIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+export function InfoIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  );
+}
+
+export function ContextIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="3" y="5" width="18" height="14" rx="2" strokeDasharray="4 2" />
+      <line x1="3" y1="9" x2="9" y2="9" />
+    </svg>
+  );
+}

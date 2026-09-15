@@ -1,4 +1,5 @@
 import { test as base, expect, type Page } from "@playwright/test";
+import { addCoverageReport } from "monocart-reporter";
 
 interface ConsoleIssue {
   kind: "console" | "pageerror";
@@ -9,6 +10,8 @@ type TestFixtures = {
   page: Page;
   editorState: () => Promise<EditorSnapshotLike>;
 };
+
+const collectCoverage = process.env.E2E_COVERAGE === "1";
 
 export interface EditorSnapshotLike {
   tool: string;
@@ -31,6 +34,22 @@ export interface EditorSnapshotLike {
 }
 
 export const test = base.extend<TestFixtures>({
+  autoCoverage: [
+    async ({ page }, use) => {
+      if (!collectCoverage) {
+        await use();
+        return;
+      }
+      await page.coverage.startJSCoverage({ resetOnNavigation: false });
+      await use();
+      const [jsCoverage] = await Promise.all([page.coverage.stopJSCoverage()]);
+      if (jsCoverage && jsCoverage.length) {
+        await addCoverageReport(jsCoverage, test.info());
+      }
+    },
+    { scope: "test", auto: true },
+  ],
+
   page: async ({ page }, use) => {
     const issues: ConsoleIssue[] = [];
     page.on("console", (msg) => {
@@ -111,7 +130,7 @@ export async function drag(
 
 export async function selectTool(
   page: Page,
-  key: "1" | "h" | "2" | "3" | "4" | "5" | "6" | "7",
+  key: "1" | "h" | "2" | "3" | "4" | "5" | "6" | "7" | "8",
 ) {
   await page.keyboard.press(key);
 }

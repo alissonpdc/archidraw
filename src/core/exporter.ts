@@ -1,6 +1,6 @@
 import { render, componentIconLayout } from "./renderer";
 import type { ArrowHeadType, Document, Element, Point } from "./types";
-import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, escapeXml, unionBounds } from "./utils";
+import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, ensureContextZOrder, escapeXml, unionBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { componentAssetDataUri, waitForComponentImages, waitForImage } from "./componentAssets";
 import { strokeDashArray } from "./strokeStyle";
@@ -16,7 +16,12 @@ import {
 
 const EXPORT_PADDING = 20;
 const PNG_SCALE = 2;
-const HACHURE_SPACING = 6;
+const HACHURE_SPACING = 4.8;
+
+/** vertical gap needed above/below a context to fit its external label */
+function gapForLabel(fontSize: number): number {
+  return fontSize + 8;
+}
 
 function truncatedHachureSvg(
   el: Document["elements"][number],
@@ -27,7 +32,7 @@ function truncatedHachureSvg(
       ? el.strokeColor
       : el.backgroundColor;
   let shape = "";
-  if (el.type === "rectangle" || el.type === "component") {
+  if (el.type === "rectangle" || el.type === "component" || el.type === "context") {
     const r = cornerRadius(el);
     shape = `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}"/>`;
   } else if (el.type === "diamond") {
@@ -82,6 +87,18 @@ export function slugify(name: string): string {
 export async function exportPNG(doc: Document, filename: string): Promise<boolean> {
   const bounds = unionBounds(doc.elements);
   if (!bounds) return false;
+
+  // external context labels sit outside the element bounds — expand the
+  // export region so top/bottom labels aren't clipped
+  for (const el of doc.elements) {
+    if (el.type !== "context" || !el.label) continue;
+    const pad = gapForLabel(el.fontSize ?? 16);
+    if (el.labelPosition === "top-left" || el.labelPosition === "top-right") {
+      bounds.y1 = Math.min(bounds.y1, el.y - pad);
+    } else {
+      bounds.y2 = Math.max(bounds.y2, el.y + el.height + pad);
+    }
+  }
 
   // official icons load asynchronously — make sure they're decoded
   await waitForComponentImages(
@@ -138,9 +155,9 @@ function arrowHeadPoints(tip: { x: number; y: number }, tail: { x: number; y: nu
   return `M ${tip.x} ${tip.y} L ${p1.x} ${p1.y} M ${tip.x} ${tip.y} L ${p2.x} ${p2.y}`;
 }
 
-/** outline SVG tag for a closed shape (rect/diamond/ellipse/component) */
+/** outline SVG tag for a closed shape (rect/diamond/ellipse/component/context) */
 function shapeTag(el: Document["elements"][number], attrs: string): string {
-  if (el.type === "rectangle" || el.type === "component") {
+  if (el.type === "rectangle" || el.type === "component" || el.type === "context") {
     return `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${cornerRadius(el)}" ${attrs}/>`;
   }
   if (el.type === "diamond") {
@@ -161,7 +178,7 @@ function isSketch(el: Element): boolean {
 
 /** closed perimeter polyline for a shape, matching the canvas sketch trace */
 function shapeLoop(el: Element): Point[] {
-  if (el.type === "rectangle" || el.type === "component") {
+  if (el.type === "rectangle" || el.type === "component" || el.type === "context") {
     return roundedRectLoop(el.x, el.y, el.width, el.height, cornerRadius(el));
   }
   if (el.type === "diamond") return diamondLoop(el);
@@ -171,7 +188,7 @@ function shapeLoop(el: Element): Point[] {
 /** waveScale used by the canvas for the same shape (rounded corners skip the
  *  heavy wave so arcs stay arcs) */
 function shapeWaveScale(el: Element): number {
-  return (el.type === "rectangle" || el.type === "component") &&
+  return (el.type === "rectangle" || el.type === "component" || el.type === "context") &&
     cornerRadius(el) > 0
     ? 0.3
     : 1;
@@ -245,11 +262,24 @@ export function buildSvgString(doc: Document): string | null {
   const bounds = unionBounds(doc.elements);
   if (!bounds) return null;
 
+  // external context labels sit outside the element bounds — expand the
+  // viewBox so top/bottom labels aren't clipped
+  for (const el of doc.elements) {
+    if (el.type !== "context" || !el.label) continue;
+    const fontSize = el.fontSize ?? 16;
+    const pad = gapForLabel(fontSize);
+    if (el.labelPosition === "top-left" || el.labelPosition === "top-right") {
+      bounds.y1 = Math.min(bounds.y1, el.y - pad);
+    } else {
+      bounds.y2 = Math.max(bounds.y2, el.y + el.height + pad);
+    }
+  }
+
   const w = bounds.x2 - bounds.x1 + EXPORT_PADDING * 2;
   const h = bounds.y2 - bounds.y1 + EXPORT_PADDING * 2;
 
   const parts: string[] = [];
-  for (const el of doc.elements) {
+  for (const el of ensureContextZOrder(doc.elements)) {
     const stroke =
       el.strokeWidth > 0
         ? `stroke="${el.strokeColor}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round"`
@@ -266,7 +296,8 @@ export function buildSvgString(doc: Document): string | null {
       el.type === "rectangle" ||
       el.type === "diamond" ||
       el.type === "ellipse" ||
-      el.type === "component";
+      el.type === "component" ||
+      el.type === "context";
     const isHatch =
       isShape && (el.fillStyle === "hachure" || el.fillStyle === "cross-hachure");
     const fill = el.backgroundColor === "transparent" ? "none" : el.backgroundColor;
@@ -308,6 +339,46 @@ export function buildSvgString(doc: Document): string | null {
             );
           }
         }
+} else if (el.type === "context" && el.label) {
+        const pos = el.labelPosition ?? "top-left";
+        const side = el.labelSide ?? "external";
+        const isTop = pos === "top-left" || pos === "top-right";
+        const isLeft = pos === "top-left" || pos === "bottom-left";
+        const fontSize = el.fontSize ?? 16;
+        const textColor = el.textColor || el.strokeColor;
+        const lines = el.label.split("\n");
+        const lh = lineHeight(el);
+        const step = fontSize * lh;
+        const blockCenter = ((lines.length - 1) * step) / 2;
+        const blockH = (lines.length - 1) * step + fontSize;
+        const base = el.textOffsetGlobal ?? 8;
+        const distH = base + (isLeft ? (el.textOffsetLeft ?? 0) : (el.textOffsetRight ?? 0));
+        const distV = base + (isTop ? (el.textOffsetTop ?? 0) : (el.textOffsetBottom ?? 0));
+        const hOff = isLeft ? (el.textOffsetLeft ?? 0) : (el.textOffsetRight ?? 0);
+        // mirrors the canvas "middle" baseline anchor for each line
+        const mainAnchor =
+          side === "internal"
+            ? isTop
+              ? el.y + distV + fontSize / 2
+              : el.y + el.height - distV - blockH + fontSize / 2
+            : isTop
+              ? el.y - distV - blockCenter
+              : el.y + el.height + distV + blockCenter;
+        const anchorX =
+          side === "internal"
+            ? isLeft
+              ? el.x + distH
+              : el.x + el.width - distH
+            : isLeft
+              ? el.x + hOff
+              : el.x + el.width - hOff;
+        lines.forEach((line, i) => {
+          const ty = mainAnchor + i * step + fontSize * 0.85;
+          const ta = isLeft ? "start" : "end";
+          parts.push(
+            `<text x="${anchorX}" y="${ty}" text-anchor="${ta}" font-family="${escapeXml(fontFamilyOf(el))}" font-size="${fontSize}" ${el.bold ? `font-weight="bold"` : ""} ${el.italic ? `font-style="italic"` : ""} fill="${textColor}"${opacity}>${escapeXml(line)}</text>`
+          );
+        });
       }
     } else if (el.type === "line") {
       const [a, b] = arrowPoints(el);
@@ -387,4 +458,83 @@ export function exportSVG(doc: Document, filename: string): boolean {
 
   downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `${filename}.svg`);
   return true;
+}
+
+// ---- clipboard copy ------------------------------------------------------
+
+export async function copySvgToClipboard(doc: Document): Promise<boolean> {
+  const svg = buildSvgString(doc);
+  if (!svg) return false;
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "image/svg+xml": new Blob([svg], { type: "image/svg+xml" }),
+      }),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function copyPngToClipboard(doc: Document): Promise<boolean> {
+  const bounds = unionBounds(doc.elements);
+  if (!bounds) return false;
+
+  await waitForComponentImages(
+    doc.elements
+      .filter((el) => el.type === "component")
+      .map((el) => (el as { componentId: string }).componentId),
+  );
+  const embeddedSrcs: string[] = [];
+  for (const el of doc.elements) {
+    if (el.type === "component" && typeof el.src === "string" && el.src !== "") {
+      embeddedSrcs.push(el.src);
+    }
+  }
+  if (embeddedSrcs.length > 0) {
+    await Promise.all(embeddedSrcs.map(waitForImage));
+  }
+
+  const w = bounds.x2 - bounds.x1 + EXPORT_PADDING * 2;
+  const h = bounds.y2 - bounds.y1 + EXPORT_PADDING * 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(w * PNG_SCALE);
+  canvas.height = Math.ceil(h * PNG_SCALE);
+  const ctx = canvas.getContext("2d")!;
+  ctx.scale(PNG_SCALE, PNG_SCALE);
+
+  render(
+    ctx,
+    {
+      doc,
+      camera: {
+        scrollX: -bounds.x1 + EXPORT_PADDING,
+        scrollY: -bounds.y1 + EXPORT_PADDING,
+        zoom: 1,
+      },
+      selectedIds: new Set(),
+      draft: null,
+      marquee: null,
+    },
+    w,
+    h,
+  );
+
+  return new Promise<boolean>((resolve) => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        resolve(false);
+        return;
+      }
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
+        resolve(true);
+      } catch {
+        resolve(false);
+      }
+    }, "image/png");
+  });
 }

@@ -24,7 +24,9 @@ test.describe("additional information (hover info box)", () => {
     await page.mouse.click(700, 500, { button: "right" });
     await expect(page.getByTestId("context-menu")).toBeVisible();
     await expect(page.getByTestId("context-menu-info")).toHaveCount(0);
-    await expect(page.getByTestId("context-menu-empty")).toBeVisible();
+    await expect(page.getByTestId("context-menu-paste-here")).toBeVisible();
+    await expect(page.getByTestId("context-menu-fit-view")).toBeVisible();
+    await expect(page.getByTestId("context-menu-select-all")).toBeVisible();
   });
 
   test("context menu closes on a left click outside", async ({ page }) => {
@@ -174,5 +176,83 @@ test.describe("additional information (hover info box)", () => {
 
     await page.mouse.move(after.x, after.y);
     await expect(page.getByTestId("hover-info-box")).toBeVisible();
+  });
+
+  test("Escape while typing closes the modal without saving", async ({
+    page,
+    editorState,
+  }) => {
+    await page.mouse.click(280, 140, { button: "right" });
+    await page.getByTestId("context-menu-info").click();
+    const dialog = page.getByRole("dialog", {
+      name: "Additional Information",
+    });
+    await expect(dialog).toBeVisible();
+    await dialog.locator("textarea").fill("wip detail");
+    await page.keyboard.press("Escape");
+
+    await expect(dialog).toHaveCount(0);
+    const s = await editorState();
+    expect(s.elements[0].details).toBeUndefined();
+  });
+
+  test("Escape with focus outside the textarea still closes the modal", async ({
+    page,
+  }) => {
+    await page.mouse.click(280, 140, { button: "right" });
+    await page.getByTestId("context-menu-info").click();
+    const dialog = page.getByRole("dialog", {
+      name: "Additional Information",
+    });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Tab"); // move focus to the footer buttons
+    await page.keyboard.press("Escape");
+
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test("Cmd/Ctrl+Enter saves the details", async ({ page, editorState }) => {
+    await page.mouse.click(280, 140, { button: "right" });
+    await page.getByTestId("context-menu-info").click();
+    const dialog = page.getByRole("dialog", {
+      name: "Additional Information",
+    });
+    await expect(dialog).toBeVisible();
+    await dialog.locator("textarea").fill("saved via shortcut");
+    await page.keyboard.press("Control+Enter");
+
+    await expect(dialog).toHaveCount(0);
+    const s = await editorState();
+    expect(s.elements[0].details).toBe("saved via shortcut");
+  });
+
+  test("Cancel closes the modal and drops the draft", async ({
+    page,
+    editorState,
+  }) => {
+    await page.mouse.click(280, 140, { button: "right" });
+    await page.getByTestId("context-menu-info").click();
+    const dialog = page.getByRole("dialog", {
+      name: "Additional Information",
+    });
+    await expect(dialog).toBeVisible();
+    await dialog.locator("textarea").fill("discarded");
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+
+    await expect(dialog).toHaveCount(0);
+    const s = await editorState();
+    expect(s.elements[0].details).toBeUndefined();
+  });
+
+  test("clicking the backdrop closes the modal", async ({ page }) => {
+    await page.mouse.click(280, 140, { button: "right" });
+    await page.getByTestId("context-menu-info").click();
+    const dialog = page.getByRole("dialog", {
+      name: "Additional Information",
+    });
+    await expect(dialog).toBeVisible();
+    await page.locator(".modal-backdrop").click({ position: { x: 5, y: 5 } });
+
+    await expect(dialog).toHaveCount(0);
   });
 });

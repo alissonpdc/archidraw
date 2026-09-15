@@ -235,6 +235,128 @@ test.describe("excalidraw library import", () => {
     ).toHaveCount(0);
   });
 
+  test("rich items (arrowheads, draw, diamond, angle, dashes) produce valid SVG", async ({
+    page,
+  }) => {
+    await openLibrary(page);
+    await importLibOk(
+      page,
+      "rich.excalidrawlib",
+      JSON.stringify({
+        type: "excalidrawlib",
+        version: 2,
+        libraryItems: [
+          {
+            id: "b1",
+            name: "Arrow & Diamond",
+            elements: [
+              {
+                type: "arrow",
+                x: 0,
+                y: 0,
+                points: [
+                  [0, 0],
+                  [20, 0],
+                  [40, 20],
+                ],
+                startArrowhead: "arrow",
+                endArrowhead: "triangle",
+                strokeColor: "#111111",
+                strokeWidth: 2,
+                strokeStyle: "solid",
+                opacity: 100,
+              },
+              {
+                type: "diamond",
+                x: 20,
+                y: 20,
+                width: 40,
+                height: 30,
+                strokeColor: "#111111",
+                backgroundColor: "#c9e6ff",
+                fillStyle: "cross-hatch",
+                strokeWidth: 2,
+                strokeStyle: "dashed",
+                opacity: 60,
+                angle: 0.5,
+              },
+              {
+                type: "line",
+                x: 0,
+                y: 80,
+                points: [
+                  [0, 0],
+                  [30, 10],
+                  [60, 10],
+                ],
+                strokeStyle: "dotted",
+                strokeColor: "#222222",
+                opacity: 100,
+              },
+            ],
+          },
+          {
+            id: "b2",
+            elements: [
+              {
+                type: "draw",
+                x: 0,
+                y: 0,
+                points: [
+                  [0, 0],
+                  [10, 5],
+                  [20, 5],
+                  [30, 0],
+                ],
+                strokeSharpness: "round",
+                strokeColor: "#333333",
+                opacity: 100,
+              },
+            ],
+          },
+          {
+            id: "b3",
+            name: "Text Icon",
+            elements: [
+              {
+                type: "text",
+                x: 0,
+                y: 0,
+                width: 40,
+                height: 20,
+                text: "API\nLayer",
+                fontSize: 14,
+                fontFamily: 1,
+                strokeColor: "#000000",
+                opacity: 100,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const svg = await page.evaluate(() => {
+      const libs = JSON.parse(
+        localStorage.getItem("archidraw:importedLibraries") || "[]",
+      );
+      return libs
+        .find((l: { name: string }) => l.name === "rich")
+        ?.items?.map((it: { svg: string }) => it.svg)
+        .join("\n") ?? "";
+    });
+
+    expect(svg).not.toContain("NaN");
+    expect(svg).not.toContain("undefined");
+    expect(svg).toContain("<polygon");
+    expect(svg).toContain("stroke-dasharray");
+    expect(svg).toContain("transform=\"rotate(");
+    expect(svg).toContain("font-family=\"Virgil,");
+
+    const group = page.locator('[data-testid="library-imported-group"]');
+    await expect(group.locator(".library-tile")).toHaveCount(3);
+  });
+
   test("imported group can be removed", async ({ page }) => {
     await openLibrary(page);
     await importLibOk(page, "my-icons.excalidrawlib", fakeLibContent());
@@ -252,5 +374,40 @@ test.describe("excalidraw library import", () => {
     await expect(
       page.locator('[data-testid="library-imported-group"]'),
     ).toHaveCount(0);
+  });
+
+  test("imported libraries are restored after a reload", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+    await importLibOk(page, "my-icons.excalidrawlib", fakeLibContent());
+
+    await page.reload();
+    await page.waitForFunction(
+      () =>
+        (window as any).__editor__ !== undefined &&
+        (window as any).__appReady__ === true,
+    );
+    await page.keyboard.press("l");
+
+    const group = page.locator('[data-testid="library-imported-group"]');
+    await expect(group).toHaveCount(1);
+    await expect(group.locator(".library-group-name")).toHaveText("my-icons");
+
+    const persisted = await page.evaluate(() =>
+      JSON.parse(
+        localStorage.getItem("archidraw:importedLibraries") || "[]",
+      ).map((l: { name: string }) => l.name),
+    );
+    expect(persisted).toEqual(["my-icons"]);
+
+    // assets re-registered: expanding the restored group shows the tile
+    await group.locator(".library-group-name").click();
+    const tile = group.locator(".library-tile");
+    await expect(tile).toHaveCount(2);
+    await tile.first().click();
+    const s = await editorState();
+    expect(s.elements.every((e) => e.type === "component")).toBe(true);
   });
 });

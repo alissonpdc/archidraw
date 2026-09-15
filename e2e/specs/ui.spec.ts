@@ -92,7 +92,7 @@ test.describe("ui widgets", () => {
     await page.evaluate(() => {
       document.documentElement.dataset.theme = "dark";
     });
-    expect(await bg()).toBe("#101d2e");
+    expect(await bg()).toBe("#080c13");
 
     // blueprint chrome is rigid: widgets use ink-colored 1.5px borders
     // (dark ink #dbe7f5) instead of the soft gray border
@@ -296,7 +296,11 @@ test.describe("ui widgets", () => {
     await page.keyboard.press("1");
 
     await page.getByRole("button", { name: "Thickness 4" }).click();
-    await page.getByRole("slider", { name: "Stroke opacity" }).fill("50");
+    // opacity lives inside the stroke color popover now
+    await page.getByRole("button", { name: "Stroke color current" }).click();
+    await page
+      .getByRole("slider", { name: "Opacity" })
+      .fill("50");
 
     const el = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();
@@ -357,7 +361,7 @@ test.describe("ui widgets", () => {
     expect(radius).toBe(40);
   });
 
-  test("color swatch opens intensity popover that applies the color", async ({
+  test("clicking color box opens submenu with 3x5 matrix and intensity applies color", async ({
     page,
   }) => {
     await open(page);
@@ -365,24 +369,26 @@ test.describe("ui widgets", () => {
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
     await page.keyboard.press("1");
 
-    // palette has exactly 10 base colors
-    const swatches = page.locator(".panel-group").first().locator(".swatch");
-    await expect(swatches).toHaveCount(10);
+    // left panel has no base dots
+    const dots = page.locator(".panel-section").first().locator(".base-dot");
+    await expect(dots).toHaveCount(0);
 
-    // clicking a color opens the floating intensity submenu
+    // clicking the color box opens submenu with 15 colors
     await page
-      .getByRole("button", { name: "Stroke color Blue" })
+      .getByRole("button", { name: "Stroke color current" })
       .click();
     const popover = page.locator(".color-popover");
     await expect(popover).toBeVisible();
+    await expect(popover.locator(".matrix-cell")).toHaveCount(15);
 
-    // picking an intensity applies it to the selection
-    await popover.getByRole("button", { name: /shade 3/ }).click();
+    // picking a color and intensity applies it to the selection
+    await page.getByRole("button", { name: "Stroke color Blue", exact: true }).click();
+    await popover.locator(".ramp-cell").nth(2).click();
     const color = await page.evaluate(
       () =>
         (window as any).__editor__.getSnapshot().doc.elements[0].strokeColor,
     );
-    expect(color).toMatch(/^#[0-9a-f]{6}$/);
+    expect(color).toBe("#1971c2");
   });
 
   test("font size group appears only for text selections", async ({

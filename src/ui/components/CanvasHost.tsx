@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { editor, useEditor } from "../hooks/useEditor";
+import { editor, useEditorSelector } from "../hooks/useEditor";
 import { type RenderColors, componentIconLayout, textOffsets } from "../../core/renderer";
 import { useGridMode } from "../viewPrefs";
 import type { Point } from "../../core/types";
@@ -12,13 +12,11 @@ function readThemeColors(): RenderColors & { elementStroke: string } {
   const style = getComputedStyle(document.documentElement);
   return {
     selection: style.getPropertyValue("--selection-color").trim() || "#6965db",
-    elementStroke: style.getPropertyValue("--element-stroke").trim() || "#3d4248",
+    elementStroke: style.getPropertyValue("--element-stroke").trim() || "#26292c",
     gridDot: style.getPropertyValue("--grid-dot").trim() || "rgba(0,0,0,0.07)",
     gridLine: style.getPropertyValue("--grid-line").trim() || "rgba(0,0,0,0.05)",
     gridLineMaster: style.getPropertyValue("--grid-line-master").trim() || "rgba(0,0,0,0.07)",
-    // label plates must always match the live canvas background
     canvasBg: style.getPropertyValue("--bg-canvas").trim() || "#ffffff",
-    // muted gray for the details badge ("i" icon)
     muted: style.getPropertyValue("--text-muted").trim() || "#6b6b76",
   };
 }
@@ -28,11 +26,39 @@ export function CanvasHost() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fakeCaretRef = useRef<HTMLDivElement>(null);
   const fakeSelectionRef = useRef<HTMLDivElement>(null);
-  const snap = useEditor();
+  const canvasRectRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  const snap = useEditorSelector(
+    (s) => {
+      const editingEl = s.editingTextId
+        ? s.doc.elements.find((el) => el.id === s.editingTextId) ?? null
+        : null;
+      return {
+        tool: s.tool,
+        hasDraft: s.hasDraft,
+        empty: s.doc.elements.length === 0,
+        editingTextId: s.editingTextId,
+        editingKind: s.editingKind,
+        editingEl,
+        camera: s.editingTextId ? s.camera : null,
+      };
+    },
+    (a, b) =>
+      a.tool === b.tool &&
+      a.hasDraft === b.hasDraft &&
+      a.empty === b.empty &&
+      a.editingTextId === b.editingTextId &&
+      a.editingKind === b.editingKind &&
+      a.editingEl === b.editingEl &&
+      (!a.camera ||
+        (a.camera.scrollX === b.camera?.scrollX &&
+          a.camera.scrollY === b.camera?.scrollY &&
+          a.camera.zoom === b.camera?.zoom)),
+  );
+
   const gridMode = useGridMode();
   const [colors, setColors] = useState(readThemeColors);
 
-  // re-read canvas colors when theme/skin/background changes
   useEffect(() => {
     const obs = new MutationObserver(() => setColors(readThemeColors()));
     obs.observe(document.documentElement, {
@@ -48,22 +74,34 @@ export function CanvasHost() {
   }, []);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const updateRect = () => {
+      canvasRectRef.current = { width: canvas.clientWidth, height: canvas.clientHeight };
+    };
+    updateRect();
+    const ro = new ResizeObserver(updateRect);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
-
     let raf = 0;
     const resizeAndRender = () => {
       const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      if (
-        canvas.width !== Math.round(rect.width * dpr) ||
-        canvas.height !== Math.round(rect.height * dpr)
-      ) {
-        canvas.width = Math.round(rect.width * dpr);
-        canvas.height = Math.round(rect.height * dpr);
+      const rect = canvasRectRef.current;
+      const w = rect.width || canvas.clientWidth || 800;
+      const h = rect.height || canvas.clientHeight || 600;
+      const targetW = Math.round(w * dpr);
+      const targetH = Math.round(h * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      editor.renderTo(ctx, rect.width, rect.height, {
+      editor.renderTo(ctx, w, h, {
         colors,
         gridMode,
       });
@@ -73,7 +111,6 @@ export function CanvasHost() {
     return () => cancelAnimationFrame(raf);
   }, [colors, gridMode]);
 
-  // auto-resize textarea to fit content (no visible box, just cursor)
   const autoResize = (ta: HTMLTextAreaElement) => {
     ta.style.height = "auto";
     ta.style.width = "auto";
@@ -81,8 +118,6 @@ export function CanvasHost() {
     ta.style.width = ta.scrollWidth + 1 + "px";
   };
 
-  // focus text overlay when editing starts (synchronous, avoids typing races);
-  // selects existing text so double-click enters edit mode with text selected
   useEffect(() => {
     if (snap.editingTextId) {
       const ta = textareaRef.current;
@@ -93,7 +128,6 @@ export function CanvasHost() {
     }
   }, [snap.editingTextId]);
 
-  // non-passive native wheel listener (React's onWheel is passive)
   useEffect(() => {
     const canvas = canvasRef.current!;
     const onWheel = (e: WheelEvent) => {
@@ -109,9 +143,8 @@ export function CanvasHost() {
     y: e.clientY,
   });
 
-  const editingEl =
-    snap.editingTextId && snap.doc.elements.find((el) => el.id === snap.editingTextId);
-  const cam = snap.camera;
+  const editingEl = snap.editingEl;
+  const cam = snap.camera ?? editor.getSnapshot().camera;
   const isEditingText = !!editingEl && editingEl.type === "text";
   const isEditingLabel =
     !!editingEl && editingEl.type !== "text" && snap.editingKind === "label";
@@ -163,7 +196,7 @@ export function CanvasHost() {
           n === 1 ? fontSize : (n - 1) * fontSize * lh + fontSize;
         const vOffset = Math.max(0, (el.height - textBlockH) / 2);
         for (let i = 0; i < n; i++) {
-          const lw = measureText(lines[i], fontSize, el.fontFamily, el.bold, el.italic).width;
+          const lw = measureText(lines[i], fontSize, fontFamilyOf(el), el.bold, el.italic).width;
           leftEdges.push(
             align === "left" ? el.x :
             align === "right" ? el.x + el.width - lw :
@@ -185,6 +218,38 @@ export function CanvasHost() {
           cy = layout.labelCy;
           align = "center";
           vAlignMode = "middle"; // component captions are always centered
+        } else if (el.type === "context") {
+          // corner label, internal/external (mirrors drawLabel's context branch)
+          const side = el.labelSide ?? "external";
+          const pos = el.labelPosition ?? "top-left";
+          const isTop = pos === "top-left" || pos === "top-right";
+          const isLeft = pos === "top-left" || pos === "bottom-left";
+          fontSize = el.fontSize ?? 16;
+          const s = fontSize * lh;
+          const blockCenter = ((lines.length - 1) * s) / 2;
+          const blockH = (lines.length - 1) * s + fontSize;
+          const base = el.textOffsetGlobal ?? 8;
+          const distH = base + (isLeft ? (el.textOffsetLeft ?? 0) : (el.textOffsetRight ?? 0));
+          const distV = base + (isTop ? (el.textOffsetTop ?? 0) : (el.textOffsetBottom ?? 0));
+          const hOff = isLeft ? (el.textOffsetLeft ?? 0) : (el.textOffsetRight ?? 0);
+          // cyRender is the first line's baseline-middle anchor (mirrors drawLabel)
+          const cyRender =
+            side === "internal"
+              ? isTop
+                ? el.y + distV + fontSize / 2
+                : el.y + el.height - distV - blockH + fontSize / 2
+              : isTop
+                ? el.y - distV - blockCenter
+                : el.y + el.height + distV + blockCenter;
+          align = isLeft ? "left" : "right";
+          if (side === "internal") {
+            hx = isLeft ? el.x + distH : el.x + el.width - distH;
+          } else {
+            // external: flush with the border horizontally
+            hx = isLeft ? el.x + hOff : el.x + el.width - hOff;
+          }
+          cy = cyRender + blockCenter;
+          vAlignMode = "middle";
         } else {
           align = el.textAlign ?? "center";
           vAlignMode = el.textVAlign ?? "middle";
@@ -206,7 +271,7 @@ export function CanvasHost() {
         }
         const step = fontSize * lh;
         for (let i = 0; i < lines.length; i++) {
-          const lw = measureText(lines[i], fontSize, el.fontFamily, el.bold, el.italic).width;
+          const lw = measureText(lines[i], fontSize, fontFamilyOf(el), el.bold, el.italic).width;
           leftEdges.push(
             align === "center" ? hx - lw / 2 :
             align === "right" ? hx - lw : hx,
@@ -220,7 +285,7 @@ export function CanvasHost() {
       }
 
       const fontOf = (s: string) =>
-        measureText(s, fontSize, editingEl.fontFamily, editingEl.bold, editingEl.italic);
+        measureText(s, fontSize, fontFamilyOf(editingEl), editingEl.bold, editingEl.italic);
 
       const offsetToPos = (off: number): { li: number; col: number } => {
         let rem = Math.max(0, Math.min(off, value.length));
@@ -295,6 +360,38 @@ export function CanvasHost() {
         x: anchor.x * cam.zoom + cam.scrollX,
         y: anchor.y * cam.zoom + cam.scrollY,
       };
+    } else if (editingEl.type === "context") {
+      const pos = editingEl.labelPosition ?? "top-left";
+      const side = editingEl.labelSide ?? "external";
+      const isTop = pos === "top-left" || pos === "top-right";
+      const isLeft = pos === "top-left" || pos === "bottom-left";
+      const b = editingEl;
+      const base = editingEl.textOffsetGlobal ?? 8;
+      const distH = base + (isLeft ? (editingEl.textOffsetLeft ?? 0) : (editingEl.textOffsetRight ?? 0));
+      const distV = base + (isTop ? (editingEl.textOffsetTop ?? 0) : (editingEl.textOffsetBottom ?? 0));
+      const hOff = isLeft ? (editingEl.textOffsetLeft ?? 0) : (editingEl.textOffsetRight ?? 0);
+      // textarea is invisible; place its center over the block center
+      const lx =
+        side === "internal"
+          ? isLeft
+            ? b.x + distH
+            : b.x + b.width - distH
+          : isLeft
+            ? b.x + hOff
+            : b.x + b.width - hOff;
+      const ly =
+        side === "internal"
+          ? isTop
+            ? b.y + distV
+            : b.y + b.height - distV
+          : isTop
+            ? b.y - distV
+            : b.y + b.height + distV;
+      labelPos = {
+        x: lx * cam.zoom + cam.scrollX,
+        y: ly * cam.zoom + cam.scrollY,
+      };
+      labelFontSize = (editingEl.fontSize ?? 16) * cam.zoom;
     } else {
       labelPos = {
         x: (editingEl.x + editingEl.width / 2) * cam.zoom + cam.scrollX,
@@ -329,12 +426,8 @@ export function CanvasHost() {
             textareaRef.current?.focus();
             return;
           }
-          // prevent the browser's focus-stealing default action when the
-          // click creates a text element (otherwise it blurs the new overlay)
           if (snap.tool === "text") e.preventDefault();
           e.currentTarget.setPointerCapture(e.pointerId);
-          // no `defaultStroke`: new shapes keep the DEFAULT_STROKE sentinel so
-          // the renderer re-resolves them to the active theme's element stroke
           editor.pointerDown(toPoint(e), e.button, {
             shift: e.shiftKey,
           });
@@ -342,7 +435,6 @@ export function CanvasHost() {
         onPointerMove={(e) => {
           const p = toPoint(e);
           editor.pointerMove(p, { shift: e.shiftKey });
-          // imperative resize-handle cursor (avoids re-renders on hover)
           const override = editor.cursorOverrideAt(p);
           e.currentTarget.style.cursor = override ?? "";
         }}
@@ -352,11 +444,11 @@ export function CanvasHost() {
         }}
         onDoubleClick={(e) => {
           if (isEditingText || isEditingLabel) return;
-          if (snap.tool === "text") return; // tool click already created one
+          if (snap.tool === "text") return;
           editor.pointerDoubleClick(toPoint(e));
         }}
       />
-      {snap.doc.elements.length === 0 && !snap.hasDraft && !isEditingText && !isEditingLabel && (
+      {snap.empty && !snap.hasDraft && !isEditingText && !isEditingLabel && (
         <div className="empty-state" aria-hidden="true">
           <svg
             className="empty-art"
