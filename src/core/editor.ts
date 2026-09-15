@@ -48,7 +48,8 @@ import {
   determineBindingSide,
   ensureContextZOrder,
 } from "./utils";
-import { CONTEXT_STROKE, DEFAULT_BG, DEFAULT_STROKE } from "./types";
+import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_BG, DEFAULT_STROKE } from "./types";
+import { correlateIntensity } from "./color";
 import { fontFamilyOf } from "./textStyle";
 import { getLibraryItem, isBuiltinLibraryItem } from "./library";
 import { componentAssetDataUri } from "./componentAssets";
@@ -2594,6 +2595,87 @@ strokeOpacity?: number;
           : el,
       ),
     };
+    this.emit();
+  }
+
+  correlateColorsForTheme() {
+    const correlateEl = <T extends Element>(el: T): T => {
+      let strokeColor = el.strokeColor;
+      let backgroundColor = el.backgroundColor;
+      let textColor = el.textColor;
+      let changed = false;
+
+      if (
+        strokeColor &&
+        strokeColor !== DEFAULT_STROKE &&
+        strokeColor !== CONTEXT_STROKE &&
+        strokeColor !== CONTEXT_STROKE_DARK
+      ) {
+        const nextStroke = correlateIntensity(strokeColor);
+        if (nextStroke !== strokeColor) {
+          strokeColor = nextStroke;
+          changed = true;
+        }
+      }
+
+      if (backgroundColor && backgroundColor !== "transparent") {
+        const nextBg = correlateIntensity(backgroundColor);
+        if (nextBg !== backgroundColor) {
+          backgroundColor = nextBg;
+          changed = true;
+        }
+      }
+
+      if (
+        textColor &&
+        textColor !== DEFAULT_STROKE &&
+        textColor !== CONTEXT_STROKE &&
+        textColor !== CONTEXT_STROKE_DARK
+      ) {
+        const nextText = correlateIntensity(textColor);
+        if (nextText !== textColor) {
+          textColor = nextText;
+          changed = true;
+        }
+      }
+
+      return changed ? ({ ...el, strokeColor, backgroundColor, textColor } as T) : el;
+    };
+
+    this.tabs = this.tabs.map((tab) => ({
+      ...tab,
+      doc: {
+        ...tab.doc,
+        elements: tab.doc.elements.map(correlateEl),
+      },
+    }));
+
+    if (
+      this.lastDefaultStroke &&
+      this.lastDefaultStroke !== DEFAULT_STROKE &&
+      this.lastDefaultStroke !== CONTEXT_STROKE &&
+      this.lastDefaultStroke !== CONTEXT_STROKE_DARK
+    ) {
+      this.lastDefaultStroke = correlateIntensity(this.lastDefaultStroke);
+    }
+
+    for (const h of this.histories.values()) {
+      h.mapSnapshots((snapStr) => {
+        try {
+          const doc = JSON.parse(snapStr) as Document;
+          if (doc && Array.isArray(doc.elements)) {
+            return JSON.stringify({
+              ...doc,
+              elements: doc.elements.map(correlateEl),
+            });
+          }
+        } catch {
+          // ignore
+        }
+        return snapStr;
+      });
+    }
+
     this.emit();
   }
 }

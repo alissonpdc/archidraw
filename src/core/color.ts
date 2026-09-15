@@ -214,14 +214,16 @@ export function hslToHex(h: number, s: number, l: number): string {
 export function shadesOf(hex: string): string[] {
   const [h, s, baseL] = hexToHsl(hex);
   const sat = Math.max(s, 8);
-  const l3 = baseL >= 42 ? 42 : Math.max(16, Math.round(baseL * 0.75));
-  const l4 = baseL >= 42 ? 26 : Math.max(8, Math.round(l3 * 0.6));
+  const l1 = 88;
+  const l5 = 16;
+  const l2 = Math.round((l1 + baseL) / 2);
+  const l4 = Math.round((baseL + l5) / 2);
   return [
-    hslToHex(h, sat * 0.55, 92),
-    hslToHex(h, sat * 0.75, 78),
+    hslToHex(h, sat * 0.55, l1),
+    hslToHex(h, sat * 0.75, l2),
     hex,
-    hslToHex(h, sat, l3),
     hslToHex(h, sat, l4),
+    hslToHex(h, sat, l5),
   ];
 }
 
@@ -232,6 +234,7 @@ export function locate(hex: string): { base: number; intensity: number } | null 
     const idx = shades.findIndex((s) => s.toLowerCase() === norm);
     if (idx !== -1) return { base: i, intensity: idx };
   }
+  if (norm === DEFAULT_STROKE.toLowerCase()) return { base: 0, intensity: 4 };
   return null;
 }
 
@@ -262,4 +265,12 @@ export function themeColor(
   }
   if (isPaletteColor(color)) return color;
   return ensureContrast(color, canvasBg);
+}
+
+export function correlateIntensity(color: string): string {
+  if (!color || color === "transparent") return color;
+  const loc = locate(color);
+  if (!loc) return color;
+  const targetIntensity = 4 - loc.intensity;
+  return shadesOf(BASE_COLORS[loc.base].color)[targetIntensity];
 }

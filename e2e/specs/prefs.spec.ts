@@ -80,8 +80,8 @@ test.describe("background follows the active theme", () => {
     await pickMode(page, "Dark");
 
     let bg = await bgSnapshot(page);
-    expect(bg.css).toBe("#1d2126");
-    expect(bg.stored).toBe("#1d2126");
+    expect(bg.css).toBe("#090a0c");
+    expect(bg.stored).toBe("#090a0c");
 
     await pickMode(page, "Light");
     bg = await bgSnapshot(page);

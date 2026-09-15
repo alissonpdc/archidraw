@@ -8,6 +8,7 @@ import { markSaved } from "./ui/saveStatus";
 import {
   applySkinPref,
   applyThemePref,
+  attachThemeColorCorrelation,
   loadSkinPref,
   loadThemePref,
 } from "./ui/theme";
@@ -25,6 +26,7 @@ import {
   shadesOf,
   locate,
   isPaletteColor,
+  correlateIntensity,
 } from "./core/color";
 import { edgePathPoints, defaultAutoPath, determineBindingSide } from "./core/utils";
 
@@ -44,11 +46,15 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
     shadesOf,
     locate,
     isPaletteColor,
+    correlateIntensity,
   };
   (window as unknown as Record<string, unknown>).__archidrawUtils__ = {
     edgePathPoints,
     defaultAutoPath,
     determineBindingSide,
+  };
+  (window as unknown as Record<string, unknown>).__theme__ = {
+    attachThemeColorCorrelation,
   };
 }
 
@@ -69,6 +75,7 @@ if (saved) {
 }
 
 attachAutosave(editor, 400, markSaved);
+attachThemeColorCorrelation(editor);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -44,7 +44,7 @@ test.describe("ColorRampPicker (base + intensity)", () => {
       const el = (window as any).__editor__.getSnapshot().doc.elements[0];
       return el.strokeColor;
     });
-    expect(color).toBe("#0f4475");
+    expect(color).toBe("#092a48");
     await expect(strokeSection.locator(".chip-name")).toHaveText("Blue · 5");
   });
 
@@ -102,7 +102,7 @@ test.describe("ColorRampPicker (base + intensity)", () => {
       const el = (window as any).__editor__.getSnapshot().doc.elements[0];
       return el.textColor;
     });
-    expect(explicit).toBe("#ba1c1c");
+    expect(explicit).toBe("#9b1717");
     await expect(activeTab.locator(".chip-name").first()).toHaveText("Red · 4");
   });
 

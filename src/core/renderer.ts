@@ -20,7 +20,6 @@ import { strokeDashArray, strokeRoundCap } from "./strokeStyle";
 import {
   diamondLoop,
   ellipseLoop,
-  jitter,
   roundedRectLoop,
   seedOf,
   sketchStrokePath2D,
@@ -568,7 +567,7 @@ function boundsOf(el: Element): { x: number; y: number; w: number; h: number } {
   };
 }
 
-const HACHURE_SPACING = 6;
+const HACHURE_SPACING = 4.8;
 
 function buildHachurePath(el: Element, withCross: boolean): Path2D {
   const b = boundsOf(el);
@@ -596,15 +595,22 @@ function buildHachurePath(el: Element, withCross: boolean): Path2D {
     }
   } else {
     const seedBase = seedOf(el.id) + 7;
-    const r = el.roughness;
     for (let j = 0; j < lines.length; j++) {
-      const l = lines[j];
-      const jx1 = jitter(seedBase + j * 19) * r * 1.2;
-      const jy1 = jitter(seedBase + j * 19 + 5) * r * 1.2;
-      const jx2 = jitter(seedBase + j * 23 + 11) * r * 1.2;
-      const jy2 = jitter(seedBase + j * 23 + 17) * r * 1.2;
-      path.moveTo(l[0].x + jx1, l[0].y + jy1);
-      path.lineTo(l[1].x + jx2, l[1].y + jy2);
+      const segs = sketchStrokeSegments(
+        [lines[j]],
+        el.roughness,
+        seedBase + j * 17,
+      );
+      for (const seg of segs) {
+        path.moveTo(seg.moveTo.x, seg.moveTo.y);
+        for (const c of seg.curves) {
+          if (c.kind === "quad" && c.ctrl) {
+            path.quadraticCurveTo(c.ctrl.x, c.ctrl.y, c.to.x, c.to.y);
+          } else {
+            path.lineTo(c.to.x, c.to.y);
+          }
+        }
+      }
     }
   }
   return path;
@@ -626,7 +632,7 @@ function drawHachureFill(
   ctx.globalAlpha *= el.fillOpacity;
   traceShape(ctx, el);
   ctx.clip();
-  ctx.lineWidth = el.roughness > 0 ? Math.max(el.strokeWidth * 0.6, 1) : 1.2;
+  ctx.lineWidth = 1.2;
   const cache = getElementCache(el);
   if (!cache.hachurePath) {
     cache.hachurePath = buildHachurePath(el, withCross);

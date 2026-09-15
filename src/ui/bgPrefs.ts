@@ -11,11 +11,11 @@ export interface BgPaletteEntry {
 }
 
 export const BG_PALETTE: BgPaletteEntry[] = [
-  { id: "#ffffff", label: "White", pair: "#1d2126" },
-  { id: "#f6f7f8", label: "Cool Gray", pair: "#15181c" },
+  { id: "#ffffff", label: "White", pair: "#090a0c" },
+  { id: "#f6f7f8", label: "Cool Gray", pair: "#101215" },
   { id: "#f7f2ea", label: "Cream", pair: "#0b0d11" },
-  { id: "#edf1f7", label: "Ice Blue", pair: "#1a1d22" },
-  { id: "#f0f0ee", label: "Parchment", pair: "#262b31" },
+  { id: "#edf1f7", label: "Ice Blue", pair: "#0e1217" },
+  { id: "#f0f0ee", label: "Parchment", pair: "#121314" },
 ];
 
 export const BG_PALETTE_LIGHT = BG_PALETTE;
@@ -48,8 +48,9 @@ function applyToDom(color: BgColor | null) {
   }
 }
 
-// apply on module load (only if user has an explicit choice)
-applyToDom(loadFromStorage());
+if (typeof document !== "undefined") {
+  applyToDom(loadFromStorage());
+}
 
 export function getBgColor(): BgColor {
   return current;
@@ -124,14 +125,16 @@ export function switchBgForTheme(targetPref: "system" | "light" | "dark") {
   resolveThemeSwitch(targetDark);
 }
 
-// Auto-switch bg when data-theme changes (media query or manual set)
-{
+if (typeof document !== "undefined") {
   let lastDark = resolvedThemeIsDark();
   const obs = new MutationObserver(() => {
     const isDark = resolvedThemeIsDark();
     if (isDark === lastDark) return;
     lastDark = isDark;
     resolveThemeSwitch(isDark);
+    window.dispatchEvent(
+      new CustomEvent("archidraw:mode-switch", { detail: { isDark } }),
+    );
   });
   obs.observe(document.documentElement, {
     attributes: true,

@@ -16,7 +16,7 @@ import {
 
 const EXPORT_PADDING = 20;
 const PNG_SCALE = 2;
-const HACHURE_SPACING = 6;
+const HACHURE_SPACING = 4.8;
 
 /** vertical gap needed above/below a context to fit its external label */
 function gapForLabel(fontSize: number): number {

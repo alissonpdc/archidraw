@@ -92,7 +92,7 @@ test.describe("ui widgets", () => {
     await page.evaluate(() => {
       document.documentElement.dataset.theme = "dark";
     });
-    expect(await bg()).toBe("#101d2e");
+    expect(await bg()).toBe("#0c1219");
 
     // blueprint chrome is rigid: widgets use ink-colored 1.5px borders
     // (dark ink #dbe7f5) instead of the soft gray border

@@ -74,7 +74,7 @@ test.describe("PropertiesPanel text controls", () => {
     await popover.locator(".ramp-cell").nth(3).click();
 
     const p = await elemProps(page);
-    expect(p.textColor).toBe("#ba1c1c");
+    expect(p.textColor).toBe("#9b1717");
   });
 
   test("vertical alignment of a rectangle label via the panel", async ({

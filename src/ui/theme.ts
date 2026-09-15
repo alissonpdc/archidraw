@@ -76,3 +76,13 @@ export function toggleLightDark(): ThemePref {
   applyThemePref(next);
   return next;
 }
+
+export function attachThemeColorCorrelation(editor: import("../core/editor").Editor): () => void {
+  const handler = () => {
+    editor.correlateColorsForTheme();
+  };
+  window.addEventListener("archidraw:mode-switch", handler);
+  return () => {
+    window.removeEventListener("archidraw:mode-switch", handler);
+  };
+}
