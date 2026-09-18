@@ -19,33 +19,89 @@ ArchiDraw is a client-side canvas app for drawing [software architecture diagram
 
 ## Features
 
-- **Sketch-style rendering** — clean to hand-drawn shapes via *roughness*, with hachure/cross-hachure fills and dashed/dotted/dash-dot strokes.
-- **Architecture component library** — a built-in catalog of AWS and Kubernetes icons organized by *Compute, Network, Database, Storage, Messaging, Security*, and *Monitoring*.
-- **Custom library** — save any selection as a reusable component and re-insert it as an editable native group; import `.excalidrawlib` libraries and export your own as `.archidrawlib`.
-- **Smart edges** — arrows and lines snap and bind to shape outlines (with subtle center locking), support orthogonal auto-routing, curved mode, bend points, segment dragging, and draggable edge labels. Optionally animate dashed edges to show data flow.
-- **Rich text & labels** — in-place text editing with fonts, bold/italic/underline, alignment, and per-element text color.
-- **Multi-tab workspaces** — several diagrams per workspace with per-tab undo/redo, renaming and reordering.
-- **Layout tools** — grouping, layer ordering, alignment and distribution of multi-selections, marquee selection, duplicate, and clipboard (including pasted images).
-- **Focus mode** — hide all UI chrome and draw distraction-free.
-- **Theming** — light/dark/system themes, four *skins* (Midnight, Blueprint, Warm, Ink), dot/line-grid and background colors.
-- **No cloud** — autosaved to `localStorage`, importable/exportable as JSON files.
+### Drawing & rendering
+- **Sketch-style rendering** — clean to hand-drawn shapes via *roughness* (4 discrete levels), with hachure/cross-hachure fills and solid/dashed/dotted/dash-dot strokes.
+- **Deterministic rough paths** — per-element seed ensures identical rendering on screen, SVG export, and re-open.
+- **Rich text & labels** — in-place editing with fonts, bold/italic/underline, alignment, per-element text color, vertical alignment, and fine-grained text offsets.
 
-> [!TIP]
-> ArchiDraw is compatible with [Excalidraw](https://excalidraw.com/) files (`.excalidraw`) and libraries (`.excalidrawlib`).
+### Architecture-first tools
+- **Built-in AWS & Kubernetes library** — ~50+ icons organized by Compute, Network, Database, Storage, Messaging, Security, and Monitoring. No community library needed.
+- **Bounded Context containers** — native `ContextElement` for DDD modeling with label positioning, internal/external sides, and child containment.
+- **Smart edges** — auto-routing (`lineType: "auto"`), Bezier control points, bend points, segment dragging, parametric label positioning (`labelT`), and optional flowing-dash animation.
+- **Details badge** — hidden technical metadata (payload, latency, notes) on any element, visible on demand.
+- **Dependency highlighting** — BFS traversal from selection to illuminate connected elements.
+
+### Workspace & productivity
+- **Multi-tab workspaces** — several diagrams per session with per-tab undo/redo, renaming, and reordering.
+- **Alignment & distribution** — align and distribute multi-selections horizontally or vertically.
+- **Copy/paste style** — copy visual properties between elements.
+- **Paste at cursor** — clipboard content lands exactly where you point.
+- **Element locking** — lock elements to prevent accidental moves or edits.
+- **Focus mode** — hide all UI chrome for distraction-free drawing.
+
+### Theming & appearance
+- **4 skins** — Midnight, Blueprint, Warm, and Ink.
+- **Light / dark / system** theme with automatic background switching.
+- **Dot or line grid** with master lines every 5 units.
+- **Custom canvas backgrounds** per skin.
+
+### No cloud, no lock-in
+- Autosaved to `localStorage`. Import/export as JSON. No account, no server, no data leaving your machine.
+
+## Excalidraw Compatible
+
+ArchiDraw reads [Excalidraw](https://excalidraw.com/) files natively — open your existing diagrams and libraries without conversion.
+
+| Format | Direction | What's preserved |
+|---|---|---|
+| `.excalidraw` | Import | Shapes, colors, roughness, arrow bindings, fonts, opacity, arrowheads, text |
+| `.excalidrawlib` | Import (v1 + v2) | Library items → registered as reusable catalog components |
+| `.archidrawlib` | Export | Custom library in Excalidraw v2-compatible format |
+
+> [!NOTE]
+> Compatibility is **one-way**: ArchiDraw imports Excalidraw files, but Excalidraw cannot open `.archidraw` or `.archidrawlib` files.
+
+## ArchiDraw vs Excalidraw
+
+ArchiDraw is not a general-purpose whiteboard — it's a **dedicated architecture diagram editor**. Here's what sets it apart.
+
+### What ArchiDraw has that Excalidraw doesn't
+
+| Feature | ArchiDraw | Excalidraw |
+|---|---|---|
+| Built-in AWS / Kubernetes icons | ✅ ~50+ native | ❌ community libraries only |
+| Auto-routed edges | ✅ orthogonal with bend points | ❌ |
+| Bezier control points | ✅ | ❌ |
+| Animated arrows (data flow) | ✅ | ❌ |
+| Dash-dot stroke style | ✅ | ❌ |
+| Parametric label on edges (`labelT`) | ✅ | ❌ |
+| Bounded Context containers (DDD semantics) | ✅ | Frames only (generic) |
+| Details / hidden metadata per element | ✅ | ❌ |
+| Split fill / stroke opacity | ✅ | ❌ |
+| Vertical text alignment + text offsets | ✅ | ❌ |
+| Multi-tab workspace | ✅ | ❌ |
+| 4 skins (Midnight, Blueprint, Warm, Ink) | ✅ | ❌ |
+| Dependency highlighting (BFS) | ✅ | ❌ |
+| Alignment & distribution tools | ✅ | ❌ |
+| Copy/paste style | ✅ | ❌ |
+| Element locking | ✅ | ❌ |
+| Deterministic rough-path export | ✅ | ❌ |
+| Paste at cursor position | ✅ | ❌ |
+| Dot **and** line grid | ✅ | grid only |
 
 ## Getting started
 
 ### With Docker (recommended)
 
 ```bash
-make run-container
+docker run -d --name archidraw -p 5000:5000 alissonpdc/archidraw:latest
 ```
 
-Open `http://localhost:5000` and start drawing — no local toolchain needed.
+Open `http://localhost:5000` and start drawing.
 
 ### From source
 
-Requirements: **Node.js 22+**, npm, and Docker (optional).
+Requirements: **Node.js 22+** and npm.
 
 ```bash
 git clone https://github.com/alissonpdc/archidraw.git && cd archidraw
@@ -76,70 +132,11 @@ Double-click an element to edit its label or text; double-click empty canvas to 
 
 ## File formats
 
-| Format | Description |
-|---|---|
-| `.archidraw` | ArchiDraw diagram or workspace (single tab or all tabs), openable via `Open` |
-| `.excalidraw` | Import [Excalidraw](https://excalidraw.com/) scene files |
-| `.excalidrawlib` / `.archidrawlib` | Import into the component library; export your *Custom* library |
-| `PNG` / `SVG` | Export the active diagram as an image |
-| `image/*` | Insert/paste raster images (embedded as assets) |
-
-## How it works
-
-ArchiDraw is a **pure frontend** app. There is no server component: the diagram state lives in a framework-free `Editor` state machine and is rendered on a Canvas 2D surface.
-
-```
-┌──────────────────────────────────────────────────────┐
-│  src/ui · thin React shell, presents state only      │
-├──────────────────────────────────────────────────────┤
-│  src/core · pure logic: document model (types),      │
-│  Editor state machine, renderer, history, hit-test   │
-│  storage, exporter, library, rough-path generation   │
-└──────────────────────────────────────────────────────┘
-```
-
-- **`src/core/`** — framework-free logic: the document model, the `Editor` class, the Canvas 2D renderer, deterministic rough-path geometry, undo/redo history, hit-testing, storage/persistence, and the library & import/export pipelines.
-- **`src/ui/`** — a thin React 19 presentation shell. UI subscribes to the editor via `useSyncExternalStore`; all state and interaction logic lives in `src/core`.
-
-Rough ("hand-drawn") shapes are generated deterministically from a per-element seed, so a diagram re-renders identically on screen, in exported SVG, and later — a key property for reproducible exports.
-
-> [!NOTE]
-> Drawing is intentionally *not* pixels: ArchiDraw renders crisp Canvas 2D vectors, so exports stay sharp at any zoom.
-
-## Development
-
-```bash
-make run          # start the Vite dev server
-make build        # typecheck (tsc -b) + production build
-make lint         # oxlint
-make test         # Playwright tests against a real preview build
-make gate         # lint + build + test (full verification)
-```
-
-Run `make help` to see all available targets.
-
-### Testing
-
-Verification is **E2E-only** (Playwright, single worker); there are no unit tests. A test build exposes the editor internals so specs can assert on the document state directly, and any `console.error`/`console.warning`/`pageerror` fails the suite.
-
-```bash
-make test                          # full suite
-make build && npx playwright test e2e/specs/history.spec.ts  # single spec
-```
-
-### CI and releases
-
-Pushing a branch with a conventional prefix (`feat/`, `fix/`, `chore/`, …) triggers CI — lint, typecheck, security audit, E2E tests, and build — and opens a PR to `main` automatically when green. Merging a PR to `main` releases: an automatic semver bump is derived from the commit history (`feat` → minor, breaking change → major, else patch), a GitHub Release is created, and a multi-arch Docker image is published to Docker Hub.
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contribution and release flow.
-
-## Docker
-
-A multi-stage `Dockerfile` serves the production build with nginx:
-
-```bash
-make container
-docker run --rm -p 5000:5000 archidraw
-```
-
-The image is the same one pushed to Docker Hub on every release (tags `X.Y.Z`, `X.Y`, and `latest`).
+| Format | Direction | Description |
+|---|---|---|
+| `.archidraw` | Save / Open | ArchiDraw workspace (multi-tab, schema v2) or single diagram |
+| `.excalidraw` | Import | [Excalidraw](https://excalidraw.com/) scene — shapes, bindings, fonts, roughness, opacity, arrowheads |
+| `.excalidrawlib` | Import | Excalidraw library (v1 & v2) → items become reusable catalog components |
+| `.archidrawlib` | Export | Custom library in Excalidraw v2-compatible format |
+| `PNG` / `SVG` | Export | Active diagram as raster or vector (deterministic rough paths preserved) |
+| `image/*` | Insert | Paste/drop raster images → embedded as library assets |
