@@ -85,6 +85,8 @@ const SEGMENT_SNAP_PX = 8;
 const SNAP_TOLERANCE = 4;
 /** 45° in radians, used by shift-constrained line/arrow angle snapping */
 const QUARTER_TURN = Math.PI / 4;
+/** window (ms) during which consecutive arrow-key nudges share one undo step */
+const NUDGE_HISTORY_COALESCE_MS = 600;
 
 export interface SnapGuide {
   orientation: "h" | "v";
@@ -386,6 +388,8 @@ export class Editor {
   private lastFillStyle: FillStyle = "solid";
   private focusMode = false;
   private highlightedIds = new Set<string>();
+  /** timestamp of the last keyboard nudge, for undo-step coalescing */
+  private nudgeHistoryAt = 0;
 
   private listeners = new Set<() => void>();
   private snapshotCache: EditorSnapshot | null = null;
@@ -843,6 +847,57 @@ export class Editor {
   }
 
   /**
+   * keyboard nudge: moves the current selection by (dx, dy) SCENE units.
+   * Selection already expands to whole groups on click, but a marquee can
+   * catch only part of a group — so group siblings travel along too. Locked
+   * elements never move. Repeated presses coalesce into a single undo step
+   * (same snapshot reused while the presses follow each other closely).
+   */
+  nudgeSelected(dx: number, dy: number) {
+    if (this.interaction.kind !== "none") return;
+    if (this.editingTextId || this.selectedIds.size === 0) return;
+    const selected = this.doc.elements.filter(
+      (el) => this.selectedIds.has(el.id) && !el.locked,
+    );
+    if (selected.length === 0) return;
+
+    const now = Date.now();
+    if (now - this.nudgeHistoryAt > NUDGE_HISTORY_COALESCE_MS) {
+      this.commitHistory();
+    }
+    this.nudgeHistoryAt = now;
+
+    const groupIds = new Set(
+      selected.map((el) => el.groupId).filter((gid): gid is string => !!gid),
+    );
+    const moved = new Map<string, Element>();
+    const push = (el: Element) => {
+      if (el.locked || moved.has(el.id)) return;
+      moved.set(el.id, translateElement(el, dx, dy));
+    };
+    for (const el of selected) push(el);
+    if (groupIds.size > 0) {
+      for (const el of this.doc.elements) {
+        if (el.groupId && groupIds.has(el.groupId)) push(el);
+      }
+    }
+    // a moved context carries its children along (they are positioned
+    // relative to the container, not to the scene)
+    for (const el of this.doc.elements) {
+      if (el.type !== "context") continue;
+      if (!moved.has(el.id)) continue;
+      for (const childId of ((el as ContextElement).childIds ?? [])) {
+        const child = this.doc.elements.find((e) => e.id === childId);
+        if (child) push(child);
+      }
+    }
+
+    this.applyTranslation(moved);
+    this.refreshContextContainment(new Set(moved.keys()));
+    this.emit();
+  }
+
+  /**
    * insere um componente da biblioteca no centro do viewport (ou num
    * ponto de tela dado, ex. drop do painel) e o seleciona
    */
@@ -1087,7 +1142,85 @@ borderRadius: 20,
 
   /** call before mutating doc so undo returns to current state */
   commitHistory() {
+    this.nudgeHistoryAt = 0;
     this.history.push(JSON.stringify(this.doc));
+  }
+
+  /**
+   * writes translated elements into the doc, keeping bindings coherent:
+   * edges bound to moved shapes follow their anchors, and moved edges
+   * re-snap their own bound endpoints.
+   */
+  private applyTranslation(moved: Map<string, Element>) {
+    const movedIds = new Set(moved.keys());
+    const resolveBound = (id: string) =>
+      moved.get(id) ?? this.doc.elements.find((el) => el.id === id);
+    this.doc = {
+      ...this.doc,
+      elements: this.doc.elements.map((el) => {
+        const next = moved.get(el.id) ?? el;
+        if (!isEdge(next) || (!next.startBinding && !next.endBinding)) {
+          return next;
+        }
+        const startAffected =
+          next.startBinding !== undefined &&
+          movedIds.has(next.startBinding.elementId);
+        const endAffected =
+          next.endBinding !== undefined &&
+          movedIds.has(next.endBinding.elementId);
+        if (!moved.has(next.id) && !startAffected && !endAffected) {
+          return next;
+        }
+        return snapEdgeEndpoints(next, resolveBound);
+      }),
+    };
+  }
+
+  /**
+   * re-syncs context membership after the given elements changed position:
+   * children that left their container are dropped, elements that now fit
+   * fully inside one are captured, and the z-order follows.
+   */
+  private refreshContextContainment(movedIds: Set<string>) {
+    let containmentChanged = false;
+    const nextElements = this.doc.elements.map((el) => {
+      if (el.type !== "context" || movedIds.has(el.id)) return el;
+      const ctx = el as ContextElement;
+      const b = elementBounds(ctx);
+      const newChildIds = (ctx.childIds ?? []).filter((cid) => {
+        if (movedIds.has(cid)) return false;
+        const child = this.doc.elements.find((e) => e.id === cid);
+        if (!child) return false;
+        const cb = elementBounds(child);
+        return (
+          cb.x1 >= b.x1 && cb.x2 <= b.x2 && cb.y1 >= b.y1 && cb.y2 <= b.y2
+        );
+      });
+      for (const movedId of movedIds) {
+        if (newChildIds.includes(movedId)) continue;
+        const movedEl = this.doc.elements.find((e) => e.id === movedId);
+        if (!movedEl || movedEl.type === "context") continue;
+        const mb = elementBounds(movedEl);
+        if (
+          mb.x1 >= b.x1 && mb.x2 <= b.x2 && mb.y1 >= b.y1 && mb.y2 <= b.y2
+        ) {
+          newChildIds.push(movedId);
+        }
+      }
+      if (newChildIds.length !== (ctx.childIds ?? []).length) {
+        containmentChanged = true;
+        return { ...ctx, childIds: newChildIds };
+      }
+      return el;
+    });
+    if (containmentChanged) {
+      this.doc = { ...this.doc, elements: ensureContextZOrder(nextElements) };
+    } else {
+      const reordered = ensureContextZOrder(this.doc.elements);
+      if (reordered !== this.doc.elements) {
+        this.doc = { ...this.doc, elements: reordered };
+      }
+    }
   }
 
   /** re-snaps edges bound to the given element after it changed shape/position */
@@ -1955,31 +2088,7 @@ strokeOpacity?: number;
         }
         this.interaction.moved =
           Math.abs(dx) > 1e-6 || Math.abs(dy) > 1e-6;
-        // keep bindings coherent: edges bound to moved shapes follow their
-        // anchors, and moved edges re-snap their own bound endpoints
-        const movedIds = new Set(moved.keys());
-        const resolveBound = (id: string) =>
-          moved.get(id) ?? this.doc.elements.find((el) => el.id === id);
-        const updatedElements = this.doc.elements.map((el) => {
-          const next = moved.get(el.id) ?? el;
-          if (!isEdge(next) || (!next.startBinding && !next.endBinding)) {
-            return next;
-          }
-          const startAffected =
-            next.startBinding !== undefined &&
-            movedIds.has(next.startBinding.elementId);
-          const endAffected =
-            next.endBinding !== undefined &&
-            movedIds.has(next.endBinding.elementId);
-          if (!moved.has(next.id) && !startAffected && !endAffected) {
-            return next;
-          }
-          return snapEdgeEndpoints(next, resolveBound);
-        });
-        this.doc = {
-          ...this.doc,
-          elements: updatedElements,
-        };
+        this.applyTranslation(moved);
         // live containment highlight: the last context that fully contains
         // the shifted union bounds gets highlighted as a drop target
         let highlight: string | null = null;
@@ -2317,47 +2426,9 @@ strokeOpacity?: number;
       this.history.pop();
     }
     if (this.interaction.kind === "move" && this.interaction.moved) {
-      const movedIds = new Set(this.interaction.originals.map((el) => el.id));
-      let containmentChanged = false;
-      const nextElements = this.doc.elements.map((el) => {
-        if (el.type !== "context" || movedIds.has(el.id)) return el;
-        const ctx = el as ContextElement;
-        const b = elementBounds(ctx);
-        const newChildIds = (ctx.childIds ?? []).filter((cid) => {
-          if (movedIds.has(cid)) return false;
-          const child = this.doc.elements.find((e) => e.id === cid);
-          if (!child) return false;
-          const cb = elementBounds(child);
-          return (
-            cb.x1 >= b.x1 && cb.x2 <= b.x2 && cb.y1 >= b.y1 && cb.y2 <= b.y2
-          );
-        });
-        for (const movedId of movedIds) {
-          if (newChildIds.includes(movedId)) continue;
-          const movedEl = this.doc.elements.find((e) => e.id === movedId);
-          if (!movedEl || movedEl.type === "context") continue;
-          const mb = elementBounds(movedEl);
-          if (
-            mb.x1 >= b.x1 && mb.x2 <= b.x2 &&
-            mb.y1 >= b.y1 && mb.y2 <= b.y2
-          ) {
-            newChildIds.push(movedId);
-          }
-        }
-        if (newChildIds.length !== (ctx.childIds ?? []).length) {
-          containmentChanged = true;
-          return { ...ctx, childIds: newChildIds };
-        }
-        return el;
-      });
-      if (containmentChanged) {
-        this.doc = { ...this.doc, elements: ensureContextZOrder(nextElements) };
-      } else {
-        const reordered = ensureContextZOrder(this.doc.elements);
-        if (reordered !== this.doc.elements) {
-          this.doc = { ...this.doc, elements: reordered };
-        }
-      }
+      this.refreshContextContainment(
+        new Set(this.interaction.originals.map((el) => el.id)),
+      );
     }
     if (this.interaction.kind === "label-move" && !this.interaction.moved) {
       this.history.pop(); // handle grabbed without dragging: drop snapshot

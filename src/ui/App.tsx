@@ -29,6 +29,18 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
   "8": "bounded-context",
 };
 
+/** arrow keys -> scene delta; Shift multiplies the step */
+const NUDGE_KEYS: Record<string, { x: number; y: number }> = {
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+  ArrowUp: { x: 0, y: -1 },
+  ArrowDown: { x: 0, y: 1 },
+};
+
+/** nudge step in SCREEN pixels (converted to scene units by the editor call) */
+const NUDGE_STEP_PX = 2;
+const NUDGE_STEP_BIG_PX = 10;
+
 export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -147,26 +159,34 @@ export function App() {
         fileInputRef.current?.click();
         return;
       }
+      if (mod) return;
+      const nudge = NUDGE_KEYS[e.key];
+      if (nudge) {
+        e.preventDefault();
+        const step =
+          (e.shiftKey ? NUDGE_STEP_BIG_PX : NUDGE_STEP_PX) /
+          editor.getSnapshot().camera.zoom;
+        editor.nudgeSelected(nudge.x * step, nudge.y * step);
+        return;
+      }
       if (e.shiftKey && e.code === "Digit1") {
         editor.zoomToFit();
         return;
       }
-      if (!mod) {
-        if (e.key.toLowerCase() === "l") {
-          e.preventDefault();
-          setLibraryOpen((v) => !v);
-          return;
-        }
-        if (e.key.toLowerCase() === "i") {
-          e.preventDefault();
-          imageInputRef.current?.click();
-          return;
-        }
-        const tool = TOOL_KEYS[e.key.toLowerCase()];
-        if (tool) {
-          editor.setTool(tool);
-          return;
-        }
+      if (e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        setLibraryOpen((v) => !v);
+        return;
+      }
+      if (e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        imageInputRef.current?.click();
+        return;
+      }
+      const tool = TOOL_KEYS[e.key.toLowerCase()];
+      if (tool) {
+        editor.setTool(tool);
+        return;
       }
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
