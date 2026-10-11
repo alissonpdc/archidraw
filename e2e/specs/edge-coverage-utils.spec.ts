@@ -1,4 +1,11 @@
-import { test, expect, open, drag, selectTool } from "../fixtures";
+import {
+  test,
+  expect,
+  open,
+  drag,
+  selectTool,
+  importFile,
+} from "../fixtures";
 import { type Page } from "@playwright/test";
 
 async function drawRect(
@@ -312,7 +319,7 @@ test.describe("excalidrawCommon.ts edge cases", () => {
       files: {},
     });
 
-    await page.setInputFiles('[data-testid="import-input"]', {
+    await importFile(page, {
       name: "tuples.excalidraw",
       mimeType: "application/json",
       buffer: Buffer.from(excalidrawFile),
@@ -368,7 +375,7 @@ test.describe("excalidrawCommon.ts edge cases", () => {
       files: {},
     });
 
-    await page.setInputFiles('[data-testid="import-input"]', {
+    await importFile(page, {
       name: "objects.excalidraw",
       mimeType: "application/json",
       buffer: Buffer.from(excalidrawFile),
@@ -488,7 +495,7 @@ test.describe("excalidrawCommon.ts edge cases", () => {
       files: {},
     });
 
-    await page.setInputFiles('[data-testid="import-input"]', {
+    await importFile(page, {
       name: "fonts-string.excalidraw",
       mimeType: "application/json",
       buffer: Buffer.from(excalidrawFile),
@@ -541,7 +548,7 @@ test.describe("excalidrawCommon.ts edge cases", () => {
       files: {},
     });
 
-    await page.setInputFiles('[data-testid="import-input"]', {
+    await importFile(page, {
       name: "dashdot.excalidraw",
       mimeType: "application/json",
       buffer: Buffer.from(excalidrawFile),

@@ -1,4 +1,11 @@
-import { test, expect, open, drag, selectTool } from "../fixtures";
+import {
+  test,
+  expect,
+  open,
+  drag,
+  selectTool,
+  openFileChooserViaShortcut,
+} from "../fixtures";
 import { type Page } from "@playwright/test";
 
 async function drawRect(
@@ -388,9 +395,7 @@ test.describe("files", () => {
     editorState,
   }) => {
     await open(page);
-    const chooserPromise = page.waitForEvent("filechooser");
-    await page.keyboard.press("i");
-    const chooser = await chooserPromise;
+    const chooser = await openFileChooserViaShortcut(page, "i");
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
       "base64",

@@ -1,4 +1,11 @@
-import { test, expect, open, drag, selectTool } from "../fixtures";
+import {
+  test,
+  expect,
+  open,
+  drag,
+  selectTool,
+  importFile,
+} from "../fixtures";
 import { type Page } from "@playwright/test";
 
 async function drawRect(
@@ -161,7 +168,7 @@ test.describe("archidraw workspace import", () => {
         },
       ],
     });
-    await page.setInputFiles("[data-testid=\"import-input\"]", {
+    await importFile(page, {
       name: "pack.archidraw.json",
       mimeType: "application/json",
       buffer: Buffer.from(workspace, "utf-8"),

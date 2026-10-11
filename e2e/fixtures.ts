@@ -152,3 +152,91 @@ export async function pressPaste(page: Page) {
     );
   });
 }
+
+export type FilePayload =
+  | string
+  | {
+      name: string;
+      mimeType?: string;
+      buffer: Buffer;
+    };
+
+/**
+ * Drives the hidden `[data-testid="import-input"]` picker and resolves only
+ * after the app's async `change` handler has fully run (file read → parse →
+ * editor mutation → toast).
+ *
+ * `setInputFiles` returns as soon as the `change` event has been *dispatched*;
+ * the app handler is `async` and starts with `await file.text()`, so reading
+ * the editor right after it races the import and observes the pre-import
+ * state. Every branch of `AppMenu.onImportFile` ends in a `toast(...)`, so we
+ * arm a MutationObserver *before* the file is attached and resolve the moment
+ * a brand-new toast node lands. See `.agents/knowledge/file-import-race.md`.
+ */
+export async function importFile(page: Page, file: FilePayload) {
+  await page.evaluate(() => {
+    const w = window as any;
+    const alreadyShown = new Set<Element>(
+      Array.from(document.querySelectorAll(".toast-stack .toast")),
+    );
+    w.__archidrawImportSettled = new Promise<void>((resolve) => {
+      const observer = new MutationObserver(() => {
+        for (const node of document.querySelectorAll(".toast-stack .toast")) {
+          if (!alreadyShown.has(node)) {
+            observer.disconnect();
+            resolve();
+            return;
+          }
+        }
+      });
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+      });
+    });
+  });
+
+  await page.setInputFiles('[data-testid="import-input"]', file as string);
+
+  await page.evaluate(() => {
+    const w = window as any;
+    return Promise.race([
+      w.__archidrawImportSettled,
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                "importFile: the import change handler never settled within 20s",
+              ),
+            ),
+          20_000,
+        ),
+      ),
+    ]);
+  });
+}
+
+/**
+ * Presses a single-key shortcut and returns the file chooser it opened.
+ *
+ * `page.keyboard.press` injects a CDP key event; Chromium then drops the
+ * *programmatic* `input.click()` the app performs in the keydown handler
+ * roughly half the time when the renderer is contended (15 parallel workers),
+ * so the picker never opens and the test hangs on `waitForEvent`. Dispatching
+ * the same `keydown` from inside the page is deterministic — the very same
+ * trick `pressPaste` uses for the native paste event.
+ */
+export async function openFileChooserViaShortcut(page: Page, key: string) {
+  const chooser = page.waitForEvent("filechooser");
+  await page.evaluate((k: string) => {
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: k,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  }, key);
+  return chooser;
+}
