@@ -31,7 +31,7 @@ First `make quality` on a clean clone just saves a baseline (no comparison).
 
 - `E2E_PORT` — preview port (default `4173`; `make test` picks a random one).
 - `E2E_COVERAGE=1` — enabled by `make test`; collects JS coverage via monocart. Raw `npm run test:e2e` does NOT collect coverage.
-- `E2E_WORKERS` — default **15** (NOT single worker); CI sets `2`.
+- `E2E_WORKERS` — default **half of the available CPUs** (min 2), NOT single worker; CI sets `2`.
 - `E2E_RETRIES` — default 0; CI sets `1`.
 - `PERF_ELEMENTS` / `PERF_MIN_FPS` — performance.spec.governors; defaults `500` / `45` FPS locally, CI relaxes to `100` / `25`.
 - oxlint ignores `e2e/**` and `playwright.config.ts`; `tsc -b` only covers `src/` + `vite.config.ts`. Nothing in the gate typechecks or lints specs — they're verified at runtime only.
