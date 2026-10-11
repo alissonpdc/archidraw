@@ -128,7 +128,8 @@ function normalizeDoc(doc: Document): Document {
         el.borderRadius === undefined ||
         (el as any).strokeOpacity === undefined ||
         (el as any).fillOpacity === undefined ||
-        el.fillStyle === undefined
+        el.fillStyle === undefined ||
+        el.angle === undefined
       ) {
         next = {
           ...el,
@@ -138,6 +139,7 @@ function normalizeDoc(doc: Document): Document {
           strokeOpacity: (el as any).strokeOpacity ?? 1,
           fillOpacity: (el as any).fillOpacity ?? 1,
           fillStyle: el.fillStyle ?? ("solid" as const),
+          angle: el.angle ?? 0,
         };
       }
       const bindings = next as Element & WithBindings;

@@ -57,6 +57,11 @@ export interface BaseElement {
   /** corner rounding of rectangles, % of the smaller side (0–100) */
   borderRadius: number;
 
+  /** rotation around the element center, in radians (positive = clockwise).
+   *  Optional: absent/0 means axis-aligned. x/y/width/height always describe
+   *  the UNROTATED box — the rotation is applied around elementCenter(). */
+  angle?: number;
+
   /** id of the logical group this element belongs to, if any (no container element) */
   groupId?: string;
 

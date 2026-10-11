@@ -9,8 +9,14 @@ import {
   edgeLabelAnchor,
   edgePathPoints,
   edgePointAt,
+  elementAngle,
   elementBounds,
+  elementCenter,
+  elementCorners,
+  isRotatable,
   measureText,
+  rotatedBounds,
+  toScenePoint,
 } from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage, getCachedImage } from "./componentAssets";
@@ -79,6 +85,20 @@ interface ElementGeometryCache {
 }
 
 const geometryCache = new WeakMap<Element, ElementGeometryCache>();
+
+/**
+ * pushes a rotation transform (about the element center) so every drawing
+ * routine below can keep working in the element's own unrotated frame.
+ * No-op when the element has no angle.
+ */
+function applyRotation(ctx: CanvasRenderingContext2D, el: Element) {
+  const angle = elementAngle(el);
+  if (angle === 0) return;
+  const c = elementCenter(el);
+  ctx.translate(c.x, c.y);
+  ctx.rotate(angle);
+  ctx.translate(-c.x, -c.y);
+}
 
 function getElementCache(el: Element): ElementGeometryCache {
   let cache = geometryCache.get(el);
@@ -655,6 +675,7 @@ function drawElement(
 ) {
   const cache = getElementCache(el);
   ctx.save();
+  applyRotation(ctx, el);
   ctx.strokeStyle = resolveStroke(el, colors);
   ctx.fillStyle = resolveFill(el, colors);
   ctx.lineWidth = el.strokeWidth;
@@ -998,7 +1019,7 @@ export function detailsBadgeAnchor(el: Element, zoom: number): Point | null {
   }
   const b = elementBounds(el);
   const inset = BADGE_INSET_PX / zoom;
-  return { x: b.x2 - inset, y: b.y2 - inset };
+  return toScenePoint(el, { x: b.x2 - inset, y: b.y2 - inset });
 }
 
 /** information icon (circle with a dotted "i") in the given color */
@@ -1058,8 +1079,12 @@ function drawLockBadge(
 ) {
   if (!el.locked) return;
   const b = elementBounds(el);
-  const screenX = (b.x1 + BADGE_INSET_PX / zoom) * cam.zoom + cam.scrollX;
-  const screenY = (b.y1 + BADGE_INSET_PX / zoom) * cam.zoom + cam.scrollY;
+  const corner = toScenePoint(el, {
+    x: b.x1 + BADGE_INSET_PX / zoom,
+    y: b.y1 + BADGE_INSET_PX / zoom,
+  });
+  const screenX = corner.x * cam.zoom + cam.scrollX;
+  const screenY = corner.y * cam.zoom + cam.scrollY;
   const r = BADGE_RADIUS_PX;
   const dpr = window.devicePixelRatio || 1;
   ctx.save();
@@ -1174,16 +1199,32 @@ function drawSelectionBox(
   }
   const b = elementVisualBounds(ctx, el);
   const pad = 3 / zoom;
+  const padded: Bounds = {
+    x1: b.x1 - pad,
+    y1: b.y1 - pad,
+    x2: b.x2 + pad,
+    y2: b.y2 + pad,
+  };
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = Math.max(0.75, 1 / zoom);
   ctx.setLineDash([3 / zoom, 4 / zoom]);
-  ctx.strokeRect(
-    b.x1 - pad,
-    b.y1 - pad,
-    b.x2 - b.x1 + pad * 2,
-    b.y2 - b.y1 + pad * 2,
-  );
+  if (elementAngle(el) === 0) {
+    ctx.strokeRect(
+      padded.x1,
+      padded.y1,
+      padded.x2 - padded.x1,
+      padded.y2 - padded.y1,
+    );
+  } else {
+    // rotated: outline follows the rotated box, not the axis-aligned one
+    const corners = elementCorners(el, padded);
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    for (let i = 1; i < corners.length; i++) ctx.lineTo(corners[i].x, corners[i].y);
+    ctx.closePath();
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -1191,6 +1232,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
   if (el.type === "text" || !el.label) return;
   const cache = getElementCache(el);
   ctx.save();
+  applyRotation(ctx, el);
   ctx.globalAlpha *= el.opacity;
   ctx.fillStyle = resolveTextColor(el, colors);
   ctx.textAlign = "center";
@@ -1350,6 +1392,9 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
 
 const HANDLE_SIZE = 7; // screen px
 
+/** screen px between the top edge and the rotate grip */
+export const ROTATE_HANDLE_GAP_PX = 18;
+
 function drawHandles(
   ctx: CanvasRenderingContext2D,
   el: Element,
@@ -1361,7 +1406,7 @@ function drawHandles(
   const cy = (b.y1 + b.y2) / 2;
   // arrows/lines expose only their two endpoints; width/height are signed,
   // so the endpoints are (x,y) and (x+width,y+height), not fixed bbox corners
-  const points =
+  const localPoints: Point[] =
     el.type === "arrow" || el.type === "line"
       ? arrowPoints(el)
       : [
@@ -1374,11 +1419,32 @@ function drawHandles(
           { x: b.x1, y: b.y2 },
           { x: b.x1, y: cy },
         ];
+  // the element's rotation pivot is its own box center, so the visual-box
+  // handles are rotated around that same center
+  const points = localPoints.map((p) => toScenePoint(el, p));
   const s = HANDLE_SIZE / zoom;
   ctx.save();
   ctx.fillStyle = "#ffffff";
   ctx.strokeStyle = color;
   ctx.lineWidth = 1 / zoom;
+
+  // rotate grip: connector from the top-center handle up to a circle
+  if (isRotatable(el)) {
+    const topCenter = toScenePoint(el, { x: cx, y: b.y1 });
+    const grip = toScenePoint(el, {
+      x: cx,
+      y: b.y1 - ROTATE_HANDLE_GAP_PX / zoom,
+    });
+    ctx.beginPath();
+    ctx.moveTo(topCenter.x, topCenter.y);
+    ctx.lineTo(grip.x, grip.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(grip.x, grip.y, s / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
   for (const p of points) {
     ctx.beginPath();
     ctx.rect(p.x - s / 2, p.y - s / 2, s, s);
@@ -1457,6 +1523,7 @@ function drawBindingHighlight(
   const b = elementBounds(el);
   const pad = 4 / zoom;
   ctx.save();
+  applyRotation(ctx, el);
   ctx.globalAlpha = 1;
   ctx.fillStyle = color + "1a";
   ctx.strokeStyle = color;
@@ -1513,6 +1580,7 @@ function drawContextHighlight(
   const h = b.y2 - b.y1;
   const r = cornerRadius(el);
   ctx.save();
+  applyRotation(ctx, el);
 
   // emphasize the existing background
   ctx.fillStyle = color + "22";
@@ -1582,8 +1650,10 @@ export function render(
     : state.doc.elements;
 
   for (const el of elementsToRender) {
-    const b = getCachedBounds(el);
-    if (b.x2 < viewX1 || b.x1 > viewX2 || b.y2 < viewY1 || b.y1 > viewY2) {
+    // cull against the ROTATED footprint, so a turned shape that pokes outside
+    // its axis-aligned box is still drawn
+    const cb = elementAngle(el) === 0 ? getCachedBounds(el) : rotatedBounds(el);
+    if (cb.x2 < viewX1 || cb.x1 > viewX2 || cb.y2 < viewY1 || cb.y1 > viewY2) {
       continue;
     }
     const isEditingThisLabel =

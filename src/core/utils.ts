@@ -58,6 +58,79 @@ export function elementBounds(el: Element): Bounds {
   });
 }
 
+/** rotation of an element in radians (0 / undefined = axis-aligned) */
+export function elementAngle(el: Element): number {
+  return el.angle ?? 0;
+}
+
+/**
+ * element types that expose the rotate grip. Lines/arrows are excluded: their
+ * direction is already encoded by their signed width/height, so rotating them
+ * would be meaningless — dragging an endpoint re-aims them instead.
+ */
+export function isRotatable(el: Element): boolean {
+  if (el.locked) return false;
+  return (
+    el.type === "rectangle" ||
+    el.type === "diamond" ||
+    el.type === "ellipse" ||
+    el.type === "text" ||
+    el.type === "component" ||
+    el.type === "context"
+  );
+}
+
+/** rotation pivot: the center of the unrotated box */
+export function elementCenter(el: Element): Point {
+  return { x: el.x + el.width / 2, y: el.y + el.height / 2 };
+}
+
+/** rotates p around center by `angle` radians (clockwise on screen) */
+export function rotatePoint(p: Point, center: Point, angle: number): Point {
+  if (angle === 0) return p;
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const dx = p.x - center.x;
+  const dy = p.y - center.y;
+  return {
+    x: center.x + dx * c - dy * s,
+    y: center.y + dx * s + dy * c,
+  };
+}
+
+/** scene point → element-local (unrotated) frame */
+export function toLocalPoint(el: Element, p: Point): Point {
+  return rotatePoint(p, elementCenter(el), -elementAngle(el));
+}
+
+/** element-local (unrotated) point → scene point */
+export function toScenePoint(el: Element, p: Point): Point {
+  return rotatePoint(p, elementCenter(el), elementAngle(el));
+}
+
+/** the four scene-space corners of the element box, rotated by its angle */
+export function elementCorners(el: Element, b?: Bounds): Point[] {
+  const bb = b ?? elementBounds(el);
+  return [
+    { x: bb.x1, y: bb.y1 },
+    { x: bb.x2, y: bb.y1 },
+    { x: bb.x2, y: bb.y2 },
+    { x: bb.x1, y: bb.y2 },
+  ].map((p) => toScenePoint(el, p));
+}
+
+/** axis-aligned scene bounds of the (possibly rotated) element box */
+export function rotatedBounds(el: Element): Bounds {
+  if (elementAngle(el) === 0) return elementBounds(el);
+  const pts = elementCorners(el);
+  return {
+    x1: Math.min(pts[0].x, pts[1].x, pts[2].x, pts[3].x),
+    y1: Math.min(pts[0].y, pts[1].y, pts[2].y, pts[3].y),
+    x2: Math.max(pts[0].x, pts[1].x, pts[2].x, pts[3].x),
+    y2: Math.max(pts[0].y, pts[1].y, pts[2].y, pts[3].y),
+  };
+}
+
 export function normalizeBounds(b: Bounds): Bounds {
   return {
     x1: Math.min(b.x1, b.x2),
@@ -78,10 +151,10 @@ export function boundsContain(outer: Bounds, inner: Bounds): boolean {
 
 export function bindingPoint(el: Element, binding: ArrowBinding): Point {
   const b = elementBounds(el);
-  return {
+  return toScenePoint(el, {
     x: b.x1 + clamp(binding.nx, 0, 1) * (b.x2 - b.x1),
     y: b.y1 + clamp(binding.ny, 0, 1) * (b.y2 - b.y1),
-  };
+  });
 }
 
 export function distanceToSegment(p: Point, a: Point, b: Point): number {
@@ -496,8 +569,15 @@ export function translateElement(el: Element, dx: number, dy: number): Element {
   return next;
 }
 
-/** nearest point on the element outline from p (per-shape geometry) */
+/** nearest point on the element outline from scene point p (per-shape
+ *  geometry, computed in the element's own unrotated frame) */
 export function nearestOutlinePoint(el: Element, p: Point): Point {
+  if (elementAngle(el) === 0) return outlinePointLocal(el, p);
+  const local = toLocalPoint(el, p);
+  return toScenePoint(el, outlinePointLocal(el, local));
+}
+
+function outlinePointLocal(el: Element, p: Point): Point {
   const b = elementBounds(el);
   const cx = (b.x1 + b.x2) / 2;
   const cy = (b.y1 + b.y2) / 2;
@@ -543,7 +623,7 @@ export function unionBounds(elements: Element[]): Bounds | null {
   let x2 = -Infinity;
   let y2 = -Infinity;
   for (const el of elements) {
-    const b = elementBounds(el);
+    const b = rotatedBounds(el);
     x1 = Math.min(x1, b.x1);
     y1 = Math.min(y1, b.y1);
     x2 = Math.max(x2, b.x2);

@@ -30,6 +30,7 @@ export interface EditorSnapshotLike {
     labelT?: number;
     groupId?: string;
     details?: string;
+    angle?: number;
   }[];
 }
 
@@ -95,6 +96,7 @@ export const test = base.extend<TestFixtures>({
             labelT: el.labelT,
             groupId: el.groupId,
             details: el.details,
+            angle: el.angle,
           })),
         };
       });

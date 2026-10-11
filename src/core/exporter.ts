@@ -1,6 +1,6 @@
 import { render, componentIconLayout } from "./renderer";
 import type { ArrowHeadType, Document, Element, Point } from "./types";
-import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, ensureContextZOrder, escapeXml, unionBounds } from "./utils";
+import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, elementAngle, elementCenter, ensureContextZOrder, escapeXml, unionBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { componentAssetDataUri, waitForComponentImages, waitForImage } from "./componentAssets";
 import { strokeDashArray } from "./strokeStyle";
@@ -280,6 +280,7 @@ export function buildSvgString(doc: Document): string | null {
 
   const parts: string[] = [];
   for (const el of ensureContextZOrder(doc.elements)) {
+    const elParts: string[] = [];
     const stroke =
       el.strokeWidth > 0
         ? `stroke="${el.strokeColor}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round"`
@@ -307,24 +308,24 @@ export function buildSvgString(doc: Document): string | null {
         const outline = isSketch(el)
           ? sketchShapeStroke(el, stroke, dash)
           : shapeTag(el, `fill="none" ${stroke}${dash}`);
-        parts.push(
+        elParts.push(
           `<g${opacity}>${truncatedHachureSvg(el, clipId)}${outline}</g>`
         );
       } else if (isSketch(el)) {
         if (fill !== "none" && el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
-          parts.push(sketchShapeFill(el, fill, opacity));
+          elParts.push(sketchShapeFill(el, fill, opacity));
         }
         if (el.strokeWidth > 0) {
-          parts.push(sketchShapeStroke(el, stroke, dash, opacity));
+          elParts.push(sketchShapeStroke(el, stroke, dash, opacity));
         }
       } else {
-        parts.push(shapeTag(el, `fill="${fill}" ${stroke}${dash}${opacity}`));
+        elParts.push(shapeTag(el, `fill="${fill}" ${stroke}${dash}${opacity}`));
       }
       if (el.type === "component") {
         const layout = componentIconLayout(el);
         const dataUri = el.src ?? componentAssetDataUri(el.componentId);
         if (dataUri) {
-          parts.push(
+          elParts.push(
             `<image x="${layout.iconX}" y="${layout.iconY}" width="${layout.iconWidth}" height="${layout.iconHeight}" href="${escapeXml(dataUri)}"${opacity}/>`
           );
         } else {
@@ -332,7 +333,7 @@ export function buildSvgString(doc: Document): string | null {
           const item = getLibraryItem(el.componentId);
           if (item && item.icon && item.icon.length > 0) {
             const scale = layout.iconWidth / 24;
-            parts.push(
+            elParts.push(
               `<g transform="translate(${layout.iconX} ${layout.iconY}) scale(${scale})" fill="none" stroke="${el.strokeColor}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${opacity}>${item.icon
                 .map((d) => `<path d="${d}"/>`)
                 .join("")}</g>`
@@ -375,7 +376,7 @@ export function buildSvgString(doc: Document): string | null {
         lines.forEach((line, i) => {
           const ty = mainAnchor + i * step + fontSize * 0.85;
           const ta = isLeft ? "start" : "end";
-          parts.push(
+          elParts.push(
             `<text x="${anchorX}" y="${ty}" text-anchor="${ta}" font-family="${escapeXml(fontFamilyOf(el))}" font-size="${fontSize}" ${el.bold ? `font-weight="bold"` : ""} ${el.italic ? `font-style="italic"` : ""} fill="${textColor}"${opacity}>${escapeXml(line)}</text>`
           );
         });
@@ -387,16 +388,16 @@ export function buildSvgString(doc: Document): string | null {
       const tip = { x: b.x, y: endY };
       if (lineType === "curved") {
         const cp = curvedArrowControl(el, a, tip);
-        parts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
+        elParts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
       } else if (isSketch(el) && el.strokeStyle === "solid") {
         const pts = lineType === "auto" ? edgePathPoints(el) : [a, tip];
-        parts.push(`<path d="${sketchPathD([pts], el.roughness ?? 0, seedOf(el.id))}" fill="none" ${stroke}${dash}${opacity}/>`);
+        elParts.push(`<path d="${sketchPathD([pts], el.roughness ?? 0, seedOf(el.id))}" fill="none" ${stroke}${dash}${opacity}/>`);
       } else if (lineType === "auto") {
         const pts = edgePathPoints(el);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-        parts.push(`<path d="${d}" fill="none" ${stroke}${dash}${opacity}/>`);
+        elParts.push(`<path d="${d}" fill="none" ${stroke}${dash}${opacity}/>`);
       } else {
-        parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
+        elParts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
       }
     } else if (el.type === "arrow") {
       const [a, b] = arrowPoints(el);
@@ -409,28 +410,28 @@ export function buildSvgString(doc: Document): string | null {
       const endType = arrowEl.endArrowhead ?? "arrow";
       if (lineType === "curved") {
         const cp = curvedArrowControl(el, a, tip);
-        parts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
-        parts.push(arrowHeadSvg(el, tip, cp, stroke, el.strokeColor, opacity, headSeed, endType));
-        parts.push(arrowHeadSvg(el, a, cp, stroke, el.strokeColor, opacity, headSeed + 3, startType));
+        elParts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
+        elParts.push(arrowHeadSvg(el, tip, cp, stroke, el.strokeColor, opacity, headSeed, endType));
+        elParts.push(arrowHeadSvg(el, a, cp, stroke, el.strokeColor, opacity, headSeed + 3, startType));
       } else if (isSketch(el) && el.strokeStyle === "solid") {
         const pts = lineType === "auto" ? edgePathPoints(el) : [a, tip];
         const headTail = lineType === "auto" && pts.length >= 2 ? pts[pts.length - 2] : a;
         const headNext = lineType === "auto" && pts.length >= 2 ? pts[1] : tip;
-        parts.push(`<path d="${sketchPathD([pts], el.roughness ?? 0, seedOf(el.id), 1, false, true)}" fill="none" ${stroke}${dash}${opacity}/>`);
-        parts.push(arrowHeadSvg(el, tip, headTail, stroke, el.strokeColor, opacity, headSeed, endType));
-        parts.push(arrowHeadSvg(el, a, headNext, stroke, el.strokeColor, opacity, headSeed + 3, startType));
+        elParts.push(`<path d="${sketchPathD([pts], el.roughness ?? 0, seedOf(el.id), 1, false, true)}" fill="none" ${stroke}${dash}${opacity}/>`);
+        elParts.push(arrowHeadSvg(el, tip, headTail, stroke, el.strokeColor, opacity, headSeed, endType));
+        elParts.push(arrowHeadSvg(el, a, headNext, stroke, el.strokeColor, opacity, headSeed + 3, startType));
       } else if (lineType === "auto") {
         const pts = edgePathPoints(el);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-        parts.push(`<path d="${d}" fill="none" ${stroke}${dash}${opacity}/>`);
+        elParts.push(`<path d="${d}" fill="none" ${stroke}${dash}${opacity}/>`);
         const prevPt = pts.length >= 2 ? pts[pts.length - 2] : a;
         const nextPt = pts.length >= 2 ? pts[1] : tip;
-        parts.push(arrowHeadSvg(el, tip, prevPt, stroke, el.strokeColor, opacity, headSeed, endType));
-        parts.push(arrowHeadSvg(el, a, nextPt, stroke, el.strokeColor, opacity, headSeed + 3, startType));
+        elParts.push(arrowHeadSvg(el, tip, prevPt, stroke, el.strokeColor, opacity, headSeed, endType));
+        elParts.push(arrowHeadSvg(el, a, nextPt, stroke, el.strokeColor, opacity, headSeed + 3, startType));
       } else {
-        parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
-        parts.push(arrowHeadSvg(el, tip, a, stroke, el.strokeColor, opacity, headSeed, endType));
-        parts.push(arrowHeadSvg(el, a, tip, stroke, el.strokeColor, opacity, headSeed + 3, startType));
+        elParts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
+        elParts.push(arrowHeadSvg(el, tip, a, stroke, el.strokeColor, opacity, headSeed, endType));
+        elParts.push(arrowHeadSvg(el, a, tip, stroke, el.strokeColor, opacity, headSeed + 3, startType));
       }
     } else if (el.type === "text") {
       const lines = el.text.split("\n");
@@ -438,10 +439,22 @@ export function buildSvgString(doc: Document): string | null {
       const blockH = textBlockHeight(el.fontSize, lines.length, lh);
       const vOffset = Math.max(0, (el.height - blockH) / 2);
       lines.forEach((line, i) => {
-        parts.push(
+        elParts.push(
           `<text x="${el.x}" y="${el.y + vOffset + i * el.fontSize * lh + el.fontSize * 0.85}" font-family="${escapeXml(fontFamilyOf(el))}" font-size="${el.fontSize}" fill="${el.strokeColor}"${opacity}>${escapeXml(line)}</text>`
         );
       });
+    }
+    // rotated elements are emitted in their unrotated frame and turned by a
+    // single group transform, mirroring how the canvas draws them
+    const angle = elementAngle(el);
+    if (angle === 0) {
+      parts.push(...elParts);
+    } else {
+      const c = elementCenter(el);
+      const deg = (angle * 180) / Math.PI;
+      parts.push(
+        `<g transform="rotate(${deg} ${c.x} ${c.y})">${elParts.join("")}</g>`,
+      );
     }
   }
 

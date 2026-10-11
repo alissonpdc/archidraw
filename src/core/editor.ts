@@ -47,6 +47,12 @@ import {
   snapSegmentDelta,
   determineBindingSide,
   ensureContextZOrder,
+  elementAngle,
+  elementCenter,
+  isRotatable,
+  rotatedBounds,
+  toLocalPoint,
+  toScenePoint,
 } from "./utils";
 import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { correlateIntensity } from "./color";
@@ -59,6 +65,7 @@ import {
   detailsBadgeAnchor,
   BADGE_RADIUS_PX,
   BADGE_HIT_PAD_PX,
+  ROTATE_HANDLE_GAP_PX,
 } from "./renderer";
 
 type HandleId = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -85,6 +92,8 @@ const SEGMENT_SNAP_PX = 8;
 const SNAP_TOLERANCE = 4;
 /** 45° in radians, used by shift-constrained line/arrow angle snapping */
 const QUARTER_TURN = Math.PI / 4;
+/** 15° in radians, the rotation increment when shift is held */
+const ROTATE_SNAP = Math.PI / 12;
 /** window (ms) during which consecutive arrow-key nudges share one undo step */
 const NUDGE_HISTORY_COALESCE_MS = 600;
 
@@ -93,6 +102,7 @@ export interface SnapGuide {
   pos: number;
 }
 
+/** handle position in the element's LOCAL (unrotated) frame */
 function handlePosition(handle: HandleId, b: Bounds): Point {
   const cx = (b.x1 + b.x2) / 2;
   const cy = (b.y1 + b.y2) / 2;
@@ -116,19 +126,38 @@ function handlePosition(handle: HandleId, b: Bounds): Point {
   }
 }
 
+/** scene position of a resize handle, accounting for the element rotation */
+function handleScenePosition(el: Element, handle: HandleId, b: Bounds): Point {
+  return toScenePoint(el, handlePosition(handle, b));
+}
+
 function resizeHandleAt(
   scenePoint: Point,
+  el: Element,
   b: Bounds,
   zoom: number,
   allowed: HandleId[] = HANDLES,
 ): HandleId | null {
   for (const h of allowed) {
-    const p = handlePosition(h, b);
+    const p = handleScenePosition(el, h, b);
     if (Math.hypot(scenePoint.x - p.x, scenePoint.y - p.y) * zoom <= HANDLE_TOLERANCE_PX) {
       return h;
     }
   }
   return null;
+}
+
+/** scene position of the rotate grip: above the top-center handle */
+function rotateHandlePosition(el: Element, b: Bounds, zoom: number): Point {
+  const cx = (b.x1 + b.x2) / 2;
+  return toScenePoint(el, { x: cx, y: b.y1 - ROTATE_HANDLE_GAP_PX / zoom });
+}
+
+/** true when the scene point hits the rotate grip of a selected element */
+function rotateHandleAt(scene: Point, el: Element, b: Bounds, zoom: number): boolean {
+  if (!isRotatable(el)) return false;
+  const p = rotateHandlePosition(el, b, zoom);
+  return Math.hypot(scene.x - p.x, scene.y - p.y) * zoom <= HANDLE_TOLERANCE_PX;
 }
 
 /** element types that expose resize handles in single selection */
@@ -320,6 +349,14 @@ type Interaction =
       moved?: boolean;
     }
   | { kind: "resize"; handle: HandleId; original: Element }
+  | {
+      kind: "rotate";
+      original: Element;
+      center: Point;
+      /** pointer angle (radians) at grab time */
+      startPointerAngle: number;
+      moved?: boolean;
+    }
   | { kind: "label-move"; id: string; moved?: boolean }
   | { kind: "control-point"; id: string; original: Element }
   | { kind: "bend-point"; id: string; index: number; original: Element; startScene: Point; axis?: "x" | "y" }
@@ -626,12 +663,12 @@ export class Editor {
     let changed = false;
     for (const added of elements) {
       if (added.type === "context") continue;
-      const ab = elementBounds(added);
+      const ab = rotatedBounds(added);
       const updated = this.doc.elements.map((el) => {
         if (el.type !== "context") return el;
         const ctx = el as ContextElement;
         if (ctx.childIds?.includes(added.id)) return el;
-        const b = elementBounds(ctx);
+        const b = rotatedBounds(ctx);
         if (
           ab.x1 >= b.x1 && ab.x2 <= b.x2 &&
           ab.y1 >= b.y1 && ab.y2 <= b.y2
@@ -756,7 +793,7 @@ export class Editor {
     if (this.selectedIds.size < 2) return;
     this.commitHistory();
     const selected = this.doc.elements.filter((el) => this.selectedIds.has(el.id));
-    const bounds = selected.map((el) => elementBounds(el));
+    const bounds = selected.map((el) => rotatedBounds(el));
 
     let anchor: number;
     if (direction === "left") anchor = Math.min(...bounds.map((b) => b.x1));
@@ -777,15 +814,17 @@ export class Editor {
       ...this.doc,
       elements: this.doc.elements.map((el) => {
         if (!this.selectedIds.has(el.id)) return el;
-        const b = elementBounds(el);
-        const w = b.x2 - b.x1;
-        const h = b.y2 - b.y1;
+        // align the ROTATED footprint: compute the shift its bounds need and
+        // translate the element by it (a rotated box keeps its own size)
+        const rb = rotatedBounds(el);
+        const w = rb.x2 - rb.x1;
+        const h = rb.y2 - rb.y1;
         if (direction === "left" || direction === "right" || direction === "center") {
           const newX = direction === "left" ? anchor : direction === "right" ? anchor - w : anchor - w / 2;
-          return { ...el, x: newX, width: el.width } as Element;
+          return { ...el, x: el.x + (newX - rb.x1) } as Element;
         } else {
           const newY = direction === "top" ? anchor : direction === "bottom" ? anchor - h : anchor - h / 2;
-          return { ...el, y: newY, height: el.height } as Element;
+          return { ...el, y: el.y + (newY - rb.y1) } as Element;
         }
       }),
     };
@@ -796,7 +835,7 @@ export class Editor {
     if (this.selectedIds.size < 3) return;
     this.commitHistory();
     const selected = this.doc.elements.filter((el) => this.selectedIds.has(el.id));
-    const bounds = selected.map((el) => elementBounds(el));
+    const bounds = selected.map((el) => rotatedBounds(el));
 
     const indexed = bounds
       .map((b, i) => ({ b, i }))
@@ -833,8 +872,11 @@ export class Editor {
       elements: this.doc.elements.map((el) => {
         const pos = positions.get(el.id);
         if (!pos) return el;
-        if (axis === "horizontal") return { ...el, x: pos.x! } as Element;
-        return { ...el, y: pos.y! } as Element;
+        // shift by the rotated footprint's delta, so the visible box lands on
+        // the computed slot instead of jumping when the element is turned
+        const rb = rotatedBounds(el);
+        if (axis === "horizontal") return { ...el, x: el.x + (pos.x! - rb.x1) } as Element;
+        return { ...el, y: el.y + (pos.y! - rb.y1) } as Element;
       }),
     };
     this.emit();
@@ -1186,12 +1228,12 @@ borderRadius: 20,
     const nextElements = this.doc.elements.map((el) => {
       if (el.type !== "context" || movedIds.has(el.id)) return el;
       const ctx = el as ContextElement;
-      const b = elementBounds(ctx);
+      const b = rotatedBounds(ctx);
       const newChildIds = (ctx.childIds ?? []).filter((cid) => {
         if (movedIds.has(cid)) return false;
         const child = this.doc.elements.find((e) => e.id === cid);
         if (!child) return false;
-        const cb = elementBounds(child);
+        const cb = rotatedBounds(child);
         return (
           cb.x1 >= b.x1 && cb.x2 <= b.x2 && cb.y1 >= b.y1 && cb.y2 <= b.y2
         );
@@ -1200,7 +1242,7 @@ borderRadius: 20,
         if (newChildIds.includes(movedId)) continue;
         const movedEl = this.doc.elements.find((e) => e.id === movedId);
         if (!movedEl || movedEl.type === "context") continue;
-        const mb = elementBounds(movedEl);
+        const mb = rotatedBounds(movedEl);
         if (
           mb.x1 >= b.x1 && mb.x2 <= b.x2 && mb.y1 >= b.y1 && mb.y2 <= b.y2
         ) {
@@ -1772,6 +1814,26 @@ strokeOpacity?: number;
         break;
       }
       case "selection": {
+        // rotate grip sits above the selection box, so it is tested first
+        if (this.selectedIds.size === 1) {
+          const selected = this.doc.elements.find((el) =>
+            this.selectedIds.has(el.id),
+          );
+          if (
+            selected &&
+            rotateHandleAt(scene, selected, visualBounds(selected), this.camera.zoom)
+          ) {
+            this.commitHistory();
+            const center = elementCenter(selected);
+            this.interaction = {
+              kind: "rotate",
+              original: selected,
+              center,
+              startPointerAngle: Math.atan2(scene.y - center.y, scene.x - center.x),
+            };
+            break;
+          }
+        }
         // label-drag handle of the single selected edge takes precedence
         if (this.selectedIds.size === 1) {
           const selected = this.doc.elements.find((el) =>
@@ -1791,6 +1853,7 @@ strokeOpacity?: number;
           if (selected && !selected.locked && hasResizeHandles(selected)) {
             const handle = resizeHandleAt(
               scene,
+              selected,
               visualBounds(selected),
               this.camera.zoom,
               handlesFor(selected),
@@ -2020,7 +2083,7 @@ strokeOpacity?: number;
           const vTargets: number[] = [];
           const hTargets: number[] = [];
           for (const el of others) {
-            const b = elementBounds(el);
+            const b = rotatedBounds(el);
             vTargets.push(b.x1, (b.x1 + b.x2) / 2, b.x2);
             hTargets.push(b.y1, (b.y1 + b.y2) / 2, b.y2);
           }
@@ -2099,7 +2162,7 @@ strokeOpacity?: number;
         if (movedBox) {
           for (const el of this.doc.elements) {
             if (el.type !== "context" || movedSet.has(el.id)) continue;
-            const cb = elementBounds(el);
+            const cb = rotatedBounds(el);
             if (
               cb.x1 <= movedBox.x1 &&
               cb.y1 <= movedBox.y1 &&
@@ -2169,10 +2232,32 @@ strokeOpacity?: number;
         }
         break;
       }
+      case "rotate": {
+        const i = this.interaction;
+        const center = i.center;
+        const pointerAngle = Math.atan2(scene.y - center.y, scene.x - center.x);
+        let angle = elementAngle(i.original) + (pointerAngle - i.startPointerAngle);
+        if (shift) {
+          angle = Math.round(angle / ROTATE_SNAP) * ROTATE_SNAP;
+        }
+        this.doc = {
+          ...this.doc,
+          elements: this.doc.elements.map((el) =>
+            el.id === i.original.id ? { ...el, angle } : el,
+          ),
+        };
+        i.moved = true;
+        // edges bound to the shape follow its new outline
+        this.syncEdgesBoundTo(i.original.id);
+        break;
+      }
       case "resize": {
         const o = elementBounds(this.interaction.original);
         const orig = this.interaction.original;
         const handle = this.interaction.handle;
+        // resize math runs in the element's own frame, so a rotated element
+        // grows along its rotated axes instead of the screen axes
+        const local = elementAngle(orig) === 0 ? scene : toLocalPoint(orig, scene);
         let nb: Bounds = o;
         let linePatch:
           | {
@@ -2196,8 +2281,8 @@ strokeOpacity?: number;
           const fx = draggingStart ? bx : ax;
           const fy = draggingStart ? by : ay;
           const delta = shift
-            ? this.snapAngle(scene.x - fx, scene.y - fy)
-            : { x: scene.x - fx, y: scene.y - fy };
+            ? this.snapAngle(local.x - fx, local.y - fy)
+            : { x: local.x - fx, y: local.y - fy };
           const ex = fx + delta.x;
           const ey = fy + delta.y;
           // live rebinding: drop the dragged endpoint near another shape
@@ -2240,8 +2325,8 @@ strokeOpacity?: number;
           const fx = handle.includes("e") ? o.x1 : o.x2;
           const fy = handle.includes("s") ? o.y1 : o.y2;
           const corner = handlePosition(handle, o);
-          const sx = (scene.x - fx) / (corner.x - fx || 1);
-          const sy = (scene.y - fy) / (corner.y - fy || 1);
+          const sx = (local.x - fx) / (corner.x - fx || 1);
+          const sy = (local.y - fy) / (corner.y - fy || 1);
           const s = Math.max(0.05, (sx + sy) / 2);
           const w = oW * s;
           const h = oH * s;
@@ -2263,11 +2348,11 @@ strokeOpacity?: number;
           let w: number;
           let h: number;
           if (handle === "e" || handle === "w") {
-            w = handle === "e" ? scene.x - o.x1 : o.x2 - scene.x;
+            w = handle === "e" ? local.x - o.x1 : o.x2 - local.x;
             w = Math.max(1, w);
             h = w * ratio;
           } else {
-            h = handle === "s" ? scene.y - o.y1 : o.y2 - scene.y;
+            h = handle === "s" ? local.y - o.y1 : o.y2 - local.y;
             h = Math.max(1, h);
             w = h / ratio;
           }
@@ -2286,10 +2371,10 @@ strokeOpacity?: number;
           let w: number;
           let h: number;
           if (handle === "e" || handle === "w") {
-            w = Math.max(1, handle === "e" ? scene.x - o.x1 : o.x2 - scene.x);
+            w = Math.max(1, handle === "e" ? local.x - o.x1 : o.x2 - local.x);
             h = w * ratio;
           } else {
-            h = Math.max(1, handle === "s" ? scene.y - o.y1 : o.y2 - scene.y);
+            h = Math.max(1, handle === "s" ? local.y - o.y1 : o.y2 - local.y);
             w = h / ratio;
           }
           nb = {
@@ -2301,10 +2386,10 @@ strokeOpacity?: number;
         } else {
           // edge handles: resize along a single axis only (aspect ratio may distort)
           let { x1, y1, x2, y2 } = o;
-          if (handle.includes("e")) x2 = scene.x;
-          if (handle.includes("w")) x1 = scene.x;
-          if (handle.includes("n")) y1 = scene.y;
-          if (handle.includes("s")) y2 = scene.y;
+          if (handle.includes("e")) x2 = local.x;
+          if (handle.includes("w")) x1 = local.x;
+          if (handle.includes("n")) y1 = local.y;
+          if (handle.includes("s")) y2 = local.y;
           nb = normalizeBounds({ x1, y1, x2, y2 });
         }
         const id = this.interaction.original.id;
@@ -2395,7 +2480,7 @@ strokeOpacity?: number;
               (el) =>
                 el.id !== this.draft!.id &&
                 el.type !== "context" &&
-                boundsContain(ctxBounds, elementBounds(el)),
+                boundsContain(ctxBounds, rotatedBounds(el)),
             )
             .map((el) => el.id);
           if (childIds.length > 0) {
@@ -2436,12 +2521,26 @@ strokeOpacity?: number;
     if (this.interaction.kind === "segment-drag" && !this.interaction.moved) {
       this.history.pop(); // segment grabbed without dragging: drop snapshot
     }
+    if (this.interaction.kind === "rotate" && !this.interaction.moved) {
+      this.history.pop(); // rotate grip grabbed without dragging: drop snapshot
+    }
     this.marquee = null;
     this.guides = null;
     this.bindingPreview = null;
     this.highlightedContextId = null;
     this.interaction = { kind: "none" };
     this.emit();
+  }
+
+  /**
+   * scene position of the rotate grip for the current single selection, or
+   * null when the selection cannot be rotated.
+   */
+  rotateHandlePoint(): Point | null {
+    if (this.selectedIds.size !== 1) return null;
+    const el = this.doc.elements.find((e) => this.selectedIds.has(e.id));
+    if (!el || !isRotatable(el)) return null;
+    return rotateHandlePosition(el, visualBounds(el), this.camera.zoom);
   }
 
   /** imperative cursor hint for handle hover (null = use CSS default) */
@@ -2451,10 +2550,14 @@ strokeOpacity?: number;
     const selected = this.doc.elements.find((el) => this.selectedIds.has(el.id));
     if (!selected || !hasResizeHandles(selected)) return null;
     const scene = screenToScene(screenPoint, this.camera);
+    if (rotateHandleAt(scene, selected, visualBounds(selected), this.camera.zoom)) {
+      return "grab";
+    }
     if (labelHandleAt(scene, selected, this.camera.zoom)) return "move";
     if (controlPointHandleAt(scene, selected, this.camera.zoom)) return "move";
     const handle = resizeHandleAt(
       scene,
+      selected,
       visualBounds(selected),
       this.camera.zoom,
       handlesFor(selected),
