@@ -13,7 +13,7 @@
   --on-accent: #ffffff;
 
   /* code token colors (json/yaml preview in the details card) */
-  --code-key: var(--accent-strong);
+  --code-key: #c2185b;
   --code-string: #166534;
   --code-number: #1d4ed8;
   --code-boolean: #7c3aed;
@@ -72,6 +72,7 @@
     --accent: #2aa79b;
     --accent-strong: #3fc4b6;
     --on-accent: #04211e;
+    --code-key: #f9a8d4;
     --code-string: #86efac;
     --code-number: #93c5fd;
     --code-boolean: #d8b4fe;
@@ -94,6 +95,10 @@
   --accent: #2aa79b;
   --accent-strong: #3fc4b6;
   --on-accent: #04211e;
+  --code-key: #f9a8d4;
+  --code-string: #86efac;
+  --code-number: #93c5fd;
+  --code-boolean: #d8b4fe;
   --selection-color: #2aa79b;
   --element-stroke: #dfe0e2;
   --grid-dot: rgba(255, 255, 255, 0.07);
