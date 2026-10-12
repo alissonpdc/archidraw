@@ -2,6 +2,7 @@ import type { ArrowBinding, ArrowElement, ArrowHeadType, Bounds, Camera, Compone
 import {
   arrowHeadVectors,
   arrowPoints,
+  edgeTip,
   bindingPoint,
   cornerRadius,
   curvedArrowControl,
@@ -839,10 +840,9 @@ function drawElement(
     ctx.stroke(cache.strokePath);
     ctx.restore();
   } else if (el.type === "line") {
-    const [a, b] = arrowPoints(el);
+    const a = arrowPoints(el)[0];
+    const tip = edgeTip(el);
     const lineType = el.lineType ?? "straight";
-    const endY = b.y === a.y ? b.y + 1 : b.y;
-    const tip = { x: b.x, y: endY };
 
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
@@ -878,10 +878,9 @@ function drawElement(
     ctx.stroke(cache.strokePath);
     ctx.restore();
   } else if (el.type === "arrow") {
-    const [a, b] = arrowPoints(el);
+    const a = arrowPoints(el)[0];
+    const tip = edgeTip(el);
     const lineType = el.lineType ?? "straight";
-    const endY = b.y === a.y ? b.y + 1 : b.y;
-    const tip = { x: b.x, y: endY };
     const headSize = Math.max(12, el.strokeWidth * 4) * 1.2;
     const headSeed = seedOf(el.id) + 7;
     const headColor = resolveStroke(el, colors);

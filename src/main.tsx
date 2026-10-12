@@ -28,7 +28,17 @@ import {
   isPaletteColor,
   correlateIntensity,
 } from "./core/color";
-import { edgePathPoints, defaultAutoPath, determineBindingSide } from "./core/utils";
+import { edgePathPoints, defaultAutoPath, determineBindingSide, autoReflowEndpointBends } from "./core/utils";
+import { parseMarkdown, isPlainText } from "./core/markdown";
+import {
+  detectStructuredLang,
+  formatJson,
+  formatYaml,
+  formatStructured,
+  tokenizeJson,
+  tokenizeYaml,
+  tokenizeStructured,
+} from "./core/structuredCode";
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__editor__ = editor;
@@ -52,9 +62,23 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
     edgePathPoints,
     defaultAutoPath,
     determineBindingSide,
+    autoReflowEndpointBends,
   };
   (window as unknown as Record<string, unknown>).__theme__ = {
     attachThemeColorCorrelation,
+  };
+  (window as unknown as Record<string, unknown>).__markdown__ = {
+    parseMarkdown,
+    isPlainText,
+  };
+  (window as unknown as Record<string, unknown>).__structuredCode__ = {
+    detectStructuredLang,
+    formatJson,
+    formatYaml,
+    formatStructured,
+    tokenizeJson,
+    tokenizeYaml,
+    tokenizeStructured,
   };
 }
 

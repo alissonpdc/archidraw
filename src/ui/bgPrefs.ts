@@ -25,7 +25,7 @@ export const BG_PALETTE_DARK: BgPaletteEntry[] = BG_PALETTE.map((e) => ({
   pair: e.id,
 }));
 
-export const DEFAULT_BG: BgColor = "#f6f7f8"; // Cool Gray
+export const DEFAULT_BG: BgColor = "#ffffff"; // White
 
 function loadFromStorage(): BgColor | null {
   try {

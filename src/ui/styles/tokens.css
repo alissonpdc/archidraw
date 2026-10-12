@@ -2,7 +2,7 @@
   color-scheme: light;
 
   /* ---- color ---- */
-  --bg-canvas: #f6f7f8;
+  --bg-canvas: #ffffff;
   --bg-surface: #ffffff;
   --bg-surface-hover: #eef0f2;
   --text-primary: #1c2229;
@@ -11,6 +11,12 @@
   --accent: #0f766e;
   --accent-strong: #0b5d57;
   --on-accent: #ffffff;
+
+  /* code token colors (json/yaml preview in the details card) */
+  --code-key: #c2185b;
+  --code-string: #166534;
+  --code-number: #1d4ed8;
+  --code-boolean: #7c3aed;
 
   /* canvas-render colors (read by JS via getComputedStyle) */
   --selection-color: #0f766e;
@@ -57,7 +63,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg-canvas: #101215;
+    --bg-canvas: #090a0c;
     --bg-surface: #1a1e23;
     --bg-surface-hover: #22272d;
     --text-primary: #dde3e9;
@@ -66,6 +72,10 @@
     --accent: #2aa79b;
     --accent-strong: #3fc4b6;
     --on-accent: #04211e;
+    --code-key: #f9a8d4;
+    --code-string: #86efac;
+    --code-number: #93c5fd;
+    --code-boolean: #d8b4fe;
     --selection-color: #2aa79b;
     --element-stroke: #dfe0e2;
     --grid-dot: rgba(255, 255, 255, 0.07);
@@ -76,7 +86,7 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-canvas: #101215;
+  --bg-canvas: #090a0c;
   --bg-surface: #1a1e23;
   --bg-surface-hover: #22272d;
   --text-primary: #dde3e9;
@@ -85,6 +95,10 @@
   --accent: #2aa79b;
   --accent-strong: #3fc4b6;
   --on-accent: #04211e;
+  --code-key: #f9a8d4;
+  --code-string: #86efac;
+  --code-number: #93c5fd;
+  --code-boolean: #d8b4fe;
   --selection-color: #2aa79b;
   --element-stroke: #dfe0e2;
   --grid-dot: rgba(255, 255, 255, 0.07);
@@ -291,7 +305,7 @@
   --radius-sm: 5px;
   --radius-md: 8px;
   --radius-lg: 8px;
-  --bg-canvas: #edf1f7;
+  --bg-canvas: #ffffff;
   --bg-surface: #ffffff;
   --bg-surface-hover: #e4eaf3;
   --text-primary: #17334f;
@@ -311,7 +325,7 @@
 @media (prefers-color-scheme: dark) {
   :root[data-skin="blueprint"]:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg-canvas: #080c13;
+    --bg-canvas: #090a0c;
     --bg-surface: #142237;
     --bg-surface-hover: #1a2e49;
     --text-primary: #dbe7f5;
@@ -331,7 +345,7 @@
 }
 :root[data-skin="blueprint"][data-theme="dark"] {
   color-scheme: dark;
-  --bg-canvas: #080c13;
+  --bg-canvas: #090a0c;
   --bg-surface: #142237;
   --bg-surface-hover: #1a2e49;
   --text-primary: #dbe7f5;

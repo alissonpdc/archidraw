@@ -338,4 +338,148 @@ test.describe("path types for lines and arrows", () => {
     expect(el.bendPoints[0].x).toBeCloseTo(200, 0);
     expect(el.bendPoints[0].y).toBeCloseTo(400, 0);
   });
+
+  /** auto line 200,200 → 500,400 with a horizontal segment dragged into an
+   *  orthogonal Z, so the next endpoint drag runs against real bend points */
+  async function bentAutoLine(page: import("@playwright/test").Page) {
+    await open(page);
+    await selectTool(page, "5");
+    await drag(page, { x: 200, y: 200 }, { x: 500, y: 400 });
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { lineType: "auto" });
+    });
+    await selectTool(page, "1");
+    await page.mouse.click(350, 200); // select
+    await drag(page, { x: 350, y: 200 }, { x: 350, y: 300 }); // create bends
+    const el = await firstElement(page);
+    expect(el.bendPoints).toHaveLength(2);
+  }
+
+  async function pathOf(page: import("@playwright/test").Page) {
+    return page.evaluate(() => {
+      const el = (window as any).__editor__.getSnapshot().doc.elements[0];
+      return (window as any).__archidrawUtils__.edgePathPoints(el);
+    });
+  }
+
+  function expectRightAngles(pts: { x: number; y: number }[]) {
+    for (let i = 1; i < pts.length; i++) {
+      const dx = Math.abs(pts[i].x - pts[i - 1].x);
+      const dy = Math.abs(pts[i].y - pts[i - 1].y);
+      expect(dx === 0 || dy === 0).toBe(true);
+    }
+  }
+
+  test("auto line: dragging the end handle after a segment drag keeps 90° turns", async ({
+    page,
+  }) => {
+    await bentAutoLine(page);
+    // grab the end handle (500,400) and pull it down-right: the corners must
+    // follow it instead of leaving the last segment at a slant
+    await drag(page, { x: 500, y: 400 }, { x: 620, y: 470 });
+    const pts = await pathOf(page);
+    expectRightAngles(pts);
+    expect(pts[pts.length - 1].x).toBeCloseTo(620, 0);
+    expect(pts[pts.length - 1].y).toBeCloseTo(470, 0);
+    // the untouched anchor stays put
+    expect(pts[0].x).toBeCloseTo(200, 0);
+    expect(pts[0].y).toBeCloseTo(200, 0);
+  });
+
+  test("auto line: dragging the start handle after a segment drag keeps 90° turns", async ({
+    page,
+  }) => {
+    await bentAutoLine(page);
+    await drag(page, { x: 200, y: 200 }, { x: 90, y: 140 });
+    const pts = await pathOf(page);
+    expectRightAngles(pts);
+    expect(pts[0].x).toBeCloseTo(90, 0);
+    expect(pts[0].y).toBeCloseTo(140, 0);
+    expect(pts[pts.length - 1].x).toBeCloseTo(500, 0);
+    expect(pts[pts.length - 1].y).toBeCloseTo(400, 0);
+  });
+
+  test("auto line: end handle dragged back over the anchor stays orthogonal", async ({ page }) => {
+    await bentAutoLine(page);
+    // a hard pull to the opposite side folds the corners back on themselves:
+    // redundant corners collapse, but no segment may end up slanted
+    await drag(page, { x: 500, y: 400 }, { x: 120, y: 150 });
+    const pts = await pathOf(page);
+    expectRightAngles(pts);
+    expect(pts[pts.length - 1].x).toBeCloseTo(120, 0);
+    expect(pts[pts.length - 1].y).toBeCloseTo(150, 0);
+  });
+
+  test("auto arrow: bound endpoints stay perpendicular after a handle drag", async ({ page }) => {
+    await boundAutoArrow(page);
+    // bend the route first, so the handle drag has corners to reflow
+    await drag(page, { x: 300, y: 250 }, { x: 250, y: 250 });
+    const bent = await page.evaluate(() => {
+      const s = (window as any).__editor__.getSnapshot();
+      return s.doc.elements[2].bendPoints;
+    });
+    expect(bent.length).toBeGreaterThan(1);
+    // pull the end handle far away: the corners follow it and the arrow still
+    // leaves the first shape horizontally
+    await drag(page, { x: 400, y: 350 }, { x: 640, y: 560 });
+    const pts = await page.evaluate(() => {
+      const s = (window as any).__editor__.getSnapshot();
+      return (window as any).__archidrawUtils__.edgePathPoints(s.doc.elements[2]);
+    });
+    expectRightAngles(pts);
+    expect(pts[pts.length - 1].x).toBeCloseTo(640, 0);
+    expect(pts[pts.length - 1].y).toBeCloseTo(560, 0);
+    expect(pts[0].x).toBeCloseTo(200, 0);
+    expect(pts[0].y).toBeCloseTo(150, 0);
+    expect(pts[1].y).toBeCloseTo(150, 0);
+  });
+
+  test("autoReflowEndpointBends is a no-op for straight edges and for corners-less ones", async ({
+    page,
+  }) => {
+    await open(page);
+    const out = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const base = {
+        id: "a",
+        type: "arrow",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        strokeColor: "#000",
+        backgroundColor: "transparent",
+        strokeWidth: 2,
+        opacity: 1,
+        strokeOpacity: 1,
+        fillOpacity: 1,
+        strokeStyle: "solid",
+        fillStyle: "solid",
+        roughness: 0,
+        borderRadius: 0,
+        startArrowhead: "none",
+        endArrowhead: "arrow",
+      } as any;
+      ed.doc = {
+        ...ed.doc,
+        elements: [
+          { ...base, id: "straight", lineType: "straight", bendPoints: [{ x: 40, y: 40 }] },
+          { ...base, id: "auto-plain", lineType: "auto" },
+        ],
+      };
+      ed.emit();
+      const u = (window as any).__archidrawUtils__;
+      const els = ed.getSnapshot().doc.elements;
+      const straight = els.find((e: any) => e.id === "straight");
+      const plain = els.find((e: any) => e.id === "auto-plain");
+      return {
+        straight: u.autoReflowEndpointBends(straight, "end", { x: 10, y: 10 }),
+        plain: u.autoReflowEndpointBends(plain, "end", { x: 10, y: 10 }),
+      };
+    });
+    expect(out.straight).toEqual([{ x: 40, y: 40 }]);
+    expect(out.plain).toBeUndefined();
+  });
 });
