@@ -1,5 +1,8 @@
 import { test, expect, drag, selectTool, open, type Page } from "../fixtures";
 
+/** absolute resize floor mirrored from HoverInfoBox */
+const HARD_MIN = 80;
+
 /** writes `details` onto the element at `index` and returns its id */
 async function setDetails(page: Page, details: string, index = 0): Promise<string> {
   return page.evaluate(
@@ -28,6 +31,52 @@ async function badgePos(page: Page, index = 0) {
 async function hoverBadge(page: Page, index = 0) {
   const pos = await badgePos(page, index);
   await page.mouse.move(pos.x, pos.y);
+}
+
+/** rect of a portal-rendered part of the card */
+async function rectOf(page: Page, testId: string) {
+  return page.evaluate((id) => {
+    const el = document.querySelector(`[data-testid="${id}"]`);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return {
+      x: r.left,
+      y: r.top,
+      w: r.width,
+      h: r.height,
+      left: r.left,
+      top: r.top,
+      right: r.right,
+      bottom: r.bottom,
+      cx: r.left + r.width / 2,
+      cy: r.top + r.height / 2,
+    };
+  }, testId);
+}
+
+/**
+ * Hovers the badge, then walks the pointer into the middle of `testId` in
+ * small steps. The card is anchored a few px away from the badge, so the gap
+ * in between must stay valid — a single jump would never exercise that.
+ */
+async function walkInto(page: Page, testId: string, index = 0) {
+  const badge = await badgePos(page, index);
+  await page.mouse.move(badge.x, badge.y);
+  await expect(page.getByTestId("hover-info-box")).toBeVisible();
+
+  const target = await rectOf(page, testId);
+  if (!target) throw new Error(`walkInto: "${testId}" is not rendered`);
+
+  const steps = 10;
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(
+      badge.x + ((target.cx - badge.x) * i) / steps,
+      badge.y + ((target.cy - badge.y) * i) / steps,
+    );
+    // the card must survive every intermediate pixel
+    await expect(page.getByTestId("hover-info-box")).toHaveCount(1);
+  }
+  return target;
 }
 
 const box = (page: Page) => page.getByTestId("hover-info-box");
@@ -220,6 +269,228 @@ test.describe("hover markdown preview", () => {
     // and it must not be pushed off the opposite edges either
     expect(fits.left).toBeGreaterThanOrEqual(8);
     expect(fits.top).toBeGreaterThanOrEqual(8);
+  });
+});
+
+test.describe("hover preview frame", () => {
+  /** content long enough that the body must scroll inside the frame */
+  function longNote() {
+    return ["## Big note", ""]
+      .concat(
+        Array.from({ length: 30 }, (_, i) => `- item ${i} with descriptive text`),
+      )
+      .join("\n");
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await open(page);
+    await selectTool(page, "2");
+    await drag(page, { x: 220, y: 100 }, { x: 340, y: 180 });
+    await selectTool(page, "1");
+  });
+
+  test("the pointer can travel from the badge into the frame", async ({
+    page,
+  }) => {
+    await setDetails(page, longNote());
+    // walking, not jumping: the gap between badge and frame must stay valid
+    await walkInto(page, "hover-info-body");
+    await expect(box(page)).toBeVisible();
+  });
+
+  test("the frame scrolls its content without dismissing", async ({ page }) => {
+    await setDetails(page, longNote());
+    const body = await walkInto(page, "hover-info-body");
+
+    const overflow = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="hover-info-body"]') as HTMLElement;
+      return el.scrollHeight - el.clientHeight;
+    });
+    expect(overflow).toBeGreaterThan(0);
+
+    await page.mouse.wheel(0, 200);
+    await page.waitForTimeout(150);
+
+    const after = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="hover-info-body"]') as HTMLElement;
+      return el.scrollTop;
+    });
+    expect(after).toBeGreaterThan(0);
+    // the wheel over the frame must not close it (nor pan the canvas)
+    await expect(box(page)).toBeVisible();
+    expect(body.w).toBeGreaterThan(0);
+  });
+
+  test("the title is separated from the content", async ({ page }) => {
+    await setDetails(page, "# heading\n\nbody text");
+    await hoverBadge(page);
+
+    const sep = page.getByTestId("hover-info-sep");
+    await expect(sep).toBeVisible();
+    // it draws a rule, and sits between the title and the body
+    const order = await page.evaluate(() => {
+      const t = document.querySelector(".hover-info-title")!;
+      const s = document.querySelector(".hover-info-sep")!;
+      const b = document.querySelector(".hover-info-body")!;
+      const rt = t.getBoundingClientRect();
+      const rs = s.getBoundingClientRect();
+      const rb = b.getBoundingClientRect();
+      return {
+        title: rt.top < rs.top && rs.top < rb.top,
+        border: getComputedStyle(s).borderTopWidth,
+        titleText: t.textContent,
+      };
+    });
+    expect(order.title).toBe(true);
+    expect(parseFloat(order.border)).toBeGreaterThan(0);
+    expect(order.titleText).toBe("Additional Information");
+  });
+
+  test("the bottom-right corner resizes the frame", async ({ page }) => {
+    await setDetails(page, longNote());
+    await walkInto(page, "hover-info-body");
+
+    const before = await rectOf(page, "hover-info-box");
+    const grip = await rectOf(page, "hover-info-resize");
+    expect(grip).not.toBeNull();
+
+    await page.mouse.move(grip.cx, grip.cy);
+    await page.mouse.down();
+    await page.mouse.move(grip.cx + 160, grip.cy + 160, { steps: 12 });
+    await page.mouse.up();
+
+    const after = await rectOf(page, "hover-info-box");
+    await expect(box(page)).toBeVisible();
+    expect(after.w).toBeGreaterThan(before.w + 100);
+    expect(after.h).toBeGreaterThan(before.h + 100);
+
+    // the content adopts the new space instead of staying cramped
+    const overflow = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="hover-info-body"]') as HTMLElement;
+      return el.scrollHeight - el.clientHeight;
+    });
+    expect(overflow).toBeLessThan(100);
+
+    // the title stays pinned and the body takes the extra room
+    const grown = await page.evaluate(() => {
+      const t = document.querySelector(".hover-info-title")!.getBoundingClientRect();
+      const b = document.querySelector(".hover-info-body")!.getBoundingClientRect();
+      return { titleH: t.height, bodyH: b.height };
+    });
+    expect(grown.titleH).toBeGreaterThan(0);
+    expect(grown.bodyH).toBeGreaterThan(0);
+  });
+
+  test("a resized frame is still clamped inside the viewport", async ({
+    page,
+  }) => {
+    await setDetails(page, longNote());
+    await walkInto(page, "hover-info-body");
+
+    const grip = await rectOf(page, "hover-info-resize");
+    // drag far past the viewport edges
+    await page.mouse.move(grip.cx, grip.cy);
+    await page.mouse.down();
+    await page.mouse.move(grip.cx + 3000, grip.cy + 3000, { steps: 15 });
+    await page.mouse.up();
+
+    const fits = await page.evaluate(() => {
+      const r = document
+        .querySelector('[data-testid="hover-info-box"]')!
+        .getBoundingClientRect();
+      return {
+        right: r.right,
+        bottom: r.bottom,
+        left: r.left,
+        top: r.top,
+        w: window.innerWidth,
+        h: window.innerHeight,
+      };
+    });
+    expect(fits.right).toBeLessThanOrEqual(fits.w - 8);
+    expect(fits.bottom).toBeLessThanOrEqual(fits.h - 8);
+    expect(fits.left).toBeGreaterThanOrEqual(8);
+    expect(fits.top).toBeGreaterThanOrEqual(8);
+  });
+
+  test("the resize grip is keyboard operable", async ({ page }) => {
+    await setDetails(page, longNote());
+    await walkInto(page, "hover-info-body");
+
+    const before = await rectOf(page, "hover-info-box");
+    await page.getByTestId("hover-info-resize").focus();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowDown");
+    const grown = await rectOf(page, "hover-info-box");
+    expect(grown.w).toBeGreaterThan(before.w);
+    expect(grown.h).toBeGreaterThan(before.h);
+
+    // Shift takes bigger steps, and the frame never collapses out of use
+    await page.keyboard.press("Shift+ArrowLeft");
+    await page.keyboard.press("Shift+ArrowUp");
+    const shrunk = await rectOf(page, "hover-info-box");
+    expect(shrunk.w).toBeLessThan(grown.w);
+    expect(shrunk.h).toBeLessThan(grown.h);
+    expect(shrunk.w).toBeGreaterThanOrEqual(HARD_MIN);
+    expect(shrunk.h).toBeGreaterThanOrEqual(HARD_MIN);
+  });
+
+  test("Escape dismisses the frame", async ({ page }) => {
+    await setDetails(page, "note");
+    await walkInto(page, "hover-info-body");
+    await page.keyboard.press("Escape");
+    await expect(box(page)).toHaveCount(0);
+  });
+
+  test("a click inside the frame does not dismiss it", async ({ page }) => {
+    await setDetails(page, longNote());
+    const body = await walkInto(page, "hover-info-body");
+
+    const before = await page.evaluate(() => {
+      const st = (window as any).__editor__.getSnapshot();
+      return [...st.selectedIds];
+    });
+
+    await page.mouse.click(body.cx, body.cy);
+    await expect(box(page)).toBeVisible();
+
+    // and the click must not have leaked through to the canvas: no marquee,
+    // no change to the selection
+    const s = await page.evaluate(() => {
+      const st = (window as any).__editor__.getSnapshot();
+      return { marquee: !!st.marquee, selected: [...st.selectedIds] };
+    });
+    expect(s.marquee).toBe(false);
+    expect(s.selected).toEqual(before);
+  });
+
+  test("a click outside the frame dismisses it", async ({ page }) => {
+    await setDetails(page, "note");
+    await walkInto(page, "hover-info-body");
+
+    await page.mouse.click(900, 640);
+    await expect(box(page)).toHaveCount(0);
+  });
+
+  test("links inside the frame are real clickable links", async ({ page }) => {
+    await setDetails(page, "see the [runbook](https://example.com/runbook)");
+    const link = box(page).locator(".md-link");
+    const linkRect = await walkInto(page, "hover-info-body");
+
+    // the frame accepts the pointer, so the anchor is genuinely hittable
+    const hits = await page.evaluate(() => {
+      const a = document.querySelector(".md-link")!;
+      const r = a.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return {
+        pointerEvents: getComputedStyle(a).pointerEvents,
+        reached: hit === a || a.contains(hit),
+      };
+    });
+    expect(hits.pointerEvents).toBe("auto");
+    expect(hits.reached).toBe(true);
+    expect(linkRect.w).toBeGreaterThan(0);
+    await expect(link).toHaveAttribute("href", "https://example.com/runbook");
   });
 });
 

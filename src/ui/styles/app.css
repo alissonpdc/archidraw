@@ -2132,37 +2132,85 @@ button {
 /* ---- readonly hover info box (badge "i") ---- */
 .hover-info-box {
   position: fixed;
+  display: flex;
+  flex-direction: column;
   /* max-content keeps the used width independent of `left`: a shrink-to-fit
      box would resize itself against the space left of the viewport, making the
      clamp in HoverInfoBox measure a different width than it finally renders */
   width: max-content;
   max-width: min(420px, calc(100vw - 32px));
   max-height: min(60vh, 460px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
   padding: var(--space-2) var(--space-3);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   z-index: 200;
-  pointer-events: none;
+  /* interactive frame: it scrolls, links are clickable and the corner resizes,
+     so it must receive the pointer — dismissal ignores events from inside it */
+  pointer-events: auto;
+}
+
+/* once the user drags the corner, their size wins over the content-fit caps */
+.hover-info-box--resized {
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
 }
 
 .hover-info-title {
+  flex: none;
   font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: var(--space-1);
+}
+
+.hover-info-sep {
+  flex: none;
+  margin: var(--space-2) 0;
+  border-top: 1px solid var(--border);
 }
 
 .hover-info-body {
+  flex: 1 1 auto;
+  /* min-height:0 lets a flex child actually shrink below its content size,
+     which is what makes the body scroll instead of growing the frame */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   font-size: var(--font-size-md);
   color: var(--text-primary);
   word-break: break-word;
   line-height: 1.45;
+}
+
+.hover-info-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.hover-info-resize:hover,
+.hover-info-resize:focus-visible {
+  background: linear-gradient(
+    135deg,
+    transparent 0 50%,
+    var(--text-muted) 50% 60%,
+    transparent 60% 70%,
+    var(--text-muted) 70% 80%,
+    transparent 80%
+  );
+}
+
+.hover-info-resize:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 /* ---- markdown preview (rendered from src/core/markdown.ts) ---- */
