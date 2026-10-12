@@ -29,6 +29,7 @@ import {
   correlateIntensity,
 } from "./core/color";
 import { edgePathPoints, defaultAutoPath, determineBindingSide, autoReflowEndpointBends } from "./core/utils";
+import { parseMarkdown, isPlainText } from "./core/markdown";
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__editor__ = editor;
@@ -56,6 +57,10 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   };
   (window as unknown as Record<string, unknown>).__theme__ = {
     attachThemeColorCorrelation,
+  };
+  (window as unknown as Record<string, unknown>).__markdown__ = {
+    parseMarkdown,
+    isPlainText,
   };
 }
 

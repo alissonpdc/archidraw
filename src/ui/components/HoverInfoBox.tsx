@@ -1,9 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { editor } from "../hooks/useEditor";
 import { detailsBadgeAnchor } from "../../core/renderer";
+import { Markdown } from "./Markdown";
 
 interface HoverState {
+  id: string;
   details: string;
   /** badge position in screen px (tooltip anchor) */
   x: number;
@@ -11,9 +13,13 @@ interface HoverState {
 }
 
 /**
- * Read-only rich tooltip shown while the mouse hovers the details badge
- * ("i") of an element that carries additional information. Portal + fixed
- * so no canvas transform/overflow can clip it (see KB tooltip-clipping).
+ * Read-only markdown preview shown while the mouse hovers the details badge
+ * ("i") of an element that carries additional information. Hovering the
+ * element itself shows nothing — the badge is the only trigger, so sweeping
+ * the pointer across a dense diagram never makes the card flicker.
+ *
+ * Portal + `position: fixed` so no canvas transform/overflow can clip it
+ * (see KB tooltip-clipping).
  */
 export function HoverInfoBox() {
   const [hover, setHover] = useState<HoverState | null>(null);
@@ -22,22 +28,17 @@ export function HoverInfoBox() {
   const contextOpenRef = useRef(false);
 
   useEffect(() => {
+    const hide = () => setHover(null);
+
     const onContextEvent = (e: Event) => {
       contextOpenRef.current = (e as CustomEvent<boolean>).detail === true;
-      if (contextOpenRef.current) setHover(null);
+      if (contextOpenRef.current) hide();
     };
     window.addEventListener(
       "archidraw:contextmenu",
       onContextEvent as EventListener,
     );
-    return () =>
-      window.removeEventListener(
-        "archidraw:contextmenu",
-        onContextEvent as EventListener,
-      );
-  }, []);
 
-  useEffect(() => {
     const onMove = (e: PointerEvent) => {
       const target = e.target as HTMLElement;
       if (
@@ -45,7 +46,7 @@ export function HoverInfoBox() {
         contextOpenRef.current ||
         e.buttons > 0
       ) {
-        setHover(null);
+        hide();
         return;
       }
       const el = editor.badgeElementAt({ x: e.clientX, y: e.clientY });
@@ -57,24 +58,42 @@ export function HoverInfoBox() {
         const screen = anchor
           ? editor.getScreenPoint(anchor)
           : { x: e.clientX, y: e.clientY };
-        setHover({ details: el.details, x: screen.x, y: screen.y });
+        setHover({ id: el.id, details: el.details, x: screen.x, y: screen.y });
       } else {
-        setHover(null);
+        hide();
       }
     };
-    const onDown = () => setHover(null);
-    const onHide = () => setHover(null);
+
     window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerdown", onDown);
-    window.addEventListener("wheel", onHide);
-    window.addEventListener("scroll", onHide, true);
+    window.addEventListener("pointerdown", hide);
+    window.addEventListener("wheel", hide);
+    window.addEventListener("scroll", hide, true);
+
     return () => {
+      window.removeEventListener(
+        "archidraw:contextmenu",
+        onContextEvent as EventListener,
+      );
       window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("wheel", onHide);
-      window.removeEventListener("scroll", onHide, true);
+      window.removeEventListener("pointerdown", hide);
+      window.removeEventListener("wheel", hide);
+      window.removeEventListener("scroll", hide, true);
     };
   }, []);
+
+  // the card is driven by pointer events, not by editor state, so a document
+  // change while the pointer rests (undo, delete, edit details) would leave it
+  // showing stale content. Drop it as soon as its element stops matching.
+  useEffect(() => {
+    if (!hover) return;
+    const unsubscribe = editor.subscribe(() => {
+      const current = editor.getElement(hover.id);
+      if (!current || current.details !== hover.details) setHover(null);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [hover]);
 
   // clamp the box into the viewport after it is measured
   useLayoutEffect(() => {
@@ -89,10 +108,16 @@ export function HoverInfoBox() {
     if (top + r.height > window.innerHeight - 8) {
       top = hover.y - r.height - offset;
     }
-    left = Math.max(8, left);
-    top = Math.max(8, top);
+    left = Math.max(8, Math.min(left, window.innerWidth - r.width - 8));
+    top = Math.max(8, Math.min(top, window.innerHeight - r.height - 8));
     setPos({ left, top });
   }, [hover]);
+
+  const details = hover?.details;
+  const body = useMemo(
+    () => (details ? <Markdown source={details} /> : null),
+    [details],
+  );
 
   if (!hover) return null;
 
@@ -109,7 +134,7 @@ export function HoverInfoBox() {
       }}
     >
       <div className="hover-info-title">Additional Information</div>
-      <div className="hover-info-body">{hover.details}</div>
+      <div className="hover-info-body">{body}</div>
     </div>,
     document.body,
   );

@@ -49,7 +49,7 @@ First `make quality` on a clean clone just saves a baseline (no comparison).
 3. **Use `open(page)` helper** to navigate and wait for `__appReady__`.
 4. **Editor internals** are exposed on `window.__editor__` only when `MODE === "test"` (the Playwright webServer build) or `DEV`. Read state via the `editorState()` fixture.
 5. **Clipboard/paste**: NEVER call `navigator.clipboard.read()` in `keydown` of Cmd+V — use native `paste` event only. NEVER use `Meta+v` or `Control+v` in tests — use `pressPaste()` from `e2e/fixtures.ts` (cross-platform synthetic event). See `.agents/knowledge/clipboard-paste.md`.
-6. **Tooltips in overflow containers**: Use `createPortal` + `position: fixed` with viewport clamp. CSS `::after` tooltips are only allowed in containers without `overflow` or `transform`. See `.agents/knowledge/tooltip-clipping.md`.
+6. **Tooltips in overflow containers**: Use `createPortal` + `position: fixed` with viewport clamp. CSS `::after` tooltips are only allowed in containers without `overflow` or `transform`. A clamped fixed-position box MUST set `width: max-content`, otherwise shrink-to-fit makes the clamp feed back on itself and the box overflows the viewport. See `.agents/knowledge/tooltip-clipping.md`.
 7. **Context menu**: `pointerDown` must return early on `button === 2`. Suppress native context menu only inside `.canvas-host`, not when a textarea is focused. See `.agents/knowledge/context-menu.md`.
 8. **No comments in code** unless requested.
 9. **Arrow pixel sampling**: Deselect elements before sampling canvas pixels (selection handles contaminate samples). See `.agents/knowledge/arrow-tip-guard.md`.
