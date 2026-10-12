@@ -94,3 +94,41 @@ CSS obrigatório ao usar o portal (evita tooltip duplo dentro do contêiner):
 - [ ] Se sim, os tooltips usam portal/fixed (não `::after`)?
 - [ ] Tooltip é clampado nas bordas da viewport?
 - [ ] Testado hover nos itens das bordas superior/inferior/laterais do contêiner?
+
+## KB — clamp com `width` dependente da posição (caixa "cresce" sozinha)
+
+**Sintoma:** tooltip flutuante ancorado à direita/embaixo da viewport **transborda
+a borda** mesmo com clamp aplicado — `right` dá igual a `innerWidth` (ou some
+para fora), enquanto `left + width` parece correto no cálculo.
+
+**Causa raiz:** uma caixa `position: fixed` com **apenas `left` definido** e
+`width: auto` usa *shrink-to-fit*: a largura usada é
+`min(max-content, espaço disponível até a borda da viewport)`. Como o clamp
+depende da largura medida **e** a largura depende do `left` que o clamp escolhe,
+o cálculo se realimenta: o `getBoundingClientRect()` mede uma caixa estreita
+(porque ela ainda está encostada na borda), o clamp acha que cabe, posiciona
+pela direita, e a caixa então **re-estreita** — ou pior, transborda.
+
+**Regra:** qualquer tooltip com clamp **precisa** de uma largura que não
+dependa da posição. Use `width: max-content` (mais `max-width` para o teto):
+
+```css
+.tooltip-float {
+  position: fixed;
+  width: max-content;              /* <- essencial: independe do `left` */
+  max-width: min(420px, calc(100vw - 32px));
+}
+```
+
+Com `width: max-content` o `max-width` continua sendo o teto e a largura real
+fica estável entre "antes do clamp" e "depois do clamp", então o
+`useLayoutEffect` que mede e posiciona mede o valor certo.
+
+**Sintoma equivalente (irmão):** `max-height` + `overflow: auto` numa caixa
+ancorada no topo faz o `useLayoutEffect` ler a altura **já limitada** e
+posicionar rápido demais. Meça `scrollHeight` quando o teto de altura importa.
+
+Implementação real: `src/ui/components/HoverInfoBox.tsx` (clamp em
+`useLayoutEffect`) + `.hover-info-box` em `src/ui/styles/app.css`.
+Spec que pega a regressão: `e2e/specs/hover-markdown.spec.ts`
+("a long preview stays clamped inside the viewport").
