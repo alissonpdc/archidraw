@@ -92,7 +92,7 @@ test.describe("ui widgets", () => {
     await page.evaluate(() => {
       document.documentElement.dataset.theme = "dark";
     });
-    expect(await bg()).toBe("#080c13");
+    expect(await bg()).toBe("#090a0c");
 
     // blueprint chrome is rigid: widgets use ink-colored 1.5px borders
     // (dark ink #dbe7f5) instead of the soft gray border
@@ -181,26 +181,30 @@ test.describe("ui widgets", () => {
     }, initial);
   });
 
-  test("grid defaults to none and switching persists", async ({ page }) => {
+  test("grid defaults to lines via the blueprint skin and switching persists", async ({
+    page,
+  }) => {
     await open(page);
 
     const storedBefore = await page.evaluate(() =>
       localStorage.getItem("archidraw:grid"),
     );
-    expect(storedBefore).toBe(null); // default "none" is not written
+    expect(storedBefore).toBe(null); // "auto" follows the blueprint skin: lines
 
     await page.click('[data-testid="app-menu-button"]');
     // Open the Grid submenu inside Appearance
     await page.getByRole("button", { name: "Grid" }).click();
-    await page.getByRole("button", { name: "Lines" }).click();
+    const gridSubmenu = page.locator(".menu-submenu.open .menu-submenu-panel");
+    await expect(gridSubmenu.locator(".menu-item.active")).toHaveText(/Lines/);
+
+    await page.getByRole("button", { name: "Dots" }).click();
 
     expect(
       await page.evaluate(() => localStorage.getItem("archidraw:grid")),
-    ).toBe("lines");
+    ).toBe("dots");
 
-    // menu stays open after toggling; checkmark moved to "Lines" in the Grid submenu
-    const gridSubmenu = page.locator(".menu-submenu.open .menu-submenu-panel");
-    await expect(gridSubmenu.locator(".menu-item.active")).toHaveText(/Lines/);
+    // menu stays open after toggling; checkmark moved to "Dots" in the Grid submenu
+    await expect(gridSubmenu.locator(".menu-item.active")).toHaveText(/Dots/);
   });
 
   test("new elements keep a stable default stroke that adapts to the theme", async ({

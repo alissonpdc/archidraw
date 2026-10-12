@@ -9,7 +9,8 @@ function rgbLuminance(hex: string): number {
 }
 
 function hexLightness(hex: string): number {
-  const m = hex.replace("#", "");
+  let m = hex.replace("#", "");
+  if (m.length === 3) m = m.split("").map((c) => c + c).join("");
   const r = parseInt(m.slice(0, 2), 16) / 255;
   const g = parseInt(m.slice(2, 4), 16) / 255;
   const b = parseInt(m.slice(4, 6), 16) / 255;

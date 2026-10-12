@@ -278,12 +278,13 @@ test.describe("ColorRampPicker (base + intensity)", () => {
     const matrixCell = popover.locator(".matrix-cell").first();
     await expect(matrixCell).toHaveCSS("width", "28px");
     await expect(matrixCell).toHaveCSS("height", "28px");
-    await expect(matrixCell).toHaveCSS("border-radius", "3px");
+    // blueprint skin (default): --radius-sm = 5px
+    await expect(matrixCell).toHaveCSS("border-radius", "5px");
 
     const rampCell = popover.locator(".ramp-cell").first();
     await expect(rampCell).toHaveCSS("width", "28px");
     await expect(rampCell).toHaveCSS("height", "28px");
-    await expect(rampCell).toHaveCSS("border-radius", "3px");
+    await expect(rampCell).toHaveCSS("border-radius", "5px");
 
     const intensitySection = popover.locator(".submenu-intensity");
     await expect(intensitySection).not.toContainText("/ 5");

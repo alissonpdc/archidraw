@@ -27,9 +27,9 @@ export function loadThemePref(): ThemePref {
 export function loadSkinPref(): SkinPref {
   try {
     const v = localStorage.getItem(SKIN_KEY);
-    return SKINS.includes(v as SkinPref) ? (v as SkinPref) : "midnight";
+    return SKINS.includes(v as SkinPref) ? (v as SkinPref) : "blueprint";
   } catch {
-    return "midnight";
+    return "blueprint";
   }
 }
 

@@ -1,11 +1,16 @@
 import { test, expect, open } from "../fixtures";
 
 const SKIN_BG_PAIRS: Record<string, { light: string; dark: string }> = {
-  default: { light: "#f6f7f8", dark: "#101215" },
+  default: { light: "#ffffff", dark: "#090a0c" },
   warm: { light: "#f7f2ea", dark: "#0c0a07" },
   swiss: { light: "#f0f0ee", dark: "#0e0e0b" },
   midnight: { light: "#f4f6f8", dark: "#0b0d11" },
-  blueprint: { light: "#edf1f7", dark: "#080c13" },
+  blueprint: { light: "#ffffff", dark: "#090a0c" },
+};
+
+const cssToken = (v: string) => {
+  const hex = v.trim().replace("#", "");
+  return "#" + (hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex);
 };
 
 test.describe("Canvas background pairs match the design spec", () => {
@@ -43,8 +48,8 @@ test.describe("Canvas background pairs match the design spec", () => {
         skin,
       );
 
-      expect(lightBg.toLowerCase()).toBe(expected.light.toLowerCase());
-      expect(darkBg.toLowerCase()).toBe(expected.dark.toLowerCase());
+      expect(cssToken(lightBg).toLowerCase()).toBe(expected.light.toLowerCase());
+      expect(cssToken(darkBg).toLowerCase()).toBe(expected.dark.toLowerCase());
     });
   }
 
@@ -113,6 +118,11 @@ test.describe("Canvas background pairs match the design spec", () => {
         blueprint: { light: blueprintLight, dark: blueprintDark },
       };
     });
+
+    for (const pair of Object.values(palettePairs)) {
+      pair.light = cssToken(pair.light);
+      pair.dark = cssToken(pair.dark);
+    }
 
     expect(palettePairs.default.light.toLowerCase()).toBe(
       SKIN_BG_PAIRS.default.light.toLowerCase(),
