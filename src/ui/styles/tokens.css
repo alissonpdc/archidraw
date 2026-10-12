@@ -12,6 +12,12 @@
   --accent-strong: #0b5d57;
   --on-accent: #ffffff;
 
+  /* code token colors (json/yaml preview in the details card) */
+  --code-key: var(--accent-strong);
+  --code-string: #166534;
+  --code-number: #1d4ed8;
+  --code-boolean: #7c3aed;
+
   /* canvas-render colors (read by JS via getComputedStyle) */
   --selection-color: #0f766e;
   --element-stroke: #26292c;
@@ -66,6 +72,9 @@
     --accent: #2aa79b;
     --accent-strong: #3fc4b6;
     --on-accent: #04211e;
+    --code-string: #86efac;
+    --code-number: #93c5fd;
+    --code-boolean: #d8b4fe;
     --selection-color: #2aa79b;
     --element-stroke: #dfe0e2;
     --grid-dot: rgba(255, 255, 255, 0.07);

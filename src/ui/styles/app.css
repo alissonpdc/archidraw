@@ -2317,6 +2317,36 @@ button {
   font: inherit;
 }
 
+.md-tok {
+  color: var(--text-primary);
+}
+
+.md-tok-key {
+  color: var(--code-key);
+  font-weight: 600;
+}
+
+.md-tok-string {
+  color: var(--code-string);
+}
+
+.md-tok-number {
+  color: var(--code-number);
+}
+
+.md-tok-boolean {
+  color: var(--code-boolean);
+}
+
+.md-tok-punct {
+  color: var(--text-muted);
+}
+
+.md-tok-comment {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .md-table {
   width: 100%;
   margin: 0 0 var(--space-2);

@@ -1,5 +1,12 @@
-import { useMemo, type ReactNode } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import { parseMarkdown, type MdBlock, type MdInline } from "../../core/markdown";
+import {
+  detectStructuredLang,
+  formatStructured,
+  tokenizeStructured,
+  type CodeToken,
+  type StructuredLang,
+} from "../../core/structuredCode";
 
 function renderInline(nodes: MdInline[], keyPrefix: string): ReactNode[] {
   return nodes.map((node, i) => {
@@ -61,12 +68,23 @@ function renderBlock(block: MdBlock, i: number): ReactNode {
           {renderInline(block.children, key)}
         </p>
       );
-    case "code":
+    case "code": {
+      const structured = detectStructuredLang(block.lang);
+      if (structured) {
+        return (
+          <StructuredCode
+            key={key}
+            lang={structured}
+            value={block.value}
+          />
+        );
+      }
       return (
         <pre key={key} className="md-pre" data-lang={block.lang}>
           <code>{block.value}</code>
         </pre>
       );
+    }
     case "quote":
       return (
         <blockquote key={key} className="md-quote">
@@ -121,6 +139,47 @@ function renderBlock(block: MdBlock, i: number): ReactNode {
 
 function alignStyle(align: "left" | "center" | "right" | null | undefined) {
   return align ? { textAlign: align } : undefined;
+}
+
+function renderTokens(tokens: CodeToken[]): ReactNode[] {
+  return tokens.map((token, i) => {
+    const key = `t${i}`;
+    if (token.kind === "plain") return <Fragment key={key}>{token.text}</Fragment>;
+    return (
+      <span key={key} className={`md-tok md-tok-${token.kind}`}>
+        {token.text}
+      </span>
+    );
+  });
+}
+
+/**
+ * Fenced JSON/YAML is pretty-printed and syntax highlighted. Anything the
+ * formatter cannot prove safe to rewrite (a YAML block scalar, say) falls back
+ * to the verbatim source — still highlighted.
+ */
+function StructuredCode({
+  lang,
+  value,
+}: {
+  lang: StructuredLang;
+  value: string;
+}) {
+  const formatted = useMemo(() => formatStructured(lang, value), [lang, value]);
+  const tokens = useMemo(
+    () => tokenizeStructured(lang, formatted),
+    [lang, formatted],
+  );
+  return (
+    <pre
+      className="md-pre md-pre--structured"
+      data-lang={lang}
+      data-structured="true"
+      data-formatted={formatted === value ? "false" : "true"}
+    >
+      <code>{renderTokens(tokens)}</code>
+    </pre>
+  );
 }
 
 /**
