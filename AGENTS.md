@@ -55,6 +55,7 @@ First `make quality` on a clean clone just saves a baseline (no comparison).
 9. **Arrow pixel sampling**: Deselect elements before sampling canvas pixels (selection handles contaminate samples). See `.agents/knowledge/arrow-tip-guard.md`.
 10. **File inputs**: NEVER assert right after `page.setInputFiles('[data-testid="import-input"]', ...)` — the app's `onChange` is async (`await file.text()`), so the assertion races the import. Use `importFile(page, file)` from `e2e/fixtures.ts`. To open a native file picker via a keyboard shortcut use `openFileChooserViaShortcut(page, key)` — `page.keyboard.press` only reaches the picker ~50% of the time under `E2E_WORKERS=15`. See `.agents/knowledge/file-import-race.md`.
 11. **FPS governors**: never assert on rAF cadence — under parallel workers it measures OS scheduling, not the app. Measure per-frame render cost and compare against `1000 / PERF_MIN_FPS`. See `.agents/knowledge/file-import-race.md`.
+12. **E2E imports are relative**: NEVER import from an absolute filesystem path (`/root/...`, `/home/...`, `~/...`) inside `e2e/**` — oxlint ignores `e2e/**` and `tsc -b` only covers `src/`, so lint and typecheck stay green and it only explodes at Playwright collection time on CI with `EACCES`. Always `from "../fixtures"`. Same gate: never commit a probe that asserts nothing (it costs suite time and protects nothing). See `.agents/knowledge/absolute-import-path.md`.
 
 ## Branches and CI
 
