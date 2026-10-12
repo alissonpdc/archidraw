@@ -7,6 +7,9 @@ import {
   distanceToSegment,
   edgePathPoints,
   elementBounds,
+  elementAngle,
+  rotatedBounds,
+  toLocalPoint,
   boundsContain,
 } from "./utils";
 
@@ -37,13 +40,15 @@ function quadraticBounds(a: { x: number; y: number }, cp: { x: number; y: number
 }
 
 export function hitTest(el: Element, p: { x: number; y: number }): boolean {
+  // rotated shapes are tested in their own unrotated frame
+  const lp = elementAngle(el) === 0 ? p : toLocalPoint(el, p);
   const b = elementBounds(el);
   if (el.type === "arrow" || el.type === "line") {
     const lineType = el.lineType ?? "straight";
     if (lineType === "straight") {
       const [a, c] = arrowPoints(el);
       return (
-        distanceToSegment(p, a, c) <=
+        distanceToSegment(lp, a, c) <=
         ARROW_HIT_TOLERANCE + el.strokeWidth / 2
       );
     }
@@ -56,16 +61,16 @@ export function hitTest(el: Element, p: { x: number; y: number }): boolean {
       const cb = quadraticBounds(a, cp, tip);
       const pad = ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
       return (
-        p.x >= cb.x1 - pad && p.x <= cb.x2 + pad &&
-        p.y >= cb.y1 - pad && p.y <= cb.y2 + pad
+        lp.x >= cb.x1 - pad && lp.x <= cb.x2 + pad &&
+        lp.y >= cb.y1 - pad && lp.y <= cb.y2 + pad
       );
     }
     // auto: check distance to the polyline
     const pts = edgePathPoints(el);
-    return distanceToPolyline(p, pts) <= ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
+    return distanceToPolyline(lp, pts) <= ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
   }
   if (el.type === "diamond") {
-    return pointInPolygon(p, diamondVertices(el));
+    return pointInPolygon(lp, diamondVertices(el));
   }
   if (el.type === "ellipse") {
     const cx = (b.x1 + b.x2) / 2;
@@ -73,11 +78,11 @@ export function hitTest(el: Element, p: { x: number; y: number }): boolean {
     const rx = (b.x2 - b.x1) / 2;
     const ry = (b.y2 - b.y1) / 2;
     if (rx === 0 || ry === 0) return false;
-    const nx = (p.x - cx) / rx;
-    const ny = (p.y - cy) / ry;
+    const nx = (lp.x - cx) / rx;
+    const ny = (lp.y - cy) / ry;
     return nx * nx + ny * ny <= 1;
   }
-  return p.x >= b.x1 && p.x <= b.x2 && p.y >= b.y1 && p.y <= b.y2;
+  return lp.x >= b.x1 && lp.x <= b.x2 && lp.y >= b.y1 && lp.y <= b.y2;
 }
 
 export function elementsInBounds(
@@ -85,6 +90,6 @@ export function elementsInBounds(
   box: { x1: number; y1: number; x2: number; y2: number },
 ): string[] {
   return elements
-    .filter((el) => boundsContain(box, elementBounds(el)))
+    .filter((el) => boundsContain(box, rotatedBounds(el)))
     .map((el) => el.id);
 }

@@ -31,7 +31,7 @@ First `make quality` on a clean clone just saves a baseline (no comparison).
 
 - `E2E_PORT` — preview port (default `4173`; `make test` picks a random one).
 - `E2E_COVERAGE=1` — enabled by `make test`; collects JS coverage via monocart. Raw `npm run test:e2e` does NOT collect coverage.
-- `E2E_WORKERS` — default **15** (NOT single worker); CI sets `2`.
+- `E2E_WORKERS` — default **half of the available CPUs** (min 2), NOT single worker; CI sets `2`.
 - `E2E_RETRIES` — default 0; CI sets `1`.
 - `PERF_ELEMENTS` / `PERF_MIN_FPS` — performance.spec.governors; defaults `500` / `45` FPS locally, CI relaxes to `100` / `25`.
 - oxlint ignores `e2e/**` and `playwright.config.ts`; `tsc -b` only covers `src/` + `vite.config.ts`. Nothing in the gate typechecks or lints specs — they're verified at runtime only.
@@ -53,6 +53,8 @@ First `make quality` on a clean clone just saves a baseline (no comparison).
 7. **Context menu**: `pointerDown` must return early on `button === 2`. Suppress native context menu only inside `.canvas-host`, not when a textarea is focused. See `.agents/knowledge/context-menu.md`.
 8. **No comments in code** unless requested.
 9. **Arrow pixel sampling**: Deselect elements before sampling canvas pixels (selection handles contaminate samples). See `.agents/knowledge/arrow-tip-guard.md`.
+10. **File inputs**: NEVER assert right after `page.setInputFiles('[data-testid="import-input"]', ...)` — the app's `onChange` is async (`await file.text()`), so the assertion races the import. Use `importFile(page, file)` from `e2e/fixtures.ts`. To open a native file picker via a keyboard shortcut use `openFileChooserViaShortcut(page, key)` — `page.keyboard.press` only reaches the picker ~50% of the time under `E2E_WORKERS=15`. See `.agents/knowledge/file-import-race.md`.
+11. **FPS governors**: never assert on rAF cadence — under parallel workers it measures OS scheduling, not the app. Measure per-frame render cost and compare against `1000 / PERF_MIN_FPS`. See `.agents/knowledge/file-import-race.md`.
 
 ## Branches and CI
 

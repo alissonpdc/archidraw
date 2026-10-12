@@ -49,6 +49,8 @@ const EDITING: ShortcutGroup = {
     { keys: `${MOD}+Shift+G`, desc: "Ungroup" },
     { keys: `${MOD}+Shift+L`, desc: "Lock/Unlock" },
     { keys: `${MOD}+A`, desc: "Select all" },
+    { keys: "Arrows", desc: "Move selection" },
+    { keys: "Shift+Arrows", desc: "Move selection (large step)" },
     { keys: "Delete", desc: "Delete" },
     { keys: "Esc", desc: "Deselect" },
   ],

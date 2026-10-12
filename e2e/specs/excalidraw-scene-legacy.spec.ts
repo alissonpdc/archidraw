@@ -1,8 +1,8 @@
-import { test, expect, open } from "../fixtures";
+import { test, expect, importFile, open } from "../fixtures";
 import { type Page } from "@playwright/test";
 
 async function importScene(page: Page, file: object) {
-  await page.setInputFiles("[data-testid=\"import-input\"]", {
+  await importFile(page, {
     name: "legacy.excalidraw",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(file)),
@@ -232,7 +232,7 @@ test.describe("excalidraw scene import (legacy fields)", () => {
     editorState,
   }) => {
     await open(page);
-    await page.setInputFiles("[data-testid=\"import-input\"]", {
+    await importFile(page, {
       name: "broken2.excalidraw",
       mimeType: "application/json",
       buffer: Buffer.from(

@@ -1,8 +1,8 @@
-import { test, expect, open } from "../fixtures";
+import { test, expect, importFile, open } from "../fixtures";
 import { type Page } from "@playwright/test";
 
 async function importScene(page: Page, file: object) {
-  await page.setInputFiles("[data-testid=\"import-input\"]", {
+  await importFile(page, {
     name: "rich.excalidraw",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(file)),
@@ -244,7 +244,7 @@ test.describe("excalidraw scene import (rich)", () => {
     page,
   }) => {
     await open(page);
-    await page.setInputFiles("[data-testid=\"import-input\"]", {
+    await importFile(page, {
       name: "broken.excalidraw",
       mimeType: "application/json",
       buffer: Buffer.from("{ oops !!"),
