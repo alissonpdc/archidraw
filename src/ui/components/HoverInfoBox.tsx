@@ -236,11 +236,10 @@ export function HoverInfoBox() {
     return { w: r?.width ?? MIN_W, h: r?.height ?? MIN_H };
   };
 
-  const grow = (dw: number, dh: number) => {
-    const c = currentSize();
+  const grow = (targetW: number, targetH: number) => {
     setSize({
-      w: resizeBy(c.w, dw, MIN_W, window.innerWidth - MARGIN * 2),
-      h: resizeBy(c.h, dh, MIN_H, window.innerHeight - MARGIN * 2),
+      w: resizeBy(targetW, 0, MIN_W, window.innerWidth - MARGIN * 2),
+      h: resizeBy(targetH, 0, MIN_H, window.innerHeight - MARGIN * 2),
     });
   };
 
@@ -257,7 +256,7 @@ export function HoverInfoBox() {
     const d = dragRef.current;
     if (!d) return;
     e.stopPropagation();
-    grow(e.clientX - d.x, e.clientY - d.y);
+    grow(d.w + (e.clientX - d.x), d.h + (e.clientY - d.y));
   };
 
   const onGripUp = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -269,18 +268,19 @@ export function HoverInfoBox() {
 
   const onGripKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const step = e.shiftKey ? KEY_STEP_LARGE : KEY_STEP;
+    const c = currentSize();
     switch (e.key) {
       case "ArrowRight":
-        grow(step, 0);
+        grow(c.w + step, c.h);
         break;
       case "ArrowLeft":
-        grow(-step, 0);
+        grow(c.w - step, c.h);
         break;
       case "ArrowDown":
-        grow(0, step);
+        grow(c.w, c.h + step);
         break;
       case "ArrowUp":
-        grow(0, -step);
+        grow(c.w, c.h - step);
         break;
       default:
         return;
