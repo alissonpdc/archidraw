@@ -174,6 +174,18 @@ export function arrowPoints(el: Element): [Point, Point] {
   ];
 }
 
+/**
+ * end point of an edge path. A flat edge carries no direction to place an
+ * arrowhead with, so the tip is nudged 1px down — never for auto-routed edges,
+ * whose polyline is orthogonal and would lose its right angle over that pixel.
+ */
+export function edgeTip(el: EdgeElement): Point {
+  const [a, b] = arrowPoints(el);
+  const flat = b.y === a.y;
+  const orthogonal = (el.lineType ?? "straight") === "auto" && b.x !== a.x;
+  return flat && !orthogonal ? { x: b.x, y: b.y + 1 } : { x: b.x, y: b.y };
+}
+
 /** arrowhead length: stroke-relative, clamped to a minimum */
 export function arrowHeadSize(el: Element): number {
   return Math.max(9.7, el.strokeWidth * 3.24);
@@ -453,8 +465,8 @@ export function defaultAutoPath(
 
 /** polyline approximation of an edge path (curved edges are sampled) */
 export function edgePathPoints(el: EdgeElement, samples = 32): Point[] {
-  const [a, b] = arrowPoints(el);
-  const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+  const a = arrowPoints(el)[0];
+  const tip = edgeTip(el);
   const lineType = el.lineType ?? "straight";
   if (lineType === "curved") {
     const cp = curvedArrowControl(el, a, tip);
@@ -668,8 +680,8 @@ export function distanceToQuadraticBezier(p: Point, a: Point, cp: Point, tip: Po
 
 /** min distance from point p to the actual path of an edge element */
 export function edgeDistance(el: EdgeElement, p: Point): number {
-  const [a, b] = arrowPoints(el);
-  const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+  const a = arrowPoints(el)[0];
+  const tip = edgeTip(el);
   const lineType = el.lineType ?? "straight";
   if (lineType === "curved") {
     const cp = curvedArrowControl(el, a, tip);
@@ -814,6 +826,50 @@ export function autoDragSegmentBends(
   }
   const bends = simplifyPolyline(withStubs).slice(1, -1);
   return bends.length > 0 ? bends : undefined;
+}
+
+/**
+ * bends for an auto-mode edge after one of its endpoints was dragged to
+ * `point`. The corner chain is re-orthogonalized from the fixed endpoint
+ * inward: every corner keeps the axis of the segment entering it and slides
+ * along that axis until it meets the dragged endpoint, so the corners follow
+ * the handle while every turn stays at exactly 90°. The opposite endpoint
+ * never moves and a bound anchor keeps the direction it left/entered the
+ * shape with. Returns undefined when the edge has no corners to reflow (the
+ * default L-shaped routing already re-routes itself).
+ */
+export function autoReflowEndpointBends(
+  el: EdgeElement,
+  which: "start" | "end",
+  point: Point,
+): Point[] | undefined {
+  if ((el.lineType ?? "straight") !== "auto") return el.bendPoints;
+  const bends = el.bendPoints;
+  if (!bends || bends.length === 0) return undefined;
+  const [a, b] = arrowPoints(el);
+  // corners ordered from the endpoint that stays put toward the dragged one
+  const forward = which === "end";
+  const fixed = forward ? a : b;
+  const orig = forward ? bends : [...bends].reverse();
+  const pts = orig.map((p) => ({ x: p.x, y: p.y }));
+  const aligned = (p: Point, q: Point) =>
+    Math.abs(p.x - q.x) <= ORTHO_EPS || Math.abs(p.y - q.y) <= ORTHO_EPS;
+  for (let i = 0; i < pts.length; i++) {
+    const before = i === 0 ? fixed : pts[i - 1];
+    const corner = pts[i];
+    const after = i === pts.length - 1 ? point : pts[i + 1];
+    if (aligned(before, corner) && aligned(corner, after)) continue;
+    // the corner takes one coordinate from the segment before it — keeping
+    // the axis it used to follow, so it slides instead of turning — and one
+    // from the segment after it, which turns to stay axis-aligned
+    const vertical = Math.abs(orig[i].x - (i === 0 ? fixed : orig[i - 1]).x) <= ORTHO_EPS;
+    corner.x = vertical ? before.x : after.x;
+    corner.y = vertical ? after.y : before.y;
+  }
+  // simplify in chain order, then hand the corners back in path order
+  const reflowed = simplifyPolyline([fixed, ...pts, point]).slice(1, -1);
+  if (reflowed.length === 0) return undefined;
+  return forward ? reflowed : reflowed.reverse();
 }
 
 /**

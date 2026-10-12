@@ -44,6 +44,7 @@ import {
   curvedArrowControl,
   autoSegmentAt,
   autoDragSegmentBends,
+  autoReflowEndpointBends,
   snapSegmentDelta,
   determineBindingSide,
   ensureContextZOrder,
@@ -2267,6 +2268,7 @@ strokeOpacity?: number;
               height: number;
               startBinding?: ArrowBinding;
               endBinding?: ArrowBinding;
+              bendPoints?: Point[];
             }
           | null = null;
         if (handle.length === 2 && (orig.type === "line" || orig.type === "arrow")) {
@@ -2300,6 +2302,8 @@ strokeOpacity?: number;
               width: bx - snapped.x,
               height: by - snapped.y,
               startBinding: snap?.binding ?? undefined,
+              // auto routing: the corners follow the handle, the turns stay square
+              bendPoints: autoReflowEndpointBends(orig, "start", snapped),
             };
             this.bindingPreview = {
               start: snap?.binding ?? null,
@@ -2312,6 +2316,8 @@ strokeOpacity?: number;
               width: snapped.x - ax,
               height: snapped.y - ay,
               endBinding: snap?.binding ?? undefined,
+              // auto routing: the corners follow the handle, the turns stay square
+              bendPoints: autoReflowEndpointBends(orig, "end", snapped),
             };
             this.bindingPreview = {
               start: orig.startBinding ?? null,

@@ -1,6 +1,6 @@
 import { render, componentIconLayout } from "./renderer";
 import type { ArrowHeadType, Document, Element, Point } from "./types";
-import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, elementAngle, elementCenter, ensureContextZOrder, escapeXml, unionBounds } from "./utils";
+import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, edgeTip, elementAngle, elementCenter, ensureContextZOrder, escapeXml, unionBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { componentAssetDataUri, waitForComponentImages, waitForImage } from "./componentAssets";
 import { strokeDashArray } from "./strokeStyle";
@@ -382,10 +382,9 @@ export function buildSvgString(doc: Document): string | null {
         });
       }
     } else if (el.type === "line") {
-      const [a, b] = arrowPoints(el);
+      const a = arrowPoints(el)[0];
+      const tip = edgeTip(el);
       const lineType = el.lineType ?? "straight";
-      const endY = b.y === a.y ? b.y + 1 : b.y;
-      const tip = { x: b.x, y: endY };
       if (lineType === "curved") {
         const cp = curvedArrowControl(el, a, tip);
         elParts.push(`<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${tip.x} ${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
@@ -400,9 +399,8 @@ export function buildSvgString(doc: Document): string | null {
         elParts.push(`<line x1="${a.x}" y1="${a.y}" x2="${tip.x}" y2="${tip.y}" fill="none" ${stroke}${dash}${opacity}/>`);
       }
     } else if (el.type === "arrow") {
-      const [a, b] = arrowPoints(el);
-      const endY = b.y === a.y ? b.y + 1 : b.y;
-      const tip = { x: b.x, y: endY };
+      const a = arrowPoints(el)[0];
+      const tip = edgeTip(el);
       const lineType = el.lineType ?? "straight";
       const headSeed = seedOf(el.id) + 7;
       const arrowEl = el as import("./types").ArrowElement;
