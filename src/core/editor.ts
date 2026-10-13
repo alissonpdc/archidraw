@@ -62,6 +62,10 @@ import { getLibraryItem, isBuiltinLibraryItem } from "./library";
 import { componentAssetDataUri } from "./componentAssets";
 import { addImportedImage } from "./importedImages";
 import {
+  parseElementsClipboard,
+  serializeElementsClipboard,
+} from "./clipboardJson";
+import {
   elementVisualBounds,
   detailsBadgeAnchor,
   BADGE_RADIUS_PX,
@@ -1548,10 +1552,16 @@ strokeOpacity?: number;
     const selected = this.doc.elements.filter((el) =>
       this.selectedIds.has(el.id),
     );
+    const json = serializeElementsClipboard(selected);
     try {
-      localStorage.setItem(Editor.CLIPBOARD_KEY, JSON.stringify(selected));
+      localStorage.setItem(Editor.CLIPBOARD_KEY, json);
     } catch {
       // keep in-memory only
+    }
+    try {
+      void navigator.clipboard?.writeText(json).catch(() => {});
+    } catch {
+      void 0;
     }
   }
 
@@ -1561,58 +1571,18 @@ strokeOpacity?: number;
     this.deleteSelected();
   }
 
-  /** returns number of pasted elements */
-  paste(): number {
+  private readInternalClipboard(): Element[] | null {
     let raw: string | null = null;
     try {
       raw = localStorage.getItem(Editor.CLIPBOARD_KEY);
     } catch {
       raw = null;
     }
-    if (!raw) return 0;
-    let items: Element[];
-    try {
-      items = JSON.parse(raw);
-    } catch {
-      return 0;
-    }
-    if (!Array.isArray(items) || items.length === 0) return 0;
-
-    this.pasteCount += 1;
-    const offset = 16 * this.pasteCount;
-    const clones = this.cloneElements(items, offset, offset);
-    this.commitHistory();
-    const grouped = this.cloneGroupIds(clones);
-    this.doc = {
-      ...this.doc,
-      elements: [...this.doc.elements, ...grouped],
-    };
-    this.captureInContexts(grouped);
-    this.selectedIds = new Set(clones.map((c) => c.id));
-    this.emit();
-    return clones.length;
+    if (!raw) return null;
+    return parseElementsClipboard(raw);
   }
 
-  pasteAt(screenPoint: Point): number {
-    let raw: string | null = null;
-    try {
-      raw = localStorage.getItem(Editor.CLIPBOARD_KEY);
-    } catch {
-      raw = null;
-    }
-    if (!raw) return 0;
-    let items: Element[];
-    try {
-      items = JSON.parse(raw);
-    } catch {
-      return 0;
-    }
-    if (!Array.isArray(items) || items.length === 0) return 0;
-
-    const scene = screenToScene(screenPoint, this.camera);
-    const b = unionBounds(items);
-    const dx = b ? scene.x - (b.x1 + b.x2) / 2 : 0;
-    const dy = b ? scene.y - (b.y1 + b.y2) / 2 : 0;
+  private insertPasted(items: Element[], dx: number, dy: number): number {
     const clones = this.cloneElements(items, dx, dy);
     this.commitHistory();
     const grouped = this.cloneGroupIds(clones);
@@ -1624,6 +1594,33 @@ strokeOpacity?: number;
     this.selectedIds = new Set(clones.map((c) => c.id));
     this.emit();
     return clones.length;
+  }
+
+  /** returns number of pasted elements */
+  paste(): number {
+    const items = this.readInternalClipboard();
+    if (!items) return 0;
+    this.pasteCount += 1;
+    const offset = 16 * this.pasteCount;
+    return this.insertPasted(items, offset, offset);
+  }
+
+  pasteAt(screenPoint: Point): number {
+    const items = this.readInternalClipboard();
+    if (!items) return 0;
+    const scene = screenToScene(screenPoint, this.camera);
+    const b = unionBounds(items);
+    const dx = b ? scene.x - (b.x1 + b.x2) / 2 : 0;
+    const dy = b ? scene.y - (b.y1 + b.y2) / 2 : 0;
+    return this.insertPasted(items, dx, dy);
+  }
+
+  pasteFromText(text: string): number {
+    const items = parseElementsClipboard(text);
+    if (!items) return 0;
+    this.pasteCount += 1;
+    const offset = 16 * this.pasteCount;
+    return this.insertPasted(items, offset, offset);
   }
 
   // ---- copy/paste style -----------------------------------------------

@@ -23,16 +23,28 @@
 2. No handler `paste`: sempre `e.preventDefault()` (kill do menu nativo e da
    inserção default), exceto quando o foco está em `TEXTAREA/INPUT`.
 3. Prioridade no handler: imagem externa (`clipboardData.items` com
-   `kind === "file"` e `type.startsWith("image/")`) → insert; senão clipboard
-   interno do app (localStorage) → `editor.paste()`; senão nada.
+   `kind === "file"` e `type.startsWith("image/")`) → insert; senão texto do
+   clipboard do SO que valide como JSON descritivo de elementos
+   (`src/core/clipboardJson.ts` → `editor.pasteFromText`) → insert; senão
+   clipboard interno do app (localStorage) → `editor.paste()`; senão nada.
 4. Nunca reintroduzir fallback assíncrono via `navigator.clipboard.read()` para
    consertar o paste interno; se o `paste` nativo não disparar em headless, o
    teste deve despachar o evento manualmente via `page.evaluate` com
    `new ClipboardEvent("paste", { clipboardData: new DataTransfer() })`.
    **NÃO usar `Meta+v` em testes** — não dispara `paste` no Linux (CI);
    `Control+v` não dispara no macOS. O dispatch sintético é cross-platform.
-5. Clipboard interno do app (elementos copiados) fica em localStorage — não é
-   escrito no clipboard do SO; o `paste` nativo para ele vem com `items` vazio.
+5. **Copy/cut TAMBÉM escreve o JSON descritivo dos elementos no clipboard do
+   SO** (`navigator.clipboard.writeText`, fire-and-forget com `.catch`), para
+   permitir colar em editores de texto externos. O clipboard interno do app
+   (localStorage, mesma chave `archidraw:clipboard`) continua sendo o fallback
+   para o `paste` sintético dos testes (que vem com `items`/`text` vazio).
+   Formato do envelope: `{schemaVersion: 1, type: "archidraw/elements",
+   elements: [...]}` (pretty-print). O parser aceita também array puro de
+   elementos e objeto único de elemento — ver `clipboardJson.ts`.
+6. JSON colado no canvas é normalizado (`normalizeElement`): defaults para
+   campos base faltantes, campos opcionais inválidos são descartados, enums
+   fora do domínio caem no default; payload com QUALQUER elemento inválido é
+   rejeitado por completo (nunca cola meio payload).
 
 ## Onde aconteceu (referência)
 
@@ -48,4 +60,9 @@
 - [ ] `preventDefault()` no keydown de Cmd+V está ausente?
 - [ ] O evento nativo `paste` é a única via de inserção de imagem externa?
 - [ ] `paste` handler faz `preventDefault()` em todo caminho tratado/ignorado?
-- [ ] E2E usa `pressPaste()` (dispatch sintético) ou `Meta+v` (só macOS local), nunca `Control+v`?
+- [ ] `copySelected` continua escrevendo o JSON no clipboard do SO **e** no
+      localStorage (fallback dos testes)?
+- [ ] JSON externo colado passa por `parseElementsClipboard` (rejeição
+      atômica) antes de chegar em `insertPasted`?
+- [ ] E2E usa `pressPaste()`/`pressPasteText()` (dispatch sintético), nunca
+      `Control+v`?
