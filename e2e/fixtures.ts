@@ -153,6 +153,24 @@ export async function pressPaste(page: Page) {
   });
 }
 
+/**
+ * Dispatch a synthetic paste event carrying text content — simulates pasting
+ * JSON copied from an external text editor into the canvas.
+ */
+export async function pressPasteText(page: Page, text: string) {
+  await page.evaluate((value: string) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", value);
+    document.dispatchEvent(
+      new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: data,
+      }),
+    );
+  }, text);
+}
+
 export type FilePayload =
   | string
   | {

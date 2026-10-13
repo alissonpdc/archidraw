@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { editor } from "../hooks/useEditor";
 import { AdditionalInfoModal } from "./AdditionalInfoModal";
@@ -14,6 +23,26 @@ import { BringForwardIcon, BringToFrontIcon, CopyIcon, CopyStyleIcon, CutIcon, D
 import { MOD } from "../platform";
 
 const MODIFIER_KEYS = new Set(["Control", "Meta", "Shift", "Alt"]);
+
+/** minimum distance kept between a menu box and every viewport edge */
+const EDGE_MARGIN = 8;
+
+type SubmenuId = "layers" | "download" | "copy";
+
+interface SubmenuState {
+  id: SubmenuId;
+  anchor: HTMLElement;
+}
+
+/** viewport position of the menu box (layout space, free of any transform) */
+interface MenuOrigin {
+  left: number;
+  top: number;
+}
+
+function clampEdge(min: number, value: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
+}
 
 interface MenuState {
   x: number;
@@ -58,6 +87,58 @@ function saveElements(saveIds: string[] | null): Element[] {
 }
 
 /**
+ * Hover-opened submenu of the context menu.
+ *
+ * It positions itself in a layout effect (before paint, so it never flashes at
+ * the default spot) and keeps `EDGE_MARGIN` between itself and every viewport
+ * edge: it shifts up when it would cross the bottom edge and opens to the left
+ * of its parent item when it would cross the right edge.
+ *
+ * Every measurement is layout-based (`offset*` + the menu's own origin), never
+ * `getBoundingClientRect()`: the menu is still running `menu-in` (scale +
+ * slide) while it opens, and a transformed rect describes a box smaller than
+ * the one that ends up on screen, so the clamp would leave it over the edge.
+ */
+function ContextSubmenu({
+  anchor,
+  origin,
+  children,
+}: {
+  anchor: HTMLElement;
+  origin: MenuOrigin;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<CSSProperties | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const host = anchor.offsetParent as HTMLElement | null;
+    if (!el || !host) return;
+    const left = origin.left + host.clientLeft + anchor.offsetLeft;
+    const top = origin.top + host.clientTop + anchor.offsetTop;
+    const width = el.offsetWidth;
+    const height = el.offsetHeight;
+    const wantedTop = clampEdge(
+      EDGE_MARGIN,
+      top - 1,
+      window.innerHeight - height - EDGE_MARGIN,
+    );
+    let wantedLeft = left + anchor.offsetWidth;
+    if (wantedLeft + width + EDGE_MARGIN > window.innerWidth) {
+      wantedLeft = Math.max(EDGE_MARGIN, left - width);
+    }
+    setStyle({ left: wantedLeft - left, top: wantedTop - top });
+  }, [anchor, origin]);
+
+  return (
+    <div ref={ref} className="context-menu-submenu" style={style}>
+      {children}
+    </div>
+  );
+}
+
+/**
  * Replaces the browser context menu over the canvas (`.canvas-host`) with
  * ArchiDraw's own menu. Rendered via portal + fixed positioning so no
  * ancestor overflow/transform can clip it (see KB tooltip-clipping).
@@ -66,9 +147,21 @@ export function ContextMenu() {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [pos, setPos] = useState<MenuOrigin | null>(null);
+  const [submenu, setSubmenu] = useState<SubmenuState | null>(null);
 
-  const close = useCallback(() => setMenu(null), []);
+  // viewport origin of the menu box: the clamped position once it is measured,
+  // the raw pointer position on the frame it mounts (submenu stays closed then)
+  const origin = useMemo<MenuOrigin>(
+    () => pos ?? { left: menu?.x ?? 0, top: menu?.y ?? 0 },
+    [pos, menu],
+  );
+
+  const close = useCallback(() => {
+    setMenu(null);
+    setPos(null);
+    setSubmenu(null);
+  }, []);
 
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => {
@@ -95,6 +188,8 @@ export function ContextMenu() {
         targetId: hit?.id ?? null,
         saveIds: hit ? saveTarget(selection) : null,
       });
+      setPos(null);
+      setSubmenu(null);
       window.dispatchEvent(new CustomEvent("archidraw:contextmenu", { detail: true }));
     };
     const onDown = (e: MouseEvent) => {
@@ -123,9 +218,20 @@ export function ContextMenu() {
   // clamp the menu into the viewport once it is measured
   useLayoutEffect(() => {
     if (!menu || !menuRef.current) return;
-    const r = menuRef.current.getBoundingClientRect();
-    const left = Math.max(8, Math.min(menu.x, window.innerWidth - r.width - 8));
-    const top = Math.max(8, Math.min(menu.y, window.innerHeight - r.height - 8));
+    const el = menuRef.current;
+    // offset* reads the layout box: `menu-in` scales the menu with a CSS
+    // transform while it fades in, and getBoundingClientRect() would return
+    // that shrunken box, making the clamp leave the menu over the edge
+    const left = clampEdge(
+      EDGE_MARGIN,
+      menu.x,
+      window.innerWidth - el.offsetWidth - EDGE_MARGIN,
+    );
+    const top = clampEdge(
+      EDGE_MARGIN,
+      menu.y,
+      window.innerHeight - el.offsetHeight - EDGE_MARGIN,
+    );
     setPos({ left, top });
   }, [menu]);
 
@@ -262,10 +368,6 @@ export function ContextMenu() {
     close();
   };
 
-  const [copySubmenu, setCopySubmenu] = useState(false);
-  const [layersSubmenu, setLayersSubmenu] = useState(false);
-  const [downloadSubmenu, setDownloadSubmenu] = useState(false);
-
   const copyAsSvg = async () => {
     const selected = saveElements(menu?.saveIds ?? null);
     if (selected.length === 0) return;
@@ -293,8 +395,8 @@ export function ContextMenu() {
           role="menu"
           data-testid="context-menu"
           style={{
-            left: pos?.left ?? menu.x,
-            top: pos?.top ?? menu.y,
+            left: origin.left,
+            top: origin.top,
             visibility: pos ? "visible" : "hidden",
           }}
         >
@@ -360,14 +462,16 @@ export function ContextMenu() {
                 className="context-menu-item context-menu-parent"
                 role="menuitem"
                 data-testid="context-menu-layers"
-                onMouseEnter={() => setLayersSubmenu(true)}
-                onMouseLeave={() => setLayersSubmenu(false)}
+                onMouseEnter={(e) =>
+                  setSubmenu({ id: "layers", anchor: e.currentTarget })
+                }
+                onMouseLeave={() => setSubmenu(null)}
               >
                 <LayersIcon size={14} />
                 <span>Layers</span>
                 <span className="context-menu-item-shortcut">&#9656;</span>
-                {layersSubmenu && (
-                  <div className="context-menu-submenu">
+                {submenu?.id === "layers" && (
+                  <ContextSubmenu anchor={submenu.anchor} origin={origin}>
                     <button
                       className="context-menu-item"
                       role="menuitem"
@@ -404,7 +508,7 @@ export function ContextMenu() {
                       <SendBackwardIcon size={14} />
                       <span>Send Backward</span>
                     </button>
-                  </div>
+                  </ContextSubmenu>
                 )}
               </div>
               <div className="context-menu-divider" />
@@ -486,14 +590,16 @@ export function ContextMenu() {
                 className="context-menu-item context-menu-parent"
                 role="menuitem"
                 data-testid="context-menu-download"
-                onMouseEnter={() => setDownloadSubmenu(true)}
-                onMouseLeave={() => setDownloadSubmenu(false)}
+                onMouseEnter={(e) =>
+                  setSubmenu({ id: "download", anchor: e.currentTarget })
+                }
+                onMouseLeave={() => setSubmenu(null)}
               >
                 <DownloadIcon size={14} />
                 <span>Download</span>
                 <span className="context-menu-item-shortcut">&#9656;</span>
-                {downloadSubmenu && (
-                  <div className="context-menu-submenu">
+                {submenu?.id === "download" && (
+                  <ContextSubmenu anchor={submenu.anchor} origin={origin}>
                     <button
                       className="context-menu-item"
                       role="menuitem"
@@ -510,21 +616,23 @@ export function ContextMenu() {
                     >
                       Download as SVG
                     </button>
-                  </div>
+                  </ContextSubmenu>
                 )}
               </div>
               <div
                 className="context-menu-item context-menu-parent"
                 role="menuitem"
                 data-testid="context-menu-copy-image"
-                onMouseEnter={() => setCopySubmenu(true)}
-                onMouseLeave={() => setCopySubmenu(false)}
+                onMouseEnter={(e) =>
+                  setSubmenu({ id: "copy", anchor: e.currentTarget })
+                }
+                onMouseLeave={() => setSubmenu(null)}
               >
                 <CopyIcon size={14} />
                 <span>Copy</span>
                 <span className="context-menu-item-shortcut">&#9656;</span>
-                {copySubmenu && (
-                  <div className="context-menu-submenu">
+                {submenu?.id === "copy" && (
+                  <ContextSubmenu anchor={submenu.anchor} origin={origin}>
                     <button
                       className="context-menu-item"
                       role="menuitem"
@@ -541,7 +649,7 @@ export function ContextMenu() {
                     >
                       Copy as PNG
                     </button>
-                  </div>
+                  </ContextSubmenu>
                 )}
               </div>
               <div className="context-menu-divider" />

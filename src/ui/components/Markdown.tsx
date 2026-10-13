@@ -51,11 +51,21 @@ function renderInline(nodes: MdInline[], keyPrefix: string): ReactNode[] {
   });
 }
 
-function renderBlock(block: MdBlock, i: number): ReactNode {
+function renderBlock(
+  block: MdBlock,
+  i: number,
+  headingOffset: number,
+): ReactNode {
   const key = `b${i}`;
   switch (block.kind) {
     case "heading": {
-      const Tag = `h${Math.min(block.level + 2, 6)}` as "h3" | "h4" | "h5" | "h6";
+      const Tag = `h${Math.min(block.level + headingOffset, 6)}` as
+        | "h1"
+        | "h2"
+        | "h3"
+        | "h4"
+        | "h5"
+        | "h6";
       return (
         <Tag key={key} className={`md-h md-h${block.level}`}>
           {renderInline(block.children, key)}
@@ -88,7 +98,7 @@ function renderBlock(block: MdBlock, i: number): ReactNode {
     case "quote":
       return (
         <blockquote key={key} className="md-quote">
-          {block.children.map(renderBlock)}
+          {block.children.map((child, j) => renderBlock(child, j, headingOffset))}
         </blockquote>
       );
     case "list": {
@@ -184,9 +194,20 @@ function StructuredCode({
 
 /**
  * Renders a markdown source as React elements. No `innerHTML` anywhere, so
- * the source is never interpreted as markup.
+ * the source is never interpreted as markup. `headingOffset` shifts the
+ * rendered heading levels, so a standalone page can start at `h1`.
  */
-export function Markdown({ source }: { source: string }) {
+export function Markdown({
+  source,
+  headingOffset = 2,
+}: {
+  source: string;
+  headingOffset?: number;
+}) {
   const blocks = useMemo(() => parseMarkdown(source), [source]);
-  return <div className="md-root">{blocks.map(renderBlock)}</div>;
+  return (
+    <div className="md-root">
+      {blocks.map((block, i) => renderBlock(block, i, headingOffset))}
+    </div>
+  );
 }

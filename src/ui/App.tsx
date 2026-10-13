@@ -224,8 +224,8 @@ export function App() {
       // de menu "Paste" e clique direito → Paste, sempre com os dados do
       // clipboard do SO. preventDefault em TODA chamada tratada (ou ignorada)
       // evita o menu nativo "Paste" do macOS e a inserção default em alvo
-      // não-editável. Imagens externas têm prioridade; sem elas, cola o
-      // clipboard interno do app (localStorage); caso contrário, nada.
+      // não-editável. Prioridade: imagem externa → JSON descritivo de
+      // elementos vindo do clipboard do SO → clipboard interno do app.
       const tag = document.activeElement?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT") return;
       e.preventDefault();
@@ -239,7 +239,8 @@ export function App() {
           }
         }
       }
-      // sem imagem externa: cola o clipboard interno do app (localStorage)
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      if (text !== "" && editor.pasteFromText(text) > 0) return;
       if (internalClipboardHas()) {
         editor.paste();
       }
