@@ -727,7 +727,7 @@ Each item is rasterized into one self-contained SVG, so only the fields below ar
 | type | string | `rectangle`, `ellipse`, `diamond`, `line`, `draw`, `arrow`, `text`; anything else (including `component` and `context`) is dropped silently |
 | x, y | number | top-left corner for shapes and text; origin of `points` for line, arrow and draw |
 | width, height | number | bounding box for rectangle, ellipse, diamond and text (also the rotation center of every element); line, arrow and draw geometry comes from `points`, so these two only feed the box |
-| points | array of `[dx, dy]` or `{x, y}` | required for line, arrow and draw: offsets relative to `x`, `y`; fewer than two entries drops the element |
+| points | array of `[dx, dy]` or `{x, y}` | required for line, arrow and draw: offsets relative to `x`, `y`; fewer than two entries drops the element. Tuples and objects may be mixed inside one array: every entry is normalized on its own, an entry that is neither shape is dropped alone, and the two-entry minimum counts only what survives |
 | strokeColor | string | default `#000000`; for `text` it is the glyph color |
 | backgroundColor | string | `transparent` or missing → no fill; ignored by `text` |
 | fillStyle | string | `hachure` renders the fill at 0.4 alpha, `cross-hatch` at 0.6, `solid` and any other value at full alpha |
@@ -739,7 +739,7 @@ Each item is rasterized into one self-contained SVG, so only the fields below ar
 | startArrowhead, endArrowhead | string or null | arrow only; the end head is drawn unless the value is `null` or `"none"`, the start head only when set to a value other than `"none"`; head size is fixed |
 | text, fontSize | string, number | text only; `fontSize` defaults to 20; lines split on `\n`, line step `fontSize * 1.25` |
 | fontFamily | number or string | text only; `1` (or a Virgil/Excalifont name) → sketch, `3` (or `cascadia`) → mono, anything else → system-ui |
-| closed | boolean | `line` or `draw`: appends the closing segment, also implied when the first point equals the last; the full contour is stroked with `strokeColor`/`strokeWidth`, and only a `line` is then filled per `fillStyle` — `draw` never fills |
+| closed | boolean | `line` or `draw`: appends the closing segment, also implied when the first point equals the last; the full contour is stroked with `strokeColor`/`strokeWidth`, and only a `line` is then filled per `fillStyle` — `draw` never fills, and an open contour never fills either, so `fillStyle` has nothing to act on there; wherever a fill does exist the `fillStyle` row applies as written (hachure → 0.4 alpha) |
 
 ### 5.3 Layout and rendering rules
 

@@ -118,6 +118,8 @@ test.describe("docs route", () => {
       "first point equals the last",
       "Arcs and silhouettes",
       "black fill, no stroke",
+      "Tuples and objects may be mixed inside one array",
+      "an open contour never fills either",
     ]) {
       expect(body, `library token ${token} documented`).toContain(token);
     }
