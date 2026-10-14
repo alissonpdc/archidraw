@@ -8,6 +8,40 @@ import {
   type StructuredLang,
 } from "../../core/structuredCode";
 
+/** stable anchor for section headings (shared with the docs index) */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** plain text of an inline tree: markup and code spans carry no syntax */
+function inlineText(nodes: MdInline[]): string {
+  let out = "";
+  for (const node of nodes) {
+    switch (node.kind) {
+      case "text":
+      case "code":
+        out += node.value;
+        break;
+      case "strong":
+      case "emphasis":
+      case "strikethrough":
+      case "link":
+        out += inlineText(node.children);
+        break;
+      case "image":
+        out += node.alt || "";
+        break;
+      case "break":
+        out += " ";
+        break;
+    }
+  }
+  return out.trim();
+}
+
 function renderInline(nodes: MdInline[], keyPrefix: string): ReactNode[] {
   return nodes.map((node, i) => {
     const key = `${keyPrefix}-${i}`;
@@ -67,7 +101,11 @@ function renderBlock(
         | "h5"
         | "h6";
       return (
-        <Tag key={key} className={`md-h md-h${block.level}`}>
+        <Tag
+          key={key}
+          className={`md-h md-h${block.level}`}
+          id={slugify(inlineText(block.children))}
+        >
           {renderInline(block.children, key)}
         </Tag>
       );

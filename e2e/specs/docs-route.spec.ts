@@ -42,6 +42,65 @@ test.describe("docs route", () => {
     expect(await page.locator("h2").count()).toBeGreaterThanOrEqual(6);
   });
 
+  test("renders a left-side index linking every section heading", async ({ page }) => {
+    await openDocs(page);
+
+    const index = page.locator('[data-testid="docs-index"]');
+    await expect(index).toBeVisible();
+
+    const headings = page.locator(".docs__body .md-h2, .docs__body .md-h3");
+    const headingCount = await headings.count();
+    expect(headingCount).toBeGreaterThanOrEqual(30);
+
+    const links = index.locator("a");
+    expect(await links.count()).toBe(headingCount);
+
+    const ids = await headings.evaluateAll((els) =>
+      els.map((el) => (el as HTMLElement).id),
+    );
+    for (const id of ids) {
+      expect(id, "every section heading carries an id").not.toHaveLength(0);
+    }
+    const hrefs = await links.evaluateAll((as) =>
+      as.map((a) => a.getAttribute("href")),
+    );
+    expect(hrefs).toEqual(ids.map((id) => `#${id}`));
+
+    const idxBox = await index.boundingBox();
+    const bodyBox = await page.locator(".docs__body").boundingBox();
+    expect(idxBox!.x, "menu glued to the left edge").toBe(0);
+    expect(idxBox!.x).toBeLessThan(bodyBox!.x);
+
+    // fixed: the menu stays put while the doc scrolls under it
+    const yBefore = idxBox!.y;
+    const bodyYBefore = bodyBox!.y;
+    await page.evaluate(() => {
+      document.querySelector(".docs")?.scrollTo({ top: 600, behavior: "instant" });
+    });
+    expect((await index.boundingBox())!.y).toBe(yBefore);
+    expect((await page.locator(".docs__body").boundingBox())!.y).toBeLessThan(
+      bodyYBefore,
+    );
+    await page.evaluate(() => {
+      document.querySelector(".docs")?.scrollTo({ top: 0, behavior: "instant" });
+    });
+
+    const targetId = ids[10];
+    await links.nth(10).click();
+    await expect
+      .poll(
+        () =>
+          page.evaluate((id) => {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            const r = el.getBoundingClientRect();
+            return r.top >= 0 && r.top < window.innerHeight;
+          }, targetId),
+        { timeout: 5000 },
+      )
+      .toBe(true);
+  });
+
   test("documents every element type, enum and schema marker", async ({ page }) => {
     await openDocs(page);
     const body = await page.locator(".md-root").innerText();
@@ -101,6 +160,103 @@ test.describe("docs route", () => {
     ]) {
       expect(body, `field ${field} documented`).toContain(field);
     }
+  });
+
+  test("documents the .archidraw workspace file format guidance", async ({ page }) => {
+    await openDocs(page);
+    const body = await page.locator(".md-root").innerText();
+
+    for (const token of [
+      "the reference set to copy",
+      "Omitting them is safe",
+      "Open never recomputes membership",
+      "the tab order decides",
+      "The box never wraps",
+      "sits inside the box",
+      "the only place captionPosition applies",
+      "bottom-right corner",
+      "edges included",
+    ]) {
+      expect(body, `workspace token ${token} documented`).toContain(token);
+    }
+  });
+
+  test("documents the .archidrawlib library file format", async ({ page }) => {
+    await openDocs(page);
+    const body = await page.locator(".md-root").innerText();
+
+    for (const token of [
+      ".archidrawlib",
+      "libraryItems",
+      "roundness",
+      "cross-hatch",
+      "Invalid library file",
+      "fontSize × 0.6 × text.length",
+      "smooths the vertices",
+      "first point equals the last",
+      "Arcs and silhouettes",
+      "black fill, no stroke",
+      "Tuples and objects may be mixed inside one array",
+      "an open contour never fills either",
+    ]) {
+      expect(body, `library token ${token} documented`).toContain(token);
+    }
+
+    await expect(
+      page.locator(".md-h3", { hasText: "5.3 Layout and rendering rules" }),
+    ).toHaveCount(1);
+  });
+
+  test("library file example imports through the library panel", async ({
+    page,
+  }) => {
+    await openDocs(page);
+    const json = await extractJsonBlock(page, [
+      '"type": "archidrawlib"',
+      '"libraryItems"',
+      '"name": "Invoke"',
+    ]);
+    expect(json).toBeTruthy();
+
+    const parsed = JSON.parse(json!);
+    expect(parsed.schemaVersion).toBeUndefined();
+    expect(parsed.version).toBe(2);
+    expect(parsed.libraryItems.length).toBeGreaterThanOrEqual(2);
+    for (const item of parsed.libraryItems) {
+      expect(typeof item.name).toBe("string");
+      expect(item.elements.length).toBeGreaterThan(0);
+    }
+
+    await open(page);
+    await page.keyboard.press("l");
+    await expect(page.locator(".library-panel")).toBeVisible();
+
+    await page.locator('[data-testid="library-import"]').click();
+    await page
+      .locator(".library-import-input")
+      .setInputFiles({
+        name: "docs-example.archidrawlib",
+        mimeType: "application/json",
+        buffer: Buffer.from(json!, "utf8"),
+      });
+
+    const group = page.locator('[data-testid="library-imported-group"]');
+    await expect(group).toHaveCount(1);
+    await expect(group.locator(".library-tile")).toHaveCount(
+      parsed.libraryItems.length,
+    );
+
+    const svg = await page.evaluate(() =>
+      JSON.parse(
+        localStorage.getItem("archidraw:importedLibraries") || "[]",
+      )
+        .flatMap((l: { items: { svg: string }[] }) => l.items)
+        .map((it: { svg: string }) => it.svg)
+        .join("\n"),
+    );
+    expect(svg).not.toContain("NaN");
+    expect(svg).not.toContain("undefined");
+    expect(svg).toContain("<svg");
   });
 
   test("clipboard envelope example pastes all eight element types", async ({ page, editorState }) => {
