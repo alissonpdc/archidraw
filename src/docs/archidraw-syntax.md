@@ -92,7 +92,7 @@ Important: in a schema 2 file the app does not default geometry or color fields.
 - Import is additive. Existing tabs are never replaced or removed.
 - Tab ids are regenerated as `tab_<base36 timestamp>_<counter>`.
 - Tab names and cameras are preserved.
-- The first imported tab becomes the active tab.
+- The first imported tab becomes the active tab: the tab order decides what you see first after an Open, while `activeTabId` (section 2.1) is honored only when the whole workspace is restored from the autosave when the app starts.
 - The picker accepts `.archidraw`, `.archidraw.json` and plain `.json` files carrying this envelope. `.excalidraw` files take a separate import path that is out of scope here.
 
 The same envelope is used for the localStorage autosave (key `archidraw:workspace`), for Save Diagram (active tab exported as a one-tab file `<slug>.archidraw`) and for Save All (`workspace.archidraw`).
@@ -471,6 +471,8 @@ A binding object without a string `elementId` is dropped. In a file, reference i
 ### 3.6 Text and label layout
 
 Text elements align inside their own box: `textAlign` picks the horizontal anchor and `textVAlign` the vertical one, then `textOffset*` values nudge the block in pixels. Multi-line text uses embedded newline characters and `lineSpacing` as the line height multiplier. Labels on shapes behave like captions: `captionPosition` chooses the side, `captionGap` the distance in pixels, and the `captionOffset*` values fine tune the placement. `textColor` empty or missing falls back to `strokeColor`.
+
+The box never wraps: lines break only on `\n`, and `width`/`height` are just the anchor rectangle inside which `textAlign` and `textVAlign` position the block — a line longer than `width` keeps drawing past the box, nothing is clipped. Size the box to the content: the `fontSize × 0.6 × text.length` estimate of section 5.3 applies to `text` elements here too.
 
 ## 4. Clipboard syntax (copy and paste)
 

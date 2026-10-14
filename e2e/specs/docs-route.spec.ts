@@ -111,6 +111,8 @@ test.describe("docs route", () => {
       "the reference set to copy",
       "Omitting them is safe",
       "Open never recomputes membership",
+      "the tab order decides",
+      "The box never wraps",
     ]) {
       expect(body, `workspace token ${token} documented`).toContain(token);
     }
