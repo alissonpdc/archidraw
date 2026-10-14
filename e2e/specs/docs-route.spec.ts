@@ -113,6 +113,9 @@ test.describe("docs route", () => {
       "roundness",
       "cross-hatch",
       "Invalid library file",
+      "fontSize × 0.6 × text.length",
+      "smooths the vertices",
+      "first point equals the last",
     ]) {
       expect(body, `library token ${token} documented`).toContain(token);
     }

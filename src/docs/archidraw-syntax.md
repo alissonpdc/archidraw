@@ -734,18 +734,18 @@ Each item is rasterized into one self-contained SVG, so only the fields below ar
 | strokeWidth | number | default 1 when missing or not positive |
 | strokeStyle | string | `dashed` → `8 5`, `dotted` → dots, anything else (including `dashdot`) solid |
 | opacity | number | **0 to 100** (not 0 to 1); `100` or higher renders fully opaque |
-| roundness | object or null | truthy (e.g. `{"type": 2}`) rounds corners to 25% of the smaller side; `strokeSharpness: "round"` does the same; there is no percent knob like `borderRadius` |
+| roundness | object or null | truthy (e.g. `{"type": 2}`) or `strokeSharpness: "round"`: on `rectangle` the corners become 25% of the smaller side; on `line`, `draw` and `arrow` it smooths the vertices into quadratic curves, which only matters from three points up (two-point strokes stay straight and `draw` is always smoothed anyway); no effect on `ellipse` and `diamond`; there is no percent knob like `borderRadius` |
 | angle | number | radians, clockwise, around the box center |
 | startArrowhead, endArrowhead | string or null | arrow only; the end head is drawn unless the value is `null` or `"none"`, the start head only when set to a value other than `"none"`; head size is fixed |
 | text, fontSize | string, number | text only; `fontSize` defaults to 20; lines split on `\n`, line step `fontSize * 1.25` |
 | fontFamily | number or string | text only; `1` (or a Virgil/Excalifont name) → sketch, `3` (or `cascadia`) → mono, anything else → system-ui |
-| closed | boolean | line only; closes the path so `fillStyle` applies |
+| closed | boolean | `line` or `draw`: appends the closing segment, also implied when the first point equals the last; the full contour is stroked with `strokeColor`/`strokeWidth`, and only a `line` is then filled per `fillStyle` — `draw` never fills |
 
 Layout and rendering rules:
 
-- Each item is centered on a square canvas of its bounding box plus 4 px of padding, always inserted at 64 × 64 with `aspect` 1 — a wide icon shrinks to fit the square.
+- Each item is centered on a square canvas of its bounding box plus 4 px on every side, always inserted at 64 × 64 with `aspect` 1 — a wide icon shrinks to fit the square. When the box is not square, the slack is split equally between the two margins of the axis that has room to spare (a tall icon ends up with equal left and right margins), and everything scales together: a 16 px caption inside an item about 130 px wide lands near 8 px on the canvas.
 - Bounding boxes honor `points`, so a line or arrow can reach outside `x` .. `x + width`.
-- Text is drawn from `x` left to right with the baseline at `y + fontSize * 0.8`. `textAlign` is not read: center a caption by computing `x` yourself from the text width.
+- Text is drawn from `x` left to right with the baseline at `y + fontSize * 0.8`; the SVG carries no `text-anchor`, so `textAlign` is never read and captions must be centered by hand. Horizontally, estimate the rendered width as `fontSize × 0.6 × text.length` (system-ui, mixed case) and set `x = boxCenterX − width / 2` — overestimating by a couple of pixels is invisible after the shrink to 64 px, while underestimating can push glyphs past the 4 px padding of the item box. Vertically, a caption centered in a box of height `H` starts at `y = boxTop + H / 2 − fontSize / 2`, within about a pixel of the optical center.
 - `opacity` below 100 applies to the whole group; missing `strokeColor` falls back to `#000000`.
 
 ### 5.3 Validation and rejection rules
