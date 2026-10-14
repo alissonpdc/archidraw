@@ -10,7 +10,7 @@ Machine-oriented reference for AI agents that create or edit Archidraw drawings 
 | Clipboard payload | OS clipboard, plain text | `{"schemaVersion": 1, "type": "archidraw/elements", "elements": [...]}` | Paste into the open canvas |
 | Library file | `.archidrawlib` or `.excalidrawlib` (UTF-8, `application/json`) | `{"type": "archidrawlib", "version": 2, "libraryItems": [...]}` | Import via the Library panel (import button) |
 
-The three carriers are disjoint: each parser accepts only its own top-level shape and reports a generic error for the others (sections 2.2, 4.3 and 5.3).
+The three carriers are disjoint: each parser accepts only its own top-level shape and reports a generic error for the others (sections 2.2, 4.3 and 5.4).
 
 Three version markers exist and must not be confused:
 
@@ -716,7 +716,7 @@ Accepted roots, in order of lookup:
 2. A legacy object: `{library: [[element, ...], ...]}` (v1), where every entry is already a bare element array.
 3. A root array of element arrays.
 
-Any other root — including a workspace envelope with `tabs` — is rejected (section 5.3).
+Any other root — including a workspace envelope with `tabs` — is rejected (section 5.4).
 
 ### 5.2 Element schema (Excalidraw, not section 3)
 
@@ -741,14 +741,22 @@ Each item is rasterized into one self-contained SVG, so only the fields below ar
 | fontFamily | number or string | text only; `1` (or a Virgil/Excalifont name) → sketch, `3` (or `cascadia`) → mono, anything else → system-ui |
 | closed | boolean | `line` or `draw`: appends the closing segment, also implied when the first point equals the last; the full contour is stroked with `strokeColor`/`strokeWidth`, and only a `line` is then filled per `fillStyle` — `draw` never fills |
 
-Layout and rendering rules:
+### 5.3 Layout and rendering rules
 
 - Each item is centered on a square canvas of its bounding box plus 4 px on every side, always inserted at 64 × 64 with `aspect` 1 — a wide icon shrinks to fit the square. When the box is not square, the slack is split equally between the two margins of the axis that has room to spare (a tall icon ends up with equal left and right margins), and everything scales together: a 16 px caption inside an item about 130 px wide lands near 8 px on the canvas.
 - Bounding boxes honor `points`, so a line or arrow can reach outside `x` .. `x + width`.
 - Text is drawn from `x` left to right with the baseline at `y + fontSize * 0.8`; the SVG carries no `text-anchor`, so `textAlign` is never read and captions must be centered by hand. Horizontally, estimate the rendered width as `fontSize × 0.6 × text.length` (system-ui, mixed case) and set `x = boxCenterX − width / 2` — overestimating by a couple of pixels is invisible after the shrink to 64 px, while underestimating can push glyphs past the 4 px padding of the item box. Vertically, a caption centered in a box of height `H` starts at `y = boxTop + H / 2 − fontSize / 2`, within about a pixel of the optical center.
+- Colors are never validated: the string lands in the SVG `fill`/`stroke` as it is and the import still succeeds. A value the browser cannot parse is dropped as an invalid declaration, leaving the SVG default for that property — black fill, no stroke, glyphs included — so stick to hex, `rgb()` or named colors.
 - `opacity` below 100 applies to the whole group; missing `strokeColor` falls back to `#000000`.
 
-### 5.3 Validation and rejection rules
+**Arcs and silhouettes.** To draw something rounder than the built-in shapes:
+
+- Sample the arc into three or more `points`; with two points the stroke stays straight and the smoothing of section 5.2 never kicks in.
+- An open curve — stroke only, nothing drawn back to the start — keeps `closed` off and `backgroundColor: "transparent"`; the path simply stops at the last point.
+- A filled silhouette with a curved outline is a `line` with `closed: true` and a `backgroundColor`: the whole contour, closing segment included, is stroked and the area filled. `draw` cannot do that, it never fills.
+- Seams are hidden by array order: elements render bottom-up, so an `ellipse` listed after an open `draw` body covers its open end (cylinder: body first, lid ellipse on top).
+
+### 5.4 Validation and rejection rules
 
 Library import is all-or-nothing. The file is rejected when any of these holds:
 
@@ -760,7 +768,7 @@ The Library panel reports every rejection with the single message `Invalid libra
 
 Everything else is tolerated and never rejects: unknown fields are ignored, an entry that is neither an array nor an object with an `elements` array is skipped, and element-level problems only cost that element. An unsupported `type` or a `line`/`arrow` without a usable `points` array disappears; mistyped style fields fall back to their defaults (`strokeWidth` 1, `strokeColor` `#000000`, `fillStyle` `solid`). Geometry, by contrast, is never checked at all: `x`, `y`, `width`, `height` and `points` must already be finite numbers, because a non-numeric value lands as `NaN` in the SVG.
 
-### 5.4 Import semantics
+### 5.5 Import semantics
 
 - Channel: Library panel → import button, which accepts `.excalidrawlib` and `.archidrawlib` files. This is not the app menu Open of section 2.4; the two parsers are disjoint, so a workspace envelope fails here and a `libraryItems` file fails there.
 - The group takes the file name without extension (`_` becomes a space, an empty base becomes `Imported library`) and opens expanded.
@@ -768,7 +776,7 @@ Everything else is tolerated and never rejects: unknown fields are ignored, an e
 - Clicking a tile inserts a `component` element whose `componentId` starts with `imp-` and carries no label.
 - The app's own Export .archidrawlib button writes exactly the envelope of section 5.1, converting `opacity` to 0–100, renaming `cross-hachure` to `cross-hatch`, mapping `dashdot` to `solid`, turning line geometry into `points` and dropping `component` elements, whose image assets do not translate.
 
-### 5.5 Example
+### 5.6 Example
 
 ```json
 {
@@ -879,7 +887,7 @@ endBinding   = { elementId: B.id, nx: 0, ny: 0.5, side: "left" }
 - The payload is valid JSON, UTF-8 encoded.
 - A file uses `schemaVersion` 2 with a non-empty `tabs` array; every tab has `id`, `name`, `doc` and `camera`.
 - A library file uses `version` 2 with a non-empty `libraryItems` array of `{name, elements}` entries whose `elements` are non-empty; it never carries `schemaVersion` or `tabs`.
-- Each channel rejects the other envelopes: a workspace file fails the Library import and a `libraryItems` file fails Open, both with a generic error (sections 2.2 and 5.3).
+- Each channel rejects the other envelopes: a workspace file fails the Library import and a `libraryItems` file fails Open, both with a generic error (sections 2.2 and 5.4).
 - Library elements follow section 5.2: `opacity` runs from 0 to 100, corners use `roundness` instead of `borderRadius`, line and arrow geometry lives in `points`, and there are no ids, bindings or labels — captions are `text` elements positioned manually.
 - Every element uses one of the eight ElementType values, spelled exactly as in section 3.4.
 - Files spell out all base fields explicitly; only clipboard payloads may rely on defaults.

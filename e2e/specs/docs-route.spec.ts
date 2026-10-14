@@ -116,9 +116,15 @@ test.describe("docs route", () => {
       "fontSize × 0.6 × text.length",
       "smooths the vertices",
       "first point equals the last",
+      "Arcs and silhouettes",
+      "black fill, no stroke",
     ]) {
       expect(body, `library token ${token} documented`).toContain(token);
     }
+
+    await expect(
+      page.locator(".md-h3", { hasText: "5.3 Layout and rendering rules" }),
+    ).toHaveCount(1);
   });
 
   test("library file example imports through the library panel", async ({
