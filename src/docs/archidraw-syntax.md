@@ -408,7 +408,7 @@ Present on every element. The default column applies to the clipboard normalizer
 | textOffsetBottom | number | 0 | pixels, vertical fine tuning of the text block |
 | textOffsetLeft | number | 0 | pixels, horizontal fine tuning of the text block |
 | textOffsetRight | number | 0 | pixels, horizontal fine tuning of the text block |
-| captionPosition | CaptionPosition | `bottom` | side that carries the caption or details badge |
+| captionPosition | CaptionPosition | `bottom` | side that carries a `component` caption — the only label it moves; the details badge has its own fixed anchor (bottom-right corner on shapes, below the label on edges) |
 | captionGap | number | 2 | pixels between the element and its caption |
 | captionOffsetTop | number | 0 | pixels, caption fine tuning |
 | captionOffsetBottom | number | 0 | pixels, caption fine tuning |
@@ -424,7 +424,7 @@ Present on every element. The default column applies to the clipboard normalizer
 | arrow | all line fields plus `animated` (boolean, default false), `startArrowhead` (default `none`), `endArrowhead` (default `arrow`) |
 | text | `text` (string, defaults to empty), `fontSize` (number, defaults to 20) |
 | component | `componentId` (string, defaults to empty), `label`, `src` (data URL of a raster), `fill` (boolean, default false; true stretches the raster to the whole box) |
-| context | `label`, `labelPosition` (default `top-left`), `labelSide` (default `internal`), `childIds` (array of element id strings) |
+| context | `label`, `labelPosition` (default `top-left`), `labelSide` (`internal` when created in the app, `external` when missing), `childIds` (array of element id strings) |
 
 Notes on edges:
 
@@ -470,7 +470,9 @@ A binding object without a string `elementId` is dropped. In a file, reference i
 
 ### 3.6 Text and label layout
 
-Text elements align inside their own box: `textAlign` picks the horizontal anchor and `textVAlign` the vertical one, then `textOffset*` values nudge the block in pixels. Multi-line text uses embedded newline characters and `lineSpacing` as the line height multiplier. Labels on shapes behave like captions: `captionPosition` chooses the side, `captionGap` the distance in pixels, and the `captionOffset*` values fine tune the placement. `textColor` empty or missing falls back to `strokeColor`.
+Text elements align inside their own box: `textAlign` picks the horizontal anchor and `textVAlign` the vertical one, then `textOffset*` values nudge the block in pixels. Multi-line text uses embedded newline characters and `lineSpacing` as the line height multiplier. `textColor` empty or missing falls back to `strokeColor`.
+
+Label placement depends on the type: on `rectangle`, `diamond` and `ellipse` the label sits inside the box, anchored by `textAlign` (default `center`) and `textVAlign` (default `middle`) and inset by the `textOffset*` values; on `line` and `arrow` it sits on the edge point given by `labelT` (midpoint by default); on `component` it sits outside the icon on the `captionPosition` side (default `bottom`), spaced by `captionGap` and the `captionOffset*` values — the only place `captionPosition` applies; on `context` it goes to the corner named by `labelPosition` (default `top-left`), drawn inside the box when `labelSide` is `internal` and outside when `external` (a missing `labelSide` reads as `external` — contexts the app creates start with `internal`).
 
 The box never wraps: lines break only on `\n`, and `width`/`height` are just the anchor rectangle inside which `textAlign` and `textVAlign` position the block — a line longer than `width` keeps drawing past the box, nothing is clipped. Size the box to the content: the `fontSize × 0.6 × text.length` estimate of section 5.3 applies to `text` elements here too.
 

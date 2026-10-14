@@ -113,6 +113,9 @@ test.describe("docs route", () => {
       "Open never recomputes membership",
       "the tab order decides",
       "The box never wraps",
+      "sits inside the box",
+      "the only place captionPosition applies",
+      "bottom-right corner",
     ]) {
       expect(body, `workspace token ${token} documented`).toContain(token);
     }
