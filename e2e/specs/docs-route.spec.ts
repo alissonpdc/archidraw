@@ -42,6 +42,50 @@ test.describe("docs route", () => {
     expect(await page.locator("h2").count()).toBeGreaterThanOrEqual(6);
   });
 
+  test("renders a left-side index linking every section heading", async ({ page }) => {
+    await openDocs(page);
+
+    const index = page.locator('[data-testid="docs-index"]');
+    await expect(index).toBeVisible();
+
+    const headings = page.locator(".docs__body .md-h2, .docs__body .md-h3");
+    const headingCount = await headings.count();
+    expect(headingCount).toBeGreaterThanOrEqual(30);
+
+    const links = index.locator("a");
+    expect(await links.count()).toBe(headingCount);
+
+    const ids = await headings.evaluateAll((els) =>
+      els.map((el) => (el as HTMLElement).id),
+    );
+    for (const id of ids) {
+      expect(id, "every section heading carries an id").not.toHaveLength(0);
+    }
+    const hrefs = await links.evaluateAll((as) =>
+      as.map((a) => a.getAttribute("href")),
+    );
+    expect(hrefs).toEqual(ids.map((id) => `#${id}`));
+
+    const idxBox = await index.boundingBox();
+    const bodyBox = await page.locator(".docs__body").boundingBox();
+    expect(idxBox!.x).toBeLessThan(bodyBox!.x);
+
+    const targetId = ids[10];
+    await links.nth(10).click();
+    await expect
+      .poll(
+        () =>
+          page.evaluate((id) => {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            const r = el.getBoundingClientRect();
+            return r.top >= 0 && r.top < window.innerHeight;
+          }, targetId),
+        { timeout: 5000 },
+      )
+      .toBe(true);
+  });
+
   test("documents every element type, enum and schema marker", async ({ page }) => {
     await openDocs(page);
     const body = await page.locator(".md-root").innerText();
