@@ -116,6 +116,7 @@ test.describe("docs route", () => {
       "sits inside the box",
       "the only place captionPosition applies",
       "bottom-right corner",
+      "edges included",
     ]) {
       expect(body, `workspace token ${token} documented`).toContain(token);
     }
