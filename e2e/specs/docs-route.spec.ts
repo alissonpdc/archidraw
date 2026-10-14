@@ -68,7 +68,22 @@ test.describe("docs route", () => {
 
     const idxBox = await index.boundingBox();
     const bodyBox = await page.locator(".docs__body").boundingBox();
+    expect(idxBox!.x, "menu glued to the left edge").toBe(0);
     expect(idxBox!.x).toBeLessThan(bodyBox!.x);
+
+    // fixed: the menu stays put while the doc scrolls under it
+    const yBefore = idxBox!.y;
+    const bodyYBefore = bodyBox!.y;
+    await page.evaluate(() => {
+      document.querySelector(".docs")?.scrollTo({ top: 600, behavior: "instant" });
+    });
+    expect((await index.boundingBox())!.y).toBe(yBefore);
+    expect((await page.locator(".docs__body").boundingBox())!.y).toBeLessThan(
+      bodyYBefore,
+    );
+    await page.evaluate(() => {
+      document.querySelector(".docs")?.scrollTo({ top: 0, behavior: "instant" });
+    });
 
     const targetId = ids[10];
     await links.nth(10).click();

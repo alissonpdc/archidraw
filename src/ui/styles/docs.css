@@ -35,22 +35,22 @@
   text-decoration: underline;
 }
 
+/* column 1 is reserved for the fixed menu, column 2 holds the text */
 .docs__layout {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-6);
-  max-width: 1220px;
-  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
 }
 
 .docs__index {
-  position: sticky;
-  top: 56px;
-  flex: 0 0 232px;
-  width: 232px;
-  max-height: calc(100vh - 72px);
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 264px;
   overflow-y: auto;
-  padding: var(--space-5) var(--space-4) var(--space-6) var(--space-5);
+  padding: 60px var(--space-4) var(--space-6) var(--space-5);
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
   font-family: var(--font-ui);
   font-size: var(--font-size-sm);
 }
@@ -95,10 +95,9 @@
 }
 
 .docs__body {
-  flex: 1 1 auto;
-  min-width: 0;
+  grid-column: 2;
   max-width: 920px;
-  margin: 0;
+  margin: 0 auto;
   padding: var(--space-6) var(--space-5) var(--space-6);
   font-family: var(--font-ui);
   font-size: var(--font-size-md);
