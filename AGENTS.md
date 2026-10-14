@@ -39,7 +39,7 @@ First `make quality` on a clean clone just saves a baseline (no comparison).
 ## Architecture
 
 - **`src/core/`** — pure logic, no React. `Editor` class (state machine, `editor.ts`), `types.ts` (document model), `renderer.ts` (Canvas 2D), `history.ts` (undo/redo), `hitTest.ts`, `roughPath.ts` (deterministic sketch geometry), plus storage, exporter, and excalidraw import/export pipelines.
-- **`src/docs/`** — AI-facing syntax reference served at `/docs` (`DocsPage` renders `archidraw-syntax.md` via `Markdown`). Keep it in sync with `core/types.ts`, `core/clipboardJson.ts` and `core/storage.ts` — `e2e/specs/docs-route.spec.ts` pastes and imports every JSON example, so stale examples fail the gate.
+- **`src/docs/`** — AI-facing syntax reference served at `/docs` (`DocsPage` renders `archidraw-syntax.md` via `Markdown`). Keep it in sync with `core/types.ts`, `core/clipboardJson.ts`, `core/storage.ts`, `core/excalidrawImport.ts` and `core/archidrawLibExport.ts` — `e2e/specs/docs-route.spec.ts` pastes and imports every JSON example (workspace, clipboard and `.archidrawlib`), so stale examples fail the gate.
 - **`src/ui/`** — thin React 19 shell. Subscribes via `useSyncExternalStore(editor.subscribe, editor.getSnapshot)`.
 - All state and interaction logic lives in `src/core/`. `src/ui/` is presentation only.
 

@@ -103,6 +103,73 @@ test.describe("docs route", () => {
     }
   });
 
+  test("documents the .archidrawlib library file format", async ({ page }) => {
+    await openDocs(page);
+    const body = await page.locator(".md-root").innerText();
+
+    for (const token of [
+      ".archidrawlib",
+      "libraryItems",
+      "roundness",
+      "cross-hatch",
+      "Invalid library file",
+    ]) {
+      expect(body, `library token ${token} documented`).toContain(token);
+    }
+  });
+
+  test("library file example imports through the library panel", async ({
+    page,
+  }) => {
+    await openDocs(page);
+    const json = await extractJsonBlock(page, [
+      '"type": "archidrawlib"',
+      '"libraryItems"',
+      '"name": "Invoke"',
+    ]);
+    expect(json).toBeTruthy();
+
+    const parsed = JSON.parse(json!);
+    expect(parsed.schemaVersion).toBeUndefined();
+    expect(parsed.version).toBe(2);
+    expect(parsed.libraryItems.length).toBeGreaterThanOrEqual(2);
+    for (const item of parsed.libraryItems) {
+      expect(typeof item.name).toBe("string");
+      expect(item.elements.length).toBeGreaterThan(0);
+    }
+
+    await open(page);
+    await page.keyboard.press("l");
+    await expect(page.locator(".library-panel")).toBeVisible();
+
+    await page.locator('[data-testid="library-import"]').click();
+    await page
+      .locator(".library-import-input")
+      .setInputFiles({
+        name: "docs-example.archidrawlib",
+        mimeType: "application/json",
+        buffer: Buffer.from(json!, "utf8"),
+      });
+
+    const group = page.locator('[data-testid="library-imported-group"]');
+    await expect(group).toHaveCount(1);
+    await expect(group.locator(".library-tile")).toHaveCount(
+      parsed.libraryItems.length,
+    );
+
+    const svg = await page.evaluate(() =>
+      JSON.parse(
+        localStorage.getItem("archidraw:importedLibraries") || "[]",
+      )
+        .flatMap((l: { items: { svg: string }[] }) => l.items)
+        .map((it: { svg: string }) => it.svg)
+        .join("\n"),
+    );
+    expect(svg).not.toContain("NaN");
+    expect(svg).not.toContain("undefined");
+    expect(svg).toContain("<svg");
+  });
+
   test("clipboard envelope example pastes all eight element types", async ({ page, editorState }) => {
     await openDocs(page);
     const json = await extractJsonBlock(page, ['"archidraw/elements"', '"el_ctx"']);
