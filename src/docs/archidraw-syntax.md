@@ -85,7 +85,7 @@ Migrations applied while loading any file, legacy or not:
 - Missing style fields are filled: `strokeStyle` `solid`, `fillStyle` `solid`, `roughness` `0`, `borderRadius` `0`, `strokeOpacity` `1`, `fillOpacity` `1`, `angle` `0`.
 - Legacy bindings `{ "elementId": "...", "anchor": "top" }` become `{ "elementId": "...", "nx": 0.5, "ny": 0 }`. Anchor map: `top` to `0.5, 0`, `right` to `1, 0.5`, `bottom` to `0.5, 1`, `left` to `0, 0.5`, `center` to `0.5, 0.5`.
 
-Important: in a schema 2 file the app does not default geometry or color fields. Always write the full base field set of section 3.2 explicitly. Only the seven style fields listed above are auto-filled when missing.
+Important: in a schema 2 file the app does not default geometry or color fields. The base field set is `id`, `type`, `x`, `y`, `width`, `height`, `strokeColor`, `backgroundColor`, `strokeWidth`, `opacity` — nothing fills those — together with the seven style fields listed above, the only ones the loader adds. The elements of sections 2.5 and 2.6 carry exactly this base set plus the type-specific fields their types need, so the field list of the examples is the reference set to copy; every other section 3.2 field is optional fine-tuning (grouping, badges, text and caption offsets) that the examples omit without problem.
 
 ### 2.4 Import semantics
 
@@ -431,8 +431,11 @@ Notes on edges:
 - `labelT` positions the label along the edge from `0` (start) to `1` (end), default `0.5`.
 - `controlPoint` is an absolute scene point that bends a `curved` line or arrow.
 - `bendPoints` are intermediate vertices used by `auto` routing. The array is all-or-nothing: every item must be a valid `{x, y}` point or the field is dropped.
+- File defaults: the loader (section 2.3) fills none of these, and the renderer falls back on every read — a missing `lineType` reads as `straight`, `startArrowhead` as `none`, `endArrowhead` as `arrow`, `labelT` as `0.5`, `animated` as `false`. Omitting them is safe; writing them, as the examples do, is just clearer.
 - `componentId` values from the built-in catalog include `ec2`, `lambda`, `ecs`, `eks`, `api-gateway`, `elb`, `route53`, `cloudfront`, `vpc`, `dynamodb`, `rds`, `elasticache`, `s3`, `sqs` and `sns`.
 - `src` holds a self-contained raster such as `data:image/png;base64,...` for pasted or imported images.
+
+Note on contexts: `childIds` is read as written — Open never recomputes membership nor prunes the array; a dead id is ignored, not rejected. Fill it with the app's own rule: an element belongs to a context when its rotated bounds fall entirely inside the context's bounds, which is what the app records whenever an element is created, pasted or duplicated inside a context (contexts are never members of other contexts).
 
 ### 3.4 Enumerations
 

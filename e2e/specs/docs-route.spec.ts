@@ -103,6 +103,19 @@ test.describe("docs route", () => {
     }
   });
 
+  test("documents the .archidraw workspace file format guidance", async ({ page }) => {
+    await openDocs(page);
+    const body = await page.locator(".md-root").innerText();
+
+    for (const token of [
+      "the reference set to copy",
+      "Omitting them is safe",
+      "Open never recomputes membership",
+    ]) {
+      expect(body, `workspace token ${token} documented`).toContain(token);
+    }
+  });
+
   test("documents the .archidrawlib library file format", async ({ page }) => {
     await openDocs(page);
     const body = await page.locator(".md-root").innerText();
