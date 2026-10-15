@@ -13,6 +13,8 @@ import { downloadBlob } from "./exporter";
 interface ExcalidrawLibItem {
   name: string;
   elements: ExcalidrawElement[];
+  archidrawElements?: Element[];
+  svg?: string;
 }
 
 interface ExcalidrawLibFile {
@@ -116,7 +118,12 @@ export function exportCustomLibraryAsJson(): string | null {
       const elements = it.elements
         .map(elementToExcalidraw)
         .filter((e): e is ExcalidrawElement => e !== null);
-      return { name: it.name, elements };
+      return {
+        name: it.name,
+        elements,
+        archidrawElements: it.elements,
+        svg: it.svg,
+      };
     })
     .filter((it) => it.elements.length > 0);
 

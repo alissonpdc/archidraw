@@ -84,12 +84,13 @@ test.describe("custom library export (.archidrawlib)", () => {
     expect(parsed.libraryItems[0].elements[0].type).toBe("rectangle");
   });
 
-  test("exported file can be re-imported and renders on canvas", async ({
+  test("exported file can be re-imported as a native editable element", async ({
     page,
     editorState,
   }) => {
     await open(page);
     await drawRect(page);
+    const originalId = (await editorState()).elements[0].id;
     await saveToLibrary(page);
 
     await openLibrary(page);
@@ -117,8 +118,53 @@ test.describe("custom library export (.archidrawlib)", () => {
 
     const state = await editorState();
     expect(state.elementCount).toBe(2);
-    const imported = state.elements.find((e) => e.type === "component");
-    expect(imported).toBeTruthy();
+    // .archidrawlib carries native elements: the shape comes back editable,
+    // not rasterized into a component image
+    const imported = state.elements.find((e) => e.id !== originalId);
+    expect(imported?.type).toBe("rectangle");
+    expect(state.elements.some((e) => e.type === "component")).toBe(false);
+  });
+
+  test("re-imported custom item keeps roughness (draft lines) as a native element", async ({
+    page,
+  }) => {
+    await open(page);
+    await drawRect(page);
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const el = ed.getSnapshot().doc.elements[0];
+      ed.updateElements([el.id], { roughness: 3 });
+    });
+    await saveToLibrary(page);
+
+    await openLibrary(page);
+    const downloadPromise = page.waitForEvent("download");
+    await page.locator('[data-testid="library-export"]').click();
+    const download = await downloadPromise;
+    const fs = await import("fs");
+    const content = fs.readFileSync((await download.path())!, "utf-8");
+
+    const parsed = JSON.parse(content);
+    expect(parsed.libraryItems[0].archidrawElements[0].roughness).toBe(3);
+
+    await page.locator('[data-testid="library-import"]').click();
+    await page.locator(".library-import-input").setInputFiles({
+      name: "sketch.archidrawlib",
+      mimeType: "application/json",
+      buffer: Buffer.from(content, "utf-8"),
+    });
+    await page
+      .locator('[data-testid="library-imported-group"] .library-tile')
+      .click();
+
+    const inserted = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      return ed
+        .getSnapshot()
+        .doc.elements.find((e: any) => e.groupId);
+    });
+    expect(inserted.type).toBe("rectangle");
+    expect(inserted.roughness).toBe(3);
   });
 
   test("export includes all custom items", async ({ page }) => {

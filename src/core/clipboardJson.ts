@@ -237,3 +237,33 @@ export function parseElementsClipboard(text: string): Element[] | null {
   }
   return elements;
 }
+
+export function parseLibraryClipboard(text: string): Element[] | null {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    return null;
+  }
+  const rec = data as Raw;
+  const lists = Array.isArray(rec.libraryItems)
+    ? rec.libraryItems
+    : Array.isArray(rec.library)
+      ? rec.library
+      : null;
+  if (!lists) return null;
+  const elements: Element[] = [];
+  for (const item of lists) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) continue;
+    const raw = (item as Raw).archidrawElements;
+    if (!Array.isArray(raw)) continue;
+    for (const candidate of raw) {
+      const el = normalizeElement(candidate);
+      if (el) elements.push(el);
+    }
+  }
+  return elements.length > 0 ? elements : null;
+}

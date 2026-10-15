@@ -83,6 +83,69 @@ test.describe("POST /validate", () => {
     expect(warnPaths.some((p) => p.includes("elements[0].x"))).toBe(true);
   });
 
+  test("warns that an item without archidrawElements inserts as a static image (rule 5.1)", async ({
+    request,
+  }) => {
+    const res = await postValidate(request, {
+      type: "archidrawlib",
+      version: 2,
+      libraryItems: [
+        {
+          name: "Raster",
+          elements: [{ type: "rectangle", x: 0, y: 0, width: 10, height: 10, opacity: 100 }],
+        },
+      ],
+    });
+    const body = await res.json();
+    expect(body.format).toBe("library");
+    expect(body.valid).toBe(true);
+    expect(body.errors).toEqual([]);
+    const warn = body.warnings.find((w: { rule: string }) => w.rule === "5.1");
+    expect(warn).toBeTruthy();
+    expect(warn.path).toBe("libraryItems[0]");
+    expect(warn.message).toContain("archidrawElements");
+  });
+
+  test("does not warn about raster items when the item carries native elements (rule 5.1)", async ({
+    request,
+  }) => {
+    const res = await postValidate(request, {
+      type: "archidrawlib",
+      version: 2,
+      libraryItems: [
+        {
+          name: "Native",
+          archidrawElements: [
+            {
+              id: "n1",
+              type: "rectangle",
+              x: 0,
+              y: 0,
+              width: 80,
+              height: 40,
+              strokeColor: "#3d4248",
+              backgroundColor: "#dfe0e2",
+              strokeWidth: 2,
+              opacity: 1,
+              strokeOpacity: 1,
+              fillOpacity: 0,
+              strokeStyle: "solid",
+              fillStyle: "solid",
+              roughness: 1,
+              borderRadius: 0,
+            },
+          ],
+        },
+      ],
+    });
+    const body = await res.json();
+    expect(body.valid).toBe(true);
+    expect(body.errors).toEqual([]);
+    expect(body.summary.items).toBe(1);
+    expect(body.summary.elements).toBe(1);
+    expect(body.warnings.some((w: { rule: string }) => w.rule === "5.1")).toBe(false);
+  });
+
   test("accepts a valid .archidrawlib and reports counts", async ({ request }) => {
     const res = await postValidate(request, {
       type: "archidrawlib",

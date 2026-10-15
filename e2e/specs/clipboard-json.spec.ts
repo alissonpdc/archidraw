@@ -724,3 +724,96 @@ test.describe("clipboard JSON — foreign payloads are not hijacked", () => {
     expect(els[1].x).toBe(32);
   });
 });
+
+test.describe("clipboard JSON — paste an .archidrawlib envelope", () => {
+  const nativeRect = {
+    type: "rectangle",
+    id: "n1",
+    x: 0,
+    y: 0,
+    width: 60,
+    height: 40,
+    roughness: 2,
+  };
+
+  test("pasting a library envelope inserts its native elements", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+
+    await pressPasteText(
+      page,
+      JSON.stringify({
+        type: "archidrawlib",
+        version: 2,
+        libraryItems: [
+          {
+            name: "Sketch Box",
+            elements: [{ type: "rectangle", x: 0, y: 0, width: 60, height: 40, opacity: 100 }],
+            archidrawElements: [nativeRect],
+          },
+        ],
+      }),
+    );
+
+    const state = await editorState();
+    expect(state.elementCount).toBe(1);
+    const el = await page.evaluate(
+      () => (window as any).__editor__.getSnapshot().doc.elements[0],
+    );
+    expect(el.type).toBe("rectangle");
+    expect(el.roughness).toBe(2);
+    expect(el.groupId).toBeTruthy();
+  });
+
+  test("a library envelope without native elements creates nothing", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+
+    await pressPasteText(
+      page,
+      JSON.stringify({
+        type: "excalidrawlib",
+        version: 2,
+        libraryItems: [{ name: "Raster", elements: [{ type: "rectangle", x: 0, y: 0, width: 10, height: 10 }] }],
+      }),
+    );
+
+    expect((await editorState()).elementCount).toBe(0);
+  });
+
+  test("malformed or all-invalid library envelopes create nothing", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+
+    // archidrawElements present but not an array
+    await pressPasteText(
+      page,
+      JSON.stringify({ type: "archidrawlib", version: 2, libraryItems: [{ archidrawElements: "nope" }] }),
+    );
+    // legacy {library} array shape: items are bare arrays, never objects
+    await pressPasteText(
+      page,
+      JSON.stringify({ library: [[{ type: "rectangle", x: 0, y: 0, width: 1, height: 1 }]] }),
+    );
+    // an item that is neither an object nor an array
+    await pressPasteText(
+      page,
+      JSON.stringify({ libraryItems: [42] }),
+    );
+    // every native element invalid -> the whole batch yields nothing
+    await pressPasteText(
+      page,
+      JSON.stringify({ libraryItems: [{ archidrawElements: [{ type: "star" }] }] }),
+    );
+    // empty libraryItems
+    await pressPasteText(page, JSON.stringify({ libraryItems: [] }));
+
+    expect((await editorState()).elementCount).toBe(0);
+  });
+});
