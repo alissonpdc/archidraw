@@ -2,7 +2,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./ui/styles/app.css";
 import { App } from "./ui/App";
-import { DocsPage } from "./ui/components/DocsPage";
 import { editor } from "./ui/hooks/useEditor";
 import { attachAutosave, loadFromStorage } from "./core/storage";
 import { markSaved } from "./ui/saveStatus";
@@ -102,10 +101,8 @@ if (saved) {
 attachAutosave(editor, 400, markSaved);
 attachThemeColorCorrelation(editor);
 
-const routePath = window.location.pathname.replace(/\/+$/, "");
-
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {routePath === "/docs" ? <DocsPage /> : <App />}
+    <App />
   </StrictMode>,
 );

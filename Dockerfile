@@ -7,14 +7,20 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+# cliente (dist/ + docs.md) e servidor Node (dist-server/server.js)
+RUN npm run build && npm run build:server
 
 # ---- Serve stage ----
-FROM nginx:alpine
+# Servidor Node único (substitui o nginx): estático + /docs + /validate.
+# O bundle não tem dependências externas → sem node_modules na imagem final.
+FROM node:22-alpine
 
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-server ./dist-server
 
 EXPOSE 5000
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "dist-server/server.js"]

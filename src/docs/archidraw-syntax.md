@@ -1,6 +1,6 @@
 # Archidraw File and Clipboard Syntax Reference
 
-Machine-oriented reference for AI agents that create or edit Archidraw drawings programmatically. It documents the three interchange formats: the `.archidraw` file (complete workspace), the clipboard elements payload (copy/paste) and the `.archidrawlib` file (library of reusable elements). Every JSON example on this page is executed by the automated test suite against the real parser, so the examples are guaranteed valid.
+Machine-oriented reference for AI agents that create or edit Archidraw drawings programmatically. It documents the three interchange formats: the `.archidraw` file (complete workspace), the clipboard elements payload (copy/paste) and the `.archidrawlib` file (library of reusable elements). Every JSON example on this page is executed by the automated test suite against the real parser, so the examples are guaranteed valid. Section 7 describes `POST /validate`, an endpoint that reports whether a generated payload is valid and, when it is not, exactly what breaks it.
 
 ## 1. Formats at a glance
 
@@ -889,7 +889,93 @@ endBinding   = { elementId: B.id, nx: 0, ny: 0.5, side: "left" }
 - Library channel: write the envelope of section 5.1 to a file named `<name>.archidrawlib` and import it through the Library panel. Success adds one group with one tile per item and inserts nothing on the canvas; failure adds nothing and shows `Invalid library file`.
 - The import and paste channels end with the new elements selected, so a follow-up move or style edit applies to them immediately.
 
-## 7. Agent checklist
+## 7. Validation endpoint (`POST /validate`)
+
+An HTTP endpoint that answers "is this payload valid, and if not, what breaks it?". It exists so an agent that generated a `.archidraw`, `.archidrawlib` or clipboard payload can get a machine-readable verdict before importing it.
+
+| Property | Value |
+|---|---|
+| Method and path | `POST /validate` |
+| Request body | the payload itself, as raw JSON (`Content-Type: application/json`) |
+| Response | `application/json`: `{valid, format, errors, warnings, summary}` |
+| Availability | every serving mode: the Vite dev server and `vite preview` (middleware), and the production Node server (`server/index.ts`, run as `node dist-server/server.js`). The app is always served by Node — there is no static-file-only deployment |
+
+Status codes: `200` for any parseable payload (even an invalid one, since the verdict is in the body), `400` when the body is not valid JSON, `405` for a non-POST method (`GET` returns the usage object), `413` when the body exceeds 8 MB.
+
+### 7.1 Response shape
+
+The response is not a payload you would feed back in; it is the verdict. Shown as plain text (not a ```` ```json ```` example) because it is an output shape, not an input the parsers accept:
+
+```
+{
+  "valid": false,
+  "format": "workspace",
+  "errors": [
+    {
+      "path": "tabs[0].doc.elements[2].type",
+      "message": "type inválido: \"hexagon\" — esperado um de [rectangle, diamond, ellipse, line, arrow, text, component, context]",
+      "rule": "3.4"
+    }
+  ],
+  "warnings": [
+    {
+      "path": "tabs[0].doc.elements[2].strokeColor",
+      "message": "campo base ausente strokeColor — em .archidraw escreva explicitamente; no paste vira default",
+      "rule": "3.2"
+    }
+  ],
+  "summary": { "tabs": 1, "elements": 3 }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `valid` | `true` only when the real parser for the detected format would accept the payload |
+| `format` | one of `workspace`, `workspace-legacy`, `library`, `clipboard`, `element`, `unknown` |
+| `errors` | findings that **reject** the payload; each has a JSON-pointer-style `path`, a human `message` and the `rule` (a section number in this document) |
+| `warnings` | findings the parser tolerates (defaults or drops) but that usually mean a mistake |
+| `summary` | counts (`tabs`, `items`, `elements`) so the agent can sanity-check what it generated |
+
+`valid` is derived only from `errors`. A payload can be `valid: true` and still carry warnings.
+
+### 7.2 Format detection
+
+Detection mirrors the disjointness of section 1 and runs in this order; the first match wins:
+
+1. `schemaVersion: 2` together with `tabs` or `activeTabId` → `workspace`
+2. `schemaVersion: 1` together with `doc` or `camera` → `workspace-legacy`
+3. a `libraryItems` (or `library`) array → `library`
+4. a `type` of `archidrawlib` or `excalidrawlib` → `library`
+5. a root array: all entries arrays → `library`, otherwise → `clipboard`
+6. `type: "archidraw/elements"` or an `elements` array → `clipboard`
+7. an object whose `type` is one of the eight element types → `element`
+8. anything else → `unknown`, which is always `valid: false`
+
+A single element is validated with clipboard rules (section 4.3) but reported as `element`.
+
+### 7.3 errors versus warnings
+
+The endpoint separates what the real parsers reject from what they silently repair:
+
+- **workspace (sections 2.1 and 2.2)** — rejects on envelope shape only: `activeTabId` not a string, empty `tabs`, a tab that is not an object or lacks `id`, `name`, `doc` or `camera`, non-numeric camera fields, or an element whose `type` is not one of the eight. Geometry is *not* checked, matching `storage.parse`, so a non-finite `x` is a **warning**, not an error. A `activeTabId` that matches no `tab.id` is also a warning.
+- **workspace-legacy (section 2.3)** — same `doc` and `camera` checks; the legacy `schemaVersion` itself is a warning, because the loader migrates it to tabs.
+- **library (section 5.4)** — rejects only when the root carries neither `libraryItems` nor `library`, when that array is empty, or when no item leaves any surviving element. A single element with a bad `type`, or a `line`/`arrow`/`draw` with fewer than two `points`, is dropped from its item and reported as a **warning**: it never rejects the file. `opacity` outside 0 to 100 and non-finite geometry are warnings too.
+- **clipboard (section 4.3)** — atomic: one item with a bad `type` produces an `error` and `valid: false`. Wrong-typed optional fields, non-finite geometry and missing base fields only warn, because the normalizer defaults them.
+- **element** — the same rules as a one-item clipboard payload.
+
+Across every format, `errors` are exactly the conditions that make the corresponding real parser fail; `warnings` are conditions it accepts.
+
+### 7.4 Example
+
+```
+curl -X POST <archidraw-base-url>/validate \
+  -H 'Content-Type: application/json' \
+  --data-binary @my-diagram.archidraw
+```
+
+Feed each returned `error` back into your generator: `path` locates the offending field inside the payload you sent and `rule` names the section above that explains it.
+
+## 8. Agent checklist
 
 - The payload is valid JSON, UTF-8 encoded.
 - A file uses `schemaVersion` 2 with a non-empty `tabs` array; every tab has `id`, `name`, `doc` and `camera`.
@@ -905,3 +991,4 @@ endBinding   = { elementId: B.id, nx: 0, ny: 0.5, side: "left" }
 - Unknown fields are dropped silently, not errors.
 - Text elements always carry `text` and `fontSize`.
 - Line and arrow geometry uses signed `width` and `height` from start to end.
+- Before importing, `POST` the payload to `/validate` (section 7) and fix every returned `error`; a `warning` usually means a defaulted or dropped field you meant to set.
