@@ -181,6 +181,24 @@ test.describe("docs markdown source", () => {
     expect(fence, "7.1 is not a json fence").not.toMatch(/\n```json\n/);
   });
 
+  test("every .archidrawlib example on the page validates (section 5.1)", async ({
+    request,
+  }) => {
+    const md = await fetchDocsMarkdown(request);
+    const libs = jsonBlocks(md).filter((b) => b.includes('"libraryItems"'));
+    expect(libs.length).toBeGreaterThanOrEqual(2);
+    for (const block of libs) {
+      const res = await request.post("/validate", { data: JSON.parse(block) });
+      const body = await res.json();
+      expect(body.format, block).toBe("library");
+      expect(body.valid, JSON.stringify(body.errors)).toBe(true);
+      expect(
+        body.warnings.some((w: { rule: string }) => w.rule === "5.1"),
+        `a library example has an item without archidrawElements: ${block.slice(0, 60)}`,
+      ).toBe(false);
+    }
+  });
+
   test("library file example imports through the library panel", async ({
     request,
     page,
@@ -199,7 +217,8 @@ test.describe("docs markdown source", () => {
     expect(parsed.libraryItems.length).toBeGreaterThanOrEqual(2);
     for (const item of parsed.libraryItems) {
       expect(typeof item.name).toBe("string");
-      expect(item.elements.length).toBeGreaterThan(0);
+      // o exemplo documenta o caminho nativo: é o que faz o item nascer editável
+      expect(item.archidrawElements.length).toBeGreaterThan(0);
     }
 
     await open(page);

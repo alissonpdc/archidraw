@@ -9,6 +9,7 @@
 
 import { normalizePoints, excalidrawFontCategory } from "./excalidrawCommon";
 import { normalizeElement as normalizeArchiElement } from "./clipboardJson";
+import { buildSvgString } from "./exporter";
 import type { Element } from "./types";
 import { escapeXml } from "./utils";
 
@@ -50,46 +51,52 @@ interface ExcalidrawElementLike {
 
 export class ExcalidrawLibParseError extends Error {}
 
-/** extrai a lista de library items (v1: {library}; v2: {libraryItems}; raiz: array) */
-function extractItems(root: unknown): ExcalidrawElementLike[][] {
-  if (Array.isArray(root)) {
-    return root.filter(
-      (it): it is ExcalidrawElementLike[] => Array.isArray(it) && it.length > 0,
-    );
-  }
-  if (root && typeof root === "object") {
+interface LibraryEntry {
+  wrapper: unknown;
+  elements: ExcalidrawElementLike[];
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === "object" && !Array.isArray(v);
+
+function extractEntries(root: unknown): LibraryEntry[] {
+  let list: unknown[] | null = Array.isArray(root) ? root : null;
+  if (!list && isRecord(root)) {
     for (const key of ["libraryItems", "library"] as const) {
-      const list = (root as Record<string, unknown>)[key];
-      if (!Array.isArray(list)) continue;
-      return (list as unknown[])
-        .map((it) =>
-          it && typeof it === "object" && Array.isArray((it as { elements?: unknown }).elements)
-            ? ((it as { elements: ExcalidrawElementLike[] }).elements)
-            : Array.isArray(it)
-              ? (it as ExcalidrawElementLike[])
-              : null,
-        )
-        .filter((it): it is ExcalidrawElementLike[] => !!it && it.length > 0);
+      if (Array.isArray(root[key])) {
+        list = root[key];
+        break;
+      }
     }
   }
-  throw new ExcalidrawLibParseError("Invalid .excalidrawlib file: no libraryItems");
+  if (!list) {
+    throw new ExcalidrawLibParseError("Invalid .excalidrawlib file: no libraryItems");
+  }
+
+  const entries: LibraryEntry[] = [];
+  for (const it of list) {
+    if (Array.isArray(it)) {
+      if (it.length > 0) entries.push({ wrapper: null, elements: it as ExcalidrawElementLike[] });
+      continue;
+    }
+    if (!isRecord(it)) continue;
+    const elements = it.elements;
+    if (Array.isArray(elements) && elements.length > 0) {
+      entries.push({ wrapper: it, elements: elements as ExcalidrawElementLike[] });
+      continue;
+    }
+    const natives = it.archidrawElements;
+    if (Array.isArray(natives) && natives.length > 0) {
+      entries.push({ wrapper: it, elements: [] });
+    }
+  }
+  return entries;
 }
 
 /** copia rasa do elemento com points normalizados para {x,y}[] */
 function normalizeElement(el: ExcalidrawElementLike): ExcalidrawElementLike {
   if (!("points" in el)) return el;
   return { ...el, points: normalizePoints((el as { points?: unknown }).points) };
-}
-
-/** nome do item i no formato v2 ({libraryItems:[{name,elements}]}) */
-function findWrapperName(root: unknown, index: number): unknown {
-  if (root && typeof root === "object") {
-    for (const key of ["libraryItems", "library"] as const) {
-      const list = (root as Record<string, unknown>)[key];
-      if (Array.isArray(list)) return list[index] ?? null;
-    }
-  }
-  return null;
 }
 
 const PAD = 4;
@@ -138,6 +145,12 @@ function storedSvgOf(wrapper: unknown): string | undefined {
   if (!wrapper || typeof wrapper !== "object" || Array.isArray(wrapper)) return undefined;
   const svg = (wrapper as { svg?: unknown }).svg;
   return typeof svg === "string" && svg.includes("<svg") ? svg : undefined;
+}
+
+function nativeThumbnail(elements: Element[] | undefined): { svg: string; aspect: number } | undefined {
+  if (!elements || elements.length === 0) return undefined;
+  const svg = buildSvgString({ schemaVersion: 1, elements });
+  return svg ? { svg, aspect: 1 } : undefined;
 }
 
 /** bounds globais (inclui pontos de linhas/setas, que extrapolam x/y/w/h) */
@@ -374,16 +387,14 @@ export function parseExcalidrawLib(jsonText: string): ExcalidrawLibParseResult {
   } catch {
     throw new ExcalidrawLibParseError("Invalid JSON in .excalidrawlib file");
   }
-  const lists = extractItems(root);
-  const items = lists.map((elements, i) => {
-    const wrapper = findWrapperName(root, i);
-    const name = itemName(wrapper, i);
-    const nativeElements = nativeElementsOf(wrapper);
-    const storedSvg = storedSvgOf(wrapper);
+  const entries = extractEntries(root);
+  const items = entries.map((entry, i) => {
+    const nativeElements = nativeElementsOf(entry.wrapper);
+    const storedSvg = storedSvgOf(entry.wrapper);
     const rendered = storedSvg
       ? { svg: storedSvg, aspect: 1 }
-      : itemToSvg(elements.map(normalizeElement));
-    return { name, ...rendered, nativeElements };
+      : (nativeThumbnail(nativeElements) ?? itemToSvg(entry.elements.map(normalizeElement)));
+    return { name: itemName(entry.wrapper, i), ...rendered, nativeElements };
   });
   if (items.length === 0) {
     throw new ExcalidrawLibParseError("No items found in .excalidrawlib file");

@@ -486,6 +486,108 @@ test.describe("archidrawlib native import", () => {
     expect(stored).toContain('data-thumb="yes"');
   });
 
+  test("item with only native elements is inserted as an editable group", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+    await importLibOk(
+      page,
+      "natives-only.archidrawlib",
+      lib([{ name: "Natives Only", archidrawElements: [nativeRect] }]),
+    );
+
+    const stored = await page.evaluate(() => {
+      const libs = JSON.parse(localStorage.getItem("archidraw:importedLibraries") || "[]");
+      return libs[0].items[0] as { svg: string; elements?: unknown[] };
+    });
+    expect(stored.svg).toContain("<svg");
+    expect(stored.svg).not.toContain("NaN");
+    expect(stored.elements).toHaveLength(1);
+
+    await page.locator('[data-testid="library-imported-group"] .library-tile').first().click();
+    const state = await editorState();
+    expect(state.elementCount).toBe(1);
+    expect(state.elements[0].type).toBe("rectangle");
+    const el = await page.evaluate(
+      () => (window as any).__editor__.getSnapshot().doc.elements[0],
+    );
+    expect(el.roughness).toBe(3);
+  });
+
+  test("the thumbnail is rendered from the native elements, sketch stroke included", async ({
+    page,
+  }) => {
+    await openLibrary(page);
+    await importLibOk(
+      page,
+      "thumb-from-natives.archidrawlib",
+      lib([
+        {
+          name: "Sketch",
+          elements: [{ type: "rectangle", x: 0, y: 0, width: 80, height: 40, opacity: 100 }],
+          archidrawElements: [nativeRect],
+        },
+      ]),
+    );
+    const svg = await page.evaluate(() => {
+      const libs = JSON.parse(localStorage.getItem("archidraw:importedLibraries") || "[]");
+      return libs[0].items[0].svg as string;
+    });
+    // o item nativo tem roughness 3: o thumbnail vem dele (path hand-drawn),
+    // não do dialeto Excalidraw (que desenharia um <rect> limpo)
+    expect(svg).toContain("<svg");
+    expect(svg).not.toContain("<rect");
+  });
+
+  test("an entry with neither elements nor natives is dropped, the rest imports", async ({
+    page,
+  }) => {
+    await openLibrary(page);
+    await importLibOk(
+      page,
+      "drop-empty.archidrawlib",
+      lib([
+        { name: "Nowhere", elements: [], archidrawElements: [] },
+        { name: "Kept", archidrawElements: [nativeRect] },
+      ]),
+    );
+
+    const group = page.locator('[data-testid="library-imported-group"]');
+    await expect(group.locator(".library-tile")).toHaveCount(1);
+    await expect(group.locator(".library-group-name")).toHaveText("drop-empty");
+  });
+
+  test("name, thumbnail and natives all come from the same entry", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+    await importLibOk(
+      page,
+      "aligned.archidrawlib",
+      lib([
+        { name: "Nowhere", elements: [], archidrawElements: [] },
+        {
+          name: "Aligned",
+          elements: [{ type: "rectangle", x: 0, y: 0, width: 80, height: 40, opacity: 100 }],
+          archidrawElements: [nativeRect],
+        },
+      ]),
+    );
+    const items = await page.evaluate(() => {
+      const libs = JSON.parse(localStorage.getItem("archidraw:importedLibraries") || "[]");
+      return libs[0].items as { name: string; elements?: unknown[] }[];
+    });
+    // o item pulado não pode deslocar o wrapper do item seguinte
+    expect(items.map((it) => it.name)).toEqual(["Aligned"]);
+    expect(items[0].elements).toHaveLength(1);
+
+    await page.locator('[data-testid="library-imported-group"] .library-tile').first().click();
+    const state = await editorState();
+    expect(state.elements[0].type).toBe("rectangle");
+  });
+
   test("invalid or empty archidrawElements fall back to a raster component", async ({
     page,
     editorState,
