@@ -1,109 +1,37 @@
 import { test, expect, open, pressPasteText, importFile, type Page } from "../fixtures";
 
-async function openDocs(page: Page) {
-  await page.goto("/docs");
-  await page.waitForSelector('[data-testid="docs-page"] .md-root');
+// `/docs` entrega o markdown-fonte cru (sem render de SPA). Estes testes leem
+// esse markdown direto pelo canal HTTP e validam que os exemplos JSON continuam
+// sendo aceitos pelos parsers reais (import/paste).
+async function fetchDocsMarkdown(request: import("@playwright/test").APIRequestContext) {
+  const res = await request.get("/docs");
+  expect(res.status()).toBe(200);
+  return await res.text();
 }
 
-function extractJsonBlock(
-  page: Page,
-  required: string[],
-  excluded: string[] = [],
-) {
-  return page.evaluate(
-    ({ required, excluded }) => {
-      const blocks = Array.from(
-        document.querySelectorAll("pre[data-lang=json]"),
-      );
-      const hit = blocks.find((b) => {
-        const text = b.textContent ?? "";
-        return (
-          required.every((m) => text.includes(m)) &&
-          excluded.every((m) => !text.includes(m))
-        );
-      });
-      return hit ? (hit.textContent ?? "") : null;
-    },
-    { required, excluded },
+/** every ```json fence in the markdown source */
+function jsonBlocks(md: string): string[] {
+  const blocks: string[] = [];
+  const re = /```json\n([\s\S]*?)```/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(md))) blocks.push(m[1].trim());
+  return blocks;
+}
+
+/** first json block containing all `required` and none of `excluded` */
+function pickJson(md: string, required: string[], excluded: string[] = []): string | null {
+  return (
+    jsonBlocks(md).find(
+      (b) =>
+        required.every((m) => b.includes(m)) &&
+        excluded.every((m) => !b.includes(m)),
+    ) ?? null
   );
 }
 
-test.describe("docs route", () => {
-  test("renders the syntax reference with semantic structure", async ({ page }) => {
-    await openDocs(page);
-
-    await expect(page.locator("h1")).toHaveCount(1);
-    await expect(page.locator("h1")).toHaveText(/archidraw.*syntax reference/i);
-    await expect(page.locator(".docs__link")).toHaveAttribute("href", "/");
-    expect(await page.title()).toContain("Syntax Reference");
-
-    expect(await page.locator(".md-table").count()).toBeGreaterThanOrEqual(8);
-    expect(await page.locator('pre[data-lang="json"]').count()).toBeGreaterThanOrEqual(8);
-    expect(await page.locator("h2").count()).toBeGreaterThanOrEqual(6);
-  });
-
-  test("renders a left-side index linking every section heading", async ({ page }) => {
-    await openDocs(page);
-
-    const index = page.locator('[data-testid="docs-index"]');
-    await expect(index).toBeVisible();
-
-    const headings = page.locator(".docs__body .md-h2, .docs__body .md-h3");
-    const headingCount = await headings.count();
-    expect(headingCount).toBeGreaterThanOrEqual(30);
-
-    const links = index.locator("a");
-    expect(await links.count()).toBe(headingCount);
-
-    const ids = await headings.evaluateAll((els) =>
-      els.map((el) => (el as HTMLElement).id),
-    );
-    for (const id of ids) {
-      expect(id, "every section heading carries an id").not.toHaveLength(0);
-    }
-    const hrefs = await links.evaluateAll((as) =>
-      as.map((a) => a.getAttribute("href")),
-    );
-    expect(hrefs).toEqual(ids.map((id) => `#${id}`));
-
-    const idxBox = await index.boundingBox();
-    const bodyBox = await page.locator(".docs__body").boundingBox();
-    expect(idxBox!.x, "menu glued to the left edge").toBe(0);
-    expect(idxBox!.x).toBeLessThan(bodyBox!.x);
-
-    // fixed: the menu stays put while the doc scrolls under it
-    const yBefore = idxBox!.y;
-    const bodyYBefore = bodyBox!.y;
-    await page.evaluate(() => {
-      document.querySelector(".docs")?.scrollTo({ top: 600, behavior: "instant" });
-    });
-    expect((await index.boundingBox())!.y).toBe(yBefore);
-    expect((await page.locator(".docs__body").boundingBox())!.y).toBeLessThan(
-      bodyYBefore,
-    );
-    await page.evaluate(() => {
-      document.querySelector(".docs")?.scrollTo({ top: 0, behavior: "instant" });
-    });
-
-    const targetId = ids[10];
-    await links.nth(10).click();
-    await expect
-      .poll(
-        () =>
-          page.evaluate((id) => {
-            const el = document.getElementById(id);
-            if (!el) return false;
-            const r = el.getBoundingClientRect();
-            return r.top >= 0 && r.top < window.innerHeight;
-          }, targetId),
-        { timeout: 5000 },
-      )
-      .toBe(true);
-  });
-
-  test("documents every element type, enum and schema marker", async ({ page }) => {
-    await openDocs(page);
-    const body = await page.locator(".md-root").innerText();
+test.describe("docs markdown source", () => {
+  test("documents every element type, enum and schema marker", async ({ request }) => {
+    const md = await fetchDocsMarkdown(request);
 
     for (const type of [
       "rectangle",
@@ -115,7 +43,7 @@ test.describe("docs route", () => {
       "component",
       "context",
     ]) {
-      expect(body, `element type ${type} documented`).toContain(type);
+      expect(md, `element type ${type} documented`).toContain(type);
     }
 
     for (const value of [
@@ -132,7 +60,7 @@ test.describe("docs route", () => {
       "external",
       "archidraw:workspace",
     ]) {
-      expect(body, `syntax token ${value} documented`).toContain(value);
+      expect(md, `syntax token ${value} documented`).toContain(value);
     }
 
     for (const field of [
@@ -158,13 +86,12 @@ test.describe("docs route", () => {
       "lineSpacing",
       "captionPosition",
     ]) {
-      expect(body, `field ${field} documented`).toContain(field);
+      expect(md, `field ${field} documented`).toContain(field);
     }
   });
 
-  test("documents the .archidraw workspace file format guidance", async ({ page }) => {
-    await openDocs(page);
-    const body = await page.locator(".md-root").innerText();
+  test("documents the .archidraw workspace file format guidance", async ({ request }) => {
+    const md = await fetchDocsMarkdown(request);
 
     for (const token of [
       "the reference set to copy",
@@ -173,17 +100,16 @@ test.describe("docs route", () => {
       "the tab order decides",
       "The box never wraps",
       "sits inside the box",
-      "the only place captionPosition applies",
+      "the only place `captionPosition` applies",
       "bottom-right corner",
       "edges included",
     ]) {
-      expect(body, `workspace token ${token} documented`).toContain(token);
+      expect(md, `workspace token ${token} documented`).toContain(token);
     }
   });
 
-  test("documents the .archidrawlib library file format", async ({ page }) => {
-    await openDocs(page);
-    const body = await page.locator(".md-root").innerText();
+  test("documents the .archidrawlib library file format", async ({ request }) => {
+    const md = await fetchDocsMarkdown(request);
 
     for (const token of [
       ".archidrawlib",
@@ -199,19 +125,68 @@ test.describe("docs route", () => {
       "Tuples and objects may be mixed inside one array",
       "an open contour never fills either",
     ]) {
-      expect(body, `library token ${token} documented`).toContain(token);
+      expect(md, `library token ${token} documented`).toContain(token);
     }
 
-    await expect(
-      page.locator(".md-h3", { hasText: "5.3 Layout and rendering rules" }),
-    ).toHaveCount(1);
+    expect(md, "5.3 layout section present").toContain("5.3 Layout and rendering rules");
+  });
+
+  test("documents the POST /validate endpoint contract", async ({ request }) => {
+    const md = await fetchDocsMarkdown(request);
+
+    // heading e metodo/path
+    expect(md, "7 heading present").toContain(
+      "## 7. Validation endpoint (`POST /validate`)",
+    );
+    expect(md, "method documented").toContain("POST /validate");
+
+    // campos do veredicto
+    for (const field of ["valid", "format", "errors", "warnings", "summary", "rule"]) {
+      expect(md, `response field ${field} documented`).toContain(field);
+    }
+
+    // todos os valores de `format`
+    for (const format of [
+      "workspace",
+      "workspace-legacy",
+      "library",
+      "clipboard",
+      "element",
+      "unknown",
+    ]) {
+      expect(md, `format value ${format} documented`).toContain(format);
+    }
+
+    // contrato HTTP: status e limites
+    for (const token of ["400", "405", "413", "8 MB"]) {
+      expect(md, `http token ${token} documented`).toContain(token);
+    }
+
+    // disponibilidade: /validate roda no servidor Node de produção, não é só dev
+    expect(md, "production node server documented").toContain("Node server");
+    expect(md, "atomic clipboard rule referenced").toContain("atomic");
+  });
+
+  test("the 7.1 response example is text, not a ```json block the parsers would consume", async ({
+    request,
+  }) => {
+    const md = await fetchDocsMarkdown(request);
+    // a fence de 7.1 e uma resposta (tem "valid"/"errors"), nao um payload de
+    // entrada; por isso e ``` e nao ```json — senao o suite de exemplos tentaria
+    // parsea-la como workspace/biblioteca e falharia.
+    const section = md.slice(md.indexOf("### 7.1 Response shape"));
+    const fence = section.slice(0, section.indexOf("### 7.2"));
+    expect(fence, "7.1 exists").toContain('"valid": false');
+    expect(fence, "7.1 is a plain fence").toMatch(/\n```\n/);
+    expect(fence, "7.1 is not a json fence").not.toMatch(/\n```json\n/);
   });
 
   test("library file example imports through the library panel", async ({
+    request,
     page,
   }) => {
-    await openDocs(page);
-    const json = await extractJsonBlock(page, [
+    const md = await fetchDocsMarkdown(request);
+    const json = pickJson(md, [
       '"type": "archidrawlib"',
       '"libraryItems"',
       '"name": "Invoke"',
@@ -247,9 +222,7 @@ test.describe("docs route", () => {
     );
 
     const svg = await page.evaluate(() =>
-      JSON.parse(
-        localStorage.getItem("archidraw:importedLibraries") || "[]",
-      )
+      JSON.parse(localStorage.getItem("archidraw:importedLibraries") || "[]")
         .flatMap((l: { items: { svg: string }[] }) => l.items)
         .map((it: { svg: string }) => it.svg)
         .join("\n"),
@@ -259,9 +232,13 @@ test.describe("docs route", () => {
     expect(svg).toContain("<svg");
   });
 
-  test("clipboard envelope example pastes all eight element types", async ({ page, editorState }) => {
-    await openDocs(page);
-    const json = await extractJsonBlock(page, ['"archidraw/elements"', '"el_ctx"']);
+  test("clipboard envelope example pastes all eight element types", async ({
+    request,
+    page,
+    editorState,
+  }) => {
+    const md = await fetchDocsMarkdown(request);
+    const json = pickJson(md, ['"archidraw/elements"', '"el_ctx"']);
     expect(json).toBeTruthy();
 
     await open(page);
@@ -284,10 +261,14 @@ test.describe("docs route", () => {
     expect(state.selectedIds.length).toBe(8);
   });
 
-  test("bare array and single element examples paste", async ({ page, editorState }) => {
-    await openDocs(page);
-    const arrayJson = await extractJsonBlock(page, ['"label": "A"', '"label": "B"']);
-    const singleJson = await extractJsonBlock(page, ['"text": "hello"']);
+  test("bare array and single element examples paste", async ({
+    request,
+    page,
+    editorState,
+  }) => {
+    const md = await fetchDocsMarkdown(request);
+    const arrayJson = pickJson(md, ['"label": "A"', '"label": "B"']);
+    const singleJson = pickJson(md, ['"text": "hello"']);
     expect(arrayJson).toBeTruthy();
     expect(singleJson).toBeTruthy();
 
@@ -302,9 +283,13 @@ test.describe("docs route", () => {
     expect(state.elements[2].type).toBe("text");
   });
 
-  test("complete workspace example imports as a new diagram", async ({ page, editorState }) => {
-    await openDocs(page);
-    const json = await extractJsonBlock(page, ['"activeTabId"', '"componentId"']);
+  test("complete workspace example imports as a new diagram", async ({
+    request,
+    page,
+    editorState,
+  }) => {
+    const md = await fetchDocsMarkdown(request);
+    const json = pickJson(md, ['"activeTabId"', '"componentId"']);
     expect(json).toBeTruthy();
 
     const parsed = JSON.parse(json!);
@@ -330,12 +315,14 @@ test.describe("docs route", () => {
     expect(state.elements.map((e) => e.componentId).filter(Boolean)).toEqual(["ec2"]);
   });
 
-  test("minimal and legacy examples are valid JSON for their schemas", async ({ page }) => {
-    await openDocs(page);
+  test("minimal and legacy examples are valid JSON for their schemas", async ({
+    request,
+  }) => {
+    const md = await fetchDocsMarkdown(request);
 
-    const minimal = await extractJsonBlock(page, ['"name": "Minimal"']);
-    const legacy = await extractJsonBlock(
-      page,
+    const minimal = pickJson(md, ['"name": "Minimal"']);
+    const legacy = pickJson(
+      md,
       ['"schemaVersion": 1'],
       ['"activeTabId"', '"archidraw/elements"'],
     );

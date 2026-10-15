@@ -36,7 +36,9 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
   },
   webServer: {
-    command: `npm run build:test && npm run preview -- --port ${port} --strictPort`,
+    // roda contra o servidor Node de produção (mesmo artefato do container),
+    // não o preview do Vite — assim o e2e valida o caminho real de produção.
+    command: `npm run build:test && npm run build:server && node dist-server/server.js --port ${port}`,
     url: `http://localhost:${port}`,
     reuseExistingServer: false,
     timeout: 120_000,
