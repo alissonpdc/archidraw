@@ -498,11 +498,12 @@ The app writes this envelope pretty-printed with two-space indentation. The pars
 
 ### 4.2 Accepted payload shapes
 
-The paste parser accepts three shapes:
+The paste parser accepts four shapes:
 
 1. The envelope object above.
 2. A bare array of elements.
 3. A single element object.
+4. A library envelope (section 5.1) whose items carry native `archidrawElements`: every native element is pasted as one grouped set. A foreign library whose items only have Excalidraw `elements` has nothing native to paste and falls through to the internal store.
 
 ### 4.3 Validation, defaults and whitelisting
 
@@ -540,6 +541,7 @@ Applied when a field is missing or has the wrong type on paste:
 - A `groupId` shared by two or more pasted elements is remapped to a fresh group id. A group left with a single pasted member loses its `groupId`.
 - Consecutive pastes cascade a diagonal offset of 16 pixels per step: 16, 32, 48 and so on.
 - Paste at pointer centers the bounding box of the pasted elements on the pointer position.
+- A pasted library envelope (shape 4 of section 4.2) is exempt from the cascade: its native elements land as one group centered on the viewport, exactly like a tile click in the Library panel, and become the selection.
 - Pasted elements fully inside an existing context are captured into that context `childIds`.
 
 ### 4.6 Copy and cut
@@ -716,6 +718,8 @@ A library file is a palette of reusable elements imported through the Library pa
 |---|---|---|---|
 | name | string | no | label of the tile in the panel; blank or missing → `Item <n>` by position |
 | elements | array of ExcalidrawElement | yes, non-empty | an entry with an empty `elements` array is dropped |
+| archidrawElements | array of Element | no | the native ArchiDraw model (section 3), written by this app's export. When present and valid, the item is re-inserted as a native editable group and `elements` is used only for the thumbnail; when absent the item is rasterized from `elements` |
+| svg | string | no | cached thumbnail SVG of the item, written by this app's export to keep the hand-drawn (rough) stroke; used as the tile image when it contains `<svg`. When absent the tile is rendered from `elements` |
 
 Accepted roots, in order of lookup:
 
@@ -727,7 +731,9 @@ Any other root — including a workspace envelope with `tabs` — is rejected (s
 
 ### 5.2 Element schema (Excalidraw, not section 3)
 
-Each item is rasterized into one self-contained SVG, so only the fields below are read. The section 3 element model does **not** transfer: there are no `id`s, no bindings, no `label`, no `component` or `context`, and unknown fields are ignored. A workspace element pasted into a library file keeps the shape of the app model but loses meaning: its `borderRadius`, `roughness`, `strokeOpacity`, `fillOpacity`, `label` and `lineType` are never read.
+Each item is rasterized into one self-contained SVG, so only the fields below are read. The section 3 element model does **not** transfer: there are no `id`s, no bindings, no `label`, no `component` or `context`, and unknown fields are ignored. A workspace element pasted into the `elements` array keeps the shape of the app model but loses meaning: its `borderRadius`, `roughness`, `strokeOpacity`, `fillOpacity`, `label` and `lineType` are never read from there.
+
+This raster rule applies to items that only carry `elements` (a foreign `.excalidrawlib`, or the tile thumbnail of this app's own files). An item that also carries a valid `archidrawElements` array is parsed with the section 3 model instead — no field is lost — and is re-inserted as a native group; see section 5.5.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -779,9 +785,9 @@ Everything else is tolerated and never rejects: unknown fields are ignored, an e
 
 - Channel: Library panel → import button, which accepts `.excalidrawlib` and `.archidrawlib` files. This is not the app menu Open of section 2.4; the two parsers are disjoint, so a workspace envelope fails here and a `libraryItems` file fails there.
 - The group takes the file name without extension (`_` becomes a space, an empty base becomes `Imported library`) and opens expanded.
-- Every item becomes one tile rendered from its SVG, registered as an image asset; the group persists in localStorage under `archidraw:importedLibraries` and survives reloads until removed.
-- Clicking a tile inserts a `component` element whose `componentId` starts with `imp-` and carries no label.
-- The app's own Export .archidrawlib button writes exactly the envelope of section 5.1, converting `opacity` to 0–100, renaming `cross-hachure` to `cross-hatch`, mapping `dashdot` to `solid`, turning line geometry into `points` and dropping `component` elements, whose image assets do not translate.
+- Every item becomes one tile rendered from its SVG, registered as an image asset; the group persists in localStorage under `archidraw:importedLibraries` and survives reloads until removed. An item with a stored `svg` uses it directly (sketch strokes included); otherwise the thumbnail is rendered from `elements`.
+- Clicking a tile inserts a `component` element whose `componentId` starts with `imp-` and carries no label — unless the item has native `archidrawElements`. Those come back as an editable native group (one shared `groupId`, fresh ids, bindings remapped inside the group), so `roughness`, `borderRadius`, `label` and `component` items survive a full export → import round-trip.
+- The app's own Export .archidrawlib button writes the envelope of section 5.1: per item it converts the native elements into `elements` (opacity to 0–100, renaming `cross-hachure` to `cross-hatch`, mapping `dashdot` to `solid`, turning line geometry into `points`, dropping `component` elements), and adds the exact native array under `archidrawElements` plus the stored `svg` thumbnail. A re-import therefore restores the native elements instead of the lossy Excalidraw projection.
 
 ### 5.6 Example
 
