@@ -46,6 +46,10 @@ Three version markers exist and must not be confused:
 | activeTabId | string | yes | tab activated when the file is restored; on import the first tab is activated regardless |
 | tabs | array of Tab | yes | at least one entry |
 
+The `camera` of the tab being opened decides what the user sees first. It is a plain affine transform: a scene point lands at `screen = scene * zoom + scroll`, in CSS pixels from the top-left of the canvas, and the canvas fills the whole window (the side panels float on top of it). With the default `{scrollX: 0, scrollY: 0, zoom: 1}` everything inside `x` 0..windowWidth and `y` 0..windowHeight is on screen, so a diagram meant to show up whole should stay inside roughly `x` 0..1280 and `y` 110..700 on a 1280 × 800 window (see the chrome below) — or write a `camera` that centers it: `scrollX = windowWidth / 2 − centerX * zoom`, `scrollY` the same with the Y values.
+
+On screen, the app draws its chrome over that canvas, and the chrome hides whatever sits under it: the centered toolbar across the top (`y` 0..75), the tab bar and the zoom controls across the bottom (`y` ≈ windowHeight − 90..windowHeight), the menu button in the top-right corner and the shortcuts hint in the bottom-left. On a 1280 × 800 window that leaves a clean band of roughly `y` 75..710, so a title is safer at `y` ≥ 110 and nothing meant to be read should touch the first or last 90 rows of the window. The user can always press zoom-to-fit, but the first impression is the camera you wrote.
+
 | Tab field | Type | Required | Notes |
 |---|---|---|---|
 | id | string | yes | stable identifier inside the file; regenerated on import |
@@ -180,7 +184,7 @@ The same envelope is used for the localStorage autosave (key `archidraw:workspac
             "width": 640,
             "height": 360,
             "strokeColor": "#c4c7ca",
-            "backgroundColor": "#f3f5f6",
+            "backgroundColor": "transparent",
             "strokeWidth": 1,
             "opacity": 1,
             "strokeOpacity": 1,
@@ -245,7 +249,7 @@ The same envelope is used for the localStorage autosave (key `archidraw:workspac
             "width": 160,
             "height": 100,
             "strokeColor": "#3d4248",
-            "backgroundColor": "#ffffff",
+            "backgroundColor": "#dfe0e2",
             "strokeWidth": 1,
             "opacity": 1,
             "strokeOpacity": 1,
@@ -333,7 +337,7 @@ The same envelope is used for the localStorage autosave (key `archidraw:workspac
             "width": 220,
             "height": 24,
             "strokeColor": "#3d4248",
-            "backgroundColor": "#ffffff",
+            "backgroundColor": "transparent",
             "strokeWidth": 1,
             "opacity": 1,
             "strokeOpacity": 1,
@@ -380,10 +384,10 @@ Present on every element. The default column applies to the clipboard normalizer
 | y | number | 0 | scene Y of the top-left corner |
 | width | number | 100 | signed run for line and arrow |
 | height | number | 100 | signed run for line and arrow |
-| strokeColor | string | `#3d4248` | any CSS color |
-| backgroundColor | string | `#dfe0e2` | any CSS color |
+| strokeColor | string | `#3d4248` | any CSS color; read the color note below before picking one |
+| backgroundColor | string | `#dfe0e2` | any CSS color, or `transparent` for no fill; read the color note below |
 | strokeWidth | number | 1 | outline width in scene units |
-| opacity | number | 1 | alpha of the whole element |
+| opacity | number | 1 | alpha of the whole element, 0 to 1. This is the scale everywhere in this document, including native library items; the only place that uses 0 to 100 is the Excalidraw dialect of section 5.2 |
 | strokeOpacity | number | 1 | alpha of the outline |
 | fillOpacity | number | 1 | alpha of the fill |
 | strokeStyle | StrokeStyle | `solid` | |
@@ -415,27 +419,51 @@ Present on every element. The default column applies to the clipboard normalizer
 | captionOffsetLeft | number | 0 | pixels, caption fine tuning |
 | captionOffsetRight | number | 0 | pixels, caption fine tuning |
 
+**Color note.** The canvas only draws a color exactly as written when it belongs to the app palette below; any other color is stepped in lightness until it reaches a 3:1 contrast ratio against the canvas background, so an off-palette pastel such as `#ffe8cc` lands visibly darker on a white canvas, and an off-palette near-black is lightened on a dark one. The SVG export and the library tile thumbnails do **not** clamp: they keep the color as written. A generated library that uses off-palette pastels therefore shows pale pastel tiles and much darker elements once inserted on the canvas. Here is the whole palette, one row per hue, lightest shade first:
+
+| Hue | Lightest | Lighter | Base | Darker | Darkest |
+|---|---|---|---|---|---|
+| Grey | #dfe0e2 | #b3b8bc | #868e96 | #545c63 | #26292c |
+| Red | #edd4d4 | #de8c8c | #e03131 | #9b1717 | #470b0b |
+| Pink | #ecd5dd | #d98ca7 | #d6336c | #901d45 | #440e21 |
+| Grape | #e6d7ea | #c692d3 | #ae3ec9 | #752687 | #371240 |
+| Purple | #dbd5ec | #a694db | #6741d9 | #3d1f99 | #1b0e44 |
+| Indigo | #d1d7ef | #94a6ea | #4c6ef5 | #0b2ebc | #04134d |
+| Blue | #d3e1ed | #72a8d9 | #1971c2 | #114c83 | #092a48 |
+| Cyan | #d4e9ec | #81ced9 | #22b8cf | #177d8c | #0c3e46 |
+| Teal | #d4ede5 | #7dd9be | #20c997 | #168866 | #0b4635 |
+| Green | #d7eadb | #7ec88c | #2f9e44 | #216e2f | #133f1b |
+| Lime | #e3ecd5 | #bbda8b | #94d82d | #63921b | #2f450d |
+| Yellow | #f0e9d1 | #e7d07e | #f5c518 | #a68407 | #4e3e03 |
+| Orange | #f1e3d0 | #ebb870 | #f08c00 | #a35f00 | #523000 |
+| Coral | #f0ddd0 | #e8a578 | #f76707 | #a44405 | #4f2102 |
+| Brown | #e8ddd9 | #c69d8b | #a65e3f | #6f3f2a | #3b2116 |
+
+The two lightest columns carry fills, the three darkest columns carry strokes; a color from another hue's row is fine, a color outside the table is not. Four values are special-cased instead of clamped: `transparent`, `#c4c7ca` (the context-boundary stroke, drawn `#3b3835` on dark canvases) and the two sentinels of the default columns above — `#3d4248` is *replaced* by the active theme stroke (near-black `#26292c` on light canvases) and `#dfe0e2` by the theme fill (near-black on dark canvases). The sentinels therefore follow the theme instead of the tile: a shape stroked `#3d4248` shows the theme colour on the canvas, while the tile thumbnail and the SVG export keep the literal `#3d4248`. Use them for documents, which the app itself writes with them; for a library tile that must match the canvas, take an explicit colour from the table.
+
 ### 3.3 Type-specific fields
 
 | Element type | Extra fields |
 |---|---|
-| rectangle, diamond, ellipse | `label` (string) |
+| rectangle, diamond, ellipse | `label` (string) — drawn inside the box |
 | line | `label`, `labelT`, `lineType`, `controlPoint`, `bendPoints`, `startBinding`, `endBinding` |
 | arrow | all line fields plus `animated` (boolean, default false), `startArrowhead` (default `none`), `endArrowhead` (default `arrow`) |
 | text | `text` (string, defaults to empty), `fontSize` (number, defaults to 20) |
-| component | `componentId` (string, defaults to empty), `label`, `src` (data URL of a raster), `fill` (boolean, default false; true stretches the raster to the whole box) |
+| component | `componentId` (string, defaults to empty), `label` (caption drawn outside the box, on the `captionPosition` side), `src` (data URL of a raster), `fill` (boolean, default false; true stretches the raster to the whole box). The catalog id picks a bundled icon — see section 3.7 |
 | context | `label`, `labelPosition` (default `top-left`), `labelSide` (`internal` when created in the app, `external` when missing), `childIds` (array of element id strings) |
 
 Notes on edges:
 
+- An edge never fills its interior: `backgroundColor`, `fillStyle` and `fillOpacity` on a `line` or `arrow` are read and then ignored when drawing it. Write `transparent` and move on.
 - `labelT` positions the label along the edge from `0` (start) to `1` (end), default `0.5`.
 - `controlPoint` is an absolute scene point that bends a `curved` line or arrow.
 - `bendPoints` are intermediate vertices used by `auto` routing. The array is all-or-nothing: every item must be a valid `{x, y}` point or the field is dropped.
 - File defaults: the loader (section 2.3) fills none of these, and the renderer falls back on every read — a missing `lineType` reads as `straight`, `startArrowhead` as `none`, `endArrowhead` as `arrow`, `labelT` as `0.5`, `animated` as `false`. Omitting them is safe; writing them, as the examples do, is just clearer.
-- `componentId` values from the built-in catalog include `ec2`, `lambda`, `ecs`, `eks`, `api-gateway`, `elb`, `route53`, `cloudfront`, `vpc`, `dynamodb`, `rds`, `elasticache`, `s3`, `sqs` and `sns`.
+- `componentId` picks the icon from the section 3.7 catalog (`ec2`, `lambda`, `ecs`, `eks`, `api-gateway`, `elb`, `route53`, `cloudfront`, `vpc`, `dynamodb`, `rds`, `elasticache`, `s3`, `sqs`, `sns` and many more, the GCP/Azure/Kubernetes sets included).
 - `src` holds a self-contained raster such as `data:image/png;base64,...` for pasted or imported images.
+- Nothing from the section 5.2 dialect belongs here: `points`, `roundness`, `closed` and the `draw` type exist only on the raster library path, and corner rounding is spelled `borderRadius` in this model. Writing them on a native element does nothing.
 
-Note on contexts: `childIds` is read as written — Open never recomputes membership nor prunes the array; a dead id is ignored, not rejected. Fill it with the app's own rule: an element of any type — edges included — belongs to a context when its rotated bounds fall entirely inside the context's bounds, which is what the app records whenever an element is created, pasted or duplicated inside a context (contexts are never members of other contexts).
+Note on contexts: `childIds` is read as written — Open never recomputes membership nor prunes the array; a dead id is ignored, not rejected. Fill it with the app's own rule: an element of any type — edges included — belongs to a context when its rotated bounds fall entirely inside the context's bounds, which is what the app records whenever an element is created, pasted or duplicated inside a context (contexts are never members of other contexts). A context the app itself creates is `strokeColor: "#c4c7ca"`, `backgroundColor: "transparent"`, `strokeWidth: 1`, `borderRadius: 10`, `fontSize: 16`, `labelPosition: "top-left"` and `labelSide: "internal"`; copy those values when the drawing needs a plain boundary, and remember that a fill is a real fill — take one from the section 3.2 palette if you want the region tinted. A context's caption is drawn in `textColor`, which falls back to `strokeColor`, so the `#c4c7ca` boundary an app-made context carries gives a deliberately faint region name: set `textColor` (a palette colour) or a darker `strokeColor` when the name has to be read.
 
 ### 3.4 Enumerations
 
@@ -472,9 +500,82 @@ A binding object without a string `elementId` is dropped. In a file, reference i
 
 Text elements align inside their own box: `textAlign` picks the horizontal anchor and `textVAlign` the vertical one, then `textOffset*` values nudge the block in pixels. Multi-line text uses embedded newline characters and `lineSpacing` as the line height multiplier. `textColor` empty or missing falls back to `strokeColor`.
 
-Label placement depends on the type: on `rectangle`, `diamond` and `ellipse` the label sits inside the box, anchored by `textAlign` (default `center`) and `textVAlign` (default `middle`) and inset by the `textOffset*` values; on `line` and `arrow` it sits on the edge point given by `labelT` (midpoint by default); on `component` it sits outside the icon on the `captionPosition` side (default `bottom`), spaced by `captionGap` and the `captionOffset*` values — the only place `captionPosition` applies; on `context` it goes to the corner named by `labelPosition` (default `top-left`), drawn inside the box when `labelSide` is `internal` and outside when `external` (a missing `labelSide` reads as `external` — contexts the app creates start with `internal`).
+Label placement depends on the type: on `rectangle`, `diamond` and `ellipse` the label sits inside the box, anchored by `textAlign` (default `center`) and `textVAlign` (default `middle`) and inset by the `textOffset*` values; on `line` and `arrow` it is centred exactly on the edge point given by `labelT` (midpoint by default), with no perpendicular shift, and the text is painted over an opaque plate of the canvas background padded by `max(2, fontSize × 0.3)`, which masks the stroke under it — a label wider than the clear run of the stroke therefore hides the line it belongs to, so keep it short, move it with `labelT`, or write a separate `text` element where it must sit clear of the stroke; on `component` it sits outside the icon on the `captionPosition` side (default `bottom`), spaced by `captionGap` and the `captionOffset*` values — the only place `captionPosition` applies; on `context` it goes to the corner named by `labelPosition` (default `top-left`), drawn inside the box when `labelSide` is `internal` and outside when `external` (a missing `labelSide` reads as `external` — contexts the app creates start with `internal`).
 
-The box never wraps: lines break only on `\n`, and `width`/`height` are just the anchor rectangle inside which `textAlign` and `textVAlign` position the block — a line longer than `width` keeps drawing past the box, nothing is clipped. Size the box to the content: the `fontSize × 0.6 × text.length` estimate of section 5.3 applies to `text` elements here too.
+The box never wraps: lines break only on `\n`, and `width`/`height` are just the anchor rectangle inside which `textAlign` and `textVAlign` position the block — a line longer than `width` keeps drawing past the box, nothing is clipped. Size the box to the content before you place anything next to it: in the default sans font a line is about `fontSize × 0.6 × text.length` pixels wide and `fontSize × 1.25` tall, which is the same estimate section 5.3 uses when it lays the caption of a library tile.
+
+### 3.7 Component catalog
+
+`component` is the element that paints one of the app's built-in architecture icons, and it is the right element whenever a figure has a well-known logo: a cloud service, a Kubernetes object. The icon is looked up by `componentId` and drawn as a square of `min(width, height)` centred in the box, so a square box keeps the icon at full size — and an icon drawn at full size covers the whole box, fill included, which is why a tinted card only shows its fill when the box is larger than the icon on at least one axis. The box itself only paints if you ask it to: to get the icon and nothing else, copy what the panel inserts — `strokeWidth: 0` and `fillOpacity: 0` — and put the name in `label`, drawn outside the icon on the `captionPosition` side (section 3.6). Give the box a visible outline or fill only when the icon should sit inside a container.
+
+The whole catalog, each id with its official bundled icon:
+
+| `componentId` | Renders as | Category |
+|---|---|---|
+| `ec2` | EC2 | Compute |
+| `lambda` | Lambda | Compute |
+| `ecs` | ECS | Compute |
+| `eks` | EKS | Compute |
+| `api-gateway` | API Gateway | Network |
+| `elb` | Load Balancer | Network |
+| `route53` | Route 53 | Network |
+| `cloudfront` | CloudFront | Network |
+| `vpc` | VPC | Network |
+| `dynamodb` | DynamoDB | Database |
+| `rds` | RDS | Database |
+| `elasticache` | ElastiCache | Database |
+| `s3` | S3 | Storage |
+| `sqs` | SQS | Messaging |
+| `sns` | SNS | Messaging |
+| `eventbridge` | EventBridge | Messaging |
+| `step-functions` | Step Functions | Messaging |
+| `kinesis` | Kinesis | Messaging |
+| `cognito` | Cognito | Security |
+| `iam` | IAM | Security |
+| `cloudwatch` | CloudWatch | Monitoring |
+| `gcp-compute-engine` | Compute Engine | Compute |
+| `gcp-cloud-run` | Cloud Run | Compute |
+| `gcp-gke` | GKE | Compute |
+| `gcp-cloud-functions` | Cloud Functions | Compute |
+| `gcp-vpc` | VPC | Network |
+| `gcp-bigquery` | BigQuery | Database |
+| `gcp-spanner` | Cloud Spanner | Database |
+| `gcp-cloud-storage` | Cloud Storage | Storage |
+| `gcp-pubsub` | Pub/Sub | Messaging |
+| `gcp-cloud-armor` | Cloud Armor | Security |
+| `azure-vm` | Virtual Machines | Compute |
+| `azure-app-service` | App Service | Compute |
+| `azure-aks` | AKS | Compute |
+| `azure-functions` | Azure Functions | Compute |
+| `azure-vnet` | Virtual Network | Network |
+| `azure-cosmos-db` | Cosmos DB | Database |
+| `azure-sql` | Azure SQL | Database |
+| `azure-blob-storage` | Blob Storage | Storage |
+| `azure-service-bus` | Service Bus | Messaging |
+| `azure-event-grid` | Event Grid | Messaging |
+| `k8s-pod` | Pod | Compute |
+| `k8s-deployment` | Deployment | Compute |
+| `k8s-statefulset` | StatefulSet | Compute |
+| `k8s-daemonset` | DaemonSet | Compute |
+| `k8s-job` | Job | Compute |
+| `k8s-cronjob` | CronJob | Compute |
+| `k8s-replicaset` | ReplicaSet | Compute |
+| `k8s-service` | Service | Networking |
+| `k8s-ingress` | Ingress | Networking |
+| `k8s-networkpolicy` | NetworkPolicy | Networking |
+| `k8s-endpoint` | Endpoint | Networking |
+| `k8s-persistentvolume` | PersistentVolume | Storage |
+| `k8s-persistentvolumeclaim` | PersistentVolumeClaim | Storage |
+| `k8s-storageclass` | StorageClass | Storage |
+| `k8s-configmap` | ConfigMap | Config |
+| `k8s-secret` | Secret | Config |
+| `k8s-namespace` | Namespace | Cluster |
+| `k8s-node` | Node | Cluster |
+| `k8s-rbac` | RBAC | Cluster |
+| `k8s-serviceaccount` | ServiceAccount | Cluster |
+| `k8s-hpa` | HorizontalPodAutoscaler | Cluster |
+
+An id outside this table is still a valid element: it draws a generic placeholder icon with a short caption of the id, which is what a pasted or generated diagram gets for a logo the app does not know. `fill: true` is for raster assets only (`src`, section 3.3): it stretches the image over the whole box instead of squaring it in the middle, and it is ignored for a catalog id.
 
 ## 4. Clipboard syntax (copy and paste)
 
@@ -697,8 +798,8 @@ A library file is a palette of reusable elements imported through the Library pa
           "y": 0,
           "width": 96,
           "height": 48,
-          "strokeColor": "#3d4248",
-          "backgroundColor": "#dfe0e2",
+          "strokeColor": "#545c63",
+          "backgroundColor": "#b3b8bc",
           "strokeWidth": 1,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -725,7 +826,7 @@ A library file is a palette of reusable elements imported through the Library pa
 | LibraryItem field | Type | Required | Notes |
 |---|---|---|---|
 | name | string | no | label of the tile in the panel; blank or missing → `Item <n>` by position |
-| archidrawElements | array of Element | **yes for an editable item** | the native ArchiDraw model (section 3). When present and valid the item is re-inserted as a native editable group and every field is kept, so `roughness` and the other style toggles apply. An item without it is inserted as a static image, whatever else it carries |
+| archidrawElements | array of Element | **yes for an editable item** | the native ArchiDraw model (section 3). When present and valid the item is re-inserted as a native editable group and every field is kept, so `roughness` and the other style toggles apply. An item without it is inserted as a static image, whatever else it carries. Element ids only need to be unique inside their own item: insertion clones every element under a fresh id and one shared `groupId` |
 | elements | array of ExcalidrawElement | no | Excalidraw-compatible projection (section 5.2): the interchange shape other tools read, and the fallback tile thumbnail. Only required for an item that has no `archidrawElements`; when both are present the natives win, for insertion and for the thumbnail |
 | svg | string | no | cached thumbnail SVG of the item, written by this app's export to keep the hand-drawn (rough) stroke; used as the tile image when it contains `<svg`. When absent the thumbnail is rendered from `archidrawElements`, or from `elements` when there are none |
 
@@ -766,11 +867,13 @@ An item that carries a valid `archidrawElements` array is parsed with the sectio
 
 These rules describe the rasterized item — the `elements`-only path of section 5.2. A native item skips them: its tile is rendered from `archidrawElements` at the item's own proportions, and clicking it inserts the elements at their scene size.
 
+**Native items and color.** On the native path the clamping of section 3.2 is the whole game: the tile is a plain SVG that keeps every hex, while the canvas clamps anything outside the palette table. Take every fill and stroke from that table, or the tile will show a pastel icon and the canvas a darkened one.
+
 - Each item is centered on a square canvas of its bounding box plus 4 px on every side, always inserted at 64 × 64 with `aspect` 1 — a wide icon shrinks to fit the square. When the box is not square, the slack is split equally between the two margins of the axis that has room to spare (a tall icon ends up with equal left and right margins), and everything scales together: a 16 px caption inside an item about 130 px wide lands near 8 px on the canvas.
 - Bounding boxes honor `points`, so a line or arrow can reach outside `x` .. `x + width`.
 - Text is drawn from `x` left to right with the baseline at `y + fontSize * 0.8`; the SVG carries no `text-anchor`, so `textAlign` is never read and captions must be centered by hand. Horizontally, estimate the rendered width as `fontSize × 0.6 × text.length` (system-ui, mixed case) and set `x = boxCenterX − width / 2` — overestimating by a couple of pixels is invisible after the shrink to 64 px, while underestimating can push glyphs past the 4 px padding of the item box. Vertically, a caption centered in a box of height `H` starts at `y = boxTop + H / 2 − fontSize / 2`, within about a pixel of the optical center.
 - Colors are never validated: the string lands in the SVG `fill`/`stroke` as it is and the import still succeeds. A value the browser cannot parse is dropped as an invalid declaration, leaving the SVG default for that property — black fill, no stroke, glyphs included — so stick to hex, `rgb()` or named colors.
-- `opacity` below 100 applies to the whole group; missing `strokeColor` falls back to `#000000`.
+- `opacity` below 100 applies to the whole group (the 0 to 100 scale of this dialect); missing `strokeColor` falls back to `#000000`.
 
 **Arcs and silhouettes.** To draw something rounder than the built-in shapes:
 
@@ -779,7 +882,14 @@ These rules describe the rasterized item — the `elements`-only path of section
 - A filled silhouette with a curved outline is a `line` with `closed: true` and a `backgroundColor`: the whole contour, closing segment included, is stroked and the area filled. `draw` cannot do that, it never fills.
 - Seams are hidden by array order: elements render bottom-up, so an `ellipse` listed after an open `draw` body covers its open end (cylinder: body first, lid ellipse on top).
 
-Filled areas exist natively only through the built-in shapes: a `rectangle`, `ellipse` or `diamond` carries `backgroundColor`/`fillStyle`, and a native `line` or `arrow` is a stroke with no fill of its own. So a silhouette like a cloud or a database cylinder, which needs a closed filled outline, can only be a raster item — unless you compose it from native `ellipse`, `rectangle` and `line` elements instead, which keeps it editable.
+Filled areas exist natively only through the built-in shapes: a `rectangle`, `ellipse` or `diamond` carries `backgroundColor`/`fillStyle`, and a native `line` or `arrow` is a stroke with no fill of its own. So a silhouette like a cloud or a database cylinder cannot be one native element — compose it instead of falling back to a raster item:
+
+- cylinder = `rectangle` plus an `ellipse` over its top and one under its bottom, all sharing `backgroundColor` and `strokeColor`;
+- cloud = three or four overlapping `ellipse` with the same fill;
+- globe = one `ellipse` plus two `ellipse` with `fillOpacity: 0` (or two `line` with `bendPoints`) for the meridians;
+- inner detail (screen rows, slots, LEDs, bolts) = plain `rectangle`, `ellipse` and `line` drawn on top.
+
+Elements paint bottom-up, so list the body first and the detail last. Overlapping pieces keep their own outlines: if the seams bother you, give the body pieces `strokeColor: "transparent"` and draw a single outline piece over them, or accept the crossing strokes as part of the sketch look. Either way the item stays editable and answers the line-style toggle.
 
 ### 5.4 Validation and rejection rules
 
@@ -804,7 +914,7 @@ Everything else is tolerated and never rejects: unknown fields are ignored, an e
 
 ### 5.6 Example
 
-Two native items: the first is a labelled box (one `rectangle` with a `label`, no separate text element), the second pairs a dashed `arrow` with an `ellipse`. Both are editable on insertion and keep their `roughness` — a value above 0 is what the line-style toggle shows as draft/sketch/chaos.
+Two native items: the first is a labelled box (one `rectangle` with a `label`, no separate text element), the second pairs a dashed `arrow` with an `ellipse`. Both are editable on insertion and keep their `roughness` — a value above 0 is what the line-style toggle shows as draft/sketch/chaos. Every colour comes from the palette table of section 3.2, so the tile in the panel and the elements on the canvas draw the same hex.
 
 ```json
 {
@@ -821,8 +931,8 @@ Two native items: the first is a labelled box (one `rectangle` with a `label`, n
           "y": 0,
           "width": 120,
           "height": 64,
-          "strokeColor": "#3d4248",
-          "backgroundColor": "#d0ebff",
+          "strokeColor": "#114c83",
+          "backgroundColor": "#d3e1ed",
           "strokeWidth": 1,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -846,7 +956,7 @@ Two native items: the first is a labelled box (one `rectangle` with a `label`, n
           "y": 32,
           "width": 144,
           "height": 0,
-          "strokeColor": "#3d4248",
+          "strokeColor": "#114c83",
           "backgroundColor": "transparent",
           "strokeWidth": 2,
           "opacity": 1,
@@ -867,8 +977,8 @@ Two native items: the first is a labelled box (one `rectangle` with a `label`, n
           "y": 8,
           "width": 48,
           "height": 48,
-          "strokeColor": "#3d4248",
-          "backgroundColor": "#ebfbee",
+          "strokeColor": "#216e2f",
+          "backgroundColor": "#d7eadb",
           "strokeWidth": 1,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -967,6 +1077,8 @@ The response is not a payload you would feed back in; it is the verdict. Shown a
 
 `valid` is derived only from `errors`. A payload can be `valid: true` and still carry warnings.
 
+`valid: true` means the parser accepts the payload — it is not a review of the drawing. Geometry and looks are never checked (section 5.4): a rectangle at the wrong coordinates, a label sitting on top of the shape it belongs to, a line ending nowhere or a figure that does not resemble its concept all validate cleanly. For that, render the result and look at it; the warnings are the only automatic signal of a field that was defaulted or dropped.
+
 ### 7.2 Format detection
 
 Detection mirrors the disjointness of section 1 and runs in this order; the first match wins:
@@ -988,7 +1100,7 @@ The endpoint separates what the real parsers reject from what they silently repa
 
 - **workspace (sections 2.1 and 2.2)** — rejects on envelope shape only: `activeTabId` not a string, empty `tabs`, a tab that is not an object or lacks `id`, `name`, `doc` or `camera`, non-numeric camera fields, or an element whose `type` is not one of the eight. Geometry is *not* checked, matching `storage.parse`, so a non-finite `x` is a **warning**, not an error. A `activeTabId` that matches no `tab.id` is also a warning.
 - **workspace-legacy (section 2.3)** — same `doc` and `camera` checks; the legacy `schemaVersion` itself is a warning, because the loader migrates it to tabs.
-- **library (section 5.4)** — rejects only when the root carries neither `libraryItems` nor `library`, when that array is empty, or when no item leaves any surviving element. An item without `archidrawElements` is a **warning**: the parser accepts it, but the tile becomes a static image and the line-style toggle does nothing to it, so a generated library is almost always wrong in that shape. A single element with a bad `type`, or a `line`/`arrow`/`draw` with fewer than two `points`, is dropped from its item and reported as a **warning**: it never rejects the file. `opacity` outside 0 to 100 and non-finite geometry are warnings too. Native elements are validated with the section 3 rules, the ones used for a workspace document.
+- **library (section 5.4)** — rejects only when the root carries neither `libraryItems` nor `library`, when that array is empty, or when no item leaves any surviving element. An item without `archidrawElements` is a **warning**: the parser accepts it, but the tile becomes a static image and the line-style toggle does nothing to it, so a generated library is almost always wrong in that shape. A single element with a bad `type`, or a `line`/`arrow`/`draw` with fewer than two `points`, is dropped from its item and reported as a **warning**: it never rejects the file. `opacity` outside the scale of its flavour (0 to 100 for Excalidraw-dialect elements, 0 to 1 for native ones) and non-finite geometry are warnings too. Native elements are validated with the section 3 rules, the ones used for a workspace document. That 5.1 warning is also the whole story of a foreign `.excalidrawlib`: it imports and renders, but nothing in it is editable.
 - **clipboard (section 4.3)** — atomic: one item with a bad `type` produces an `error` and `valid: false`. Wrong-typed optional fields, non-finite geometry and missing base fields only warn, because the normalizer defaults them.
 - **element** — the same rules as a one-item clipboard payload.
 
@@ -1021,4 +1133,6 @@ Feed each returned `error` back into your generator: `path` locates the offendin
 - Unknown fields are dropped silently, not errors.
 - Text elements always carry `text` and `fontSize`.
 - Line and arrow geometry uses signed `width` and `height` from start to end.
+- A well-known logo (cloud service, Kubernetes object) is a `component` with a `componentId` from the section 3.7 catalog, not a labelled box: the catalog draws the official icon, and a plain box draws only what you wrote. Use a labelled `rectangle`/`ellipse` for a concept the catalog does not cover.
+- The drawing is inside the area the camera shows (section 2.1): with the default camera, keep every element inside roughly `x` 0..1280 and `y` 110..700 — the toolbar sits over the top of the window and the tab bar over the bottom, so a title at `y` < 110 opens hidden — or write a `camera` that centres the drawing.
 - Before importing, `POST` the payload to `/validate` (section 7) and fix every returned `error`; a `warning` usually means a defaulted or dropped field you meant to set. In a library, a 5.1 warning means an item would import as a static image instead of an editable group.
