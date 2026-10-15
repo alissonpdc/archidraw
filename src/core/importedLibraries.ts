@@ -19,12 +19,14 @@ import {
   type LibraryItem,
 } from "./library";
 import { makeReuseId, persistJson } from "./localStore";
+import type { Element } from "./types";
 
 export interface ImportedLibraryItemData {
   id: string;
   name: string;
   svg: string;
   aspect: number;
+  elements?: Element[];
 }
 
 export interface ImportedLibrary {
@@ -53,6 +55,9 @@ function toLibraryItem(lib: ImportedLibrary, it: ImportedLibraryItemData): Libra
     keywords: [lib.name.toLowerCase()],
     aspect: it.aspect,
     group: lib.id,
+    ...(it.elements && it.elements.length > 0
+      ? { elements: it.elements }
+      : {}),
   };
 }
 
@@ -118,6 +123,9 @@ export async function importExcalidrawLibFile(file: File): Promise<ImportedLibra
       name: it.name,
       svg: it.svg,
       aspect: it.aspect,
+      ...(it.nativeElements && it.nativeElements.length > 0
+        ? { elements: it.nativeElements }
+        : {}),
     })),
   };
   registerAll(lib);

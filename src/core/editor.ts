@@ -63,6 +63,7 @@ import { componentAssetDataUri } from "./componentAssets";
 import { addImportedImage } from "./importedImages";
 import {
   parseElementsClipboard,
+  parseLibraryClipboard,
   serializeElementsClipboard,
 } from "./clipboardJson";
 import {
@@ -1617,10 +1618,15 @@ strokeOpacity?: number;
 
   pasteFromText(text: string): number {
     const items = parseElementsClipboard(text);
-    if (!items) return 0;
-    this.pasteCount += 1;
-    const offset = 16 * this.pasteCount;
-    return this.insertPasted(items, offset, offset);
+    if (items) {
+      this.pasteCount += 1;
+      const offset = 16 * this.pasteCount;
+      return this.insertPasted(items, offset, offset);
+    }
+    const library = parseLibraryClipboard(text);
+    if (!library) return 0;
+    this.insertElementGroup(library);
+    return library.length;
   }
 
   // ---- copy/paste style -----------------------------------------------

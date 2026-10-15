@@ -411,3 +411,128 @@ test.describe("excalidraw library import", () => {
     expect(s.elements.every((e) => e.type === "component")).toBe(true);
   });
 });
+
+test.describe("archidrawlib native import", () => {
+  const nativeRect = {
+    id: "n1",
+    type: "rectangle",
+    x: 0,
+    y: 0,
+    width: 80,
+    height: 40,
+    strokeColor: "#3d4248",
+    backgroundColor: "#dfe0e2",
+    strokeWidth: 2,
+    opacity: 1,
+    strokeOpacity: 1,
+    fillOpacity: 0,
+    strokeStyle: "solid",
+    fillStyle: "solid",
+    roughness: 3,
+    borderRadius: 0,
+  };
+
+  function lib(items: unknown[]) {
+    return JSON.stringify({ type: "archidrawlib", version: 2, libraryItems: items });
+  }
+
+  test("item with native elements is inserted as an editable group", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+    await importLibOk(
+      page,
+      "native.archidrawlib",
+      lib([
+        {
+          name: "Sketchy Box",
+          elements: [{ type: "rectangle", x: 0, y: 0, width: 80, height: 40, opacity: 100 }],
+          archidrawElements: [nativeRect],
+          svg: '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><path d="M0 0"/></svg>',
+        },
+      ]),
+    );
+
+    await page.locator('[data-testid="library-imported-group"] .library-tile').click();
+    const state = await editorState();
+    expect(state.elementCount).toBe(1);
+    expect(state.elements[0].type).toBe("rectangle");
+    const el = await page.evaluate(
+      () => (window as any).__editor__.getSnapshot().doc.elements[0],
+    );
+    expect(el.roughness).toBe(3);
+    expect(el.groupId).toBeTruthy();
+  });
+
+  test("stored svg is used verbatim as the tile thumbnail", async ({ page }) => {
+    await openLibrary(page);
+    await importLibOk(
+      page,
+      "thumb.archidrawlib",
+      lib([
+        {
+          name: "Thumb",
+          elements: [{ type: "rectangle", x: 0, y: 0, width: 80, height: 40, opacity: 100 }],
+          archidrawElements: [nativeRect],
+          svg: '<svg xmlns="http://www.w3.org/2000/svg" data-thumb="yes"></svg>',
+        },
+      ]),
+    );
+    const stored = await page.evaluate(() => {
+      const libs = JSON.parse(localStorage.getItem("archidraw:importedLibraries") || "[]");
+      return libs[0].items[0].svg as string;
+    });
+    expect(stored).toContain('data-thumb="yes"');
+  });
+
+  test("invalid or empty archidrawElements fall back to a raster component", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+    await importLibOk(
+      page,
+      "fallback.archidrawlib",
+      lib([
+        {
+          name: "Invalid",
+          elements: [{ type: "rectangle", x: 0, y: 0, width: 80, height: 40, opacity: 100 }],
+          archidrawElements: [{ type: "star" }],
+        },
+        {
+          name: "Empty",
+          elements: [{ type: "ellipse", x: 0, y: 0, width: 80, height: 40, opacity: 100 }],
+          archidrawElements: [],
+        },
+        {
+          name: "NoSvgMarkup",
+          elements: [{ type: "diamond", x: 0, y: 0, width: 80, height: 40, opacity: 100 }],
+          svg: "not svg at all",
+        },
+        {
+          name: "NonStringSvg",
+          elements: [{ type: "ellipse", x: 0, y: 60, width: 80, height: 40, opacity: 100 }],
+          svg: 42,
+        },
+      ]),
+    );
+
+    // the NoSvgMarkup item's bad svg must be regenerated, not stored verbatim
+    const storedSvgs = await page.evaluate(() => {
+      const libs = JSON.parse(localStorage.getItem("archidraw:importedLibraries") || "[]");
+      return libs[0].items.map((it: { svg: string }) => it.svg);
+    });
+    expect(storedSvgs[2]).toContain("<svg");
+    expect(storedSvgs[2]).not.toBe("not svg at all");
+    expect(storedSvgs[3]).toContain("<svg");
+
+    await page
+      .locator('[data-testid="library-imported-group"] .library-tile')
+      .first()
+      .click();
+    const state = await editorState();
+    expect(state.elements[0].type).toBe("component");
+    expect(state.elements[0].componentId).toMatch(/^imp-/);
+  });
+});

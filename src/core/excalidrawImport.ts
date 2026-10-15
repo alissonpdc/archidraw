@@ -8,6 +8,8 @@
  */
 
 import { normalizePoints, excalidrawFontCategory } from "./excalidrawCommon";
+import { normalizeElement as normalizeArchiElement } from "./clipboardJson";
+import type { Element } from "./types";
 import { escapeXml } from "./utils";
 
 export interface ExcalidrawLibParseResult {
@@ -17,6 +19,7 @@ export interface ExcalidrawLibParseResult {
     svg: string;
     /** largura/altura do SVG (para preservar proporção na inserção) */
     aspect: number;
+    nativeElements?: Element[];
   }[];
 }
 
@@ -116,6 +119,25 @@ function itemName(item: unknown, index: number): string {
     if (n) return n;
   }
   return `Item ${index + 1}`;
+}
+
+function nativeElementsOf(wrapper: unknown): Element[] | undefined {
+  if (!wrapper || typeof wrapper !== "object" || Array.isArray(wrapper)) return undefined;
+  const raw = (wrapper as { archidrawElements?: unknown }).archidrawElements;
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: Element[] = [];
+  for (const item of raw) {
+    const el = normalizeArchiElement(item);
+    if (!el) return undefined;
+    out.push(el);
+  }
+  return out;
+}
+
+function storedSvgOf(wrapper: unknown): string | undefined {
+  if (!wrapper || typeof wrapper !== "object" || Array.isArray(wrapper)) return undefined;
+  const svg = (wrapper as { svg?: unknown }).svg;
+  return typeof svg === "string" && svg.includes("<svg") ? svg : undefined;
 }
 
 /** bounds globais (inclui pontos de linhas/setas, que extrapolam x/y/w/h) */
@@ -354,14 +376,14 @@ export function parseExcalidrawLib(jsonText: string): ExcalidrawLibParseResult {
   }
   const lists = extractItems(root);
   const items = lists.map((elements, i) => {
-    const name = itemName(
-      // name vem do objeto wrapper; extractItems devolve só elements,
-      // então procuramos no root original quando for v2
-      findWrapperName(root, i),
-      i,
-    );
-    const { svg, aspect } = itemToSvg(elements.map(normalizeElement));
-    return { name, svg, aspect };
+    const wrapper = findWrapperName(root, i);
+    const name = itemName(wrapper, i);
+    const nativeElements = nativeElementsOf(wrapper);
+    const storedSvg = storedSvgOf(wrapper);
+    const rendered = storedSvg
+      ? { svg: storedSvg, aspect: 1 }
+      : itemToSvg(elements.map(normalizeElement));
+    return { name, ...rendered, nativeElements };
   });
   if (items.length === 0) {
     throw new ExcalidrawLibParseError("No items found in .excalidrawlib file");
