@@ -147,17 +147,31 @@ export function validateLibrary(data: unknown): ValidationResult {
   items.forEach((it, i) => {
     const p = basePath ? `${basePath}[${i}]` : `[${i}]`;
     let elements: unknown[];
+    let natives: unknown[] = [];
     if (Array.isArray(it)) elements = it;
-    else if (it && typeof it === "object" && Array.isArray((it as Raw).elements)) {
-      elements = (it as Raw).elements as unknown[];
+    else if (it && typeof it === "object") {
+      const rec = it as Raw;
+      natives = Array.isArray(rec.archidrawElements) ? (rec.archidrawElements as unknown[]) : [];
+      elements = Array.isArray(rec.elements) ? (rec.elements as unknown[]) : [];
+      if (natives.length === 0 && elements.length === 0) {
+        addWarning(r, p, "item sem archidrawElements nem elements[] — seria pulado", "5.4");
+        return;
+      }
     } else {
       addWarning(r, p, "item nem array nem objeto com elements[] — seria pulado", "5.4");
       return;
     }
-    if (elements.length === 0) {
-      addWarning(r, p, "item com elements vazio — seria descartado", "5.4");
+    if (natives.length > 0) {
+      keptElements += natives.length;
+      natives.forEach((el, j) => absorb(r, el, `${p}.archidrawElements[${j}]`));
       return;
     }
+    addWarning(
+      r,
+      p,
+      "item sem archidrawElements — entra como imagem estática e o estilo de linha/rascunho não tem efeito; gere os elementos nativos (seção 3)",
+      "5.1",
+    );
     keptElements += elements.length;
     elements.forEach((el, j) => inspectLibElement(el, `${p}.elements[${j}]`, r));
   });
