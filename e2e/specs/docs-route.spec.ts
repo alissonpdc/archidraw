@@ -103,6 +103,20 @@ test.describe("docs markdown source", () => {
       "the only place `captionPosition` applies",
       "bottom-right corner",
       "edges included",
+      "it belongs to the app palette",
+      "#d3e1ed",
+      "#545c63",
+      "### 3.7 Component catalog",
+      "`api-gateway`",
+      "`eks`",
+      "`k8s-hpa`",
+      "official bundled icon",
+      "An edge never fills its interior",
+      "screen = scene * zoom + scroll",
+      "the tab bar and the zoom controls across the bottom",
+      "A context the app itself creates is",
+      "opaque plate of the canvas background",
+      "Nothing from the section 5.2 dialect belongs here",
     ]) {
       expect(md, `workspace token ${token} documented`).toContain(token);
     }
@@ -124,6 +138,9 @@ test.describe("docs markdown source", () => {
       "black fill, no stroke",
       "Tuples and objects may be mixed inside one array",
       "an open contour never fills either",
+      "compose it instead of falling back to a raster item",
+      "answers the line-style toggle",
+      "Color note",
     ]) {
       expect(md, `library token ${token} documented`).toContain(token);
     }
@@ -164,6 +181,9 @@ test.describe("docs markdown source", () => {
 
     // disponibilidade: /validate roda no servidor Node de produção, não é só dev
     expect(md, "production node server documented").toContain("Node server");
+    expect(md, "valid is not a review of the drawing").toContain(
+      "it is not a review of the drawing",
+    );
     expect(md, "atomic clipboard rule referenced").toContain("atomic");
   });
 
@@ -196,6 +216,36 @@ test.describe("docs markdown source", () => {
         body.warnings.some((w: { rule: string }) => w.rule === "5.1"),
         `a library example has an item without archidrawElements: ${block.slice(0, 60)}`,
       ).toBe(false);
+    }
+  });
+
+  test("every doc example paints only with palette colors (section 3.2 table)", async ({
+    request,
+  }) => {
+    const md = await fetchDocsMarkdown(request);
+    const palette = new Set<string>();
+    const rows = md
+      .split("\n")
+      .filter((l) => /^\| [A-Z][a-z]+ \| #/.test(l));
+    expect(rows.length, "a tabela da paleta precisa estar na doc").toBe(15);
+    for (const row of rows) {
+      for (const hex of row.match(/#[0-9a-fA-F]{6}/g) ?? []) {
+        palette.add(hex.toLowerCase());
+      }
+    }
+    // valores que a doc trata como especiais: o sentinela de traço do tema
+    // (substituído pelo stroke ativo) e a borda de contexto
+    const documented = new Set(["#3d4248", "#c4c7ca"]);
+    const blocks = jsonBlocks(md);
+    expect(blocks.length).toBeGreaterThanOrEqual(10);
+    for (const block of blocks) {
+      for (const hex of block.match(/#[0-9a-fA-F]{6}/g) ?? []) {
+        const key = hex.toLowerCase();
+        expect(
+          palette.has(key) || documented.has(key),
+          `exemplo da doc com cor fora da paleta: ${hex} em ${block.slice(0, 60)}`,
+        ).toBe(true);
+      }
     }
   });
 
