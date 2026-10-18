@@ -137,6 +137,22 @@ function handleScenePosition(el: Element, handle: HandleId, b: Bounds): Point {
   return toScenePoint(el, handlePosition(handle, b));
 }
 
+/** true when the scene point hits a handle of the group bounding box */
+function groupResizeHandleAt(scenePoint: Point, b: Bounds, zoom: number): HandleId | null {
+  for (const h of HANDLES) {
+    const p = handlePosition(h, b);
+    if (Math.hypot(scenePoint.x - p.x, scenePoint.y - p.y) * zoom <= HANDLE_TOLERANCE_PX) {
+      return h;
+    }
+  }
+  return null;
+}
+
+/** all selected elements that can take part in a group resize */
+function groupResizeMembers(elements: Element[]): Element[] {
+  return elements.filter((el) => !el.locked && hasResizeHandles(el));
+}
+
 function resizeHandleAt(
   scenePoint: Point,
   el: Element,
@@ -354,7 +370,17 @@ type Interaction =
       contextBase?: Map<string, Element>;
       moved?: boolean;
     }
-  | { kind: "resize"; handle: HandleId; original: Element }
+  | {
+      kind: "resize";
+      handle: HandleId;
+      original: Element;
+      /** when set, the resize scales every listed element as one group */
+      originals?: Element[];
+      /** original snapshots of context children, so they scale from a
+       *  stable base (their live positions change every frame) */
+      contextBase?: Map<string, Element>;
+      moved?: boolean;
+    }
   | {
       kind: "rotate";
       original: Element;
@@ -1873,6 +1899,36 @@ strokeOpacity?: number;
             }
           }
         }
+        // resize handles spanning the whole multi-selection scale all
+        // members at once
+        if (this.selectedIds.size > 1) {
+          const members = groupResizeMembers(
+            this.doc.elements.filter((el) => this.selectedIds.has(el.id)),
+          );
+          const gb = members.length > 0 ? unionBounds(members) : null;
+          if (gb) {
+            const handle = groupResizeHandleAt(scene, gb, this.camera.zoom);
+            if (handle) {
+              this.commitHistory();
+              const contextBase = new Map<string, Element>();
+              for (const el of members) {
+                if (el.type !== "context" || !el.childIds) continue;
+                for (const cid of el.childIds) {
+                  const child = this.doc.elements.find((e) => e.id === cid);
+                  if (child && !contextBase.has(cid)) contextBase.set(cid, child);
+                }
+              }
+              this.interaction = {
+                kind: "resize",
+                handle,
+                original: members[0],
+                originals: members,
+                contextBase: contextBase.size > 0 ? contextBase : undefined,
+              };
+              break;
+            }
+          }
+        }
         // control-point handle (curved mode) of the single selected edge
         if (this.selectedIds.size === 1) {
           const selected = this.doc.elements.find((el) =>
@@ -2256,9 +2312,121 @@ strokeOpacity?: number;
         break;
       }
       case "resize": {
+        const handle = this.interaction.handle;
+        if (this.interaction.originals) {
+          // group scale: every member is mapped through the same scale
+          // factors about the handle's opposite group corner, so the
+          // relative layout stays intact
+          const originals = this.interaction.originals;
+          const gb = unionBounds(originals)!;
+          const corner = handlePosition(handle, gb);
+          const fx = handle.includes("e") ? gb.x1 : gb.x2;
+          const fy = handle.includes("s") ? gb.y1 : gb.y2;
+          let sx: number;
+          let sy: number;
+          if (handle.length === 2) {
+            sx = (scene.x - fx) / (corner.x - fx || 1);
+            sy = (scene.y - fy) / (corner.y - fy || 1);
+            const s = Math.max(0.05, (sx + sy) / 2);
+            sx = s;
+            sy = s;
+          } else if (handle === "e" || handle === "w") {
+            sx = Math.max(0.05, (scene.x - fx) / (corner.x - fx || 1));
+            sy = 1;
+          } else {
+            sy = Math.max(0.05, (scene.y - fy) / (corner.y - fy || 1));
+            sx = 1;
+          }
+          this.interaction.moved = sx !== 1 || sy !== 1;
+          const scalePoint = (p: Point) => ({
+            x: fx + (p.x - fx) * sx,
+            y: fy + (p.y - fy) * sy,
+          });
+          const scaleOne = (orig: Element) => {
+            if (orig.type === "text") {
+              const s = Math.max(sx, sy);
+              const newFontSize = Math.max(1, Math.round(orig.fontSize * s));
+              const { width, height } = measureText(
+                orig.text || " ",
+                newFontSize,
+                fontFamilyOf(orig),
+                orig.bold,
+                orig.italic,
+                orig.lineSpacing,
+              );
+              const w = Math.max(width, 8);
+              const cx = fx + (orig.x + orig.width / 2 - fx) * sx;
+              const cy = fy + (orig.y + orig.height / 2 - fy) * sy;
+              return {
+                ...orig,
+                x: cx - w / 2,
+                y: cy - height / 2,
+                fontSize: newFontSize,
+                width: w,
+                height,
+              };
+            }
+            return {
+              ...orig,
+              ...scalePoint(orig),
+              width: orig.width * sx,
+              height: orig.height * sy,
+            };
+          };
+          const moved = new Map<string, Element>();
+          for (const orig of originals) {
+            if (isEdge(orig)) {
+              moved.set(orig.id, {
+                ...orig,
+                ...scalePoint(orig),
+                width: orig.width * sx,
+                height: orig.height * sy,
+                bendPoints: orig.bendPoints?.map(scalePoint),
+                controlPoint:
+                  orig.controlPoint === undefined
+                    ? undefined
+                    : scalePoint(orig.controlPoint),
+              });
+              continue;
+            }
+            moved.set(orig.id, scaleOne(orig));
+            if (orig.type === "context" && orig.childIds) {
+              for (const cid of orig.childIds) {
+                if (moved.has(cid)) continue;
+                const child =
+                  this.interaction.contextBase?.get(cid) ??
+                  this.doc.elements.find((e) => e.id === cid);
+                if (child && !child.locked) {
+                  moved.set(cid, scaleOne(child));
+                }
+              }
+            }
+          }
+          const base = [...this.doc.elements].map(
+            (el) => moved.get(el.id) ?? el,
+          );
+          this.doc = { ...this.doc, elements: base };
+          const scaledIds = new Set(moved.keys());
+          this.doc = {
+            ...this.doc,
+            elements: this.doc.elements.map((el) => {
+              if (!isEdge(el) || (!el.startBinding && !el.endBinding)) {
+                return el;
+              }
+              const startAffected =
+                el.startBinding !== undefined && scaledIds.has(el.startBinding.elementId);
+              const endAffected =
+                el.endBinding !== undefined && scaledIds.has(el.endBinding.elementId);
+              if (!startAffected && !endAffected) return el;
+              return snapEdgeEndpoints(el, (bid) =>
+                this.doc.elements.find((e) => e.id === bid),
+              );
+            }),
+          };
+          break;
+        }
         const o = elementBounds(this.interaction.original);
         const orig = this.interaction.original;
-        const handle = this.interaction.handle;
         // resize math runs in the element's own frame, so a rotated element
         // grows along its rotated axes instead of the screen axes
         const local = elementAngle(orig) === 0 ? scene : toLocalPoint(orig, scene);
@@ -2446,6 +2614,7 @@ strokeOpacity?: number;
         }
         // edges bound to the resized shape follow its new anchors
         this.syncEdgesBoundTo(id);
+        this.interaction.moved = true;
         break;
       }
       case "marquee": {
@@ -2516,6 +2685,9 @@ strokeOpacity?: number;
       }
       this.draft = null;
     }
+    if (this.interaction.kind === "resize" && !this.interaction.moved) {
+      this.history.pop(); // handle grabbed without dragging: drop snapshot
+    }
     if (this.interaction.kind === "move" && !this.interaction.moved) {
       this.history.pop();
     }
@@ -2555,10 +2727,20 @@ strokeOpacity?: number;
   /** imperative cursor hint for handle hover (null = use CSS default) */
   cursorOverrideAt(screenPoint: Point): string | null {
     if (this.interaction.kind !== "none") return null;
-    if (this.tool !== "selection" || this.selectedIds.size !== 1) return null;
+    if (this.tool !== "selection") return null;
+    const scene = screenToScene(screenPoint, this.camera);
+    if (this.selectedIds.size > 1) {
+      const members = groupResizeMembers(
+        this.doc.elements.filter((el) => this.selectedIds.has(el.id)),
+      );
+      if (members.length === 0) return null;
+      const gb = unionBounds(members)!;
+      const handle = groupResizeHandleAt(scene, gb, this.camera.zoom);
+      return handle ? HANDLE_CURSOR[handle] : null;
+    }
+    if (this.selectedIds.size !== 1) return null;
     const selected = this.doc.elements.find((el) => this.selectedIds.has(el.id));
     if (!selected || !hasResizeHandles(selected)) return null;
-    const scene = screenToScene(screenPoint, this.camera);
     if (rotateHandleAt(scene, selected, visualBounds(selected), this.camera.zoom)) {
       return "grab";
     }

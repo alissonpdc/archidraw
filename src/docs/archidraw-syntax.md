@@ -395,7 +395,7 @@ Present on every element. The default column applies to the clipboard normalizer
 | roughness | integer 0 to 3 | 0 | rounded and clamped; 0 clean, 1 draft, 2 sketchy, 3 chaos |
 | borderRadius | number | 0 | percent of the smaller side |
 | angle | number | 0 | radians, clockwise, around the box center |
-| groupId | string | none | elements sharing a groupId move and select together |
+| groupId | string | none | elements sharing a groupId move, select and resize together |
 | locked | boolean | false | disables direct manipulation |
 | details | string | none | free-form technical note rendered as a badge |
 | fontFamily | string | app default | CSS family name |

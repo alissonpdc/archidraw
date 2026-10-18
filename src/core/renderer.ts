@@ -18,6 +18,7 @@ import {
   measureText,
   rotatedBounds,
   toScenePoint,
+  unionBounds,
 } from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage, getCachedImage } from "./componentAssets";
@@ -1227,6 +1228,51 @@ function drawSelectionBox(
   ctx.restore();
 }
 
+const RESIZABLE_TYPES = new Set<string>([
+  "rectangle",
+  "diamond",
+  "ellipse",
+  "line",
+  "arrow",
+  "component",
+  "text",
+  "context",
+]);
+
+function drawGroupHandles(
+  ctx: CanvasRenderingContext2D,
+  b: Bounds,
+  zoom: number,
+  color: string,
+) {
+  const s = HANDLE_SIZE / zoom;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(0.75, 1 / zoom);
+  ctx.setLineDash([3 / zoom, 4 / zoom]);
+  ctx.strokeRect(b.x1, b.y1, b.x2 - b.x1, b.y2 - b.y1);
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#ffffff";
+  ctx.lineWidth = 1 / zoom;
+  const centers = [
+    { x: b.x1, y: b.y1 },
+    { x: (b.x1 + b.x2) / 2, y: b.y1 },
+    { x: b.x2, y: b.y1 },
+    { x: b.x2, y: (b.y1 + b.y2) / 2 },
+    { x: b.x2, y: b.y2 },
+    { x: (b.x1 + b.x2) / 2, y: b.y2 },
+    { x: b.x1, y: b.y2 },
+    { x: b.x1, y: (b.y1 + b.y2) / 2 },
+  ];
+  for (const p of centers) {
+    ctx.beginPath();
+    ctx.rect(p.x - s / 2, p.y - s / 2, s, s);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderColors) {
   if (el.type === "text" || !el.label) return;
   const cache = getElementCache(el);
@@ -1699,6 +1745,17 @@ export function render(
       !(state.hiddenTextId && sel.id === state.hiddenTextId)
     ) {
       drawHandles(ctx, sel, cam.zoom, colors.selection);
+    }
+  }
+
+  // resize handles spanning the whole multi-selection
+  if (!state.draft && state.selectedIds.size > 1) {
+    const members = state.doc.elements
+      .filter((el) => state.selectedIds.has(el.id))
+      .filter((el) => !el.locked && RESIZABLE_TYPES.has(el.type));
+    if (members.length > 0) {
+      const gb = unionBounds(members);
+      if (gb) drawGroupHandles(ctx, gb, cam.zoom, colors.selection);
     }
   }
 
