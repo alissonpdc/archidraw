@@ -9,8 +9,7 @@ async function createRects(page: Page) {
 
 async function selectBoth(page: Page) {
   await drag(page, { x: 80, y: 30 }, { x: 380, y: 210 });
-  await page.getByRole("button", { name: "Layers" }).click();
-  await page.getByRole("button", { name: "Group", exact: true }).click();
+  await page.keyboard.press("Control+g");
   await page.mouse.click(140, 130);
 }
 
@@ -27,6 +26,30 @@ function geom(page: Page) {
       })),
     };
   });
+}
+
+/** counts selection-color pixels in a canvas region (single readback) */
+function selectionPixels(
+  page: Page,
+  region: { x1: number; y1: number; x2: number; y2: number },
+) {
+  return page.evaluate(({ x1, y1, x2, y2 }) => {
+    const canvas = document.querySelector(".canvas") as HTMLCanvasElement;
+    const dpr = window.devicePixelRatio || 1;
+    const data = canvas
+      .getContext("2d")!
+      .getImageData(x1 * dpr, y1 * dpr, (x2 - x1) * dpr, (y2 - y1) * dpr).data;
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      if (data[i + 3] > 100 && b > 90 && b - r > 40 && g > 50 && g < b) {
+        count++;
+      }
+    }
+    return count;
+  }, region);
 }
 
 test.describe("group resize", () => {
@@ -103,8 +126,48 @@ test.describe("group resize", () => {
     expect(b.h).toBeCloseTo(80, 0);
   });
 
-  test("cursor hints resize over the group handle", async ({ page }) => {
-    const se = await page.evaluate(() =>
+  test("individual selection outlines are hidden for a group", async ({
+    page,
+  }) => {
+    await page.waitForTimeout(200);
+    const insideGroup = await selectionPixels(page, {
+      x1: 120,
+      y1: 161,
+      x2: 145,
+      y2: 168,
+    });
+    expect(insideGroup).toBe(0);
+  });
+
+  test("individual outline remains for a single selection", async ({
+    page,
+  }) => {
+    await page.keyboard.press("Control+Shift+g");
+    await page.mouse.click(420, 220);
+    await page.mouse.click(140, 130);
+    await page.waitForTimeout(200);
+
+    const single = await selectionPixels(page, {
+      x1: 120,
+      y1: 161,
+      x2: 145,
+      y2: 168,
+    });
+    expect(single).toBeGreaterThan(0);
+  });
+
+  test("group outline is drawn around the selection", async ({ page }) => {
+    await page.waitForTimeout(200);
+    const onGroupEdge = await selectionPixels(page, {
+      x1: 356,
+      y1: 112,
+      x2: 366,
+      y2: 134,
+    });
+    expect(onGroupEdge).toBeGreaterThan(0);
+  });
+
+  test("cursor hints resize over the group handle", async ({ page }) => {    const se = await page.evaluate(() =>
       window.__editor__.cursorOverrideAt({ x: 360, y: 190 }),
     );
     expect(se).toBe("nwse-resize");

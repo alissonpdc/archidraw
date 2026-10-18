@@ -1723,7 +1723,11 @@ export function render(
     }
     drawDetailsBadge(ctx, el, cam.zoom, colors);
     drawLockBadge(ctx, el, cam.zoom, colors, cam);
-    if (state.selectedIds.has(el.id) && !isEditingThisLabel)
+    if (
+      state.selectedIds.size === 1 &&
+      state.selectedIds.has(el.id) &&
+      !isEditingThisLabel
+    )
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }
 
