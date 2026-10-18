@@ -441,8 +441,10 @@ export function CanvasHost() {
         onPointerMove={(e) => {
           const p = toPoint(e);
           editor.pointerMove(p, { shift: e.shiftKey });
-          const override = editor.cursorOverrideAt(p);
-          e.currentTarget.style.cursor = override ?? "";
+          const nextCursor = editor.cursorOverrideAt(p) ?? "";
+          if (e.currentTarget.style.cursor !== nextCursor) {
+            e.currentTarget.style.cursor = nextCursor;
+          }
         }}
         onPointerUp={() => {
           if (isEditingText || isEditingLabel) return;
