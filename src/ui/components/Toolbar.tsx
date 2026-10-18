@@ -25,7 +25,7 @@ const TOOLS: { id: Tool; label: string; key: string; Icon: typeof SelectionIcon 
   { id: "line", label: "Line", key: "5", Icon: LineIcon },
   { id: "arrow", label: "Arrow", key: "6", Icon: ArrowIcon },
   { id: "text", label: "Text", key: "7", Icon: TextIcon },
-  { id: "bounded-context", label: "Bounded Context", key: "8", Icon: ContextIcon },
+  { id: "context", label: "Context", key: "8", Icon: ContextIcon },
 ];
 
 export function Toolbar({

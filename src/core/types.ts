@@ -189,7 +189,7 @@ export interface ComponentElement extends BaseElement {
   fill?: boolean;
 }
 
-/** container element (Bounded Context / DDD) — groups elements visually and logically */
+/** container element (Context / DDD) — groups elements visually and logically */
 export interface ContextElement extends BaseElement {
   type: "context";
   label?: string;
@@ -225,7 +225,7 @@ export type Tool =
   | "line"
   | "arrow"
   | "text"
-  | "bounded-context";
+  | "context";
 
 export interface Camera {
   /** scene -> screen offset */

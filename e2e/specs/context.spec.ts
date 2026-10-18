@@ -1,12 +1,12 @@
 import { test, expect, drag, selectTool, open, pressPaste } from "../fixtures";
 
-test.describe("bounded context", () => {
+test.describe("context", () => {
   test.beforeEach(async ({ page }) => {
     await open(page);
     await selectTool(page, "1");
   });
 
-  test("drag with bounded-context tool creates a context element", async ({
+  test("drag with context tool creates a context element", async ({
     page,
     editorState,
   }) => {
