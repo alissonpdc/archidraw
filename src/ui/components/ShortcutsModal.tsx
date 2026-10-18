@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { MOD, ALT } from "../platform";
+import { MOD, ALT, REDO_SHORTCUT } from "../platform";
 
 type ShortcutItem = { keys: string; desc: string };
 type ShortcutGroup = { title: string; items: ShortcutItem[] };
@@ -43,7 +43,7 @@ const EDITING: ShortcutGroup = {
   title: "Editing",
   items: [
     { keys: `${MOD}+Z`, desc: "Undo" },
-    { keys: `${MOD}+Shift+Z`, desc: "Redo" },
+    { keys: REDO_SHORTCUT, desc: "Redo" },
     { keys: `${MOD}+C / X / V`, desc: "Copy/Cut/Paste" },
     { keys: `${MOD}+D`, desc: "Duplicate" },
     { keys: `${MOD}+G`, desc: "Group" },

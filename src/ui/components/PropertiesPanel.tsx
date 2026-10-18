@@ -16,6 +16,7 @@ import {
 } from "../../core/textStyle";
 import { ColorBox, ColorSubmenu, type PickerKind } from "./ColorRampPicker";
 import { themeColor } from "../../core/color";
+import { MOD } from "../platform";
 
 function resolveThemeColor(color: string): string {
   const s = getComputedStyle(document.documentElement);
@@ -1361,7 +1362,7 @@ export function PropertiesPanel() {
             <div className="layer-btns">
               <button
                 className="size-btn"
-                data-tip="Group"
+                data-tip={`Group (${MOD}+G)`}
                 aria-label="Group"
                 disabled={selected.length < 2}
                 onClick={() => editor.groupSelected()}
@@ -1374,7 +1375,7 @@ export function PropertiesPanel() {
               </button>
               <button
                 className="size-btn"
-                data-tip="Ungroup"
+                data-tip={`Ungroup (${MOD}+Shift+G)`}
                 aria-label="Ungroup"
                 disabled={!selected.some((el) => el.groupId)}
                 onClick={() => editor.ungroupSelected()}
@@ -1393,7 +1394,7 @@ export function PropertiesPanel() {
             <div className="layer-btns">
               <button
                 className="size-btn"
-                data-tip={selected.every((el) => el.locked) ? "Unlock" : "Lock"}
+                data-tip={`${selected.every((el) => el.locked) ? "Unlock" : "Lock"} (${MOD}+Shift+L)`}
                 aria-label={selected.every((el) => el.locked) ? "Unlock" : "Lock"}
                 onClick={() => editor.toggleLockSelected()}
               >

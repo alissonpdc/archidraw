@@ -115,4 +115,21 @@ test.describe("grouping", () => {
     expect(clones[0]).toBe(clones[1]);
     expect(clones[0]).not.toBe(originals[0]);
   });
+
+  test("shows shortcut hints in tooltips for Group, Ungroup, and Lock", async ({
+    page,
+  }) => {
+    const groupBtn = page.getByRole("button", { name: "Group", exact: true });
+    await expect(groupBtn).toHaveAttribute("data-tip", /Group \(.*G\)/);
+
+    const ungroupBtn = page.getByRole("button", { name: "Ungroup" });
+    await expect(ungroupBtn).toHaveAttribute("data-tip", /Ungroup \(.*Shift\+G\)/);
+
+    const lockBtn = page.locator(".properties-panel .size-btn[aria-label='Lock']");
+    await expect(lockBtn).toHaveAttribute("data-tip", /Lock \(.*Shift\+L\)/);
+
+    await lockBtn.click();
+    const unlockBtn = page.locator(".properties-panel .size-btn[aria-label='Unlock']");
+    await expect(unlockBtn).toHaveAttribute("data-tip", /Unlock \(.*Shift\+L\)/);
+  });
 });

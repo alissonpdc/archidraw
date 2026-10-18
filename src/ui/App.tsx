@@ -169,7 +169,7 @@ export function App() {
         editor.nudgeSelected(nudge.x * step, nudge.y * step);
         return;
       }
-      if (e.shiftKey && e.code === "Digit1") {
+      if (e.shiftKey && (e.code === "Digit1" || e.key === "!" || e.key === "1")) {
         editor.zoomToFit();
         return;
       }

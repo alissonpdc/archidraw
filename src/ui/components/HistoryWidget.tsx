@@ -1,6 +1,6 @@
 import { editor, useEditorSelector } from "../hooks/useEditor";
 import { RedoIcon, UndoIcon } from "./icons";
-import { MOD } from "../platform";
+import { MOD, REDO_SHORTCUT } from "../platform";
 
 export function HistoryWidget() {
   const { canUndo, canRedo } = useEditorSelector(
@@ -21,7 +21,7 @@ export function HistoryWidget() {
       </button>
       <button
         className="zoom-btn tip-up"
-        data-tip={`Redo (${MOD}+Y)`}
+        data-tip={`Redo (${REDO_SHORTCUT})`}
         aria-label="Redo"
         disabled={!canRedo}
         onClick={() => editor.redo()}
