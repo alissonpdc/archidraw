@@ -15,6 +15,7 @@ const TOOLS: ShortcutGroup = {
     { keys: "5", desc: "Line" },
     { keys: "6", desc: "Arrow" },
     { keys: "7", desc: "Text" },
+    { keys: "8", desc: "Context" },
     { keys: "I", desc: "Import image" },
     { keys: "L", desc: "Library" },
   ],

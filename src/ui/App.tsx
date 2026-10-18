@@ -26,7 +26,7 @@ const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
   "5": "line",
   "6": "arrow",
   "7": "text",
-  "8": "bounded-context",
+  "8": "context",
 };
 
 /** arrow keys -> scene delta; Shift multiplies the step */

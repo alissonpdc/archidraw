@@ -1728,7 +1728,7 @@ strokeOpacity?: number;
       case "ellipse":
       case "line":
       case "arrow":
-      case "bounded-context": {
+      case "context": {
         this.commitHistory();
         const base = {
           id: newId(),
@@ -1753,7 +1753,7 @@ strokeOpacity?: number;
           el = { ...base, type: "ellipse", ...bbox } satisfies EllipseElement;
         } else if (this.tool === "line") {
           el = { ...base, type: "line", strokeWidth: 1, ...bbox } satisfies LineElement;
-        } else if (this.tool === "bounded-context") {
+        } else if (this.tool === "context") {
           el = {
             ...base,
             type: "context",

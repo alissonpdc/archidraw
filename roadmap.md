@@ -24,7 +24,7 @@ Aumentar a cobertura de plataformas de nuvem, arquiteturas modernas e suporte a 
 
 ### 1.3 Zonas Semânticas e Contêineres de Isolamento (Boundaries)
 - **1.3.1 Formas Estruturais com Semântica de Rede**
-  - Introdução de contêineres pré-configurados com estilo tracejado e títulos identificadores: *VPC, Subnet Pública/Privada, Zona de Disponibilidade (AZ), Cluster Kubernetes, Namespace, Bounded Context (DDD)*.
+  - Introdução de contêineres pré-configurados com estilo tracejado e títulos identificadores: *VPC, Subnet Pública/Privada, Zona de Disponibilidade (AZ), Cluster Kubernetes, Namespace, Context (DDD)*.
 - **1.3.2 Agrupamento Magnético por Contenção**
   - Capacidade do contêiner "capturar" logicamente os elementos posicionados em seu interior, permitindo mover ou redimensionar a zona arrastando todos os serviços internos sem desfazer alinhamentos e conexões.
 
