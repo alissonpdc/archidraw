@@ -8,6 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import { editor, useEditorSelector } from "../hooks/useEditor";
 import type { Element } from "../../core/types";
+import { translatedOrigin } from "../../core/utils";
 import {
   DEFAULT_FONT_FAMILY,
   SKETCH_FONT_FAMILY,
@@ -316,7 +317,11 @@ export function PropertiesPanel() {
     (a, b) => {
       if (a === b) return true;
       if (a.length !== b.length) return false;
-      return a.every((el, i) => el === b[i]);
+      return a.every(
+        (el, i) =>
+          (translatedOrigin.get(el) ?? el) ===
+          (translatedOrigin.get(b[i]) ?? b[i]),
+      );
     },
   );
   const [tip, setTip] = useState<TipState | null>(null);

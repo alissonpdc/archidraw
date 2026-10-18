@@ -54,12 +54,13 @@ import {
   rotatedBounds,
   toLocalPoint,
   toScenePoint,
+  translatedOrigin,
 } from "./utils";
 import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { correlateIntensity } from "./color";
 import { fontFamilyOf } from "./textStyle";
 import { getLibraryItem, isBuiltinLibraryItem } from "./library";
-import { componentAssetDataUri } from "./componentAssets";
+import { assetLoadVersion, componentAssetDataUri } from "./componentAssets";
 import { addImportedImage } from "./importedImages";
 import {
   parseElementsClipboard,
@@ -239,6 +240,31 @@ function visualBounds(el: Element): Bounds {
  * subtly locks to that center, so orthogonal connections are easy to land.
  * Returns the exact snapped scene point alongside the binding.
  */
+interface DocIndex {
+  byId: Map<string, Element>;
+  withDetails: Element[];
+  hasAnimated: boolean;
+}
+
+const docIndexCache = new WeakMap<Document, DocIndex>();
+
+function getDocIndex(doc: Document): DocIndex {
+  let idx = docIndexCache.get(doc);
+  if (!idx) {
+    const byId = new Map<string, Element>();
+    const withDetails: Element[] = [];
+    let hasAnimated = false;
+    for (const el of doc.elements) {
+      byId.set(el.id, el);
+      if (el.details && el.details.trim() !== "") withDetails.push(el);
+      if (el.type === "arrow" && el.animated) hasAnimated = true;
+    }
+    idx = { byId, withDetails, hasAnimated };
+    docIndexCache.set(doc, idx);
+  }
+  return idx;
+}
+
 function findNearestBinding(
   point: Point,
   elements: Element[],
@@ -248,6 +274,15 @@ function findNearestBinding(
     null;
   for (const el of elements) {
     if (el.id === excludeId || isEdge(el)) continue;
+    const rb = rotatedBounds(el);
+    if (
+      point.x < rb.x1 - BIND_TOLERANCE ||
+      point.x > rb.x2 + BIND_TOLERANCE ||
+      point.y < rb.y1 - BIND_TOLERANCE ||
+      point.y > rb.y2 + BIND_TOLERANCE
+    ) {
+      continue;
+    }
     const b = elementBounds(el);
     const w = b.x2 - b.x1;
     const h = b.y2 - b.y1;
@@ -338,7 +373,18 @@ function snapEdgeEndpoints(
   if ((el.lineType ?? "straight") === "auto" && el.bendPoints) {
     patch.bendPoints = undefined;
   }
-  return { ...el, ...patch };
+  const res = { ...el, ...patch };
+  if (
+    w === el.width &&
+    h === el.height &&
+    startBinding === el.startBinding &&
+    endBinding === el.endBinding &&
+    res.bendPoints === el.bendPoints
+  ) {
+    if (x === el.x && y === el.y) return el;
+    translatedOrigin.set(res, translatedOrigin.get(el) ?? el);
+  }
+  return res;
 }
 
 type Interaction =
@@ -353,6 +399,12 @@ type Interaction =
        *  stable base (their live positions move every frame during the drag) */
       contextBase?: Map<string, Element>;
       moved?: boolean;
+      snapCache?: {
+        movingBoxRaw: Bounds | null;
+        vTargets: number[];
+        hTargets: number[];
+        contexts: ContextElement[];
+      };
     }
   | { kind: "resize"; handle: HandleId; original: Element }
   | {
@@ -436,6 +488,7 @@ export class Editor {
 
   private listeners = new Set<() => void>();
   private snapshotCache: EditorSnapshot | null = null;
+  private renderVersion = 0;
 
   // ---- active-tab accessors --------------------------------------------
   private get tab(): TabData {
@@ -449,6 +502,7 @@ export class Editor {
 
   private set doc(d: Document) {
     this.tab.doc = d;
+    this.renderVersion++;
   }
 
   /** camera of the ACTIVE tab */
@@ -458,6 +512,7 @@ export class Editor {
 
   private set camera(c: Camera) {
     this.tab.camera = c;
+    this.renderVersion++;
   }
 
   private get history(): History {
@@ -499,6 +554,7 @@ export class Editor {
 
   private emit() {
     this.snapshotCache = null;
+    this.renderVersion++;
     for (const cb of this.listeners) cb();
   }
 
@@ -666,26 +722,30 @@ export class Editor {
    * insert, paste, duplicate — keeps container membership in sync.
    */
   private captureInContexts(elements: Element[]): void {
+    const candidates = elements.filter((el) => el.type !== "context");
+    if (candidates.length === 0) return;
+    const candidateBounds = candidates.map((el) => ({ id: el.id, b: rotatedBounds(el) }));
     let changed = false;
-    for (const added of elements) {
-      if (added.type === "context") continue;
-      const ab = rotatedBounds(added);
-      const updated = this.doc.elements.map((el) => {
-        if (el.type !== "context") return el;
-        const ctx = el as ContextElement;
-        if (ctx.childIds?.includes(added.id)) return el;
-        const b = rotatedBounds(ctx);
+    const updated = this.doc.elements.map((el) => {
+      if (el.type !== "context") return el;
+      const ctx = el as ContextElement;
+      const b = rotatedBounds(ctx);
+      let childIds = ctx.childIds ?? [];
+      for (const cand of candidateBounds) {
         if (
-          ab.x1 >= b.x1 && ab.x2 <= b.x2 &&
-          ab.y1 >= b.y1 && ab.y2 <= b.y2
+          !childIds.includes(cand.id) &&
+          cand.b.x1 >= b.x1 &&
+          cand.b.x2 <= b.x2 &&
+          cand.b.y1 >= b.y1 &&
+          cand.b.y2 <= b.y2
         ) {
+          childIds = [...childIds, cand.id];
           changed = true;
-          return { ...ctx, childIds: [...(ctx.childIds ?? []), added.id] };
         }
-        return el;
-      });
-      if (changed) this.doc = { ...this.doc, elements: ensureContextZOrder(updated) };
-    }
+      }
+      return childIds !== (ctx.childIds ?? []) ? { ...ctx, childIds } : el;
+    });
+    if (changed) this.doc = { ...this.doc, elements: ensureContextZOrder(updated) };
   }
 
   // ---- layer reorder ---------------------------------------------------
@@ -929,13 +989,14 @@ export class Editor {
         if (el.groupId && groupIds.has(el.groupId)) push(el);
       }
     }
+    const byId = getDocIndex(this.doc).byId;
     // a moved context carries its children along (they are positioned
     // relative to the container, not to the scene)
     for (const el of this.doc.elements) {
       if (el.type !== "context") continue;
       if (!moved.has(el.id)) continue;
       for (const childId of ((el as ContextElement).childIds ?? [])) {
-        const child = this.doc.elements.find((e) => e.id === childId);
+        const child = byId.get(childId);
         if (child) push(child);
       }
     }
@@ -1163,19 +1224,17 @@ borderRadius: 20,
   }
 
   undo() {
-    const snap = JSON.stringify(this.doc);
-    const prev = this.history.undo(snap);
+    const prev = this.history.undo(this.doc);
     if (prev) {
-      this.doc = JSON.parse(prev);
+      this.doc = prev;
       this.clearSelection();
     }
   }
 
   redo() {
-    const snap = JSON.stringify(this.doc);
-    const next = this.history.redo(snap);
+    const next = this.history.redo(this.doc);
     if (next) {
-      this.doc = JSON.parse(next);
+      this.doc = next;
       this.clearSelection();
     }
   }
@@ -1191,7 +1250,7 @@ borderRadius: 20,
   /** call before mutating doc so undo returns to current state */
   commitHistory() {
     this.nudgeHistoryAt = 0;
-    this.history.push(JSON.stringify(this.doc));
+    this.history.push(this.doc);
   }
 
   /**
@@ -1201,8 +1260,9 @@ borderRadius: 20,
    */
   private applyTranslation(moved: Map<string, Element>) {
     const movedIds = new Set(moved.keys());
+    const byId = getDocIndex(this.doc).byId;
     const resolveBound = (id: string) =>
-      moved.get(id) ?? this.doc.elements.find((el) => el.id === id);
+      moved.get(id) ?? byId.get(id);
     this.doc = {
       ...this.doc,
       elements: this.doc.elements.map((el) => {
@@ -1230,6 +1290,7 @@ borderRadius: 20,
    * fully inside one are captured, and the z-order follows.
    */
   private refreshContextContainment(movedIds: Set<string>) {
+    const byId = getDocIndex(this.doc).byId;
     let containmentChanged = false;
     const nextElements = this.doc.elements.map((el) => {
       if (el.type !== "context" || movedIds.has(el.id)) return el;
@@ -1237,7 +1298,7 @@ borderRadius: 20,
       const b = rotatedBounds(ctx);
       const newChildIds = (ctx.childIds ?? []).filter((cid) => {
         if (movedIds.has(cid)) return false;
-        const child = this.doc.elements.find((e) => e.id === cid);
+        const child = byId.get(cid);
         if (!child) return false;
         const cb = rotatedBounds(child);
         return (
@@ -1246,7 +1307,7 @@ borderRadius: 20,
       });
       for (const movedId of movedIds) {
         if (newChildIds.includes(movedId)) continue;
-        const movedEl = this.doc.elements.find((e) => e.id === movedId);
+        const movedEl = byId.get(movedId);
         if (!movedEl || movedEl.type === "context") continue;
         const mb = rotatedBounds(movedEl);
         if (
@@ -1273,7 +1334,8 @@ borderRadius: 20,
 
   /** re-snaps edges bound to the given element after it changed shape/position */
   private syncEdgesBoundTo(id: string) {
-    const target = this.doc.elements.find((el) => el.id === id);
+    const byId = getDocIndex(this.doc).byId;
+    const target = byId.get(id);
     if (!target) return;
     let changed = false;
     const elements = this.doc.elements.map((el) => {
@@ -1283,7 +1345,7 @@ borderRadius: 20,
       }
       changed = true;
       return snapEdgeEndpoints(el, (bid) =>
-        bid === id ? target : this.doc.elements.find((e) => e.id === bid),
+        bid === id ? target : byId.get(bid),
       );
     });
     if (changed) this.doc = { ...this.doc, elements };
@@ -1337,13 +1399,19 @@ borderRadius: 20,
     this.emit();
   }
 
+  private findTopmostHit(scene: Point): Element | undefined {
+    const elems = this.doc.elements;
+    for (let i = elems.length - 1; i >= 0; i--) {
+      if (hitTest(elems[i], scene)) return elems[i];
+    }
+    return undefined;
+  }
+
   // ---- double click ----------------------------------------------------
   pointerDoubleClick(screenPoint: Point) {
     if (this.tool !== "selection") return;
     const scene = screenToScene(screenPoint, this.camera);
-    const hitEl = [...this.doc.elements]
-      .reverse()
-      .find((el) => hitTest(el, scene));
+    const hitEl = this.findTopmostHit(scene);
 
     if (hitEl?.type === "text") {
       if (hitEl.locked) return;
@@ -1400,7 +1468,7 @@ borderRadius: 20,
 
   // ---- text / label editing -------------------------------------------
   beginTextEdit(id: string, kind: "text" | "label" = "text") {
-    const el = this.doc.elements.find((e) => e.id === id);
+    const el = getDocIndex(this.doc).byId.get(id);
     if (!el) return;
     this.editingTextId = id;
     this.editingKind = kind;
@@ -1818,109 +1886,82 @@ strokeOpacity?: number;
         break;
       }
       case "selection": {
-        // rotate grip sits above the selection box, so it is tested first
         if (this.selectedIds.size === 1) {
-          const selected = this.doc.elements.find((el) =>
-            this.selectedIds.has(el.id),
-          );
-          if (
-            selected &&
-            rotateHandleAt(scene, selected, visualBounds(selected), this.camera.zoom)
-          ) {
-            this.commitHistory();
-            const center = elementCenter(selected);
-            this.interaction = {
-              kind: "rotate",
-              original: selected,
-              center,
-              startPointerAngle: Math.atan2(scene.y - center.y, scene.x - center.x),
-            };
-            break;
-          }
-        }
-        // label-drag handle of the single selected edge takes precedence
-        if (this.selectedIds.size === 1) {
-          const selected = this.doc.elements.find((el) =>
-            this.selectedIds.has(el.id),
-          );
-          if (selected && !selected.locked && labelHandleAt(scene, selected, this.camera.zoom)) {
-            this.commitHistory();
-            this.interaction = { kind: "label-move", id: selected.id };
-            break;
-          }
-        }
-        // resize handle of the single selected element takes precedence
-        if (this.selectedIds.size === 1) {
-          const selected = this.doc.elements.find((el) =>
-            this.selectedIds.has(el.id),
-          );
-          if (selected && !selected.locked && hasResizeHandles(selected)) {
-            const handle = resizeHandleAt(
-              scene,
-              selected,
-              visualBounds(selected),
-              this.camera.zoom,
-              handlesFor(selected),
-            );
-            if (handle) {
+          const [selId] = this.selectedIds;
+          const selected = getDocIndex(this.doc).byId.get(selId);
+          if (selected) {
+            const vb = visualBounds(selected);
+            if (rotateHandleAt(scene, selected, vb, this.camera.zoom)) {
               this.commitHistory();
+              const center = elementCenter(selected);
               this.interaction = {
-                kind: "resize",
-                handle,
+                kind: "rotate",
                 original: selected,
+                center,
+                startPointerAngle: Math.atan2(scene.y - center.y, scene.x - center.x),
               };
               break;
             }
-          }
-        }
-        // control-point handle (curved mode) of the single selected edge
-        if (this.selectedIds.size === 1) {
-          const selected = this.doc.elements.find((el) =>
-            this.selectedIds.has(el.id),
-          );
-          if (selected && !selected.locked && controlPointHandleAt(scene, selected, this.camera.zoom)) {
-            this.commitHistory();
-            // initialize controlPoint from fallback if not yet explicit
-            if (isEdge(selected) && !selected.controlPoint) {
-              const [a, b] = arrowPoints(selected);
-              const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
-              const cp = curvedArrowControl(selected, a, tip);
-              this.doc = {
-                ...this.doc,
-                elements: this.doc.elements.map((e) =>
-                  e.id === selected.id ? { ...e, controlPoint: cp } : e,
-                ),
-              };
-            }
-            this.interaction = { kind: "control-point", id: selected.id, original: selected };
-            break;
-          }
-        }
-        // dragging a segment of the auto-mode path adjusts the L dimensions
-        if (this.selectedIds.size === 1) {
-          const selected = this.doc.elements.find((el) =>
-            this.selectedIds.has(el.id),
-          );
-          if (selected && !selected.locked && isEdge(selected)) {
-            const seg = autoSegmentAt(scene, selected);
-            if (seg && seg.dist * this.camera.zoom <= HANDLE_TOLERANCE_PX) {
-              this.commitHistory();
-              this.interaction = {
-                kind: "segment-drag",
-                id: selected.id,
-                index: seg.index,
-                axis: seg.axis,
-                startScene: scene,
-                original: selected,
-              };
-              break;
+            if (!selected.locked) {
+              if (labelHandleAt(scene, selected, this.camera.zoom)) {
+                this.commitHistory();
+                this.interaction = { kind: "label-move", id: selected.id };
+                break;
+              }
+              if (hasResizeHandles(selected)) {
+                const handle = resizeHandleAt(
+                  scene,
+                  selected,
+                  vb,
+                  this.camera.zoom,
+                  handlesFor(selected),
+                );
+                if (handle) {
+                  this.commitHistory();
+                  this.interaction = {
+                    kind: "resize",
+                    handle,
+                    original: selected,
+                  };
+                  break;
+                }
+              }
+              if (controlPointHandleAt(scene, selected, this.camera.zoom)) {
+                this.commitHistory();
+                if (isEdge(selected) && !selected.controlPoint) {
+                  const [a, b] = arrowPoints(selected);
+                  const tip = { x: b.x, y: b.y === a.y ? b.y + 1 : b.y };
+                  const cp = curvedArrowControl(selected, a, tip);
+                  this.doc = {
+                    ...this.doc,
+                    elements: this.doc.elements.map((e) =>
+                      e.id === selected.id ? { ...e, controlPoint: cp } : e,
+                    ),
+                  };
+                }
+                this.interaction = { kind: "control-point", id: selected.id, original: selected };
+                break;
+              }
+              if (isEdge(selected)) {
+                const seg = autoSegmentAt(scene, selected);
+                if (seg && seg.dist * this.camera.zoom <= HANDLE_TOLERANCE_PX) {
+                  this.commitHistory();
+                  this.interaction = {
+                    kind: "segment-drag",
+                    id: selected.id,
+                    index: seg.index,
+                    axis: seg.axis,
+                    startScene: scene,
+                    original: selected,
+                  };
+                  break;
+                }
+              }
             }
           }
         }
 
-        const hitEl = [...this.doc.elements]
-          .reverse()
-          .find((el) => hitTest(el, scene));
+        const hitEl = this.findTopmostHit(scene);
         if (hitEl) {
           // clicking a member of a group selects the whole group
           const groupIds = hitEl.groupId
@@ -1945,13 +1986,14 @@ strokeOpacity?: number;
             const originals = this.doc.elements.filter((el) =>
               this.selectedIds.has(el.id),
             );
+            const byId = getDocIndex(this.doc).byId;
             // capture the original geometry of context children (their live
             // positions drift while the container is dragged)
             const contextBase = new Map<string, Element>();
             for (const el of originals) {
               if (el.type !== "context" || !el.childIds) continue;
               for (const cid of el.childIds) {
-                const child = this.doc.elements.find((e) => e.id === cid);
+                const child = byId.get(cid);
                 if (child && !contextBase.has(cid)) contextBase.set(cid, child);
               }
             }
@@ -2067,30 +2109,37 @@ strokeOpacity?: number;
         let dx = scene.x - this.interaction.startScene.x;
         let dy = scene.y - this.interaction.startScene.y;
 
-        // smart snap guides against other elements
-        const movingIds = new Set(this.interaction.originals.map((el) => el.id));
-        const childIds = new Set(this.interaction.contextBase?.keys() ?? []);
-        const others = this.doc.elements.filter(
-          (el) =>
-            !movingIds.has(el.id) &&
-            !childIds.has(el.id) &&
-            !isEdge(el),
-        );
-        const movingBoxRaw = unionBounds(this.interaction.originals);
-        if (movingBoxRaw && others.length > 0) {
+        if (!this.interaction.snapCache) {
+          const movingIds = new Set(this.interaction.originals.map((el) => el.id));
+          const childIds = new Set(this.interaction.contextBase?.keys() ?? []);
+          const vTargets: number[] = [];
+          const hTargets: number[] = [];
+          const contexts: ContextElement[] = [];
+          for (const el of this.doc.elements) {
+            if (movingIds.has(el.id) || childIds.has(el.id)) continue;
+            if (el.type === "context") contexts.push(el);
+            if (!isEdge(el)) {
+              const b = rotatedBounds(el);
+              vTargets.push(b.x1, (b.x1 + b.x2) / 2, b.x2);
+              hTargets.push(b.y1, (b.y1 + b.y2) / 2, b.y2);
+            }
+          }
+          this.interaction.snapCache = {
+            movingBoxRaw: unionBounds(this.interaction.originals),
+            vTargets,
+            hTargets,
+            contexts,
+          };
+        }
+
+        const { movingBoxRaw, vTargets, hTargets, contexts } = this.interaction.snapCache;
+        if (movingBoxRaw && vTargets.length > 0) {
           const mb = {
             x1: movingBoxRaw.x1 + dx,
             y1: movingBoxRaw.y1 + dy,
             x2: movingBoxRaw.x2 + dx,
             y2: movingBoxRaw.y2 + dy,
           };
-          const vTargets: number[] = [];
-          const hTargets: number[] = [];
-          for (const el of others) {
-            const b = rotatedBounds(el);
-            vTargets.push(b.x1, (b.x1 + b.x2) / 2, b.x2);
-            hTargets.push(b.y1, (b.y1 + b.y2) / 2, b.y2);
-          }
           const tol = SNAP_TOLERANCE / this.camera.zoom;
 
           let bestV: { diff: number; target: number } | null = null;
@@ -2141,12 +2190,12 @@ strokeOpacity?: number;
         // when a context is moved, translate its children by the same delta
         // (from their captured original geometry so the offset never compounds)
         const base = this.interaction.contextBase;
+        const byId = getDocIndex(this.doc).byId;
         for (const original of this.interaction.originals) {
           if (original.type === "context" && original.childIds && original.childIds.length > 0) {
             for (const childId of original.childIds) {
               if (moved.has(childId)) continue;
-              const child = base?.get(childId) ??
-                this.doc.elements.find((e) => e.id === childId);
+              const child = base?.get(childId) ?? byId.get(childId);
               if (child && !child.locked) {
                 moved.set(childId, translateElement(child, dx, dy));
               }
@@ -2159,13 +2208,11 @@ strokeOpacity?: number;
         // live containment highlight: the last context that fully contains
         // the shifted union bounds gets highlighted as a drop target
         let highlight: string | null = null;
-        const movedSet = new Set(moved.keys());
         const movedBox = unionBounds(
           [...moved.values()].filter((el) => !isEdge(el)),
         );
         if (movedBox) {
-          for (const el of this.doc.elements) {
-            if (el.type !== "context" || movedSet.has(el.id)) continue;
+          for (const el of contexts) {
             const cb = rotatedBounds(el);
             if (
               cb.x1 <= movedBox.x1 &&
@@ -2182,7 +2229,7 @@ strokeOpacity?: number;
       }
       case "label-move": {
         const moveId = this.interaction.id;
-        const el = this.doc.elements.find((e) => e.id === moveId);
+        const el = getDocIndex(this.doc).byId.get(moveId);
         if (el && isEdge(el)) {
           const t = edgeParamAt(el, scene);
           const prev = el.labelT ?? 0.5;
@@ -2200,7 +2247,7 @@ strokeOpacity?: number;
       }
       case "control-point": {
         const interaction = this.interaction;
-        const el = this.doc.elements.find((e) => e.id === interaction.id);
+        const el = getDocIndex(this.doc).byId.get(interaction.id);
         if (el && isEdge(el)) {
           this.doc = {
             ...this.doc,
@@ -2213,7 +2260,7 @@ strokeOpacity?: number;
       }
       case "segment-drag": {
         const interaction = this.interaction;
-        const el = this.doc.elements.find((e) => e.id === interaction.id);
+        const el = getDocIndex(this.doc).byId.get(interaction.id);
         if (el && isEdge(el) && isEdge(interaction.original)) {
           const rawD =
             interaction.axis === "x"
@@ -2547,7 +2594,8 @@ strokeOpacity?: number;
    */
   rotateHandlePoint(): Point | null {
     if (this.selectedIds.size !== 1) return null;
-    const el = this.doc.elements.find((e) => this.selectedIds.has(e.id));
+    const [selId] = this.selectedIds;
+    const el = getDocIndex(this.doc).byId.get(selId);
     if (!el || !isRotatable(el)) return null;
     return rotateHandlePosition(el, visualBounds(el), this.camera.zoom);
   }
@@ -2556,7 +2604,8 @@ strokeOpacity?: number;
   cursorOverrideAt(screenPoint: Point): string | null {
     if (this.interaction.kind !== "none") return null;
     if (this.tool !== "selection" || this.selectedIds.size !== 1) return null;
-    const selected = this.doc.elements.find((el) => this.selectedIds.has(el.id));
+    const [selId] = this.selectedIds;
+    const selected = getDocIndex(this.doc).byId.get(selId);
     if (!selected || !hasResizeHandles(selected)) return null;
     const scene = screenToScene(screenPoint, this.camera);
     if (rotateHandleAt(scene, selected, visualBounds(selected), this.camera.zoom)) {
@@ -2680,6 +2729,12 @@ strokeOpacity?: number;
   }
 
   // ---- rendering -------------------------------------------------------
+  getRenderToken(): number {
+    return getDocIndex(this.doc).hasAnimated
+      ? performance.now()
+      : this.renderVersion + assetLoadVersion;
+  }
+
   renderTo(
     ctx: CanvasRenderingContext2D,
     w: number,
@@ -2720,23 +2775,21 @@ strokeOpacity?: number;
   }
 
   getElement(id: string): Element | undefined {
-    return this.doc.elements.find((el) => el.id === id);
+    return getDocIndex(this.doc).byId.get(id);
   }
 
   /** topmost element under the screen point (reverse z-order, like clicks) */
   elementAt(screenPoint: Point): Element | undefined {
-    const scene = screenToScene(screenPoint, this.camera);
-    return [...this.doc.elements]
-      .reverse()
-      .find((el) => hitTest(el, scene));
+    return this.findTopmostHit(screenToScene(screenPoint, this.camera));
   }
 
   /** topmost element whose details badge is under the screen point */
   badgeElementAt(screenPoint: Point): Element | undefined {
     const scene = screenToScene(screenPoint, this.camera);
-    for (const el of [...this.doc.elements].reverse()) {
-      const a = detailsBadgeAnchor(el, this.camera.zoom);
-      if (!a) continue;
+    const list = getDocIndex(this.doc).withDetails;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const el = list[i];
+      const a = detailsBadgeAnchor(el, this.camera.zoom)!;
       if (
         Math.hypot(scene.x - a.x, scene.y - a.y) * this.camera.zoom <=
         BADGE_RADIUS_PX + BADGE_HIT_PAD_PX
@@ -2847,19 +2900,14 @@ strokeOpacity?: number;
     }
 
     for (const h of this.histories.values()) {
-      h.mapSnapshots((snapStr) => {
-        try {
-          const doc = JSON.parse(snapStr) as Document;
-          if (doc && Array.isArray(doc.elements)) {
-            return JSON.stringify({
-              ...doc,
-              elements: doc.elements.map(correlateEl),
-            });
-          }
-        } catch {
-          // ignore
+      h.mapSnapshots((doc) => {
+        if (doc && Array.isArray(doc.elements)) {
+          return {
+            ...doc,
+            elements: doc.elements.map(correlateEl),
+          };
         }
-        return snapStr;
+        return doc;
       });
     }
 

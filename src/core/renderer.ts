@@ -18,6 +18,7 @@ import {
   measureText,
   rotatedBounds,
   toScenePoint,
+  translatedOrigin,
 } from "./utils";
 import { getLibraryItem } from "./library";
 import { getComponentImage, getCachedImage } from "./componentAssets";
@@ -75,9 +76,11 @@ const GRID_STEP = 20;
 
 interface ElementGeometryCache {
   bounds?: Bounds;
+  visualBounds?: Bounds;
   strokePath?: Path2D;
   fillPath?: Path2D;
   hachurePath?: Path2D;
+  childSet?: Set<string>;
   textLayout?: {
     lines: string[];
     lineWidths: number[];
@@ -110,10 +113,31 @@ function getElementCache(el: Element): ElementGeometryCache {
   return cache;
 }
 
+function getContextChildSet(ctx: ContextElement): Set<string> {
+  const cache = getElementCache(ctx);
+  if (!cache.childSet) {
+    cache.childSet = new Set(ctx.childIds);
+  }
+  return cache.childSet;
+}
+
 function getCachedBounds(el: Element): Bounds {
   const cache = getElementCache(el);
   if (!cache.bounds) {
-    cache.bounds = computeVisualBounds(el);
+    const root = translatedOrigin.get(el);
+    if (root) {
+      const rb = getCachedBounds(root);
+      const dx = el.x - root.x;
+      const dy = el.y - root.y;
+      cache.bounds = {
+        x1: rb.x1 + dx,
+        y1: rb.y1 + dy,
+        x2: rb.x2 + dx,
+        y2: rb.y2 + dy,
+      };
+    } else {
+      cache.bounds = computeVisualBounds(el);
+    }
   }
   return cache.bounds;
 }
@@ -674,6 +698,14 @@ function drawElement(
   colors: RenderColors,
   animationPhase: number = 0,
 ) {
+  const root = translatedOrigin.get(el);
+  if (root) {
+    ctx.save();
+    ctx.translate(el.x - root.x, el.y - root.y);
+    drawElement(ctx, root, colors, animationPhase);
+    ctx.restore();
+    return;
+  }
   const cache = getElementCache(el);
   ctx.save();
   applyRotation(ctx, el);
@@ -734,36 +766,41 @@ function drawElement(
     if (el.fillOpacity > 0) {
       ctx.save();
       ctx.globalAlpha *= el.fillOpacity;
-      ctx.beginPath();
-      ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-      ctx.fill();
+      if (!cache.fillPath) {
+        const p = new Path2D();
+        p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+        cache.fillPath = p;
+      }
+      ctx.fill(cache.fillPath);
       ctx.restore();
     }
     if (el.strokeWidth > 0) {
       ctx.save();
       ctx.globalAlpha *= el.strokeOpacity;
-      ctx.beginPath();
-      if (el.roughness === 0) {
-        ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-      } else {
-        sketchStroke(
-          ctx,
-          [
-            roundedRectLoop(
-              el.x,
-              el.y,
-              el.width,
-              el.height,
-              cornerRadius(el),
-            ),
-          ],
-          el.roughness,
-          seedOf(el.id),
-          cornerRadius(el) > 0 ? 0.30 : 1,
-        );
+      if (!cache.strokePath) {
+        if (el.roughness === 0) {
+          const p = new Path2D();
+          p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+          cache.strokePath = p;
+        } else {
+          cache.strokePath = sketchStrokePath2D(
+            [
+              roundedRectLoop(
+                el.x,
+                el.y,
+                el.width,
+                el.height,
+                cornerRadius(el),
+              ),
+            ],
+            el.roughness,
+            seedOf(el.id),
+            cornerRadius(el) > 0 ? 0.30 : 1,
+          );
+        }
       }
       applyDash(ctx, el, el.strokeWidth);
-      ctx.stroke();
+      ctx.stroke(cache.strokePath);
       ctx.restore();
     }
   } else if (el.type === "diamond") {
@@ -941,7 +978,13 @@ function drawElement(
     ctx.font = resolveFont(el);
     ctx.textBaseline = "top";
     const lh = lineHeight(el);
-    const lines = el.text.split("\n");
+    if (!cache.textLayout) {
+      const lines = el.text.split("\n");
+      const lineWidths = lines.map((l) => ctx.measureText(l).width);
+      const maxWidth = Math.max(...lineWidths, 1);
+      cache.textLayout = { lines, lineWidths, maxWidth };
+    }
+    const { lines, lineWidths } = cache.textLayout;
     const align = el.textAlign ?? "left";
     ctx.textAlign = align;
     const n = lines.length;
@@ -955,7 +998,7 @@ function drawElement(
       const lineY = el.y + vOffset + i * el.fontSize * lh;
       ctx.fillText(line, lx, lineY);
       if (underlineOn && line.length > 0) {
-        const lw = ctx.measureText(line).width;
+        const lw = lineWidths[i];
         if (lw > 0) {
           let ux = el.x;
           if (align === "center") ux = el.x + (el.width - lw) / 2;
@@ -1109,6 +1152,16 @@ function drawLockBadge(
 }
 
 export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element): Bounds {
+  const root = translatedOrigin.get(el);
+  if (root) {
+    const vb = elementVisualBounds(ctx, root);
+    const dx = el.x - root.x;
+    const dy = el.y - root.y;
+    return { x1: vb.x1 + dx, y1: vb.y1 + dy, x2: vb.x2 + dx, y2: vb.y2 + dy };
+  }
+  const cache = getElementCache(el);
+  if (cache.visualBounds) return cache.visualBounds;
+
   const eb = elementBounds(el);
   let x1 = eb.x1;
   let y1 = eb.y1;
@@ -1161,7 +1214,9 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
     y2 = layout.iconY + layout.iconHeight;
   }
 
-  return { x1, y1, x2, y2 };
+  const vb = { x1, y1, x2, y2 };
+  cache.visualBounds = vb;
+  return vb;
 }
 
 function drawSelectionBox(
@@ -1229,6 +1284,14 @@ function drawSelectionBox(
 
 function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderColors) {
   if (el.type === "text" || !el.label) return;
+  const root = translatedOrigin.get(el);
+  if (root) {
+    ctx.save();
+    ctx.translate(el.x - root.x, el.y - root.y);
+    drawLabel(ctx, root, colors);
+    ctx.restore();
+    return;
+  }
   const cache = getElementCache(el);
   ctx.save();
   applyRotation(ctx, el);
@@ -1284,7 +1347,11 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     const fontSize = ctxEl.fontSize ?? 16;
     ctx.font = resolveFont(ctxEl, fontSize);
     const lh = lineHeight(ctxEl);
-    const lines = el.label.split("\n");
+    if (!cache.textLayout) {
+      const lines = el.label.split("\n");
+      cache.textLayout = { lines, lineWidths: [], maxWidth: 0 };
+    }
+    const { lines } = cache.textLayout;
     const step = fontSize * lh;
     const base = ctxEl.textOffsetGlobal ?? 8;
     const distH = base + (isLeft ? (ctxEl.textOffsetLeft ?? 0) : (ctxEl.textOffsetRight ?? 0));
@@ -1632,29 +1699,33 @@ export function render(
   const viewX2 = (-cam.scrollX + canvasWidth) / cam.zoom + cullPadding;
   const viewY2 = (-cam.scrollY + canvasHeight) / cam.zoom + cullPadding;
 
-  const hasContext = state.doc.elements.some((el) => el.type === "context");
-  const elementsToRender = hasContext
-    ? [...state.doc.elements].sort((a, b) => {
-        if (a.type === "context" && b.type !== "context") {
-          const ctx = a as ContextElement;
-          if (ctx.childIds?.includes(b.id)) return -1;
-          if (state.selectedIds?.has(b.id) && !state.selectedIds?.has(a.id)) return -1;
-        } else if (b.type === "context" && a.type !== "context") {
-          const ctx = b as ContextElement;
-          if (ctx.childIds?.includes(a.id)) return 1;
-          if (state.selectedIds?.has(a.id) && !state.selectedIds?.has(b.id)) return 1;
-        }
-        return 0;
-      })
-    : state.doc.elements;
-
-  for (const el of elementsToRender) {
-    // cull against the ROTATED footprint, so a turned shape that pokes outside
-    // its axis-aligned box is still drawn
+  const visibleElements: Element[] = [];
+  let hasContext = false;
+  for (const el of state.doc.elements) {
     const cb = elementAngle(el) === 0 ? getCachedBounds(el) : rotatedBounds(el);
     if (cb.x2 < viewX1 || cb.x1 > viewX2 || cb.y2 < viewY1 || cb.y1 > viewY2) {
       continue;
     }
+    if (el.type === "context") hasContext = true;
+    visibleElements.push(el);
+  }
+
+  if (hasContext) {
+    visibleElements.sort((a, b) => {
+      if (a.type === "context" && b.type !== "context") {
+        const ctxEl = a as ContextElement;
+        if (getContextChildSet(ctxEl).has(b.id)) return -1;
+        if (state.selectedIds?.has(b.id) && !state.selectedIds?.has(a.id)) return -1;
+      } else if (b.type === "context" && a.type !== "context") {
+        const ctxEl = b as ContextElement;
+        if (getContextChildSet(ctxEl).has(a.id)) return 1;
+        if (state.selectedIds?.has(a.id) && !state.selectedIds?.has(b.id)) return 1;
+      }
+      return 0;
+    });
+  }
+
+  for (const el of visibleElements) {
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
     const dim =
