@@ -1392,9 +1392,9 @@ export function PropertiesPanel() {
             </div>
           </Group>
 
-          <Group title="Boolean">
+          <Group title="Merge">
             <div className="layer-btns">
-              <button className="size-btn" data-tip="Combine (union)" aria-label="Boolean union"
+              <button className="size-btn" data-tip="Combine" aria-label="Boolean union"
                 disabled={!editor.canApplyBooleanOp()}
                 onClick={() => editor.applyBooleanOp("union")}>
                 <svg width="16" height="16" viewBox="0 0 16 16">
@@ -1402,7 +1402,7 @@ export function PropertiesPanel() {
                   <rect x="5.5" y="5.5" width="9" height="9" rx="1" fill="currentColor" opacity="0.25" stroke="currentColor" strokeWidth="1.2"/>
                 </svg>
               </button>
-              <button className="size-btn" data-tip="Subtract (cut with top shape)" aria-label="Boolean subtract"
+              <button className="size-btn" data-tip="Subtract" aria-label="Boolean subtract"
                 disabled={!editor.canApplyBooleanOp()}
                 onClick={() => editor.applyBooleanOp("subtract")}>
                 <svg width="16" height="16" viewBox="0 0 16 16">
@@ -1410,7 +1410,7 @@ export function PropertiesPanel() {
                   <rect x="5.5" y="5.5" width="5.5" height="5.5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5"/>
                 </svg>
               </button>
-              <button className="size-btn" data-tip="Intersect (keep common area)" aria-label="Boolean intersect"
+              <button className="size-btn" data-tip="Intersect" aria-label="Boolean intersect"
                 disabled={!editor.canApplyBooleanOp()}
                 onClick={() => editor.applyBooleanOp("intersect")}>
                 <svg width="16" height="16" viewBox="0 0 16 16">
@@ -1419,7 +1419,7 @@ export function PropertiesPanel() {
                   <rect x="5.5" y="5.5" width="5" height="5" fill="currentColor" opacity="0.4" stroke="currentColor" strokeWidth="1"/>
                 </svg>
               </button>
-              <button className="size-btn" data-tip="Crop (mask with top shape)" aria-label="Boolean crop"
+              <button className="size-btn" data-tip="Crop" aria-label="Boolean crop"
                 disabled={!editor.canApplyBooleanOp()}
                 onClick={() => editor.applyBooleanOp("crop")}>
                 <svg width="16" height="16" viewBox="0 0 16 16">
