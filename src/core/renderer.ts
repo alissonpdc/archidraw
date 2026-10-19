@@ -1281,22 +1281,21 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
 
 /**
  * multi-selection highlight: retraces the element's own stroke path (exact
- * same geometry and seed as its drawn outline) in the selection color, so
- * members keep their own outline thickened instead of getting an extra box.
+ * same geometry, seed and width as its drawn outline) in the selection color,
+ * so members keep their own outline tinted instead of getting an extra box.
  */
 function drawSelectedMember(
   ctx: CanvasRenderingContext2D,
   el: Element,
-  zoom: number,
   color: string,
 ) {
   const path = getStrokePath(el);
   ctx.save();
   if (path) {
     applyRotation(ctx, el);
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.7;
     ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(1.5, el.strokeWidth + 2.5 / zoom);
+    ctx.lineWidth = Math.max(0.75, el.strokeWidth);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.stroke(path);
@@ -1896,7 +1895,7 @@ export function render(
     }
     drawElement(ctx, el, colors, state.animationPhase ?? 0);
     if (isMultiSelectMember && !isEditingThisLabel) {
-      drawSelectedMember(ctx, el, cam.zoom, colors.selection);
+      drawSelectedMember(ctx, el, colors.selection);
     }
     if (
       state.highlightedContextId &&
