@@ -5,7 +5,13 @@ import { useGridMode } from "../viewPrefs";
 import type { Point } from "../../core/types";
 import { pushRecentComponent } from "../../core/library";
 import { COMPONENT_DND_TYPE } from "./LibraryPanel";
-import { resolveTextColor, fontFamilyOf } from "../../core/textStyle";
+import {
+  resolveTextColor,
+  fontFamilyOf,
+  textBlockHeight,
+  textBlockTop,
+  textElementOffsets,
+} from "../../core/textStyle";
 import { measureText, edgeLabelAnchor } from "../../core/utils";
 
 function readThemeColors(): RenderColors & { elementStroke: string } {
@@ -506,7 +512,25 @@ export function CanvasHost() {
               textDecoration: editingEl.underline ? "underline" : "none",
               lineHeight: String(editingEl.lineSpacing ?? 1.25),
               textAlign: editingEl.textAlign ?? "left",
-              paddingTop: (() => { const n = editingEl.text.split("\n").length; const lh = editingEl.lineSpacing ?? 1.25; const tbh = n === 1 ? editingEl.fontSize : (n - 1) * editingEl.fontSize * lh + editingEl.fontSize; return Math.max(0, (editingEl.height - tbh) / 2) * cam.zoom; })(),
+              paddingTop: (() => {
+                const n = editingEl.text.split("\n").length;
+                const lh = editingEl.lineSpacing ?? 1.25;
+                const tbh = textBlockHeight(editingEl.fontSize, n, lh);
+                return (
+                  Math.max(0, textBlockTop(editingEl, tbh) - editingEl.y) *
+                  cam.zoom
+                );
+              })(),
+              paddingLeft: (() => {
+                const align = editingEl.textAlign ?? "left";
+                if (align === "right") return 0;
+                return textElementOffsets(editingEl).padX * cam.zoom;
+              })(),
+              paddingRight: (() => {
+                const align = editingEl.textAlign ?? "left";
+                if (align === "left") return 0;
+                return textElementOffsets(editingEl).padX * cam.zoom;
+              })(),
             }}
             value={editingEl.text}
             onChange={(e) => {

@@ -4,7 +4,13 @@ import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrow
 import { getLibraryItem } from "./library";
 import { componentAssetDataUri, waitForComponentImages, waitForImage } from "./componentAssets";
 import { strokeDashArray } from "./strokeStyle";
-import { fontFamilyOf, lineHeight, textBlockHeight } from "./textStyle";
+import {
+  fontFamilyOf,
+  lineHeight,
+  textBlockHeight,
+  textBlockTop,
+  textElementOffsets,
+} from "./textStyle";
 import {
   closedLoopD,
   diamondLoop,
@@ -452,10 +458,21 @@ export function buildSvgString(doc: Document): string | null {
       const lines = el.text.split("\n");
       const lh = lineHeight(el);
       const blockH = textBlockHeight(el.fontSize, lines.length, lh);
-      const vOffset = Math.max(0, (el.height - blockH) / 2);
+      const align = el.textAlign ?? "left";
+      const { padX } = textElementOffsets(el);
+      const baseX =
+        align === "center"
+          ? el.x + el.width / 2
+          : align === "right"
+            ? el.x + el.width - padX
+            : el.x + padX;
+      const anchor =
+        align === "center" ? "middle" : align === "right" ? "end" : "start";
+      const blockTop = textBlockTop(el, blockH);
+      const textFill = el.textColor || el.strokeColor;
       lines.forEach((line, i) => {
         elParts.push(
-          `<text x="${el.x}" y="${el.y + vOffset + i * el.fontSize * lh + el.fontSize * 0.85}" font-family="${escapeXml(fontFamilyOf(el))}" font-size="${el.fontSize}" fill="${el.strokeColor}"${opacity}>${escapeXml(line)}</text>`
+          `<text x="${baseX}" y="${blockTop + i * el.fontSize * lh + el.fontSize * 0.85}" text-anchor="${anchor}" font-family="${escapeXml(fontFamilyOf(el))}" font-size="${el.fontSize}" fill="${textFill}"${opacity}>${escapeXml(line)}</text>`
         );
       });
     }

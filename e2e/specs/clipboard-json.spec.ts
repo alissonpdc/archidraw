@@ -268,6 +268,36 @@ test.describe("clipboard JSON — paste element JSON from an external source", (
     expect(el.height).toBe(100);
   });
 
+  test("polygon keeps its label together with the rings", async ({ page }) => {
+    await open(page);
+
+    const payload = {
+      type: "polygon",
+      label: "Merged",
+      x: 0,
+      y: 0,
+      width: 60,
+      height: 40,
+      rings: [
+        [
+          { x: 0, y: 0 },
+          { x: 60, y: 0 },
+          { x: 60, y: 40 },
+          { x: 0, y: 40 },
+        ],
+      ],
+    };
+    await pressPasteText(page, JSON.stringify(payload));
+
+    const el = await page.evaluate(
+      () => (window as any).__editor__.getSnapshot().doc.elements[0],
+    );
+    expect(el.type).toBe("polygon");
+    expect(el.label).toBe("Merged");
+    expect(el.rings).toHaveLength(1);
+    expect(el.rings[0]).toHaveLength(4);
+  });
+
   test("component and context elements keep their specifics", async ({
     page,
   }) => {

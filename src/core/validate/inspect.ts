@@ -240,7 +240,10 @@ export function inspectElement(raw: unknown, path: string): ElementInspection {
   checkTextField(el, path, warnings);
   const t = String(el.type);
   if (SHAPE_TYPES.includes(t)) checkShapeLabel(el, path, warnings);
-  if (t === "polygon") checkPolygonRings(el, path, errors);
+  if (t === "polygon") {
+    checkShapeLabel(el, path, warnings);
+    checkPolygonRings(el, path, errors);
+  }
   if (EDGE_TYPES.includes(t)) checkEdgeFields(el, path, warnings);
   checkComponentFields(el, path, warnings);
   checkContextFields(el, path, warnings);

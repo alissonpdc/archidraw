@@ -111,12 +111,23 @@ test.describe("docs markdown source", () => {
       "`eks`",
       "`k8s-hpa`",
       "official bundled icon",
+      "### 3.8 Additional information (`details`)",
+      "rendered for human reading on the canvas on demand",
+      "Raw HTML is never interpreted",
+      "SVG and PNG exports contain the drawing only",
       "An edge never fills its interior",
       "screen = scene * zoom + scroll",
       "the tab bar and the zoom controls across the bottom",
       "A context the app itself creates is",
       "opaque plate of the canvas background",
       "Nothing from the section 5.2 dialect belongs here",
+      "### 3.9 Which fields take effect",
+      "always fill solid",
+      "default sans font",
+      "routes orthogonally on its own",
+      "30% of the horizontal span",
+      "0 for text elements, 8 for shape and context labels",
+      "only the side named by the alignment"
     ]) {
       expect(md, `workspace token ${token} documented`).toContain(token);
     }
@@ -350,6 +361,28 @@ test.describe("docs markdown source", () => {
     const state = await editorState();
     expect(state.elementCount).toBe(3);
     expect(state.elements[2].type).toBe("text");
+  });
+
+  test("the additional information example pastes with its details", async ({
+    request,
+    page,
+    editorState,
+  }) => {
+    const md = await fetchDocsMarkdown(request);
+    const json = pickJson(md, ['"id": "svc_orders"', '"details"']);
+    expect(json).toBeTruthy();
+
+    const parsed = JSON.parse(json!);
+    expect(parsed.details).toContain("## Orders API");
+    expect(parsed.details).toContain("[runbook](https://example.com/runbooks/orders)");
+
+    await open(page);
+    await pressPasteText(page, json!);
+
+    const state = await editorState();
+    expect(state.elementCount).toBe(1);
+    expect(state.elements[0].label).toBe("Orders API");
+    expect(state.elements[0].details).toBe(parsed.details);
   });
 
   test("complete workspace example imports as a new diagram", async ({
