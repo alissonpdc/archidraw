@@ -94,6 +94,118 @@ interface ElementGeometryCache {
 const geometryCache = new WeakMap<Element, ElementGeometryCache>();
 
 /**
+ * returns the exact Path2D the element's own stroke is drawn with (cached in
+ * ElementGeometryCache). Reused by the multi-selection highlight so members'
+ * own outlines are retraced instead of drawing a new box per element.
+ */
+function getStrokePath(el: Element): Path2D | null {
+  const cache = getElementCache(el);
+  if (cache.strokePath) return cache.strokePath;
+  switch (el.type) {
+    case "rectangle":
+    case "component":
+    case "context":
+      if (el.roughness === 0) {
+        const p = new Path2D();
+        p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+        cache.strokePath = p;
+      } else {
+        cache.strokePath = sketchStrokePath2D(
+          [
+            roundedRectLoop(
+              el.x,
+              el.y,
+              el.width,
+              el.height,
+              cornerRadius(el),
+            ),
+          ],
+          el.roughness,
+          seedOf(el.id),
+          cornerRadius(el) > 0 ? 0.30 : 1,
+        );
+      }
+      break;
+    case "diamond": {
+      const v = diamondVertices(el);
+      if (el.roughness === 0) {
+        const p = new Path2D();
+        p.moveTo(v[0].x, v[0].y);
+        for (let i = 1; i < v.length; i++) p.lineTo(v[i].x, v[i].y);
+        p.closePath();
+        cache.strokePath = p;
+      } else {
+        cache.strokePath = sketchStrokePath2D([diamondLoop(el)], el.roughness, seedOf(el.id));
+      }
+      break;
+    }
+    case "ellipse": {
+      const rx = Math.abs(el.width) / 2;
+      const ry = Math.abs(el.height) / 2;
+      const cx = el.x + el.width / 2;
+      const cy = el.y + el.height / 2;
+      if (el.roughness === 0) {
+        const p = new Path2D();
+        p.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        cache.strokePath = p;
+      } else {
+        cache.strokePath = sketchStrokePath2D(
+          [ellipseLoop(el.x, el.y, el.width, el.height)],
+          el.roughness,
+          seedOf(el.id),
+        );
+      }
+      break;
+    }
+    case "polygon": {
+      const loops = polygonLoops(el);
+      cache.strokePath =
+        el.roughness === 0
+          ? loopPath2D(loops)
+          : sketchStrokePath2D(loops, el.roughness, seedOf(el.id));
+      break;
+    }
+    case "line":
+    case "arrow": {
+      const a = arrowPoints(el)[0];
+      const tip = edgeTip(el);
+      const lineType = el.lineType ?? "straight";
+      const withHeads = el.type === "arrow";
+      if (lineType === "straight") {
+        if (el.strokeStyle === "solid" && el.roughness > 0) {
+          cache.strokePath = sketchStrokePath2D([[a, tip]], el.roughness, seedOf(el.id), 1, false, withHeads);
+        } else {
+          const p = new Path2D();
+          p.moveTo(a.x, a.y);
+          p.lineTo(tip.x, tip.y);
+          cache.strokePath = p;
+        }
+      } else if (lineType === "curved") {
+        const cp = curvedArrowControl(el, a, tip);
+        const p = new Path2D();
+        p.moveTo(a.x, a.y);
+        p.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+        cache.strokePath = p;
+      } else {
+        const pts = edgePathPoints(el);
+        if (el.strokeStyle === "solid" && el.roughness > 0) {
+          cache.strokePath = sketchStrokePath2D([pts], el.roughness, seedOf(el.id), 1, false, withHeads);
+        } else {
+          const p = new Path2D();
+          p.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
+          cache.strokePath = p;
+        }
+      }
+      break;
+    }
+    default:
+      return null;
+  }
+  return cache.strokePath;
+}
+
+/**
  * pushes a rotation transform (about the element center) so every drawing
  * routine below can keep working in the element's own unrotated frame.
  * No-op when the element has no angle.
@@ -785,30 +897,9 @@ function drawElement(
     if (el.strokeWidth > 0) {
       ctx.save();
       ctx.globalAlpha *= el.strokeOpacity;
-      if (!cache.strokePath) {
-        if (el.roughness === 0) {
-          const p = new Path2D();
-          p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-          cache.strokePath = p;
-        } else {
-          cache.strokePath = sketchStrokePath2D(
-            [
-              roundedRectLoop(
-                el.x,
-                el.y,
-                el.width,
-                el.height,
-                cornerRadius(el),
-              ),
-            ],
-            el.roughness,
-            seedOf(el.id),
-            cornerRadius(el) > 0 ? 0.30 : 1,
-          );
-        }
-      }
+      if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
       applyDash(ctx, el, el.strokeWidth);
-      ctx.stroke(cache.strokePath);
+      ctx.stroke(cache.strokePath!);
       ctx.restore();
     }
 
@@ -828,30 +919,9 @@ function drawElement(
     if (el.strokeWidth > 0) {
       ctx.save();
       ctx.globalAlpha *= el.strokeOpacity;
-      if (!cache.strokePath) {
-        if (el.roughness === 0) {
-          const p = new Path2D();
-          p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-          cache.strokePath = p;
-        } else {
-          cache.strokePath = sketchStrokePath2D(
-            [
-              roundedRectLoop(
-                el.x,
-                el.y,
-                el.width,
-                el.height,
-                cornerRadius(el),
-              ),
-            ],
-            el.roughness,
-            seedOf(el.id),
-            cornerRadius(el) > 0 ? 0.30 : 1,
-          );
-        }
-      }
+      if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
       applyDash(ctx, el, el.strokeWidth);
-      ctx.stroke(cache.strokePath);
+      ctx.stroke(cache.strokePath!);
       ctx.restore();
     }
   } else if (el.type === "diamond") {
@@ -875,19 +945,9 @@ function drawElement(
     }
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    if (!cache.strokePath) {
-      if (el.roughness === 0) {
-        const p = new Path2D();
-        p.moveTo(v[0].x, v[0].y);
-        for (let i = 1; i < v.length; i++) p.lineTo(v[i].x, v[i].y);
-        p.closePath();
-        cache.strokePath = p;
-      } else {
-        cache.strokePath = sketchStrokePath2D([diamondLoop(el)], el.roughness, seedOf(el.id));
-      }
-    }
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
     applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke(cache.strokePath);
+    ctx.stroke(cache.strokePath!);
     ctx.restore();
   } else if (el.type === "ellipse") {
     const rx = Math.abs(el.width) / 2;
@@ -911,21 +971,9 @@ function drawElement(
     }
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    if (!cache.strokePath) {
-      if (el.roughness === 0) {
-        const p = new Path2D();
-        p.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        cache.strokePath = p;
-      } else {
-        cache.strokePath = sketchStrokePath2D(
-          [ellipseLoop(el.x, el.y, el.width, el.height)],
-          el.roughness,
-          seedOf(el.id),
-        );
-      }
-    }
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
     applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke(cache.strokePath);
+    ctx.stroke(cache.strokePath!);
     ctx.restore();
   } else if (el.type === "polygon") {
     const loops = polygonLoops(el);
@@ -942,52 +990,16 @@ function drawElement(
     }
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    if (!cache.strokePath) {
-      cache.strokePath =
-        el.roughness === 0
-          ? loopPath2D(loops)
-          : sketchStrokePath2D(loops, el.roughness, seedOf(el.id));
-    }
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
     applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke(cache.strokePath);
+    ctx.stroke(cache.strokePath!);
     ctx.restore();
   } else if (el.type === "line") {
-    const a = arrowPoints(el)[0];
-    const tip = edgeTip(el);
-    const lineType = el.lineType ?? "straight";
-
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    if (!cache.strokePath) {
-      if (lineType === "straight") {
-        if (el.strokeStyle === "solid" && el.roughness > 0) {
-          cache.strokePath = sketchStrokePath2D([[a, tip]], el.roughness, seedOf(el.id));
-        } else {
-          const p = new Path2D();
-          p.moveTo(a.x, a.y);
-          p.lineTo(tip.x, tip.y);
-          cache.strokePath = p;
-        }
-      } else if (lineType === "curved") {
-        const cp = curvedArrowControl(el, a, tip);
-        const p = new Path2D();
-        p.moveTo(a.x, a.y);
-        p.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
-        cache.strokePath = p;
-      } else {
-        const pts = edgePathPoints(el);
-        if (el.strokeStyle === "solid" && el.roughness > 0) {
-          cache.strokePath = sketchStrokePath2D([pts], el.roughness, seedOf(el.id));
-        } else {
-          const p = new Path2D();
-          p.moveTo(pts[0].x, pts[0].y);
-          for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
-          cache.strokePath = p;
-        }
-      }
-    }
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
     applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke(cache.strokePath);
+    ctx.stroke(cache.strokePath!);
     ctx.restore();
   } else if (el.type === "arrow") {
     const a = arrowPoints(el)[0];
@@ -1001,36 +1013,9 @@ function drawElement(
 
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    if (!cache.strokePath) {
-      if (lineType === "straight") {
-        if (el.strokeStyle === "solid" && el.roughness > 0) {
-          cache.strokePath = sketchStrokePath2D([[a, tip]], el.roughness, seedOf(el.id), 1, false, true);
-        } else {
-          const p = new Path2D();
-          p.moveTo(a.x, a.y);
-          p.lineTo(tip.x, tip.y);
-          cache.strokePath = p;
-        }
-      } else if (lineType === "curved") {
-        const cp = curvedArrowControl(el, a, tip);
-        const p = new Path2D();
-        p.moveTo(a.x, a.y);
-        p.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
-        cache.strokePath = p;
-      } else {
-        const pts = edgePathPoints(el);
-        if (el.strokeStyle === "solid" && el.roughness > 0) {
-          cache.strokePath = sketchStrokePath2D([pts], el.roughness, seedOf(el.id), 1, false, true);
-        } else {
-          const p = new Path2D();
-          p.moveTo(pts[0].x, pts[0].y);
-          for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
-          cache.strokePath = p;
-        }
-      }
-    }
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
     applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
-    ctx.stroke(cache.strokePath);
+    ctx.stroke(cache.strokePath!);
     if (lineType === "straight") {
       drawArrowHead(ctx, tip, a, headSize, headColor, el.roughness, headSeed, endType);
       drawArrowHead(ctx, a, tip, headSize, headColor, el.roughness, headSeed + 3, startType);
@@ -1292,6 +1277,61 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
   const vb = { x1, y1, x2, y2 };
   cache.visualBounds = vb;
   return vb;
+}
+
+/**
+ * multi-selection highlight: retraces the element's own stroke path (exact
+ * same geometry and seed as its drawn outline) in the selection color, so
+ * members keep their own outline thickened instead of getting an extra box.
+ */
+function drawSelectedMember(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  zoom: number,
+  color: string,
+) {
+  const path = getStrokePath(el);
+  ctx.save();
+  if (path) {
+    applyRotation(ctx, el);
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1.5, el.strokeWidth + 2.5 / zoom);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke(path);
+  } else if (el.type === "text") {
+    ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = color;
+    ctx.lineCap = "round";
+    const cache = getElementCache(el);
+    if (!cache.textLayout) {
+      const lines = el.text.split("\n");
+      const lineWidths = lines.map((l) => ctx.measureText(l).width);
+      const maxWidth = Math.max(...lineWidths, 1);
+      cache.textLayout = { lines, lineWidths, maxWidth };
+    }
+    ctx.font = resolveFont(el);
+    ctx.textBaseline = "top";
+    const lh = lineHeight(el);
+    const n = cache.textLayout.lines.length;
+    ctx.lineWidth = Math.max(1.5, el.fontSize * 0.11);
+    const lineWidths = cache.textLayout.lineWidths;
+    const align = el.textAlign ?? "left";
+    for (let i = 0; i < n; i++) {
+      const lw = lineWidths[i];
+      if (lw <= 0) continue;
+      let ux = el.x;
+      if (align === "center") ux += (el.width - lw) / 2;
+      else if (align === "right") ux += el.width - lw;
+      const lineY = el.y + i * el.fontSize * lh;
+      ctx.beginPath();
+      ctx.moveTo(ux, lineY + el.fontSize);
+      ctx.lineTo(ux + lw, lineY + el.fontSize);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 function drawSelectionBox(
@@ -1846,6 +1886,8 @@ export function render(
   for (const el of visibleElements) {
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
+    const isMultiSelectMember =
+      state.selectedIds.size > 1 && state.selectedIds.has(el.id);
     const dim =
       Boolean(state.highlightedIds && state.highlightedIds.size > 0 && !state.highlightedIds.has(el.id));
     if (dim) {
@@ -1853,6 +1895,9 @@ export function render(
       ctx.globalAlpha = 0.15;
     }
     drawElement(ctx, el, colors, state.animationPhase ?? 0);
+    if (isMultiSelectMember && !isEditingThisLabel) {
+      drawSelectedMember(ctx, el, cam.zoom, colors.selection);
+    }
     if (
       state.highlightedContextId &&
       el.id === state.highlightedContextId &&

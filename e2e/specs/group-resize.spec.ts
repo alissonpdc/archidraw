@@ -136,9 +136,7 @@ test.describe("group resize", () => {
     expect(b.h).toBeCloseTo(80, 0);
   });
 
-  test("individual selection outlines are hidden for a group", async ({
-    page,
-  }) => {
+  test("member outlines are drawn for a group", async ({ page }) => {
     await page.waitForTimeout(200);
     const insideGroup = await selectionPixels(page, {
       x1: 120,
@@ -146,7 +144,7 @@ test.describe("group resize", () => {
       x2: 145,
       y2: 168,
     });
-    expect(insideGroup).toBe(0);
+    expect(insideGroup).toBeGreaterThan(0);
   });
 
   test("individual outline remains for a single selection", async ({
