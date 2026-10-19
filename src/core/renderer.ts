@@ -24,7 +24,15 @@ import {
 import { clipSegmentInLoops } from "./booleanOps";
 import { getLibraryItem } from "./library";
 import { getComponentImage, getCachedImage } from "./componentAssets";
-import { resolveFont, resolveTextColor, lineHeight, textBlockHeight, fontFamilyOf } from "./textStyle";
+import {
+  resolveFont,
+  resolveTextColor,
+  lineHeight,
+  textBlockHeight,
+  textBlockTop,
+  textElementOffsets,
+  fontFamilyOf,
+} from "./textStyle";
 import { themeColor } from "./color";
 import { strokeDashArray, strokeRoundCap } from "./strokeStyle";
 import {
@@ -1048,20 +1056,21 @@ function drawElement(
     ctx.textAlign = align;
     const n = lines.length;
     const textBlockH = textBlockHeight(el.fontSize, n, lh);
-    const vOffset = Math.max(0, (el.height - textBlockH) / 2);
+    const { padX } = textElementOffsets(el);
+    const blockTop = textBlockTop(el, textBlockH);
     const underlineOn = !!el.underline;
     lines.forEach((line, i) => {
-      let lx = el.x;
+      let lx = el.x + padX;
       if (align === "center") lx = el.x + el.width / 2;
-      else if (align === "right") lx = el.x + el.width;
-      const lineY = el.y + vOffset + i * el.fontSize * lh;
+      else if (align === "right") lx = el.x + el.width - padX;
+      const lineY = blockTop + i * el.fontSize * lh;
       ctx.fillText(line, lx, lineY);
       if (underlineOn && line.length > 0) {
         const lw = lineWidths[i];
         if (lw > 0) {
-          let ux = el.x;
-          if (align === "center") ux = el.x + (el.width - lw) / 2;
-          else if (align === "right") ux = el.x + el.width - lw;
+          let ux = lx;
+          if (align === "center") ux = lx - lw / 2;
+          else if (align === "right") ux = lx - lw;
           ctx.strokeStyle = resolveTextColor(el, colors);
           ctx.lineWidth = Math.max(2, el.fontSize * 0.07);
           ctx.beginPath();

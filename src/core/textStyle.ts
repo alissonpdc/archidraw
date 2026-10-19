@@ -63,3 +63,40 @@ export function lineHeight(el: Element): number {
 export function textDecoration(el: Element): string {
   return el.underline ? "underline" : "none";
 }
+
+/**
+ * Text element (`type: "text"`) insets. Unlike shape labels, whose base inset
+ * defaults to 8, a free text box starts flush with its measured content, so
+ * the base offset defaults to 0. Only the side named by `textAlign` /
+ * `textVAlign` contributes its per-side offset; centered/middle ignores them.
+ */
+export function textElementOffsets(el: Element): { padX: number; padY: number } {
+  const g = el.textOffsetGlobal ?? 0;
+  const align = el.textAlign ?? "left";
+  const vAlign = el.textVAlign ?? "middle";
+  return {
+    padX:
+      g +
+      (align === "left"
+        ? el.textOffsetLeft ?? 0
+        : align === "right"
+          ? el.textOffsetRight ?? 0
+          : 0),
+    padY:
+      g +
+      (vAlign === "top"
+        ? el.textOffsetTop ?? 0
+        : vAlign === "bottom"
+          ? el.textOffsetBottom ?? 0
+          : 0),
+  };
+}
+
+/** scene Y of the first line's top for a `text` element block of `blockH` px */
+export function textBlockTop(el: Element, blockH: number): number {
+  const vAlign = el.textVAlign ?? "middle";
+  const { padY } = textElementOffsets(el);
+  if (vAlign === "top") return el.y + padY;
+  if (vAlign === "bottom") return el.y + el.height - padY - blockH;
+  return el.y + Math.max(0, (el.height - blockH) / 2);
+}

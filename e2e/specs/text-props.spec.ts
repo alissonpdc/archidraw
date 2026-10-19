@@ -1,4 +1,4 @@
-import { test, expect, open, drag, selectTool } from "../fixtures";
+import { test, expect, open, drag, selectTool, pressPasteText } from "../fixtures";
 import { type Page } from "@playwright/test";
 
 async function openPanel(page: Page, tab: "Style" | "Text" | "Layers") {
@@ -167,5 +167,99 @@ test.describe("PropertiesPanel text controls", () => {
 
     const sketchBtn = page.locator('.properties-panel .size-btn[data-tip="Sketch"]');
     await expect(sketchBtn).toHaveClass(/active/);
+  });
+
+  test("text element honours textVAlign and textOffset on the canvas", async ({
+    page,
+  }) => {
+    await open(page);
+
+    await pressPasteText(
+      page,
+      JSON.stringify({
+        type: "text",
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 200,
+        text: "M",
+        fontSize: 20,
+        textColor: "#e03131",
+      }),
+    );
+
+    // red-ink band of the glyph, in coordinates relative to the element box,
+    // so the paste cascade offset does not matter (one readback per state)
+    const band = async () =>
+      page.evaluate(async () => {
+        await new Promise((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(r)),
+        );
+        const ed = (window as any).__editor__;
+        const el = ed.getSnapshot().doc.elements[0];
+        const canvas = document.querySelector("canvas")! as HTMLCanvasElement;
+        const x0 = Math.round(el.x);
+        const y0 = Math.round(el.y);
+        const w = Math.round(el.width);
+        const h = Math.round(el.height);
+        // copy into a private readback canvas so repeated reads do not trip the
+        // Canvas2D willReadFrequently console guard
+        const tmp = document.createElement("canvas");
+        tmp.width = w;
+        tmp.height = h;
+        const tctx = tmp.getContext("2d", {
+          willReadFrequently: true,
+        })!;
+        tctx.drawImage(canvas, x0, y0, w, h, 0, 0, w, h);
+        const d = tctx.getImageData(0, 0, w, h).data;
+        let minY = Infinity;
+        let maxY = -1;
+        let minX = Infinity;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            if (d[i] > 150 && d[i + 1] < 140 && d[i + 2] < 140) {
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+              if (x < minX) minX = x;
+            }
+          }
+        }
+        return {
+          minY: minY === Infinity ? -1 : minY,
+          maxY,
+          minX: minX === Infinity ? -1 : minX,
+          h,
+        };
+      });
+
+    const id = await page.evaluate(
+      () => (window as any).__editor__.getSnapshot().doc.elements[0].id,
+    );
+    const update = (patch: Record<string, unknown>) =>
+      page.evaluate(
+        ({ id, patch }) =>
+          (window as any).__editor__.updateElements([id], patch),
+        { id, patch },
+      );
+
+    // default: middle, flush left
+    let b = await band();
+    expect(b.minY).toBeGreaterThan(b.h * 0.4);
+    expect(b.maxY).toBeLessThan(b.h * 0.7);
+    expect(b.minX).toBeLessThan(20);
+
+    await update({ textVAlign: "top" });
+    b = await band();
+    expect(b.minY).toBeLessThan(15);
+
+    await update({ textVAlign: "bottom" });
+    b = await band();
+    expect(b.maxY).toBeGreaterThan(b.h - 15);
+
+    // offsets only apply on the aligned side: left + a 60px base inset
+    await update({ textVAlign: "middle", textOffsetGlobal: 60 });
+    b = await band();
+    expect(b.minX).toBeGreaterThan(40);
   });
 });

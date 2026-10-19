@@ -204,6 +204,7 @@ export function normalizeElement(raw: unknown): Element | null {
     const rings = normalizeRings(rec.rings);
     if (!rings) return null;
     el.rings = rings;
+    keepString(el, rec, "label");
   } else if (type === "line" || type === "arrow") {
     keepEdgeFields(el, rec);
   } else if (type === "text") {
