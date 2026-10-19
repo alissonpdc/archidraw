@@ -7,6 +7,7 @@ import type {
   Element,
   LineElement,
   Point,
+  PolygonElement,
 } from "./types";
 
 let seed = 0;
@@ -64,6 +65,36 @@ export function elementAngle(el: Element): number {
 }
 
 /**
+ * Absolute, closed loops of a boolean-result polygon (scene frame, rotation
+ * NOT applied — callers draw inside applyRotation / test in the local frame).
+ * One loop per ring (outer + holes), each starting and ending on the same
+ * point, matching the shape loops of roughPath.
+ *
+ * Example: `polygonLoops(el)` → `[[{x,y}...]]`.
+ */
+export function polygonLoops(el: PolygonElement): Point[][] {
+  const loops: Point[][] = [];
+  for (const ring of el.rings) {
+    if (ring.length < 3) continue;
+    const loop = ring.map((p) => ({ x: el.x + p.x, y: el.y + p.y }));
+    loop.push({ ...loop[0] });
+    loops.push(loop);
+  }
+  return loops;
+}
+
+/** scales the local rings of a boolean result about the box origin */
+export function scalePolygonRings(
+  el: PolygonElement,
+  sx: number,
+  sy: number,
+): Point[][] {
+  return el.rings.map((ring) =>
+    ring.map((p) => ({ x: p.x * sx, y: p.y * sy })),
+  );
+}
+
+/**
  * element types that expose the rotate grip. Lines/arrows are excluded: their
  * direction is already encoded by their signed width/height, so rotating them
  * would be meaningless — dragging an endpoint re-aims them instead.
@@ -74,6 +105,7 @@ export function isRotatable(el: Element): boolean {
     el.type === "rectangle" ||
     el.type === "diamond" ||
     el.type === "ellipse" ||
+    el.type === "polygon" ||
     el.type === "text" ||
     el.type === "component" ||
     el.type === "context"
@@ -644,6 +676,9 @@ function outlinePointLocal(el: Element, p: Point): Point {
     const t = 1 / (Math.abs(dx) / (hw || 1) + Math.abs(dy) / (hh || 1));
     return { x: cx + dx * t, y: cy + dy * t };
   }
+  if (el.type === "polygon") {
+    return nearestPolygonOutlinePoint(el, p);
+  }
   // rectangle outline: clamp to the border; points inside project to the
   // nearest edge
   const qx = clamp(p.x, b.x1, b.x2);
@@ -658,6 +693,31 @@ function outlinePointLocal(el: Element, p: Point): Point {
   if (m === dr) return { x: b.x2, y: p.y };
   if (m === dt) return { x: p.x, y: b.y1 };
   return { x: p.x, y: b.y2 };
+}
+
+function nearestPolygonOutlinePoint(el: PolygonElement, p: Point): Point {
+  let best: Point | null = null;
+  let bestDist = Infinity;
+  for (const loop of polygonLoops(el)) {
+    for (let i = 1; i < loop.length; i++) {
+      const a = loop[i - 1];
+      const b = loop[i];
+      const ex = b.x - a.x;
+      const ey = b.y - a.y;
+      const lenSq = ex * ex + ey * ey;
+      const t =
+        lenSq === 0
+          ? 0
+          : clamp(((p.x - a.x) * ex + (p.y - a.y) * ey) / lenSq, 0, 1);
+      const q = { x: a.x + t * ex, y: a.y + t * ey };
+      const d = Math.hypot(p.x - q.x, p.y - q.y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = q;
+      }
+    }
+  }
+  return best ?? p;
 }
 
 /** union bounding box of all elements; null when empty */

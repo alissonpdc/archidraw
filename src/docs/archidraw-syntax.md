@@ -163,7 +163,7 @@ The same envelope is used for the localStorage autosave (key `archidraw:workspac
 }
 ```
 
-### 2.6 Complete example (all eight element types)
+### 2.6 Complete example (all nine element types)
 
 ```json
 {
@@ -197,7 +197,7 @@ The same envelope is used for the localStorage autosave (key `archidraw:workspac
             "label": "Payments",
             "labelPosition": "top-left",
             "labelSide": "internal",
-            "childIds": ["rect_api", "comp_ec2", "diamond_decide", "ellipse_cache", "line_1", "arrow_1", "text_note"]
+            "childIds": ["rect_api", "comp_ec2", "diamond_decide", "ellipse_cache", "shape_join", "line_1", "arrow_1", "text_note"]
           },
           {
             "id": "rect_api",
@@ -280,6 +280,32 @@ The same envelope is used for the localStorage autosave (key `archidraw:workspac
             "borderRadius": 0,
             "angle": 0,
             "label": "Cache"
+          },
+          {
+            "id": "shape_join",
+            "type": "polygon",
+            "x": 520,
+            "y": 250,
+            "width": 120,
+            "height": 60,
+            "strokeColor": "#3d4248",
+            "backgroundColor": "#dfe0e2",
+            "strokeWidth": 1,
+            "opacity": 1,
+            "strokeOpacity": 1,
+            "fillOpacity": 1,
+            "strokeStyle": "solid",
+            "fillStyle": "solid",
+            "roughness": 1,
+            "borderRadius": 0,
+            "angle": 0,
+            "label": "Joined",
+            "rings": [
+              [
+                { "x": 0, "y": 0 }, { "x": 120, "y": 0 },
+                { "x": 120, "y": 60 }, { "x": 0, "y": 60 }
+              ]
+            ]
           },
           {
             "id": "arrow_1",
@@ -365,7 +391,8 @@ The same envelope is used for the localStorage autosave (key `archidraw:workspac
 ### 3.1 Coordinate system and z-order
 
 - Scene units are pixels at zoom `1`. The Y axis grows downward.
-- For rectangles, diamonds, ellipses, components, contexts and text, `x` and `y` are the top-left corner of the bounding box and `width`/`height` are positive.
+- For rectangles, diamonds, ellipses, polygons, components, contexts and text, `x` and `y` are the top-left corner of the bounding box and `width`/`height` are positive.
+- A `polygon` (boolean result) keeps its real outline in `rings`; `x`, `y`, `width` and `height` are just the bounding box of those rings and must match it whenever you write the element by hand.
 - For lines and arrows, `x` and `y` are the start point and `x + width`, `y + height` are the end point. `width` and `height` are signed, so a stroke going up-left uses negative values.
 - `angle` is in radians, clockwise, around the center of the box. The `x`, `y`, `width` and `height` values always describe the unrotated box.
 - `borderRadius` is a percentage of the smaller side, from `0` to `100`.
@@ -446,6 +473,7 @@ The two lightest columns carry fills, the three darkest columns carry strokes; a
 | Element type | Extra fields |
 |---|---|
 | rectangle, diamond, ellipse | `label` (string) — drawn inside the box |
+| polygon | `rings` (required, array of rings of `{x, y}` points), `label` (string) — drawn inside the box. `rings[0]` is the outer ring; every following ring is a hole. Coordinates are local to the element: `(0, 0)` is the top-left corner `x, y`, so moving the element only rewrites `x`/`y`. Rings are open — do not repeat the first point at the end — and need at least 3 points each |
 | line | `label`, `labelT`, `lineType`, `controlPoint`, `bendPoints`, `startBinding`, `endBinding` |
 | arrow | all line fields plus `animated` (boolean, default false), `startArrowhead` (default `none`), `endArrowhead` (default `arrow`) |
 | text | `text` (string, defaults to empty), `fontSize` (number, defaults to 20) |
@@ -463,13 +491,15 @@ Notes on edges:
 - `src` holds a self-contained raster such as `data:image/png;base64,...` for pasted or imported images.
 - Nothing from the section 5.2 dialect belongs here: `points`, `roundness`, `closed` and the `draw` type exist only on the raster library path, and corner rounding is spelled `borderRadius` in this model. Writing them on a native element does nothing.
 
+Notes on polygons (boolean results): the app writes them from the Layers panel → Boolean actions (`union`, `subtract`, `intersect`, `crop`). The operation is destructive — the operands are removed and the result takes their place at the topmost operand's z-position, carrying its stroke and fill style. Each connected solid becomes its own `polygon` element, so joining two disjoint shapes yields two polygons, and a subtraction that leaves two pieces also yields two. `crop` and `subtract` read the topmost selected shape as cutter/mask (`crop` keeps only what falls inside it, `subtract` removes it). A `polygon` is itself a valid operand for a later operation, so results can be combined again. When writing one by hand, keep `x`/`y`/`width`/`height` equal to the ring bounding box; a ring set with an empty outer ring is invalid and the element is rejected on paste.
+
 Note on contexts: `childIds` is read as written — Open never recomputes membership nor prunes the array; a dead id is ignored, not rejected. Fill it with the app's own rule: an element of any type — edges included — belongs to a context when its rotated bounds fall entirely inside the context's bounds, which is what the app records whenever an element is created, pasted or duplicated inside a context (contexts are never members of other contexts). A context the app itself creates is `strokeColor: "#c4c7ca"`, `backgroundColor: "transparent"`, `strokeWidth: 1`, `borderRadius: 10`, `fontSize: 16`, `labelPosition: "top-left"` and `labelSide: "internal"`; copy those values when the drawing needs a plain boundary, and remember that a fill is a real fill — take one from the section 3.2 palette if you want the region tinted. A context's caption is drawn in `textColor`, which falls back to `strokeColor`, so the `#c4c7ca` boundary an app-made context carries gives a deliberately faint region name: set `textColor` (a palette colour) or a darker `strokeColor` when the name has to be read.
 
 ### 3.4 Enumerations
 
 | Name | Values |
 |---|---|
-| ElementType | `rectangle`, `diamond`, `ellipse`, `line`, `arrow`, `text`, `component`, `context` |
+| ElementType | `rectangle`, `diamond`, `ellipse`, `polygon`, `line`, `arrow`, `text`, `component`, `context` |
 | StrokeStyle | `solid`, `dashed`, `dotted`, `dashdot` |
 | FillStyle | `solid`, `hachure`, `cross-hachure` |
 | LineType | `straight`, `curved`, `auto` |
@@ -609,7 +639,7 @@ The paste parser accepts four shapes:
 ### 4.3 Validation, defaults and whitelisting
 
 - The payload must parse as JSON.
-- Validation is atomic. If any item is not an object or carries an `type` value outside the eight element types, the entire payload is rejected and nothing is pasted.
+- Validation is atomic. If any item is not an object or carries an `type` value outside the nine element types, the entire payload is rejected and nothing is pasted.
 - Wrong-typed optional fields are dropped silently or replaced by their default. They never reject the payload.
 - Geometry collections are all-or-nothing: `bendPoints` and `childIds` are kept only when every item is valid.
 - Unknown fields are dropped. The parser keeps a whitelist per element type, listed in section 3.3.
@@ -663,7 +693,7 @@ Paste is ignored while a text field or input is focused. Rejection is silent at 
 
 ### 4.8 Clipboard examples
 
-The envelope with all eight element types:
+The envelope with all nine element types:
 
 ```json
 {
@@ -1089,7 +1119,7 @@ Detection mirrors the disjointness of section 1 and runs in this order; the firs
 4. a `type` of `archidrawlib` or `excalidrawlib` → `library`
 5. a root array: all entries arrays → `library`, otherwise → `clipboard`
 6. `type: "archidraw/elements"` or an `elements` array → `clipboard`
-7. an object whose `type` is one of the eight element types → `element`
+7. an object whose `type` is one of the nine element types → `element`
 8. anything else → `unknown`, which is always `valid: false`
 
 A single element is validated with clipboard rules (section 4.3) but reported as `element`.
@@ -1098,7 +1128,7 @@ A single element is validated with clipboard rules (section 4.3) but reported as
 
 The endpoint separates what the real parsers reject from what they silently repair:
 
-- **workspace (sections 2.1 and 2.2)** — rejects on envelope shape only: `activeTabId` not a string, empty `tabs`, a tab that is not an object or lacks `id`, `name`, `doc` or `camera`, non-numeric camera fields, or an element whose `type` is not one of the eight. Geometry is *not* checked, matching `storage.parse`, so a non-finite `x` is a **warning**, not an error. A `activeTabId` that matches no `tab.id` is also a warning.
+- **workspace (sections 2.1 and 2.2)** — rejects on envelope shape only: `activeTabId` not a string, empty `tabs`, a tab that is not an object or lacks `id`, `name`, `doc` or `camera`, non-numeric camera fields, or an element whose `type` is not one of the nine. Geometry is *not* checked, matching `storage.parse`, so a non-finite `x` is a **warning**, not an error. A `activeTabId` that matches no `tab.id` is also a warning.
 - **workspace-legacy (section 2.3)** — same `doc` and `camera` checks; the legacy `schemaVersion` itself is a warning, because the loader migrates it to tabs.
 - **library (section 5.4)** — rejects only when the root carries neither `libraryItems` nor `library`, when that array is empty, or when no item leaves any surviving element. An item without `archidrawElements` is a **warning**: the parser accepts it, but the tile becomes a static image and the line-style toggle does nothing to it, so a generated library is almost always wrong in that shape. A single element with a bad `type`, or a `line`/`arrow`/`draw` with fewer than two `points`, is dropped from its item and reported as a **warning**: it never rejects the file. `opacity` outside the scale of its flavour (0 to 100 for Excalidraw-dialect elements, 0 to 1 for native ones) and non-finite geometry are warnings too. Native elements are validated with the section 3 rules, the ones used for a workspace document. That 5.1 warning is also the whole story of a foreign `.excalidrawlib`: it imports and renders, but nothing in it is editable.
 - **clipboard (section 4.3)** — atomic: one item with a bad `type` produces an `error` and `valid: false`. Wrong-typed optional fields, non-finite geometry and missing base fields only warn, because the normalizer defaults them.
@@ -1124,7 +1154,7 @@ Feed each returned `error` back into your generator: `path` locates the offendin
 - Every library item carries a non-empty `archidrawElements` array (section 5.1), spelled with the section 3 model: ids, `roughness`, `borderRadius`, `label` and bindings included. An item without it still imports, but it becomes a static image and the line-style / hand-drawn toggle has nothing to act on — `POST /validate` reports that as a warning on rule 5.1.
 - Each channel rejects the other envelopes: a workspace file fails the Library import and a `libraryItems` file fails Open, both with a generic error (sections 2.2 and 5.4).
 - A library item authored natively follows section 3, not section 5.2: write ids, `roughness`, `borderRadius` and `label`, and use signed `width`/`height` for line and arrow geometry instead of `points`. Section 5.2 is the raster dialect — `opacity` from 0 to 100, `roundness` instead of `borderRadius`, geometry in `points`, no ids, bindings or labels — and it applies only to items that have no `archidrawElements`.
-- Every element uses one of the eight ElementType values, spelled exactly as in section 3.4.
+- Every element uses one of the nine ElementType values, spelled exactly as in section 3.4.
 - Files spell out all base fields explicitly; only clipboard payloads may rely on defaults.
 - Element ids are unique inside their document, and bindings reference ids that exist in the same array or payload.
 - Numbers are finite. Angles are radians, `borderRadius` is a percentage and opacities range from 0 to 1 (the section 5.2 raster dialect excepted: `opacity` there runs from 0 to 100).

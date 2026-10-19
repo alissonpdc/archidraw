@@ -365,7 +365,7 @@ test.describe("docs markdown source", () => {
     expect(parsed.schemaVersion).toBe(2);
     expect(parsed.tabs).toHaveLength(1);
     const expectedTypes = parsed.tabs[0].doc.elements.map((el: { type: string }) => el.type);
-    expect(expectedTypes).toHaveLength(8);
+    expect(expectedTypes).toHaveLength(9);
 
     await open(page);
     const before = await editorState();
@@ -379,7 +379,7 @@ test.describe("docs markdown source", () => {
 
     const state = await editorState();
     expect(state.tabs).toHaveLength(2);
-    expect(state.elementCount).toBe(8);
+    expect(state.elementCount).toBe(9);
     expect(state.elements.map((e) => e.type)).toEqual(expectedTypes);
     expect(state.elements.map((e) => e.componentId).filter(Boolean)).toEqual(["ec2"]);
   });

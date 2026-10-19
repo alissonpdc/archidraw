@@ -54,11 +54,18 @@ import {
   rotatedBounds,
   toLocalPoint,
   toScenePoint,
+  scalePolygonRings,
   translatedOrigin,
 } from "./utils";
 import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { correlateIntensity } from "./color";
 import { fontFamilyOf } from "./textStyle";
+import {
+  combineSelected,
+  polygonsToElements,
+  selectionIsBooleanSource,
+  type BooleanOp,
+} from "./booleanOps";
 import { getLibraryItem, isBuiltinLibraryItem } from "./library";
 import { assetLoadVersion, componentAssetDataUri } from "./componentAssets";
 import { addImportedImage } from "./importedImages";
@@ -190,6 +197,7 @@ function hasResizeHandles(el: Element): boolean {
     el.type === "rectangle" ||
     el.type === "diamond" ||
     el.type === "ellipse" ||
+    el.type === "polygon" ||
     el.type === "line" ||
     el.type === "arrow" ||
     el.type === "component" ||
@@ -971,6 +979,60 @@ export class Editor {
         return { ...el, y: el.y + (pos.y! - rb.y1) } as Element;
       }),
     };
+    this.emit();
+  }
+
+  // ---- boolean shape ops (union / subtract / intersect / crop) ----------
+  /** selected elements in document (z-order) order */
+  selectedElements(): Element[] {
+    return this.doc.elements.filter((el) => this.selectedIds.has(el.id));
+  }
+
+  /** true when the current selection can be combined (>= 2 closed shapes) */
+  canApplyBooleanOp(): boolean {
+    return selectionIsBooleanSource(this.selectedElements());
+  }
+
+  /**
+   * Destructive boolean op: the selected closed shapes are resolved into
+   * `polygon` elements (one per connected solid), styled like the topmost
+   * operand, and the operands are removed. Undo restores the inputs.
+   *
+   * Example: `editor.applyBooleanOp("subtract")` with a base shape and the
+   * cutter on top; throws instead of silently no-op'ing on a bad selection.
+   */
+  applyBooleanOp(op: BooleanOp) {
+    const selected = this.selectedElements();
+    const results = polygonsToElements(
+      combineSelected(op, selected),
+      selected[selected.length - 1],
+    );
+    this.commitHistory();
+    const opIds = new Set(selected.map((el) => el.id));
+    const resultIds = new Set(results.map((el) => el.id));
+    const topIndex = this.doc.elements.reduce(
+      (top, el, index) => (opIds.has(el.id) ? index : top),
+      -1,
+    );
+    const remaining = this.doc.elements.filter((el) => !opIds.has(el.id));
+    const insertAt = this.doc.elements
+      .slice(0, topIndex)
+      .filter((el) => !opIds.has(el.id)).length;
+    const elements = [
+      ...remaining.slice(0, insertAt),
+      ...results,
+      ...remaining.slice(insertAt),
+    ];
+    this.doc = {
+      ...this.doc,
+      elements: elements.map((el) => {
+        if (el.type !== "context" || !el.childIds) return el;
+        const kept = el.childIds.filter((id) => !opIds.has(id));
+        if (kept.length === el.childIds.length) return el;
+        return { ...el, childIds: [...kept, ...resultIds] };
+      }),
+    };
+    this.selectedIds = resultIds;
     this.emit();
   }
 
@@ -2419,6 +2481,9 @@ strokeOpacity?: number;
               ...scalePoint(orig),
               width: orig.width * sx,
               height: orig.height * sy,
+              ...(orig.type === "polygon"
+                ? { rings: scalePolygonRings(orig, sx, sy) }
+                : {}),
             };
           };
           const moved = new Map<string, Element>();
@@ -2647,6 +2712,15 @@ strokeOpacity?: number;
             y: nb.y1,
             width: nb.x2 - nb.x1,
             height: nb.y2 - nb.y1,
+            ...(orig.type === "polygon"
+              ? {
+                  rings: scalePolygonRings(
+                    orig,
+                    (nb.x2 - nb.x1) / (o.x2 - o.x1 || 1),
+                    (nb.y2 - nb.y1) / (o.y2 - o.y1 || 1),
+                  ),
+                }
+              : {}),
           };
           this.doc = {
             ...this.doc,

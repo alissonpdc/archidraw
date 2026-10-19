@@ -16,11 +16,13 @@ import {
   elementCorners,
   isRotatable,
   measureText,
+  polygonLoops,
   rotatedBounds,
   toScenePoint,
   translatedOrigin,
   unionBounds,
 } from "./utils";
+import { clipSegmentInLoops } from "./booleanOps";
 import { getLibraryItem } from "./library";
 import { getComponentImage, getCachedImage } from "./componentAssets";
 import { resolveFont, resolveTextColor, lineHeight, textBlockHeight, fontFamilyOf } from "./textStyle";
@@ -589,6 +591,19 @@ function drawComponentIcon(ctx: CanvasRenderingContext2D, el: ComponentElement) 
 
 const HACHURE_SPACING = 4.8;
 
+/** Path2D of closed loops (one subpath per ring: outer solid + holes) */
+function loopPath2D(loops: Point[][]): Path2D {
+  const path = new Path2D();
+  for (const loop of loops) {
+    path.moveTo(loop[0].x, loop[0].y);
+    for (let i = 1; i < loop.length; i++) {
+      path.lineTo(loop[i].x, loop[i].y);
+    }
+    path.closePath();
+  }
+  return path;
+}
+
 function clipHachureLine(el: Element, p0: Point, p1: Point): [Point, Point] | null {
   const b = elementBounds(el);
   const w = b.x2 - b.x1;
@@ -672,6 +687,10 @@ function buildHachurePath(el: Element, withCross: boolean): Path2D {
   }
   const lines: [Point, Point][] = [];
   for (const [p0, p1] of rawLines) {
+    if (el.type === "polygon") {
+      lines.push(...clipSegmentInLoops(p0, p1, polygonLoops(el)));
+      continue;
+    }
     const clipped = clipHachureLine(el, p0, p1);
     if (clipped) lines.push(clipped);
   }
@@ -904,6 +923,30 @@ function drawElement(
           seedOf(el.id),
         );
       }
+    }
+    applyDash(ctx, el, el.strokeWidth);
+    ctx.stroke(cache.strokePath);
+    ctx.restore();
+  } else if (el.type === "polygon") {
+    const loops = polygonLoops(el);
+    if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
+      if (el.fillOpacity > 0) {
+        ctx.save();
+        ctx.globalAlpha *= el.fillOpacity;
+        if (!cache.fillPath) cache.fillPath = loopPath2D(loops);
+        ctx.fill(cache.fillPath, "evenodd");
+        ctx.restore();
+      }
+    } else {
+      drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
+    }
+    ctx.save();
+    ctx.globalAlpha *= el.strokeOpacity;
+    if (!cache.strokePath) {
+      cache.strokePath =
+        el.roughness === 0
+          ? loopPath2D(loops)
+          : sketchStrokePath2D(loops, el.roughness, seedOf(el.id));
     }
     applyDash(ctx, el, el.strokeWidth);
     ctx.stroke(cache.strokePath);
@@ -1318,6 +1361,7 @@ const RESIZABLE_TYPES = new Set<string>([
   "rectangle",
   "diamond",
   "ellipse",
+  "polygon",
   "line",
   "arrow",
   "component",
@@ -1839,6 +1883,7 @@ export function render(
       (sel.type === "rectangle" ||
         sel.type === "diamond" ||
         sel.type === "ellipse" ||
+        sel.type === "polygon" ||
         sel.type === "line" ||
         sel.type === "arrow" ||
         sel.type === "component" ||

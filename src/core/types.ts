@@ -2,11 +2,25 @@ export type ElementType =
   | "rectangle"
   | "diamond"
   | "ellipse"
+  | "polygon"
   | "line"
   | "arrow"
   | "text"
   | "component"
   | "context";
+
+/** result of the boolean shape ops (union / subtract / intersect / crop):
+ *  a free solid whose geometry is the explicit ring set of a polygon */
+export interface PolygonElement extends BaseElement {
+  type: "polygon";
+  label?: string;
+  /**
+   * boolean-result rings in LOCAL coordinates (0,0 = the box origin x,y):
+   * rings[0] is the outer ring, any following rings are holes wound the
+   * opposite way. Rings are open (GeoJSON style, no repeated end point).
+   */
+  rings: Point[][];
+}
 
 /** line pattern: continuous, dashed, dotted or dash-dot */
 export type StrokeStyle = "solid" | "dashed" | "dotted" | "dashdot";
@@ -205,6 +219,7 @@ export type Element =
   | RectangleElement
   | DiamondElement
   | EllipseElement
+  | PolygonElement
   | LineElement
   | ArrowElement
   | TextElement
