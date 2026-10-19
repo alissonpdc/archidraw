@@ -1,4 +1,4 @@
-import { test, expect, drag, selectTool, open, pressPasteText } from "../fixtures";
+import { test, expect, drag, selectTool, open, pressPasteText, type Page } from "../fixtures";
 
 async function createRects(page: Page) {
   await selectTool(page, "2");
@@ -33,6 +33,58 @@ function scanPage(page: Page) {
 const isGreen = (px: { r: number; g: number; b: number }) =>
   px.g > px.r + 60 && px.g > px.b + 60;
 
+/**
+ * one getImageData readback over the whole multi-selection area; returns which
+ * expected outline segments carry selection-colored pixels.
+ */
+function probeOutlines(page: Page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector("canvas")!;
+    const ctx = canvas.getContext("2d")!;
+    const dpr = window.devicePixelRatio || 1;
+    const x0 = Math.round(90 * dpr);
+    const y0 = Math.round(90 * dpr);
+    const w = Math.round(260 * dpr);
+    const h = Math.round(80 * dpr);
+    const data = ctx.getImageData(x0, y0, w, h).data;
+    const green = (x: number, y: number) => {
+      const o =
+        ((Math.round(y * dpr) - y0) * w + (Math.round(x * dpr) - x0)) * 4;
+      return (
+        data[o + 3] > 60 &&
+        data[o + 1] > data[o] + 60 &&
+        data[o + 1] > data[o + 2] + 60
+      );
+    };
+    const row = (y: number, x1: number, x2: number) => {
+      for (let x = x1; x <= x2; x++) if (green(x, y)) return true;
+      return false;
+    };
+    const col = (x: number, y1: number, y2: number) => {
+      for (let y = y1; y <= y2; y++) if (green(x, y)) return true;
+      return false;
+    };
+    return {
+      // per-member dashed boxes, 3px off the elements' own bounds
+      leftTopEdge: row(97, 105, 175),
+      rightTopEdge: row(97, 265, 335),
+      leftLeftEdge: col(97, 110, 150),
+      rightRightEdge: col(343, 110, 125),
+      // the members' own stroke (no halo on the outline)
+      leftStrokeRow: row(100, 105, 175),
+      // group outline: a further 3px out, so it never coincides with the
+      // members' own boxes
+      groupTopGap: row(94, 190, 212),
+      groupBottomGap: row(166, 190, 212),
+      groupLeftEdge: col(94, 110, 125),
+      groupRightEdge: col(346, 110, 125),
+      // the members' box lines stay clear of the group frame in the gap
+      memberLineGap: row(97, 190, 212),
+      rawBoundsGap: row(100, 190, 212),
+    };
+  });
+}
+
 /** one readback: counts highlight-colored pixels across the pasted cluster */
 function countGreen(page: Page) {
   return page.evaluate(() => {
@@ -52,7 +104,7 @@ function countGreen(page: Page) {
   });
 }
 
-test.describe("multi-selection member highlight", () => {
+test.describe("multi-selection outline", () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       const set = () => {
@@ -68,7 +120,7 @@ test.describe("multi-selection member highlight", () => {
     await createRects(page);
   });
 
-  test("every selected member's own outline is highlighted", async ({
+  test("every selected member gets its own dashed selection box", async ({
     page,
     editorState,
   }) => {
@@ -76,12 +128,32 @@ test.describe("multi-selection member highlight", () => {
     const s = await editorState();
     expect(s.selectedIds).toHaveLength(2);
 
-    // y=115 etc. avoid group handles (they sit at y=100, 130 and 160)
-    const rows = await scanPage(page);
-    for (const { y, left, right } of rows) {
-      expect(left.some(isGreen), `left member at y=${y}`).toBe(true);
-      expect(right.some(isGreen), `right member at y=${y}`).toBe(true);
-    }
+    // the dashed box sits 3px off each member's visual bounds
+    const p = await probeOutlines(page);
+    expect(p.leftTopEdge, "left member top box edge").toBe(true);
+    expect(p.rightTopEdge, "right member top box edge").toBe(true);
+    expect(p.leftLeftEdge, "left member left box edge").toBe(true);
+    expect(p.rightRightEdge, "right member right box edge").toBe(true);
+
+    // the member's own stroke is NOT tinted anymore (no halo on the outline)
+    expect(p.leftStrokeRow, "left member stroke clean").toBe(false);
+  });
+
+  test("group outline stays clear of the members' own boxes", async ({
+    page,
+  }) => {
+    await drag(page, { x: 80, y: 30 }, { x: 360, y: 180 });
+
+    const p = await probeOutlines(page);
+    // the group frame runs through the gap between members, 3px outside the
+    // members' own boxes on every side
+    expect(p.groupTopGap, "group top edge in the gap").toBe(true);
+    expect(p.groupBottomGap, "group bottom edge in the gap").toBe(true);
+    expect(p.groupLeftEdge, "group left edge").toBe(true);
+    expect(p.groupRightEdge, "group right edge").toBe(true);
+    // neither the members' box lines nor the raw element bounds are there
+    expect(p.memberLineGap, "members' box lines clear in the gap").toBe(false);
+    expect(p.rawBoundsGap, "no outline at the raw element bounds").toBe(false);
   });
 
   test("single selection keeps the plain element stroke (no halo)", async ({

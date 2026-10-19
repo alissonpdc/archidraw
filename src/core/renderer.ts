@@ -20,7 +20,6 @@ import {
   rotatedBounds,
   toScenePoint,
   translatedOrigin,
-  unionBounds,
 } from "./utils";
 import { clipSegmentInLoops } from "./booleanOps";
 import { getLibraryItem } from "./library";
@@ -1280,57 +1279,62 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
 }
 
 /**
- * multi-selection highlight: retraces the element's own stroke path (exact
- * same geometry, seed and width as its drawn outline) in the selection color,
- * so members keep their own outline tinted instead of getting an extra box.
+ * padding used by the selection outline, in zoom-independent screen pixels,
+ * shared by the single-element box and the multi-selection group outline so
+ * the group outline hugs the inner member boxes.
  */
-function drawSelectedMember(
+function selectionPad(zoom: number): number {
+  return 3 / zoom;
+}
+
+/** padded, rotation-aware selection box of one element (same as its dashed box) */
+function selectionBoxBounds(
   ctx: CanvasRenderingContext2D,
   el: Element,
-  color: string,
-) {
-  const path = getStrokePath(el);
-  ctx.save();
-  if (path) {
-    applyRotation(ctx, el);
-    ctx.globalAlpha = 0.7;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(0.75, el.strokeWidth);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.stroke(path);
-  } else if (el.type === "text") {
-    ctx.globalAlpha = 0.75;
-    ctx.strokeStyle = color;
-    ctx.lineCap = "round";
-    const cache = getElementCache(el);
-    if (!cache.textLayout) {
-      const lines = el.text.split("\n");
-      const lineWidths = lines.map((l) => ctx.measureText(l).width);
-      const maxWidth = Math.max(...lineWidths, 1);
-      cache.textLayout = { lines, lineWidths, maxWidth };
-    }
-    ctx.font = resolveFont(el);
-    ctx.textBaseline = "top";
-    const lh = lineHeight(el);
-    const n = cache.textLayout.lines.length;
-    ctx.lineWidth = Math.max(1.5, el.fontSize * 0.11);
-    const lineWidths = cache.textLayout.lineWidths;
-    const align = el.textAlign ?? "left";
-    for (let i = 0; i < n; i++) {
-      const lw = lineWidths[i];
-      if (lw <= 0) continue;
-      let ux = el.x;
-      if (align === "center") ux += (el.width - lw) / 2;
-      else if (align === "right") ux += el.width - lw;
-      const lineY = el.y + i * el.fontSize * lh;
-      ctx.beginPath();
-      ctx.moveTo(ux, lineY + el.fontSize);
-      ctx.lineTo(ux + lw, lineY + el.fontSize);
-      ctx.stroke();
-    }
+  zoom: number,
+): Bounds {
+  const b = elementVisualBounds(ctx, el);
+  const pad = selectionPad(zoom);
+  const padded: Bounds = {
+    x1: b.x1 - pad,
+    y1: b.y1 - pad,
+    x2: b.x2 + pad,
+    y2: b.y2 + pad,
+  };
+  if (elementAngle(el) === 0) return padded;
+  const corners = elementCorners(el, padded);
+  let x1 = Infinity;
+  let y1 = Infinity;
+  let x2 = -Infinity;
+  let y2 = -Infinity;
+  for (const p of corners) {
+    x1 = Math.min(x1, p.x);
+    y1 = Math.min(y1, p.y);
+    x2 = Math.max(x2, p.x);
+    y2 = Math.max(y2, p.y);
   }
-  ctx.restore();
+  return { x1, y1, x2, y2 };
+}
+
+/** union of the members' selection boxes: the multi-selection outline */
+function selectionOutlineBounds(
+  ctx: CanvasRenderingContext2D,
+  elements: Element[],
+  zoom: number,
+): Bounds | null {
+  if (elements.length === 0) return null;
+  let x1 = Infinity;
+  let y1 = Infinity;
+  let x2 = -Infinity;
+  let y2 = -Infinity;
+  for (const el of elements) {
+    const b = selectionBoxBounds(ctx, el, zoom);
+    x1 = Math.min(x1, b.x1);
+    y1 = Math.min(y1, b.y1);
+    x2 = Math.max(x2, b.x2);
+    y2 = Math.max(y2, b.y2);
+  }
+  return { x1, y1, x2, y2 };
 }
 
 function drawSelectionBox(
@@ -1366,7 +1370,7 @@ function drawSelectionBox(
     return;
   }
   const b = elementVisualBounds(ctx, el);
-  const pad = 3 / zoom;
+  const pad = selectionPad(zoom);
   const padded: Bounds = {
     x1: b.x1 - pad,
     y1: b.y1 - pad,
@@ -1894,9 +1898,6 @@ export function render(
       ctx.globalAlpha = 0.15;
     }
     drawElement(ctx, el, colors, state.animationPhase ?? 0);
-    if (isMultiSelectMember && !isEditingThisLabel) {
-      drawSelectedMember(ctx, el, colors.selection);
-    }
     if (
       state.highlightedContextId &&
       el.id === state.highlightedContextId &&
@@ -1905,6 +1906,9 @@ export function render(
       drawContextHighlight(ctx, el as ContextElement, cam.zoom, colors.selection);
     }
     drawLabel(ctx, el, colors);
+    if (isMultiSelectMember && !isEditingThisLabel) {
+      drawSelectionBox(ctx, el, cam.zoom, colors.selection);
+    }
     if (dim) {
       ctx.restore();
     }
@@ -1940,14 +1944,26 @@ export function render(
     }
   }
 
-  // resize handles spanning the whole multi-selection
+  // resize handles spanning the whole multi-selection; the frame is grown a
+  // further pad so it encircles the members' own boxes without coinciding
   if (!state.draft && state.selectedIds.size > 1) {
-    const members = state.doc.elements
-      .filter((el) => state.selectedIds.has(el.id))
-      .filter((el) => !el.locked && RESIZABLE_TYPES.has(el.type));
+    const selected = state.doc.elements.filter((el) =>
+      state.selectedIds.has(el.id),
+    );
+    const members = selected.filter(
+      (el) => !el.locked && RESIZABLE_TYPES.has(el.type),
+    );
     if (members.length > 0) {
-      const gb = unionBounds(members);
-      if (gb) drawGroupHandles(ctx, gb, cam.zoom, colors.selection);
+      const gb = selectionOutlineBounds(ctx, selected, cam.zoom);
+      if (gb) {
+        const pad = selectionPad(cam.zoom);
+        drawGroupHandles(
+          ctx,
+          { x1: gb.x1 - pad, y1: gb.y1 - pad, x2: gb.x2 + pad, y2: gb.y2 + pad },
+          cam.zoom,
+          colors.selection,
+        );
+      }
     }
   }
 
