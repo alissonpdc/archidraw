@@ -111,6 +111,26 @@ function checkShapeLabel(el: Raw, path: string, out: ValidationIssue[]): void {
   }
 }
 
+/** boolean-result polygons must carry their explicit ring set */
+function checkPolygonRings(el: Raw, path: string, out: ValidationIssue[]): void {
+  const rings = el.rings;
+  if (!Array.isArray(rings) || rings.length === 0) {
+    out.push(issue(`${path}.rings`, "polygon exige rings: array de anéis (outer primeiro)", "3.3"));
+    return;
+  }
+  rings.forEach((ring, i) => {
+    if (!Array.isArray(ring) || ring.length < 3) {
+      out.push(issue(
+        `${path}.rings[${i}]`,
+        `anel precisa de >= 3 pontos {x,y}, veio ${JSON.stringify(ring)}`,
+        "3.3",
+      ));
+      return;
+    }
+    ring.forEach((p, j) => checkPointObject(p, `${path}.rings[${i}][${j}]`, out));
+  });
+}
+
 function checkEdgeFields(el: Raw, path: string, out: ValidationIssue[]): void {
   if (el.labelT !== undefined && (!isNum(el.labelT) || el.labelT < 0 || el.labelT > 1)) {
     out.push(issue(`${path}.labelT`, `labelT position the label de 0..1, veio ${JSON.stringify(el.labelT)}`, "3.3"));
@@ -220,6 +240,7 @@ export function inspectElement(raw: unknown, path: string): ElementInspection {
   checkTextField(el, path, warnings);
   const t = String(el.type);
   if (SHAPE_TYPES.includes(t)) checkShapeLabel(el, path, warnings);
+  if (t === "polygon") checkPolygonRings(el, path, errors);
   if (EDGE_TYPES.includes(t)) checkEdgeFields(el, path, warnings);
   checkComponentFields(el, path, warnings);
   checkContextFields(el, path, warnings);

@@ -8,6 +8,7 @@ import {
   edgePathPoints,
   elementBounds,
   elementAngle,
+  polygonLoops,
   rotatedBounds,
   toLocalPoint,
   boundsContain,
@@ -84,6 +85,12 @@ export function hitTest(el: Element, p: { x: number; y: number }): boolean {
     const nx = (lp.x - cx) / rx;
     const ny = (lp.y - cy) / ry;
     return nx * nx + ny * ny <= 1;
+  }
+  if (el.type === "polygon") {
+    // even-odd parity across the rings: holes punch the solid out again
+    const loops = polygonLoops(el);
+    const crossings = loops.filter((loop) => pointInPolygon(lp, loop)).length;
+    return crossings % 2 === 1;
   }
   return lp.x >= b.x1 && lp.x <= b.x2 && lp.y >= b.y1 && lp.y <= b.y2;
 }

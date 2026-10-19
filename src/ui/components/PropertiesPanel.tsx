@@ -388,6 +388,7 @@ export function PropertiesPanel() {
       el.type === "rectangle" ||
       el.type === "diamond" ||
       el.type === "ellipse" ||
+      el.type === "polygon" ||
       el.type === "line" ||
       el.type === "arrow" ||
       el.type === "component" ||
@@ -398,6 +399,7 @@ export function PropertiesPanel() {
       el.type === "rectangle" ||
       el.type === "diamond" ||
       el.type === "ellipse" ||
+      el.type === "polygon" ||
       el.type === "component" ||
       el.type === "context",
   );
@@ -1385,6 +1387,44 @@ export function PropertiesPanel() {
                   <rect x="9" y="9" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.4"/>
                   <rect x="4" y="4" width="5" height="5" rx="0.5" fill="currentColor" opacity="0.3"/>
                   <rect x="7" y="7" width="5" height="5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+                </svg>
+              </button>
+            </div>
+          </Group>
+
+          <Group title="Merge">
+            <div className="layer-btns">
+              <button className="size-btn" data-tip="Combine" aria-label="Boolean union"
+                disabled={!editor.canApplyBooleanOp()}
+                onClick={() => editor.applyBooleanOp("union")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="1.5" y="1.5" width="9" height="9" rx="1" fill="currentColor" opacity="0.25" stroke="currentColor" strokeWidth="1.2"/>
+                  <rect x="5.5" y="5.5" width="9" height="9" rx="1" fill="currentColor" opacity="0.25" stroke="currentColor" strokeWidth="1.2"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Subtract" aria-label="Boolean subtract"
+                disabled={!editor.canApplyBooleanOp()}
+                onClick={() => editor.applyBooleanOp("subtract")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <path d="M1.5 1.5 H10.5 V5.5 H14.5 V14.5 H5.5 V10.5 H1.5 Z" fill="currentColor" opacity="0.25" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                  <rect x="5.5" y="5.5" width="5.5" height="5.5" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Intersect" aria-label="Boolean intersect"
+                disabled={!editor.canApplyBooleanOp()}
+                onClick={() => editor.applyBooleanOp("intersect")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="1.5" y="1.5" width="9" height="9" rx="1" fill="none" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2 1.5" opacity="0.7"/>
+                  <rect x="5.5" y="5.5" width="9" height="9" rx="1" fill="none" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2 1.5" opacity="0.7"/>
+                  <rect x="5.5" y="5.5" width="5" height="5" fill="currentColor" opacity="0.4" stroke="currentColor" strokeWidth="1"/>
+                </svg>
+              </button>
+              <button className="size-btn" data-tip="Crop" aria-label="Boolean crop"
+                disabled={!editor.canApplyBooleanOp()}
+                onClick={() => editor.applyBooleanOp("crop")}>
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <rect x="1.5" y="1.5" width="13" height="13" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.7"/>
+                  <circle cx="8" cy="8" r="4" fill="currentColor" opacity="0.3" stroke="currentColor" strokeWidth="1.2"/>
                 </svg>
               </button>
             </div>
