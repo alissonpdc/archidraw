@@ -440,7 +440,7 @@ test.describe("PropertiesPanel edge cases", () => {
     await page.waitForTimeout(150);
 
     const lockBtn = page.locator(
-      ".properties-panel .size-btn[data-tip='Lock'], .properties-panel .size-btn[data-tip='Unlock']",
+      ".properties-panel .size-btn[data-tip^='Lock'], .properties-panel .size-btn[data-tip^='Unlock']",
     );
     if (await lockBtn.isVisible()) {
       await lockBtn.click();

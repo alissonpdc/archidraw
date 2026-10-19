@@ -169,9 +169,9 @@ export function HoverInfoBox() {
       if (e.key === "Escape") hide();
     };
 
-    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointermove", onMove, { passive: true });
     window.addEventListener("pointerdown", onDown);
-    window.addEventListener("wheel", onWheel);
+    window.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("keydown", onKey);
 

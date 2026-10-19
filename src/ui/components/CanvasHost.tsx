@@ -89,6 +89,7 @@ export function CanvasHost() {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
     let raf = 0;
+    let lastToken = -1;
     const resizeAndRender = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvasRectRef.current;
@@ -99,12 +100,17 @@ export function CanvasHost() {
       if (canvas.width !== targetW || canvas.height !== targetH) {
         canvas.width = targetW;
         canvas.height = targetH;
+        lastToken = -1;
       }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      editor.renderTo(ctx, w, h, {
-        colors,
-        gridMode,
-      });
+      const token = editor.getRenderToken();
+      if (token !== lastToken) {
+        lastToken = token;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        editor.renderTo(ctx, w, h, {
+          colors,
+          gridMode,
+        });
+      }
       raf = requestAnimationFrame(resizeAndRender);
     };
     raf = requestAnimationFrame(resizeAndRender);
@@ -435,8 +441,10 @@ export function CanvasHost() {
         onPointerMove={(e) => {
           const p = toPoint(e);
           editor.pointerMove(p, { shift: e.shiftKey });
-          const override = editor.cursorOverrideAt(p);
-          e.currentTarget.style.cursor = override ?? "";
+          const nextCursor = editor.cursorOverrideAt(p) ?? "";
+          if (e.currentTarget.style.cursor !== nextCursor) {
+            e.currentTarget.style.cursor = nextCursor;
+          }
         }}
         onPointerUp={() => {
           if (isEditingText || isEditingLabel) return;
