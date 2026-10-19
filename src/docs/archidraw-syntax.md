@@ -420,12 +420,12 @@ Present on every element. The default column applies to the clipboard normalizer
 | strokeStyle | StrokeStyle | `solid` | |
 | fillStyle | FillStyle | `solid` | |
 | roughness | integer 0 to 3 | 0 | rounded and clamped; 0 clean, 1 draft, 2 sketchy, 3 chaos |
-| borderRadius | number | 0 | percent of the smaller side |
+| borderRadius | number | 0 | percent of the smaller side; only `rectangle`, `component` and `context` round their corners — every other type ignores it |
 | angle | number | 0 | radians, clockwise, around the box center |
 | groupId | string | none | elements sharing a groupId move, select and resize together |
 | locked | boolean | false | disables direct manipulation |
-| details | string | none | free-form technical note rendered as a badge |
-| fontFamily | string | app default | CSS family name |
+| details | string | none | free-form Markdown shown as an "i" badge and rendered for humans on hover — see section 3.8 |
+| fontFamily | string | app default | CSS family name; when omitted the app uses its sans stack, or a sketch font when `roughness` is 1 or higher |
 | bold | boolean | false | |
 | italic | boolean | false | |
 | underline | boolean | false | |
@@ -434,11 +434,11 @@ Present on every element. The default column applies to the clipboard normalizer
 | fontSize | number | 20 for labels and text, 16 for context labels, 12 for component labels | |
 | textAlign | TextAlign | `center` for labels, `left` for text elements | |
 | textVAlign | TextVAlign | `middle` | |
-| textOffsetGlobal | number | 0 | pixels added to every side offset |
-| textOffsetTop | number | 0 | pixels, vertical fine tuning of the text block |
-| textOffsetBottom | number | 0 | pixels, vertical fine tuning of the text block |
-| textOffsetLeft | number | 0 | pixels, horizontal fine tuning of the text block |
-| textOffsetRight | number | 0 | pixels, horizontal fine tuning of the text block |
+| textOffsetGlobal | number | 0 for text elements, 8 for shape and context labels | base inset applied on the aligned side only; ignored when the alignment is `center`/`middle` |
+| textOffsetTop | number | 0 | pixels added to the side offset; only read for `textVAlign: "top"` (or a context's top corners) |
+| textOffsetBottom | number | 0 | pixels added to the side offset; only read for `textVAlign: "bottom"` (or a context's bottom corners) |
+| textOffsetLeft | number | 0 | pixels added to the side offset; only read for `textAlign: "left"` (or a context's left corners) |
+| textOffsetRight | number | 0 | pixels added to the side offset; only read for `textAlign: "right"` (or a context's right corners) |
 | captionPosition | CaptionPosition | `bottom` | side that carries a `component` caption — the only label it moves; the details badge has its own fixed anchor (bottom-right corner on shapes, below the label on edges) |
 | captionGap | number | 2 | pixels between the element and its caption |
 | captionOffsetTop | number | 0 | pixels, caption fine tuning |
@@ -484,8 +484,9 @@ Notes on edges:
 
 - An edge never fills its interior: `backgroundColor`, `fillStyle` and `fillOpacity` on a `line` or `arrow` are read and then ignored when drawing it. Write `transparent` and move on.
 - `labelT` positions the label along the edge from `0` (start) to `1` (end), default `0.5`.
-- `controlPoint` is an absolute scene point that bends a `curved` line or arrow.
+- `controlPoint` is an absolute scene point that bends a `curved` line or arrow. When a `curved` edge carries no `controlPoint`, the renderer falls back to an arc whose control sits above the midpoint by 30% of the horizontal span.
 - `bendPoints` are intermediate vertices used by `auto` routing. The array is all-or-nothing: every item must be a valid `{x, y}` point or the field is dropped.
+- `lineType: "auto"` with no `bendPoints` routes orthogonally on its own: the path leaves and enters through the `side` recorded in each binding (falling back to the nearest cardinal side) and the `x`/`y`/`width`/`height` box only feeds the unbound fallback. The `side` values are therefore the knob for a clean right-angle connector. `bendPoints`, when present, replace that automatic polyline.
 - File defaults: the loader (section 2.3) fills none of these, and the renderer falls back on every read — a missing `lineType` reads as `straight`, `startArrowhead` as `none`, `endArrowhead` as `arrow`, `labelT` as `0.5`, `animated` as `false`. Omitting them is safe; writing them, as the examples do, is just clearer.
 - `componentId` picks the icon from the section 3.7 catalog (`ec2`, `lambda`, `ecs`, `eks`, `api-gateway`, `elb`, `route53`, `cloudfront`, `vpc`, `dynamodb`, `rds`, `elasticache`, `s3`, `sqs`, `sns` and many more, the GCP/Azure/Kubernetes sets included).
 - `src` holds a self-contained raster such as `data:image/png;base64,...` for pasted or imported images.
@@ -528,11 +529,11 @@ A binding object without a string `elementId` is dropped. In a file, reference i
 
 ### 3.6 Text and label layout
 
-Text elements align inside their own box: `textAlign` picks the horizontal anchor and `textVAlign` the vertical one, then `textOffset*` values nudge the block in pixels. Multi-line text uses embedded newline characters and `lineSpacing` as the line height multiplier. `textColor` empty or missing falls back to `strokeColor`.
+Text elements align inside their own box: `textAlign` picks the horizontal anchor (default `left`), `textVAlign` the vertical one (default `middle`), then `textOffset*` values nudge the block in pixels. A free text box starts flush with its measured content, so its `textOffsetGlobal` defaults to 0; only the side named by the alignment contributes its per-side offset, and a `center`/`middle` alignment ignores the offsets. Multi-line text uses embedded newline characters and `lineSpacing` as the line height multiplier. `textColor` empty or missing falls back to `strokeColor`.
 
-Label placement depends on the type: on `rectangle`, `diamond` and `ellipse` the label sits inside the box, anchored by `textAlign` (default `center`) and `textVAlign` (default `middle`) and inset by the `textOffset*` values; on `line` and `arrow` it is centred exactly on the edge point given by `labelT` (midpoint by default), with no perpendicular shift, and the text is painted over an opaque plate of the canvas background padded by `max(2, fontSize × 0.3)`, which masks the stroke under it — a label wider than the clear run of the stroke therefore hides the line it belongs to, so keep it short, move it with `labelT`, or write a separate `text` element where it must sit clear of the stroke; on `component` it sits outside the icon on the `captionPosition` side (default `bottom`), spaced by `captionGap` and the `captionOffset*` values — the only place `captionPosition` applies; on `context` it goes to the corner named by `labelPosition` (default `top-left`), drawn inside the box when `labelSide` is `internal` and outside when `external` (a missing `labelSide` reads as `external` — contexts the app creates start with `internal`).
+Label placement depends on the type: on `rectangle`, `diamond` and `ellipse` the label sits inside the box, anchored by `textAlign` (default `center`) and `textVAlign` (default `middle`) and inset by the `textOffset*` values — here `textOffsetGlobal` defaults to 8, and, as with text elements, the base inset and the per-side offset are read only on the side the label is aligned to (`center`/`middle` ignore them); on `line` and `arrow` it is centred on the edge point given by `labelT` (midpoint by default) while `textAlign` is `center` (the default) — a non-centre `textAlign` or a `textVAlign` other than `middle` shifts the text block, and its opaque plate, off the stroke, and the `textOffset*` values do not apply to edge labels; the text is painted over an opaque plate of the canvas background padded by `max(2, fontSize × 0.3)`, which masks the stroke under it — a label wider than the clear run of the stroke therefore hides the line it belongs to, so keep it short, move it with `labelT`, or write a separate `text` element where it must sit clear of the stroke; on `component` it sits outside the icon on the `captionPosition` side (default `bottom`), spaced by `captionGap` and the `captionOffset*` values — the only place `captionPosition` applies; on `context` it goes to the corner named by `labelPosition` (default `top-left`), drawn inside the box when `labelSide` is `internal` and outside when `external` (a missing `labelSide` reads as `external` — contexts the app creates start with `internal`), at a distance from the boundary set by `textOffsetGlobal` (default 8) plus the per-side `textOffset*` of the chosen corner.
 
-The box never wraps: lines break only on `\n`, and `width`/`height` are just the anchor rectangle inside which `textAlign` and `textVAlign` position the block — a line longer than `width` keeps drawing past the box, nothing is clipped. Size the box to the content before you place anything next to it: in the default sans font a line is about `fontSize × 0.6 × text.length` pixels wide and `fontSize × 1.25` tall, which is the same estimate section 5.3 uses when it lays the caption of a library tile.
+The box never wraps: lines break only on `\n`, and `width`/`height` are just the anchor rectangle inside which `textAlign` and `textVAlign` position the block — a line longer than `width` keeps drawing past the box, nothing is clipped. Size the box to the content before you place anything next to it: in the default sans font a line is about `fontSize × 0.6 × text.length` pixels wide and `fontSize × 1.25` tall, which is the same estimate section 5.3 uses when it lays the caption of a library tile. Those metrics assume the sans stack; an element with `roughness` 1 or higher and no explicit `fontFamily` renders in the wider sketch font, so measure against the font you actually asked for.
 
 ### 3.7 Component catalog
 
@@ -606,6 +607,78 @@ The whole catalog, each id with its official bundled icon:
 | `k8s-hpa` | HorizontalPodAutoscaler | Cluster |
 
 An id outside this table is still a valid element: it draws a generic placeholder icon with a short caption of the id, which is what a pasted or generated diagram gets for a logo the app does not know. `fill: true` is for raster assets only (`src`, section 3.3): it stretches the image over the whole box instead of squaring it in the middle, and it is ignored for a catalog id.
+
+### 3.8 Additional information (`details`)
+
+Every element type accepts an optional `details` string. **Use it to add complementary information to the drawing when a reader needs more than the label can carry**: request and response contracts, payload samples, p95 latency and SLOs, queue or table names, retry and backoff policy, owner and on-call rotation, environment, a link to the runbook or ADR, the trade-off behind a component. It is free-form Markdown stored with the element, hidden by default, and rendered for human reading on the canvas on demand. The visible `label` (or a `text` element) carries the name; `details` carries the explanation, so the drawing stays clean at a glance without losing the operational detail.
+
+How a reader reaches it:
+
+- An element whose `details` is a non-empty string gets a small "i" badge. Shapes, text and components place it inset in the bottom-right corner; an unlabeled edge places it on the stroke midpoint; a labeled edge places it just below the label, following `labelT`. Unlike the component caption, the badge anchor does not follow `captionPosition`.
+- Hovering the badge — not the element body — opens a read-only **Additional Information** card with the rendered Markdown. The card is scrollable, its links are clickable, and its bottom-right corner can be dragged to resize. Move the pointer away, press Escape, or click outside to dismiss.
+- In the app the same text is edited through the element's context menu → Additional Information. Cmd/Ctrl+Enter saves, Escape cancels, and the change goes through undo/redo like any other edit.
+- `details` is stored exactly as written by a file or paste. The in-app editor trims it before saving; an empty or whitespace-only value draws no badge and is treated as absent, and clearing the field removes it.
+
+The renderer is a deliberately small, safe Markdown subset:
+
+- Supported blocks: headings, paragraphs (hard-wrapped lines keep their breaks), bullet and ordered lists, blockquotes, thematic breaks, pipe tables and fenced code. Supported inline markup: **bold**, *emphasis*, ~~strikethrough~~, `inline code`, links and bare `https://` autolinks.
+- Fenced `json` and `yaml` blocks are pretty-printed and syntax-highlighted (a YAML document the formatter cannot safely re-indent stays verbatim, still highlighted); any other language renders verbatim in a monospace block with no highlighting.
+- Raw HTML is never interpreted: tags appear as literal text, so a note cannot inject markup. Only `http://`, `https://` and `mailto:` links become clickable; a bare domain such as `example.com/runbook` is upgraded to `https://`. Other protocols stay literal.
+- `![alt](url)` does not load the image. The preview shows the alt text with the URL in its tooltip, so a screenshot or diagram cannot be embedded this way.
+- Nested lists are not supported: a list item is one inline line.
+
+Write for the card, not for a full page. It opens at most about 420 px wide, so use short headings, one fact per bullet and fenced code for payload samples instead of wide tables. Information that must be seen without interaction belongs in `label`, `text` or the drawing itself; `details` is supplementary by design.
+
+`details` is a common field (section 3.2), so it survives the `.archidraw` file, the clipboard payload and native `.archidrawlib` items, and it works on all nine element types. A non-string value is dropped on paste. The Excalidraw dialect (section 5.2) has no equivalent field, so a foreign library item without `archidrawElements` cannot carry details. The badge and the card are canvas affordances: SVG and PNG exports contain the drawing only, not the note.
+
+```json
+{
+  "id": "svc_orders",
+  "type": "rectangle",
+  "x": 120,
+  "y": 140,
+  "width": 220,
+  "height": 90,
+  "strokeColor": "#3d4248",
+  "backgroundColor": "#dfe0e2",
+  "strokeWidth": 1,
+  "opacity": 1,
+  "strokeOpacity": 1,
+  "fillOpacity": 1,
+  "strokeStyle": "solid",
+  "fillStyle": "solid",
+  "roughness": 0,
+  "borderRadius": 8,
+  "label": "Orders API",
+  "details": "## Orders API\n\n- **Endpoint:** `GET /orders`\n- **p95 latency:** 120 ms\n- **Owner:** checkout team\n\nReads from the `orders` table and fans out to SQS. See the [runbook](https://example.com/runbooks/orders) before changing the retry policy."
+}
+```
+
+The element above draws the label inside the box and an "i" badge at its bottom-right corner. Hovering that badge renders the note as a level-2 heading, a three-item bullet list with inline code, and a paragraph containing a link — exactly the Markdown encoded in the `details` string, with each newline written as `\n` in JSON.
+
+### 3.9 Which fields take effect
+
+Every field in section 3.2 is accepted on every element — the parser never rejects a known field — but the renderer only reads it on the types below. Write a field the type ignores and nothing happens (it is still stored and re-exported).
+
+| Field group | Read by | Not read by |
+|---|---|---|
+| geometry `x`/`y`/`width`/`height` | all nine types (signed run on `line`/`arrow`) | — |
+| `opacity`, `angle`, `groupId`, `locked`, `details` | all nine types | — |
+| `strokeColor`, `strokeWidth`, `strokeStyle`, `strokeOpacity`, `roughness` | every type except `text`, which paints glyphs instead of a stroke: it uses a glyph colour from `textColor`/`strokeColor` and ignores `strokeStyle`, `strokeWidth` and `strokeOpacity`. `roughness` does not sketch the glyphs, but it still selects the default font family when `fontFamily` is missing | `text` |
+| `backgroundColor`, `fillStyle`, `fillOpacity` | `rectangle`, `diamond`, `ellipse`, `polygon`, `component`, `context` | `line`, `arrow`, `text` |
+| `borderRadius` | `rectangle`, `component`, `context` | `diamond`, `ellipse`, `polygon`, `line`, `arrow`, `text` |
+| `fontFamily`, `bold`, `italic`, `underline`, `fontSize`, `textColor`, `lineSpacing` | `text` elements and every kind of label; a `context` caption accepts all of them except `underline` | — |
+| `textAlign`, `textVAlign` | `text` elements, shape labels and edge labels | `component` and `context` captions, whose position comes from `captionPosition` / `labelPosition` |
+| `textOffset*` | shape labels and `context` captions (base inset 8); `text` elements (base inset 0); **not** edge labels, which move with `labelT` and the alignment only | `line`, `arrow`, `component` |
+| `captionPosition`, `captionGap`, `captionOffset*` | `component` only | every other type |
+| `label` | `rectangle`, `diamond`, `ellipse`, `polygon`, `line`, `arrow`, `component`, `context` | `text` (use `text`) |
+
+Two fill interactions are easy to get wrong:
+
+- **Hachure over a transparent fill.** With `fillStyle: "hachure"` or `"cross-hachure"` and `backgroundColor: "transparent"`, the hachure lines are drawn in `strokeColor` — a transparent background means "no solid block", not "no hatch", so the shape still reads as filled.
+- **Contexts always fill solid.** A `context` paints its interior as a flat block and ignores `fillStyle`: `hachure` on a context is silently a solid fill. Set `backgroundColor`/`fillOpacity` to control it.
+
+`angle` is stored on every type and honoured by the canvas and the SVG export, but the UI rotate grip only appears for `rectangle`, `diamond`, `ellipse`, `polygon`, `text`, `component` and `context` — a `line` or `arrow` only rotates when the JSON sets `angle` itself.
 
 ## 4. Clipboard syntax (copy and paste)
 
@@ -1162,7 +1235,9 @@ Feed each returned `error` back into your generator: `path` locates the offendin
 - Clipboard payloads are atomic: one invalid item rejects everything, so validate every element before writing the payload.
 - Unknown fields are dropped silently, not errors.
 - Text elements always carry `text` and `fontSize`.
+- Every field is accepted on every type, but only the types in section 3.9 read it: `borderRadius` rounds only `rectangle`/`component`/`context`, `line`/`arrow`/`text` ignore the fill fields, and a `context` always fills solid (its `fillStyle` is a no-op). Offset and alignment fields move `text` elements, shape labels and `context` captions as described there; edge labels move only with `labelT` and the alignment.
 - Line and arrow geometry uses signed `width` and `height` from start to end.
 - A well-known logo (cloud service, Kubernetes object) is a `component` with a `componentId` from the section 3.7 catalog, not a labelled box: the catalog draws the official icon, and a plain box draws only what you wrote. Use a labelled `rectangle`/`ellipse` for a concept the catalog does not cover.
+- Complementary information goes in `details` (section 3.8): a Markdown string on any element, shown behind an "i" badge and rendered for humans on hover. Keep the label self-sufficient and put contracts, metrics, owners, policies and links in `details`; never hide something the reader must see without interacting in there.
 - The drawing is inside the area the camera shows (section 2.1): with the default camera, keep every element inside roughly `x` 0..1280 and `y` 110..700 — the toolbar sits over the top of the window and the tab bar over the bottom, so a title at `y` < 110 opens hidden — or write a `camera` that centres the drawing.
 - Before importing, `POST` the payload to `/validate` (section 7) and fix every returned `error`; a `warning` usually means a defaulted or dropped field you meant to set. In a library, a 5.1 warning means an item would import as a static image instead of an editable group.
