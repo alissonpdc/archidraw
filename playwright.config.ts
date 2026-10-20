@@ -6,7 +6,7 @@ const withCoverage = process.env.E2E_COVERAGE === "1";
 const defaultWorkers = Math.max(2, Math.floor(availableParallelism() / 2));
 
 export default defineConfig({
-  testDir: "./e2e/specs",
+  testDir: "./tests/specs",
   timeout: 30_000,
   retries: Number(process.env.E2E_RETRIES) || 0,
   workers: Number(process.env.E2E_WORKERS) || defaultWorkers,

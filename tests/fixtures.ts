@@ -189,7 +189,7 @@ export type FilePayload =
  * the editor right after it races the import and observes the pre-import
  * state. Every branch of `AppMenu.onImportFile` ends in a `toast(...)`, so we
  * arm a MutationObserver *before* the file is attached and resolve the moment
- * a brand-new toast node lands. See `.agents/knowledge/file-import-race.md`.
+ * a brand-new toast node lands. See `.agents/knowledges/file-import-race.md`.
  */
 export async function importFile(page: Page, file: FilePayload) {
   await page.evaluate(() => {
