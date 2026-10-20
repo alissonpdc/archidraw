@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { applyThemePref, loadThemePref } from "./theme";
 
 export type BgColor = string; // hex like "#ffffff"
 
@@ -126,6 +127,7 @@ export function switchBgForTheme(targetPref: "system" | "light" | "dark") {
 }
 
 if (typeof document !== "undefined") {
+  applyThemePref(loadThemePref());
   let lastDark = resolvedThemeIsDark();
   const obs = new MutationObserver(() => {
     const isDark = resolvedThemeIsDark();

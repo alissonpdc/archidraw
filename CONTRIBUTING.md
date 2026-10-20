@@ -22,7 +22,7 @@ npm run dev
 | `npm run build:server` | Bundle the production Node server → `dist-server/server.js` |
 | `npm run start` | Run the production Node server (static + `/docs` + `/validate`) |
 | `npm run lint` | Linter (oxlint) |
-| `npm run test:e2e` | Playwright tests (real build + production Node server) |
+| `npm run test:e2e` | Playwright tests (real build + production Node server, specs in `tests/specs/`) |
 | `npm run test:e2e:ui` | Interactive Playwright UI |
 
 ## Architecture
@@ -34,7 +34,7 @@ Critical rules:
 
 1. State/interaction lives in `src/core/`; `src/ui/` is presentation only.
 2. `Editor.getSnapshot()` must return a **stable** reference (cache invalidated only on `emit()`). Creating a new object on every call causes an infinite render loop.
-3. Before implementing UI/interactions, check `.agents/knowledge/*.md` — lessons from recurring bugs with mandatory rules.
+3. Before implementing UI/interactions, check `.agents/knowledges/*.md` — lessons from recurring bugs with mandatory rules.
 
 ## Contribution flow
 
@@ -59,7 +59,7 @@ This is why the commit message matters: it defines the version bump.
 
 ### Before pushing
 
-1. Implement with tests covering the new behavior (E2E specs in `e2e/specs/`).
+1. Implement with tests covering the new behavior (E2E specs in `tests/specs/`).
 2. Run the full GATE locally (required — see below).
 
 ### Definition of Done (required)
@@ -91,13 +91,13 @@ docs: update README with Docker instructions
 
 ### E2E Tests (Playwright)
 
-- Use the `test` fixture from `e2e/fixtures.ts` — **never** the one from `@playwright/test` directly. Every page is monitored: any `console.error/warning` or `pageerror` fails the test.
+- Use the `test` fixture from `tests/fixtures.ts` — **never** the one from `@playwright/test` directly. Every page is monitored: any `console.error/warning` or `pageerror` fails the test.
 - Use the `open(page)` helper to navigate and wait for hydration (`__appReady__`).
 - Internal state: `window.__editor__` exposed in dev/test builds; read via the `editorState()` fixture.
 
 ### Recurring bugs
 
-When fixing a bug that warrants a general rule (a problem that has happened more than once), add an entry in `.agents/knowledge/` and reference it in `AGENTS.md`.
+When fixing a bug that warrants a general rule (a problem that has happened more than once), add an entry in `.agents/knowledges/` and reference it in `AGENTS.md`.
 
 ## Reporting bugs
 

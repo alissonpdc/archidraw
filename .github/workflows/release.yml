@@ -65,10 +65,10 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
         env:
-          E2E_WORKERS: "2"
+          E2E_WORKERS: "5"
           E2E_RETRIES: "1"
           PERF_ELEMENTS: "100"
-          PERF_MIN_FPS: "25"
+          PERF_MIN_FPS: "30"
 
   build:
     name: Build

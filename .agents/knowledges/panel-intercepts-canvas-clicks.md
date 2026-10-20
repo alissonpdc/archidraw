@@ -22,6 +22,6 @@ In E2E specs, once a selection exists, keep synthetic canvas clicks at
 
 ## Where it bit
 
-`e2e/specs/boolean-ops.spec.ts` — the context-membership test initially placed
+`tests/specs/boolean-ops.spec.ts` — the context-membership test initially placed
 its shapes at x 90..220; shift-clicking the second shape did nothing. Shapes
 were moved to x 300+ and the same flow passed.
