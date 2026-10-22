@@ -34,7 +34,7 @@ Critical rules:
 
 1. State/interaction lives in `src/core/`; `src/ui/` is presentation only.
 2. `Editor.getSnapshot()` must return a **stable** reference (cache invalidated only on `emit()`). Creating a new object on every call causes an infinite render loop.
-3. Before implementing UI/interactions, check `.agents/knowledge/*.md` — lessons from recurring bugs with mandatory rules.
+3. Before implementing UI/interactions, check `.agents/knowledges/*.md` — lessons from recurring bugs with mandatory rules.
 
 ## Contribution flow
 
@@ -97,7 +97,7 @@ docs: update README with Docker instructions
 
 ### Recurring bugs
 
-When fixing a bug that warrants a general rule (a problem that has happened more than once), add an entry in `.agents/knowledge/` and reference it in `AGENTS.md`.
+When fixing a bug that warrants a general rule (a problem that has happened more than once), add an entry in `.agents/knowledges/` and reference it in `AGENTS.md`.
 
 ## Reporting bugs
 
