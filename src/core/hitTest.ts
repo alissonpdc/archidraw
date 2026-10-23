@@ -8,6 +8,7 @@ import {
   edgePathPoints,
   elementBounds,
   elementAngle,
+  polygonLoops,
   rotatedBounds,
   toLocalPoint,
   boundsContain,
@@ -40,17 +41,16 @@ function quadraticBounds(a: { x: number; y: number }, cp: { x: number; y: number
 }
 
 export function hitTest(el: Element, p: { x: number; y: number }): boolean {
-  // rotated shapes are tested in their own unrotated frame
-  const lp = elementAngle(el) === 0 ? p : toLocalPoint(el, p);
-  const b = elementBounds(el);
   if (el.type === "arrow" || el.type === "line") {
+    const pad = ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
     const lineType = el.lineType ?? "straight";
     if (lineType === "straight") {
+      const b = elementBounds(el);
+      if (p.x < b.x1 - pad || p.x > b.x2 + pad || p.y < b.y1 - pad || p.y > b.y2 + pad) {
+        return false;
+      }
       const [a, c] = arrowPoints(el);
-      return (
-        distanceToSegment(lp, a, c) <=
-        ARROW_HIT_TOLERANCE + el.strokeWidth / 2
-      );
+      return distanceToSegment(p, a, c) <= pad;
     }
     // curved: check distance to the actual Bézier curve
     if (lineType === "curved") {
@@ -59,16 +59,20 @@ export function hitTest(el: Element, p: { x: number; y: number }): boolean {
       const cp = curvedArrowControl(el, a, tip);
       // use the bounding box of the curve for a generous hit area
       const cb = quadraticBounds(a, cp, tip);
-      const pad = ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
       return (
-        lp.x >= cb.x1 - pad && lp.x <= cb.x2 + pad &&
-        lp.y >= cb.y1 - pad && lp.y <= cb.y2 + pad
+        p.x >= cb.x1 - pad && p.x <= cb.x2 + pad &&
+        p.y >= cb.y1 - pad && p.y <= cb.y2 + pad
       );
     }
     // auto: check distance to the polyline
     const pts = edgePathPoints(el);
-    return distanceToPolyline(lp, pts) <= ARROW_HIT_TOLERANCE + el.strokeWidth / 2;
+    return distanceToPolyline(p, pts) <= pad;
   }
+  const rb = rotatedBounds(el);
+  if (p.x < rb.x1 || p.x > rb.x2 || p.y < rb.y1 || p.y > rb.y2) return false;
+  // rotated shapes are tested in their own unrotated frame
+  const lp = elementAngle(el) === 0 ? p : toLocalPoint(el, p);
+  const b = elementBounds(el);
   if (el.type === "diamond") {
     return pointInPolygon(lp, diamondVertices(el));
   }
@@ -81,6 +85,12 @@ export function hitTest(el: Element, p: { x: number; y: number }): boolean {
     const nx = (lp.x - cx) / rx;
     const ny = (lp.y - cy) / ry;
     return nx * nx + ny * ny <= 1;
+  }
+  if (el.type === "polygon") {
+    // even-odd parity across the rings: holes punch the solid out again
+    const loops = polygonLoops(el);
+    const crossings = loops.filter((loop) => pointInPolygon(lp, loop)).length;
+    return crossings % 2 === 1;
   }
   return lp.x >= b.x1 && lp.x <= b.x2 && lp.y >= b.y1 && lp.y <= b.y2;
 }

@@ -1,10 +1,16 @@
 import { render, componentIconLayout } from "./renderer";
-import type { ArrowHeadType, Document, Element, Point } from "./types";
-import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, edgeTip, elementAngle, elementCenter, ensureContextZOrder, escapeXml, unionBounds } from "./utils";
+import type { ArrowHeadType, Document, Element, Point, PolygonElement } from "./types";
+import { arrowHeadSize, arrowHeadVectors, arrowPoints, cornerRadius, curvedArrowControl, diamondVertices, edgePathPoints, edgeTip, elementAngle, elementCenter, ensureContextZOrder, escapeXml, polygonLoops, unionBounds } from "./utils";
 import { getLibraryItem } from "./library";
 import { componentAssetDataUri, waitForComponentImages, waitForImage } from "./componentAssets";
 import { strokeDashArray } from "./strokeStyle";
-import { fontFamilyOf, lineHeight, textBlockHeight } from "./textStyle";
+import {
+  fontFamilyOf,
+  lineHeight,
+  textBlockHeight,
+  textBlockTop,
+  textElementOffsets,
+} from "./textStyle";
 import {
   closedLoopD,
   diamondLoop,
@@ -42,6 +48,8 @@ function truncatedHachureSvg(
     const rx = Math.abs(el.width) / 2;
     const ry = Math.abs(el.height) / 2;
     shape = `<ellipse cx="${el.x + el.width / 2}" cy="${el.y + el.height / 2}" rx="${rx}" ry="${ry}"/>`;
+  } else if (el.type === "polygon") {
+    shape = `<path d="${polygonSvgD(el)}" fill-rule="evenodd"/>`;
   }
   const w = Math.abs(el.width);
   const h = Math.abs(el.height);
@@ -155,7 +163,7 @@ function arrowHeadPoints(tip: { x: number; y: number }, tail: { x: number; y: nu
   return `M ${tip.x} ${tip.y} L ${p1.x} ${p1.y} M ${tip.x} ${tip.y} L ${p2.x} ${p2.y}`;
 }
 
-/** outline SVG tag for a closed shape (rect/diamond/ellipse/component/context) */
+/** outline SVG tag for a closed shape (rect/diamond/ellipse/polygon/component/context) */
 function shapeTag(el: Document["elements"][number], attrs: string): string {
   if (el.type === "rectangle" || el.type === "component" || el.type === "context") {
     return `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${cornerRadius(el)}" ${attrs}/>`;
@@ -164,7 +172,17 @@ function shapeTag(el: Document["elements"][number], attrs: string): string {
     const v = diamondVertices(el);
     return `<polygon points="${v.map((p) => `${p.x},${p.y}`).join(" ")}" ${attrs}/>`;
   }
+  if (el.type === "polygon") {
+    return `<path d="${polygonSvgD(el)}" fill-rule="evenodd" ${attrs}/>`;
+  }
   return `<ellipse cx="${el.x + el.width / 2}" cy="${el.y + el.height / 2}" rx="${Math.abs(el.width) / 2}" ry="${Math.abs(el.height) / 2}" ${attrs}/>`;
+}
+
+/** path data of a boolean-result solid (all rings as closed subpaths) */
+function polygonSvgD(el: PolygonElement): string {
+  return polygonLoops(el)
+    .map((loop) => closedLoopD(loop, true))
+    .join(" ");
 }
 
 // ---- sketch (hand-drawn) SVG ---------------------------------------------
@@ -176,13 +194,14 @@ function isSketch(el: Element): boolean {
   return el.roughness !== undefined && el.roughness > 0;
 }
 
-/** closed perimeter polyline for a shape, matching the canvas sketch trace */
-function shapeLoop(el: Element): Point[] {
+/** closed perimeter polylines for a shape, matching the canvas sketch trace */
+function shapeLoops(el: Element): Point[][] {
+  if (el.type === "polygon") return polygonLoops(el);
   if (el.type === "rectangle" || el.type === "component" || el.type === "context") {
-    return roundedRectLoop(el.x, el.y, el.width, el.height, cornerRadius(el));
+    return [roundedRectLoop(el.x, el.y, el.width, el.height, cornerRadius(el))];
   }
-  if (el.type === "diamond") return diamondLoop(el);
-  return ellipseLoop(el.x, el.y, el.width, el.height);
+  if (el.type === "diamond") return [diamondLoop(el)];
+  return [ellipseLoop(el.x, el.y, el.width, el.height)];
 }
 
 /** waveScale used by the canvas for the same shape (rounded corners skip the
@@ -196,12 +215,15 @@ function shapeWaveScale(el: Element): number {
 
 /** exact closed-loop fill for a sketch shape (clean under the rough outline) */
 function sketchShapeFill(el: Element, fill: string, opacity: string): string {
-  return `<path d="${closedLoopD(shapeLoop(el), true)}" fill="${fill}"${opacity}/>`;
+  const d = shapeLoops(el)
+    .map((loop) => closedLoopD(loop, true))
+    .join(" ");
+  return `<path d="${d}" fill="${fill}" fill-rule="evenodd"${opacity}/>`;
 }
 
 /** multi-pass hand-drawn outline for a sketch shape */
 function sketchShapeStroke(el: Element, stroke: string, dash: string, opacity = ""): string {
-  return `<path d="${sketchPathD([shapeLoop(el)], el.roughness ?? 0, seedOf(el.id), shapeWaveScale(el))}" fill="none" ${stroke}${dash}${opacity}/>`;
+  return `<path d="${sketchPathD(shapeLoops(el), el.roughness ?? 0, seedOf(el.id), shapeWaveScale(el))}" fill="none" ${stroke}${dash}${opacity}/>`;
 }
 
 /** arrowhead wings as sketch strokes (clamped at the tip, like the canvas) */
@@ -297,6 +319,7 @@ export function buildSvgString(doc: Document): string | null {
       el.type === "rectangle" ||
       el.type === "diamond" ||
       el.type === "ellipse" ||
+      el.type === "polygon" ||
       el.type === "component" ||
       el.type === "context";
     const isHatch =
@@ -435,10 +458,21 @@ export function buildSvgString(doc: Document): string | null {
       const lines = el.text.split("\n");
       const lh = lineHeight(el);
       const blockH = textBlockHeight(el.fontSize, lines.length, lh);
-      const vOffset = Math.max(0, (el.height - blockH) / 2);
+      const align = el.textAlign ?? "left";
+      const { padX } = textElementOffsets(el);
+      const baseX =
+        align === "center"
+          ? el.x + el.width / 2
+          : align === "right"
+            ? el.x + el.width - padX
+            : el.x + padX;
+      const anchor =
+        align === "center" ? "middle" : align === "right" ? "end" : "start";
+      const blockTop = textBlockTop(el, blockH);
+      const textFill = el.textColor || el.strokeColor;
       lines.forEach((line, i) => {
         elParts.push(
-          `<text x="${el.x}" y="${el.y + vOffset + i * el.fontSize * lh + el.fontSize * 0.85}" font-family="${escapeXml(fontFamilyOf(el))}" font-size="${el.fontSize}" fill="${el.strokeColor}"${opacity}>${escapeXml(line)}</text>`
+          `<text x="${baseX}" y="${blockTop + i * el.fontSize * lh + el.fontSize * 0.85}" text-anchor="${anchor}" font-family="${escapeXml(fontFamilyOf(el))}" font-size="${el.fontSize}" fill="${textFill}"${opacity}>${escapeXml(line)}</text>`
         );
       });
     }

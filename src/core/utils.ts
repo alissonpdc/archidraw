@@ -7,6 +7,7 @@ import type {
   Element,
   LineElement,
   Point,
+  PolygonElement,
 } from "./types";
 
 let seed = 0;
@@ -64,6 +65,36 @@ export function elementAngle(el: Element): number {
 }
 
 /**
+ * Absolute, closed loops of a boolean-result polygon (scene frame, rotation
+ * NOT applied — callers draw inside applyRotation / test in the local frame).
+ * One loop per ring (outer + holes), each starting and ending on the same
+ * point, matching the shape loops of roughPath.
+ *
+ * Example: `polygonLoops(el)` → `[[{x,y}...]]`.
+ */
+export function polygonLoops(el: PolygonElement): Point[][] {
+  const loops: Point[][] = [];
+  for (const ring of el.rings) {
+    if (ring.length < 3) continue;
+    const loop = ring.map((p) => ({ x: el.x + p.x, y: el.y + p.y }));
+    loop.push({ ...loop[0] });
+    loops.push(loop);
+  }
+  return loops;
+}
+
+/** scales the local rings of a boolean result about the box origin */
+export function scalePolygonRings(
+  el: PolygonElement,
+  sx: number,
+  sy: number,
+): Point[][] {
+  return el.rings.map((ring) =>
+    ring.map((p) => ({ x: p.x * sx, y: p.y * sy })),
+  );
+}
+
+/**
  * element types that expose the rotate grip. Lines/arrows are excluded: their
  * direction is already encoded by their signed width/height, so rotating them
  * would be meaningless — dragging an endpoint re-aims them instead.
@@ -74,6 +105,7 @@ export function isRotatable(el: Element): boolean {
     el.type === "rectangle" ||
     el.type === "diamond" ||
     el.type === "ellipse" ||
+    el.type === "polygon" ||
     el.type === "text" ||
     el.type === "component" ||
     el.type === "context"
@@ -119,16 +151,27 @@ export function elementCorners(el: Element, b?: Bounds): Point[] {
   ].map((p) => toScenePoint(el, p));
 }
 
+export const translatedOrigin = new WeakMap<Element, Element>();
+export const rotatedBoundsCache = new WeakMap<Element, Bounds>();
+
 /** axis-aligned scene bounds of the (possibly rotated) element box */
 export function rotatedBounds(el: Element): Bounds {
-  if (elementAngle(el) === 0) return elementBounds(el);
-  const pts = elementCorners(el);
-  return {
-    x1: Math.min(pts[0].x, pts[1].x, pts[2].x, pts[3].x),
-    y1: Math.min(pts[0].y, pts[1].y, pts[2].y, pts[3].y),
-    x2: Math.max(pts[0].x, pts[1].x, pts[2].x, pts[3].x),
-    y2: Math.max(pts[0].y, pts[1].y, pts[2].y, pts[3].y),
-  };
+  const hit = rotatedBoundsCache.get(el);
+  if (hit) return hit;
+  let b: Bounds;
+  if (elementAngle(el) === 0) {
+    b = elementBounds(el);
+  } else {
+    const pts = elementCorners(el);
+    b = {
+      x1: Math.min(pts[0].x, pts[1].x, pts[2].x, pts[3].x),
+      y1: Math.min(pts[0].y, pts[1].y, pts[2].y, pts[3].y),
+      x2: Math.max(pts[0].x, pts[1].x, pts[2].x, pts[3].x),
+      y2: Math.max(pts[0].y, pts[1].y, pts[2].y, pts[3].y),
+    };
+  }
+  rotatedBoundsCache.set(el, b);
+  return b;
 }
 
 export function normalizeBounds(b: Bounds): Bounds {
@@ -463,11 +506,18 @@ export function defaultAutoPath(
   return [a, { x: tip.x, y: a.y }, tip];
 }
 
+const edgePathCache = new WeakMap<EdgeElement, Point[]>();
+
 /** polyline approximation of an edge path (curved edges are sampled) */
 export function edgePathPoints(el: EdgeElement, samples = 32): Point[] {
+  if (samples === 32) {
+    const cached = edgePathCache.get(el);
+    if (cached) return cached;
+  }
   const a = arrowPoints(el)[0];
   const tip = edgeTip(el);
   const lineType = el.lineType ?? "straight";
+  let res: Point[];
   if (lineType === "curved") {
     const cp = curvedArrowControl(el, a, tip);
     const pts: Point[] = [];
@@ -479,18 +529,23 @@ export function edgePathPoints(el: EdgeElement, samples = 32): Point[] {
         y: u * u * a.y + 2 * u * t * cp.y + t * t * tip.y,
       });
     }
-    return pts;
-  }
-  if (lineType === "auto") {
+    res = pts;
+  } else if (lineType === "auto") {
     const bends = el.bendPoints ?? [];
     if (bends.length === 0) {
       const startSide = determineBindingSide(el.startBinding);
       const endSide = determineBindingSide(el.endBinding);
-      return simplifyPolyline(defaultAutoPath(a, tip, startSide, endSide));
+      res = simplifyPolyline(defaultAutoPath(a, tip, startSide, endSide));
+    } else {
+      res = [a, ...bends, tip];
     }
-    return [a, ...bends, tip];
+  } else {
+    res = [a, tip];
   }
-  return [a, tip];
+  if (samples === 32) {
+    edgePathCache.set(el, res);
+  }
+  return res;
 }
 
 function polylineLengths(pts: Point[]): { lens: number[]; total: number } {
@@ -578,6 +633,16 @@ export function translateElement(el: Element, dx: number, dy: number): Element {
       (next as LineElement | ArrowElement).bendPoints = e.bendPoints.map((p) => ({ x: p.x + dx, y: p.y + dy }));
     }
   }
+  translatedOrigin.set(next, translatedOrigin.get(el) ?? el);
+  const prevRb = rotatedBoundsCache.get(el);
+  if (prevRb) {
+    rotatedBoundsCache.set(next, {
+      x1: prevRb.x1 + dx,
+      y1: prevRb.y1 + dy,
+      x2: prevRb.x2 + dx,
+      y2: prevRb.y2 + dy,
+    });
+  }
   return next;
 }
 
@@ -611,6 +676,9 @@ function outlinePointLocal(el: Element, p: Point): Point {
     const t = 1 / (Math.abs(dx) / (hw || 1) + Math.abs(dy) / (hh || 1));
     return { x: cx + dx * t, y: cy + dy * t };
   }
+  if (el.type === "polygon") {
+    return nearestPolygonOutlinePoint(el, p);
+  }
   // rectangle outline: clamp to the border; points inside project to the
   // nearest edge
   const qx = clamp(p.x, b.x1, b.x2);
@@ -625,6 +693,31 @@ function outlinePointLocal(el: Element, p: Point): Point {
   if (m === dr) return { x: b.x2, y: p.y };
   if (m === dt) return { x: p.x, y: b.y1 };
   return { x: p.x, y: b.y2 };
+}
+
+function nearestPolygonOutlinePoint(el: PolygonElement, p: Point): Point {
+  let best: Point | null = null;
+  let bestDist = Infinity;
+  for (const loop of polygonLoops(el)) {
+    for (let i = 1; i < loop.length; i++) {
+      const a = loop[i - 1];
+      const b = loop[i];
+      const ex = b.x - a.x;
+      const ey = b.y - a.y;
+      const lenSq = ex * ex + ey * ey;
+      const t =
+        lenSq === 0
+          ? 0
+          : clamp(((p.x - a.x) * ex + (p.y - a.y) * ey) / lenSq, 0, 1);
+      const q = { x: a.x + t * ex, y: a.y + t * ey };
+      const d = Math.hypot(p.x - q.x, p.y - q.y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = q;
+      }
+    }
+  }
+  return best ?? p;
 }
 
 /** union bounding box of all elements; null when empty */
@@ -969,6 +1062,27 @@ export function measureText(
 }
 
 export function ensureContextZOrder(elements: Element[]): Element[] {
+  const indexById = new Map<string, number>();
+  for (let i = 0; i < elements.length; i++) {
+    indexById.set(elements[i].id, i);
+  }
+  let needsReorder = false;
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
+    if (el.type !== "context") continue;
+    const childIds = (el as ContextElement).childIds;
+    if (!childIds || childIds.length === 0) continue;
+    for (let j = 0; j < childIds.length; j++) {
+      const childIdx = indexById.get(childIds[j]);
+      if (childIdx !== undefined && childIdx < i) {
+        needsReorder = true;
+        break;
+      }
+    }
+    if (needsReorder) break;
+  }
+  if (!needsReorder) return elements;
+
   let result = [...elements];
   let changed = true;
   let passes = 0;

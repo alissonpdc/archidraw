@@ -18,6 +18,7 @@ const ELEMENT_TYPES: readonly string[] = [
   "rectangle",
   "diamond",
   "ellipse",
+  "polygon",
   "line",
   "arrow",
   "text",
@@ -107,6 +108,27 @@ function normalizeBinding(v: unknown): ArrowBinding | undefined {
   return out;
 }
 
+function normalizeRing(v: unknown): Point[] | undefined {
+  const pts = normalizePoints(v);
+  if (!pts || pts.length < 3) return undefined;
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+  if (first.x === last.x && first.y === last.y) pts.pop();
+  return pts;
+}
+
+/** rings of a boolean result: array of rings, each ≥3 points (outer first) */
+function normalizeRings(v: unknown): Point[][] | undefined {
+  if (!Array.isArray(v) || v.length === 0) return undefined;
+  const rings: Point[][] = [];
+  for (const item of v) {
+    const ring = normalizeRing(item);
+    if (!ring) return undefined;
+    rings.push(ring);
+  }
+  return rings;
+}
+
 function keepEdgeFields(el: Raw, rec: Raw) {
   keepString(el, rec, "label");
   keepNumber(el, rec, "labelT");
@@ -177,6 +199,11 @@ export function normalizeElement(raw: unknown): Element | null {
   keepNumber(el, rec, "captionOffsetRight");
 
   if (type === "rectangle" || type === "diamond" || type === "ellipse") {
+    keepString(el, rec, "label");
+  } else if (type === "polygon") {
+    const rings = normalizeRings(rec.rings);
+    if (!rings) return null;
+    el.rings = rings;
     keepString(el, rec, "label");
   } else if (type === "line" || type === "arrow") {
     keepEdgeFields(el, rec);

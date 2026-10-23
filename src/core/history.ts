@@ -1,9 +1,11 @@
+import type { Document } from "./types";
+
 export class History {
-  private undoStack: string[] = [];
-  private redoStack: string[] = [];
+  private undoStack: Document[] = [];
+  private redoStack: Document[] = [];
   private maxDepth = 100;
 
-  push(snapshot: string) {
+  push(snapshot: Document) {
     this.undoStack.push(snapshot);
     if (this.undoStack.length > this.maxDepth) this.undoStack.shift();
     this.redoStack = [];
@@ -23,21 +25,21 @@ export class History {
   }
 
   /** returns previous snapshot or null */
-  undo(current: string): string | null {
+  undo(current: Document): Document | null {
     const prev = this.undoStack.pop();
     if (prev === undefined) return null;
     this.redoStack.push(current);
     return prev;
   }
 
-  redo(current: string): string | null {
+  redo(current: Document): Document | null {
     const next = this.redoStack.pop();
     if (next === undefined) return null;
     this.undoStack.push(current);
     return next;
   }
 
-  mapSnapshots(fn: (snapshot: string) => string) {
+  mapSnapshots(fn: (snapshot: Document) => Document) {
     this.undoStack = this.undoStack.map(fn);
     this.redoStack = this.redoStack.map(fn);
   }

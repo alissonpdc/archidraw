@@ -1,32 +1,33 @@
-# KB — Tooltips cortados por contêineres com overflow
+# KB — Tooltips clipped by overflow containers
 
-**Sintoma:** tooltip (bolha de ajuda/hover) aparece cortada ou invisível perto das bordas
-do painel/menu que a contém — em cima, embaixo, laterais ou todas.
+**Symptom:** tooltip (hover/help bubble) appears clipped or invisible near the
+edges of the panel/menu containing it — top, bottom, sides or all of them.
 
-**Causa raiz:** tooltips implementados como pseudo-elemento CSS (`[data-tip]::after`
-com `position: absolute`) são **recortados por qualquer ancestral com
-`overflow: hidden/auto/scroll`**. Painéis com `max-height` + `overflow-y: auto`
-(como `.properties-panel`) sempre recortam o tooltip em alguma direção.
-Agravante conhecido: `transform`/`filter`/`will-change` em ancestrais criam um
-*containing block* adicional e prendem ainda mais o pseudo-elemento.
+**Root cause:** tooltips implemented as a CSS pseudo-element
+(`[data-tip]::after` with `position: absolute`) are **clipped by any ancestor
+with `overflow: hidden/auto/scroll`**. Panels with `max-height` +
+`overflow-y: auto` (like `.properties-panel`) always clip the tooltip in some
+direction. Known aggravator: `transform`/`filter`/`will-change` on ancestors
+create an additional *containing block* and clip the pseudo-element even more.
 
-**Regra (sempre seguir):**
+**Rule (always follow):**
 
-1. Tooltips CSS via `::after` só são permitidos em contêineres **sem overflow**
-   e sem `transform` no ancestral (toolbar, widgets soltos).
-2. Dentro de qualquer componente com `overflow-*` ou `transform` próprio,
-   usar tooltip **portal + `position: fixed`** (renderizado fora da árvore de
-   clipping, ex.: `createPortal(..., document.body)`), medindo o rect do
-   elemento-âncora e fazendo *clamp* nas bordas da viewport.
-3. Ao criar um novo painel/popover rolável, decidir a estratégia de tooltip
-   **na hora da criação**, não depois do primeiro bug.
-4. Nunca resolver com "empurrar o tooltip para cima/baixo" (`tip-up` etc.) —
-   apenas troca o lado do corte.
+1. CSS tooltips via `::after` are only allowed in containers **without
+   overflow** and without `transform` in the ancestor (toolbar, loose
+   widgets).
+2. Inside any component with its own `overflow-*` or `transform`, use a
+   **portal + `position: fixed`** tooltip (rendered outside the clipping
+   tree, e.g. `createPortal(..., document.body)`), measuring the anchor
+   element's rect and clamping to the viewport edges.
+3. When creating a new scrollable panel/popover, decide the tooltip strategy
+   **at creation time**, not after the first bug.
+4. Never fix it by "pushing the tooltip up/down" (`tip-up` etc.) — it only
+   flips the side of the clipping.
 
-## Snippet padrão (usar como referência)
+## Standard snippet (use as reference)
 
-Implementação real: `src/ui/components/PropertiesPanel.tsx` (`PanelTooltip`
-+ delegação de eventos no root). Estrutura essencial:
+Actual implementation: `src/ui/components/PropertiesPanel.tsx`
+(`PanelTooltip` + event delegation on the root). Essential structure:
 
 ```tsx
 import { useLayoutEffect, useRef, useState } from "react";
@@ -39,7 +40,7 @@ function PanelTooltip({ tip }: { tip: { text: string; x: number; y: number } | n
   useLayoutEffect(() => {
     if (!tip || !ref.current) return;
     const r = ref.current.getBoundingClientRect();
-    // clamp horizontal para nunca sair da viewport
+    // horizontal clamp so it never leaves the viewport
     const left = Math.min(
       Math.max(8, tip.x - r.width / 2),
       window.innerWidth - r.width - 8,
@@ -51,7 +52,7 @@ function PanelTooltip({ tip }: { tip: { text: string; x: number; y: number } | n
   return createPortal(
     <div
       ref={ref}
-      className="panel-tooltip" // position: fixed; z-index alto; pointer-events: none
+      className="panel-tooltip" // position: fixed; high z-index; pointer-events: none
       style={{ left: pos?.left ?? tip.x, top: pos?.top ?? tip.y, visibility: pos ? "visible" : "hidden" }}
     >
       {tip.text}
@@ -61,7 +62,8 @@ function PanelTooltip({ tip }: { tip: { text: string; x: number; y: number } | n
 }
 ```
 
-Ativação por delegação no root do painel (um handler para todos os `[data-tip]`):
+Activation by delegation on the panel root (one handler for all
+`[data-tip]`):
 
 ```tsx
 <div
@@ -72,11 +74,12 @@ Ativação por delegação no root do painel (um handler para todos os `[data-ti
     setTip({ text: el.getAttribute("data-tip") || "", x: r.left + r.width / 2, y: r.top });
   }}
   onMouseLeave={() => setTip(null)}
-  onScroll={() => setTip(null)} // âncora move com o scroll: esconder
+  onScroll={() => setTip(null)} // the anchor moves with scroll: hide it
 >
 ```
 
-CSS obrigatório ao usar o portal (evita tooltip duplo dentro do contêiner):
+Mandatory CSS when using the portal (suppresses the double tooltip inside the
+container):
 
 ```css
 .properties-panel [data-tip]::after { display: none; }
@@ -84,51 +87,54 @@ CSS obrigatório ao usar o portal (evita tooltip duplo dentro do contêiner):
   position: fixed;
   transform: translateY(calc(-100% - 8px));
   pointer-events: none;
-  /* cores/borda/fonte iguais às do sistema [data-tip] */
+  /* colors/border/font identical to the system [data-tip] */
 }
 ```
 
-## Checklist antes de aprovar UI nova
+## Checklist before approving new UI
 
-- [ ] O contêiner tem `overflow`, `max-height` ou `transform`?
-- [ ] Se sim, os tooltips usam portal/fixed (não `::after`)?
-- [ ] Tooltip é clampado nas bordas da viewport?
-- [ ] Testado hover nos itens das bordas superior/inferior/laterais do contêiner?
+- [ ] Does the container have `overflow`, `max-height` or `transform`?
+- [ ] If so, do the tooltips use portal/fixed (not `::after`)?
+- [ ] Is the tooltip clamped to the viewport edges?
+- [ ] Tested hover on items at the container's top/bottom/side edges?
 
-## KB — clamp com `width` dependente da posição (caixa "cresce" sozinha)
+## KB — Clamp with position-dependent `width` (the box "grows" by itself)
 
-**Sintoma:** tooltip flutuante ancorado à direita/embaixo da viewport **transborda
-a borda** mesmo com clamp aplicado — `right` dá igual a `innerWidth` (ou some
-para fora), enquanto `left + width` parece correto no cálculo.
+**Symptom:** a floating tooltip anchored at the right/bottom of the viewport
+**overflows the edge** even with the clamp applied — `right` equals
+`innerWidth` (or vanishes off-screen), while `left + width` looks correct in
+the calculation.
 
-**Causa raiz:** uma caixa `position: fixed` com **apenas `left` definido** e
-`width: auto` usa *shrink-to-fit*: a largura usada é
-`min(max-content, espaço disponível até a borda da viewport)`. Como o clamp
-depende da largura medida **e** a largura depende do `left` que o clamp escolhe,
-o cálculo se realimenta: o `getBoundingClientRect()` mede uma caixa estreita
-(porque ela ainda está encostada na borda), o clamp acha que cabe, posiciona
-pela direita, e a caixa então **re-estreita** — ou pior, transborda.
+**Root cause:** a `position: fixed` box with **only `left` set** and
+`width: auto` uses *shrink-to-fit*: the used width is
+`min(max-content, available space up to the viewport edge)`. Since the clamp
+depends on the measured width **and** the width depends on the `left` the
+clamp chooses, the calculation feeds back: `getBoundingClientRect()` measures
+a narrow box (because it's still at the edge), the clamp decides it fits,
+positions it by the right side, and the box then **re-narrows** — or worse,
+overflows.
 
-**Regra:** qualquer tooltip com clamp **precisa** de uma largura que não
-dependa da posição. Use `width: max-content` (mais `max-width` para o teto):
+**Rule:** any clamped tooltip **needs** a width that doesn't depend on
+position. Use `width: max-content` (plus `max-width` as the ceiling):
 
 ```css
 .tooltip-float {
   position: fixed;
-  width: max-content;              /* <- essencial: independe do `left` */
+  width: max-content;              /* <- essential: independent of `left` */
   max-width: min(420px, calc(100vw - 32px));
 }
 ```
 
-Com `width: max-content` o `max-width` continua sendo o teto e a largura real
-fica estável entre "antes do clamp" e "depois do clamp", então o
-`useLayoutEffect` que mede e posiciona mede o valor certo.
+With `width: max-content`, `max-width` remains the ceiling and the actual
+width is stable between "before clamping" and "after clamping", so the
+`useLayoutEffect` that measures and positions measures the right value.
 
-**Sintoma equivalente (irmão):** `max-height` + `overflow: auto` numa caixa
-ancorada no topo faz o `useLayoutEffect` ler a altura **já limitada** e
-posicionar rápido demais. Meça `scrollHeight` quando o teto de altura importa.
+**Equivalent sibling symptom:** `max-height` + `overflow: auto` on a
+top-anchored box makes the `useLayoutEffect` read the **already-limited**
+height and position too early. Measure `scrollHeight` when the height ceiling
+matters.
 
-Implementação real: `src/ui/components/HoverInfoBox.tsx` (clamp em
-`useLayoutEffect`) + `.hover-info-box` em `src/ui/styles/app.css`.
-Spec que pega a regressão: `e2e/specs/hover-markdown.spec.ts`
+Actual implementation: `src/ui/components/HoverInfoBox.tsx` (clamp in
+`useLayoutEffect`) + `.hover-info-box` in `src/ui/styles/app.css`.
+Spec that catches the regression: `tests/specs/hover-markdown.spec.ts`
 ("a long preview stays clamped inside the viewport").

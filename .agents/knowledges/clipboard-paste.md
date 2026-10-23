@@ -1,68 +1,74 @@
-# KB — Colar com Cmd+V: não usar `navigator.clipboard.read()`; via única = evento `paste`
+# KB — Paste via Cmd+V: don't use `navigator.clipboard.read()`; the only path = the `paste` event
 
-**Sintoma:**
-- Cmd+V cola a imagem **e** abre um menu nativo "Paste" (Chrome/macOS) — ou abre
-  só o menu "Paste" e não cola nada.
-- O bug apareceu de novo mesmo após "corrigir" uma vez (vv. histórico do App.tsx
-  de 2026-08-31: quatro tentativas seguidas).
+**Symptom:**
+- Cmd+V pastes the image **and** opens a native "Paste" menu (Chrome/macOS) —
+  or opens only the "Paste" menu and pastes nothing.
+- The bug came back even after being "fixed" once (see the App.tsx history of
+  2026-08-31: four consecutive attempts).
 
-**Causa raiz:**
-- `navigator.clipboard.read()` chamado no `keydown` de Cmd+V faz o Chrome
-  (macOS) exibir o **menu nativo "Paste"** como UI de consentimento/fallback do
-  clipboard — a imagem chega (ou não), mas o menu aparece de todo jeito.
-- `e.preventDefault()` no `keydown` de Cmd+V **suprime o evento `paste`** do
-  browser (documentado no d156793), então a imagem externa deixa de chegar.
-- Em alvos não-editáveis (canvas), o `paste` não tratado/preventDefault pode
-  abrir o menu "Paste" nativo.
+**Root cause:**
+- `navigator.clipboard.read()` called in the Cmd+V `keydown` makes Chrome
+  (macOS) show the **native "Paste" menu** as clipboard consent/fallback UI —
+  the image arrives (or not) either way, but the menu shows regardless.
+- `e.preventDefault()` in the Cmd+V `keydown` **suppresses the browser's
+  `paste` event** (documented in d156793), so external images stop arriving.
+- On non-editable targets (canvas), an unhandled/`preventDefault`ed `paste`
+  can open the native "Paste" menu.
 
-**Regra (sempre seguir):**
+**Rule (always follow):**
 
-1. **Via única de colar = evento nativo `paste`** (`window.addEventListener("paste")`).
-   No `keydown` de mod+V: NÃO chamar `navigator.clipboard.read()` e NÃO
-   `preventDefault()` — apenas `return` (deixa o browser disparar `paste`).
-2. No handler `paste`: sempre `e.preventDefault()` (kill do menu nativo e da
-   inserção default), exceto quando o foco está em `TEXTAREA/INPUT`.
-3. Prioridade no handler: imagem externa (`clipboardData.items` com
-   `kind === "file"` e `type.startsWith("image/")`) → insert; senão texto do
-   clipboard do SO que valide como JSON descritivo de elementos
-   (`src/core/clipboardJson.ts` → `editor.pasteFromText`) → insert; senão
-   clipboard interno do app (localStorage) → `editor.paste()`; senão nada.
-4. Nunca reintroduzir fallback assíncrono via `navigator.clipboard.read()` para
-   consertar o paste interno; se o `paste` nativo não disparar em headless, o
-   teste deve despachar o evento manualmente via `page.evaluate` com
+1. **The only paste path = the native `paste` event**
+   (`window.addEventListener("paste")`). In the mod+V `keydown`: do NOT call
+   `navigator.clipboard.read()` and do NOT `preventDefault()` — just `return`
+   (let the browser fire `paste`).
+2. In the `paste` handler: always `e.preventDefault()` (kills the native menu
+   and the default insertion), except when focus is in a `TEXTAREA`/`INPUT`.
+3. Handler priority: external image (`clipboardData.items` with
+   `kind === "file"` and `type.startsWith("image/")`) → insert; else the OS
+   clipboard text that validates as descriptive elements JSON
+   (`src/core/clipboardJson.ts` → `editor.pasteFromText`) → insert; else the
+   app's internal clipboard (localStorage) → `editor.paste()`; else nothing.
+4. Never reintroduce an async fallback via `navigator.clipboard.read()` to fix
+   internal paste; if the native `paste` doesn't fire headless, the test must
+   dispatch the event manually via `page.evaluate` with
    `new ClipboardEvent("paste", { clipboardData: new DataTransfer() })`.
-   **NÃO usar `Meta+v` em testes** — não dispara `paste` no Linux (CI);
-   `Control+v` não dispara no macOS. O dispatch sintético é cross-platform.
-5. **Copy/cut TAMBÉM escreve o JSON descritivo dos elementos no clipboard do
-   SO** (`navigator.clipboard.writeText`, fire-and-forget com `.catch`), para
-   permitir colar em editores de texto externos. O clipboard interno do app
-   (localStorage, mesma chave `archidraw:clipboard`) continua sendo o fallback
-   para o `paste` sintético dos testes (que vem com `items`/`text` vazio).
-   Formato do envelope: `{schemaVersion: 1, type: "archidraw/elements",
-   elements: [...]}` (pretty-print). O parser aceita também array puro de
-   elementos e objeto único de elemento — ver `clipboardJson.ts`.
-6. JSON colado no canvas é normalizado (`normalizeElement`): defaults para
-   campos base faltantes, campos opcionais inválidos são descartados, enums
-   fora do domínio caem no default; payload com QUALQUER elemento inválido é
-   rejeitado por completo (nunca cola meio payload).
+   **Do NOT use `Meta+v` in tests** — it doesn't fire `paste` on Linux (CI);
+   `Control+v` doesn't fire on macOS. The synthetic dispatch is
+   cross-platform.
+5. **Copy/cut ALSO writes the descriptive elements JSON to the OS clipboard**
+   (`navigator.clipboard.writeText`, fire-and-forget with `.catch`), so
+   elements can be pasted into external text editors. The app's internal
+   clipboard (localStorage, same `archidraw:clipboard` key) remains the
+   fallback for the tests' synthetic `paste` (which arrives with empty
+   `items`/`text`). Envelope format: `{schemaVersion: 1,
+   type: "archidraw/elements", elements: [...]}` (pretty-printed). The parser
+   also accepts a plain array of elements and a single element object — see
+   `clipboardJson.ts`.
+6. JSON pasted onto the canvas is normalized (`normalizeElement`): defaults
+   for missing base fields, invalid optional fields dropped, out-of-domain
+   enums fall back to the default; a payload with ANY invalid element is
+   rejected atomically (never paste half a payload).
 
-## Onde aconteceu (referência)
+## Where it happened (reference)
 
-- `src/ui/App.tsx` — tratado no efeito que registra `window.addEventListener("paste")`.
-- Testes: `e2e/fixtures.ts` exporta `pressPaste()` que despacha um
-  `ClipboardEvent("paste")` sintético — cross-platform, funciona no CI Linux.
-  Para imagens externas (`image.spec.ts`), o teste lê `navigator.clipboard.read()`
-  e monta o `DataTransfer` com o arquivo antes de despachar.
+- `src/ui/App.tsx` — handled in the effect registering
+  `window.addEventListener("paste")`.
+- Tests: `tests/fixtures.ts` exports `pressPaste()` which dispatches a
+  synthetic `ClipboardEvent("paste")` — cross-platform, works on Linux CI.
+  For external images (`image.spec.ts`), the test reads
+  `navigator.clipboard.read()` and builds the `DataTransfer` with the file
+  before dispatching.
 
-## Checklist antes de mexer em clipboard/paste
+## Checklist before touching clipboard/paste
 
-- [ ] Nenhum `navigator.clipboard.read()`/`readText()` no keydown de Cmd+V?
-- [ ] `preventDefault()` no keydown de Cmd+V está ausente?
-- [ ] O evento nativo `paste` é a única via de inserção de imagem externa?
-- [ ] `paste` handler faz `preventDefault()` em todo caminho tratado/ignorado?
-- [ ] `copySelected` continua escrevendo o JSON no clipboard do SO **e** no
-      localStorage (fallback dos testes)?
-- [ ] JSON externo colado passa por `parseElementsClipboard` (rejeição
-      atômica) antes de chegar em `insertPasted`?
-- [ ] E2E usa `pressPaste()`/`pressPasteText()` (dispatch sintético), nunca
-      `Control+v`?
+- [ ] No `navigator.clipboard.read()`/`readText()` in the Cmd+V keydown?
+- [ ] `preventDefault()` present in the Cmd+V keydown? (must be absent)
+- [ ] Is the native `paste` event the only path for external image insertion?
+- [ ] Does the `paste` handler `preventDefault()` on every
+      handled/ignored path?
+- [ ] Does `copySelected` still write the JSON to the OS clipboard **and**
+      localStorage (tests' fallback)?
+- [ ] Does externally pasted JSON go through `parseElementsClipboard`
+      (atomic rejection) before reaching `insertPasted`?
+- [ ] Does the E2E use `pressPaste()`/`pressPasteText()` (synthetic
+      dispatch), never `Control+v`?

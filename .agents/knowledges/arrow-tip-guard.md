@@ -1,44 +1,44 @@
-# KB — Seta sketch não pode ultrapassar o arrowhead (guard de ponta)
+# KB — Sketch arrow must not overshoot the arrowhead (tip guard)
 
-**Sintoma:** E2E `sketch animated shaft never renders past the arrow tip`
-falha de forma **flaky** (às vezes `dark` = 0, às vezes 10) para uma seta
-`dashed + roughness 3 + animated` desenhada de (200,200)→(500,200), amostrando
-pixels escuros em x∈[502,514], y∈[196,204].
+**Symptom:** E2E `sketch animated shaft never renders past the arrow tip` fails
+**flakily** (sometimes `dark` = 0, sometimes 10) for an arrow
+`dashed + roughness 3 + animated` drawn from (200,200)→(500,200), sampling dark
+pixels at x∈[502,514], y∈[196,204].
 
-**Causa raiz (dupla):**
+**Root cause (twofold):**
 
-1. **Handle de seleção na ponta contamina o sample.** A seta continua
-   selecionada após o draw; o handle da ponta é um quadrado ~7px centrado no
-   tip com borda na cor de seleção (`#6965db`, luminância ~0.43 < 0.5). A borda
-   direita cai dentro da região amostrada → `dark = 10`. Flaky porque a frame
-   capturada varia com o loop de RAF da animação.
-2. **O rigid misregistration desfazia o clamp.** `clampEnd`/`clampStart` no
-   `roughPolyline` só pinam a geometria em espaço LOCAL; o transform rígido
-   (`translate` até ±0.9×roughness, rot, scale) deslocava a polilinha inteira,
-   então a ponta podia passar ~2-3px além da cabeça mesmo "clampada".
+1. **Selection handle at the tip contaminates the sample.** The arrow stays
+   selected after the draw; the tip handle is a ~7px square centered on the
+   tip with a border colored like selection (`#6965db`, luminance ~0.43 < 0.5).
+   Its right border falls inside the sampled region → `dark = 10`. Flaky
+   because the captured frame varies with the animation's RAF loop.
+2. **Rigid misregistration defeated the clamp.** `clampEnd`/`clampStart` in
+   `roughPolyline` only pin the geometry in LOCAL space; the rigid transform
+   (`translate` up to ±0.9×roughness, rot, scale) shifted the whole polyline,
+   so the tip could overshoot the head by ~2-3px even while "clamped".
 
-**Regra (sempre seguir):**
+**Rule (always follow):**
 
-1. Ao amostrar pixels do desenho no canvas, **desselecionar primeiro** e aguardar
-   o commit do frame:
+1. When sampling drawing pixels on the canvas, **deselect first** and wait for
+   the frame commit:
    ```ts
    await page.evaluate(async () => {
      const ed = (window as any).__editor__;
      ed.clearSelection();
-     // 2 frames = commit do redesenho sem handles
+     // 3 frames = commit of the handle-free redraw
      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))));
    });
    ```
-2. Pontas "clampadas" de arrow (shaft e asas da head) precisam manter o anchor
-   EXATO no espaço final: o pivot do rigid transform deve ser o próprio clamp
-   point com **translation zero** (rot/scale em torno da ponta). Nunca `translate`
-   um clamp point — ele não está mais "exato" depois disso.
+2. "Clamped" arrow tips (shaft and head wings) must keep the anchor EXACT in
+   final space: the rigid transform's pivot must be the clamp point itself with
+   **zero translation** (rot/scale around the tip). Never `translate` a clamp
+   point — it is no longer "exact" after that.
 
-## Implementação real
+## Actual implementation
 
-- `src/core/roughPath.ts` — `roughSegments`: quando `clampStart || clampEnd`,
-  `ax/ay` = ponto clampado, offset de translação = 0, pivot em `(ax,ay)`.
-  ⚠️ A extração `roughPolyline`→`roughPath.ts` (8ed27ff) reintroduziu este bug
-  (pivot no centro do bbox + translate até ±0.9×roughness); o `unApply` só é
-  exato se o pivot for o clamp point com translação zero.
-- `e2e/specs/arrow-animation.spec.ts:268` — desseleciona antes de amostrar.
+- `src/core/roughPath.ts` — `roughSegments`: when `clampStart || clampEnd`,
+  `ax/ay` = clamped point, translation offset = 0, pivot at `(ax,ay)`.
+  ⚠️ The `roughPolyline`→`roughPath.ts` extraction (8ed27ff) reintroduced this
+  bug (pivot at bbox center + translate up to ±0.9×roughness); the `unApply` is
+  only exact if the pivot is the clamp point with zero translation.
+- `tests/specs/arrow-animation.spec.ts:268` — deselects before sampling.

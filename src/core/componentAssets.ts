@@ -47,6 +47,10 @@ for (const [path, svg] of Object.entries(azureModules)) {
 }
 
 const images = new Map<string, HTMLImageElement>();
+export let assetLoadVersion = 0;
+const bumpAssetLoadVersion = () => {
+  assetLoadVersion++;
+};
 
 function ensureImage(componentId: string): HTMLImageElement | null {
   const uri = dataUris.get(componentId);
@@ -54,6 +58,7 @@ function ensureImage(componentId: string): HTMLImageElement | null {
   let img = images.get(componentId);
   if (!img) {
     img = new Image();
+    img.addEventListener("load", bumpAssetLoadVersion, { once: true });
     img.src = uri;
     images.set(componentId, img);
   }
@@ -122,6 +127,7 @@ export function getCachedImage(src: string): HTMLImageElement | null {
   let img = bySrc.get(src);
   if (!img) {
     img = new Image();
+    img.addEventListener("load", bumpAssetLoadVersion, { once: true });
     img.src = src;
     bySrc.set(src, img);
   }

@@ -6,6 +6,7 @@ export const ELEMENT_TYPES: readonly string[] = [
   "rectangle",
   "diamond",
   "ellipse",
+  "polygon",
   "line",
   "arrow",
   "text",

@@ -35,10 +35,13 @@ export function loadSkinPref(): SkinPref {
 
 export function applyThemePref(pref: ThemePref) {
   const root = document.documentElement;
-  if (pref === "system") {
-    delete root.dataset.theme;
-  } else {
-    root.dataset.theme = pref;
+  const target = pref === "system" ? undefined : pref;
+  if (root.dataset.theme !== target) {
+    if (target) {
+      root.dataset.theme = target;
+    } else {
+      delete root.dataset.theme;
+    }
   }
   try {
     localStorage.setItem(KEY, pref);

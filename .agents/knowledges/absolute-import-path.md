@@ -1,65 +1,64 @@
-# KB — import por caminho absoluto só existe na máquina de quem escreveu
+# KB — absolute import paths only exist on the machine of whoever wrote them
 
-**Sintoma:** a CI falha **só** no job E2E, logo na coleta, com
+**Symptom:** CI fails **only** on the E2E job, right at collection, with
 
 ```
-Error: EACCES: permission denied, stat '/root/GitHub/archidraw/e2e/fixtures'
+Error: EACCES: permission denied, stat '/root/GitHub/archidraw/tests/fixtures'
 ```
 
-Nenhum teste chega a rodar e o job inteiro cai (`Build` e `Criar PR` ficam
-`skipped`). Lint, Typecheck e Security Audit passam **verdes** — é essa
-combinação (todos os gates estruturais ok, E2E morto na largada) que assina o
-problema.
+No test gets to run and the whole job dies (`Build` and `Create PR` stay
+`skipped`). Lint, Typecheck and Security Audit pass **green** — it's this
+exact combination (all structural gates ok, E2E dead at the starting line)
+that signatures the problem.
 
-**Causa raiz:** um spec importa fixtures pelo caminho absoluto do filesystem da
-máquina onde foi escrito, em vez de relativo:
+**Root cause:** a spec imports fixtures via an absolute filesystem path from
+the machine where it was written, instead of relative:
 
 ```ts
-import { test, open } from "/root/GitHub/archidraw/e2e/fixtures"; // quebra
-import { test, open } from "../fixtures";                          // certo
+import { test, open } from "/root/GitHub/archidraw/tests/fixtures"; // breaks
+import { test, open } from "../fixtures";                          // right
 ```
 
-No runner o repo vive em `/home/runner/work/archidraw/archidraw`. O resolver
-do Playwright faz `stat` no caminho literal e estoura `EACCES` — o processo nem
-pode ler `/root`. É falha de **resolução de módulo**, não de comportamento do
-teste: por isso o `--retries` do CI não muda nada e re-rodar a run sem mudar
-nada reproduz 100%.
+On the runner the repo lives at `/home/runner/work/archidraw/archidraw`. The
+Playwright resolver does `stat` on the literal path and blows up with
+`EACCES` — the process isn't even allowed to read `/root`. It's a **module
+resolution** failure, not test behavior: that's why CI's `--retries` changes
+nothing and re-running the same run reproduces 100% of the time.
 
-**Por que os outros gates não pegam:**
+**Why the other gates don't catch it:**
 
-- `oxlint` ignora `e2e/**` e `playwright.config.ts`
-- `tsc -b` (`npm run build`) só compila `src/` + `vite.config.ts`
+- `oxlint` ignores `tests/**` and `playwright.config.ts`
+- `tsc -b` (`npm run build`) only compiles `src/` + `vite.config.ts`
 
-Ou seja, **nada no `make gate` até a execução do Playwright lê os specs**.
-Specs são verificados só em runtime. Caminho absoluto é literalmente invisível
-para lint e typecheck.
+I.e., **nothing in `make gate` reads the specs until Playwright execution**.
+Specs are verified at runtime only. An absolute path is literally invisible
+to lint and typecheck.
 
-**Regra (sempre seguir):**
+**Rule (always follow):**
 
-1. Imports em `e2e/**` **sempre relativos**: `from "../fixtures"`,
-   `from "./utils"`. Nunca `/root/...`, `/home/...`, `/Users/...` nem
-   `~/...`.
-2. Copiar o caminho que o editor/IDE mostra na barra de título ou na
-   "copiar caminho do arquivo" é o gatilho habitual do bug — cole sempre o
-   import relativo.
-3. Antes de commitar um spec novo, varredura (tem que voltar vazio):
+1. Imports in `tests/**` are **always relative**: `from "../fixtures"`,
+   `from "./utils"`. Never `/root/...`, `/home/...`, `/Users/...`, `~/...`.
+2. Copying the path shown in the editor/IDE title bar or via "copy file path"
+   is the usual trigger of this bug — always paste the relative import.
+3. Before committing a new spec, a sweep (must come back empty):
 
    ```bash
-   grep -rn 'from "/' e2e/ | grep -v 'from "\.\.'
+   grep -rn 'from "/' tests/ | grep -v 'from "\.\.'
    ```
 
-**Sintoma inverso (mesma causa):** teste que passa local e, na CI, falha com
-`Cannot find module` / `EACCES` apontando um caminho que **existe** na sua
-máquina — é esse caminho, não o teste.
+**Inverse symptom (same cause):** a test that passes locally and, on CI,
+fails with `Cannot find module` / `EACCES` pointing to a path that **exists**
+on your machine — it's that path, not the test.
 
-## Regra relacionada — não commitar probe de medida
+## Related rule — never commit a measurement probe
 
-O arquivo que motivou essa KB (`e2e/specs/zz-shot.spec.ts`) não tinha um único
-`expect()`: media o tamanho do hover box e imprimia no stdout
-(`process.stdout.write("K ...")`). Um teste sem asserção não protege nada, só
-custa tempo de suite — e o fluxo que ele cobria (hover no badge + resize por
-teclado) já existia com asserções reais em `hover-markdown.spec.ts`.
+The file that motivated this KB (`tests/specs/zz-shot.spec.ts`) didn't have a
+single `expect()`: it measured the hover box size and printed to stdout
+(`process.stdout.write("K ...")`). A test without an assertion protects
+nothing and only costs suite time — and the flow it covered (hovering the
+badge + keyboard resize) already had real assertions in
+`hover-markdown.spec.ts`.
 
-Ao depurar um comportamento: escreva o `expect()` de verdade e delete o probe,
-ou deixe o probe fora do stage. Debug temporário em `e2e/specs/` vira arquivo
-de produção no primeiro commit.
+When debugging a behavior: write the real `expect()` and delete the probe, or
+leave the probe out of the stage. Temporary debugging in `tests/specs/`
+becomes a production file on the first commit.

@@ -1,71 +1,74 @@
-# KB — Menu de contexto custom no canvas (botão direito)
+# KB — Custom context menu on the canvas (right click)
 
-**Sintoma:** clicar com botão direito em um elemento inicia um drag/marquee em
-vez de abrir o menu custom; ou o menu nativo do navegador aparece por cima do
-menu da aplicação.
+**Symptom:** right-clicking an element starts a drag/marquee instead of
+opening the custom menu; or the browser's native menu appears on top of the
+application menu.
 
-**Causa raiz:** o editor de canvas trata `pointerdown` como início de
-interação (draw/move/marquee). O evento `contextmenu` (onde o menu custom é
-aberto) **dispara depois** do `pointerdown`, então sem um guard o right-click
-já iniciou uma interação antes do menu existir. Além disso, cada elemento
-precisa de `preventDefault` no `contextmenu` para suprimir o menu nativo.
+**Root cause:** the canvas editor treats `pointerdown` as the start of an
+interaction (draw/move/marquee). The `contextmenu` event (where the custom
+menu opens) **fires after** `pointerdown`, so without a guard the right-click
+already started an interaction before the menu exists. Also, elements need
+`preventDefault` on `contextmenu` to suppress the native menu.
 
-**Regra (sempre seguir):**
+**Rule (always follow):**
 
-1. No `pointerDown` do `Editor`, retornar cedo quando `button === 2` — o botão
-   direito pertence exclusivamente ao menu de contexto, nunca a drag/draw:
+1. In the `Editor`'s `pointerDown`, return early when `button === 2` — the
+   right button belongs exclusively to the context menu, never to drag/draw:
    ```ts
    if (button === 2) return;
    ```
-2. Menus e tooltips que pairam sobre o canvas **sempre** por `createPortal` +
-   `position: fixed` com *clamp* na viewport (mesma regra do
-   `tooltip-clipping.md`) — o canvas tem `transform` (zoom/pan) que vira
-   containing block e recorta `position: absolute`.
-3. Suprimir o menu nativo com `preventDefault` apenas quando o alvo do evento
-   está dentro do host do canvas (`.canvas-host`), **nunca** quando há um
-   `textarea` de edição de texto focado — aí o menu nativo é necessário para
-   copy/paste.
-4. Menus que precisam sobreviver ao fechamento do próprio gatilho (ex.: um
-   modal aberto a partir de um item do menu) devem ser renderizados **fora**
-   do bloco condicional do menu.
-5. Fechar o menu em: clique fora, Escape, wheel/scroll, resize e blur da janela.
-6. **Distância das bordas:** menu principal e submenus mantêm `EDGE_MARGIN = 8px`
-   de TODA borda do viewport. Quem estouraria a borda direita abre à esquerda
-   do item pai; quem estouraria a borda inferior sobe até caber.
+2. Menus and tooltips floating over the canvas **always** via `createPortal`
+   + `position: fixed` with viewport clamping (same rule as
+   `tooltip-clipping.md`) — the canvas has a `transform` (zoom/pan) that
+   becomes a containing block and clips `position: absolute`.
+3. Suppress the native menu with `preventDefault` only when the event target
+   is inside the canvas host (`.canvas-host`), **never** when a text-editing
+   `textarea` has focus — there the native menu is required for copy/paste.
+4. Menus that need to survive the closing of their own trigger (e.g. a modal
+   opened from a menu item) must be rendered **outside** the menu's
+   conditional block.
+5. Close the menu on: outside click, Escape, wheel/scroll, resize, and window
+   blur.
+6. **Edge distance:** main menu and submenus keep `EDGE_MARGIN = 8px` from
+   EVERY viewport edge. Whatever would overflow the right edge opens to the
+   left of the parent item; whatever would overflow the bottom edge moves up
+   until it fits.
 
-## Medição: só caixa de layout (nunca `getBoundingClientRect` durante animação)
+## Measurement: layout box only (never `getBoundingClientRect` during animation)
 
-**Sintoma:** o menu encosta (ou passa) na borda inferior da tela mesmo com o
-clamp existente; submenu abre cortado na borda direita.
+**Symptom:** the menu touches (or crosses) the bottom edge of the screen even
+with the clamp in place; a submenu opens clipped at the right edge.
 
-**Causa raiz:** `menu-in` anima `transform: scale(0.97) translateY(-3px)` nos
-primeiros 140ms. O `useLayoutEffect` de posicionamento roda nesse primeiro
-frame, e `getBoundingClientRect()` devolve a caixa **já reduzida** pela
-transformação. O clamp desloca menos do que o necessário e a caixa final
-(escala 1) ultrapassa a borda — mede-se uma caixa menor que a que será
-renderizada.
+**Root cause:** `menu-in` animates `transform: scale(0.97) translateY(-3px)`
+for the first 140ms. The positioning `useLayoutEffect` runs on that first
+frame, and `getBoundingClientRect()` returns the box **already shrunk** by the
+transform. The clamp shifts less than needed and the final box (scale 1)
+overflows the edge — you measured a smaller box than the one that will be
+rendered.
 
-**Regra (sempre seguir):**
+**Rule (always follow):**
 
-1. Tamanho de caixa sempre via `offsetWidth`/`offsetHeight` (caixa de layout,
-   imune a `transform`), nunca via `getBoundingClientRect()`.
-2. Posição absoluta em espaço de layout: `origemDoMenu + offsetParent.client* +
-   offset*`. `offsetTop`/`offsetLeft` são medidos a partir da *padding edge* do
-   `offsetParent`, por isso somam `clientTop`/`clientLeft` (a borda).
-3. A origem do menu (`left`/`top` aplicados) vem do próprio estado de clamp —
-   memoizada, senão um objeto novo por render re-dispara o efeito do submenu
-   em loop (mesma armadilha do `getSnapshot()`).
-4. Posicionar em `useLayoutEffect` (antes do paint): a caixa nunca pisca na
-   posição padrão.
+1. Box size always via `offsetWidth`/`offsetHeight` (layout box, immune to
+   `transform`), never via `getBoundingClientRect()`.
+2. Absolute position in layout space:
+   `menuOrigin + offsetParent.client* + offset*`. `offsetTop`/`offsetLeft` are
+   measured from the `offsetParent`'s *padding edge*, so add
+   `clientTop`/`clientLeft` (the border).
+3. The menu origin (`left`/`top` applied) comes from the clamp state itself —
+   memoized, otherwise a fresh object per render re-fires the submenu effect
+   in a loop (same trap as `getSnapshot()`).
+4. Position in `useLayoutEffect` (before paint): the box never flashes in its
+   default position.
 
-## Implementação real
+## Actual implementation
 
-- `src/core/editor.ts` — guard `button === 2` no `pointerDown`; helpers
+- `src/core/editor.ts` — `button === 2` guard in `pointerDown`; helpers
   `elementAt`, `badgeElementAt`, `selectElementAt`, `updateElementDetails`.
-- `src/ui/components/ContextMenu.tsx` — listener `contextmenu` no documento +
-  portal/fixed + clamp + fechamento; `EDGE_MARGIN`, `clampEdge`, estado único
-  de submenu `{ id, anchor }` e o componente `ContextSubmenu` (clamp do submenu).
-- `e2e/specs/context-menu-viewport.spec.ts` — gaps do menu e dos submenus nas
-  quatro bordas (o teste de submenu precisa existir: é o único que pega o
-  clamp errado por transformação).
-- Componente a referenciar: `src/ui/components/ContextMenu.tsx`.
+- `src/ui/components/ContextMenu.tsx` — document-level `contextmenu` listener
+  + portal/fixed + clamp + closing logic; `EDGE_MARGIN`, `clampEdge`, single
+  submenu state `{ id, anchor }` and the `ContextSubmenu` component
+  (submenu clamp).
+- `tests/specs/context-menu-viewport.spec.ts` — menu and submenu gaps on all
+  four edges (the submenu test must keep existing: it's the only one that
+  catches the transform-induced clamp error).
+- Reference component: `src/ui/components/ContextMenu.tsx`.

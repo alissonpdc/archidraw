@@ -1,79 +1,81 @@
-# KB — input de arquivo é assíncrono; `setInputFiles` não espera o handler
+# KB — file input is async; `setInputFiles` does not wait for the handler
 
-**Sintoma:** E2E de import (`excalidraw-scene-legacy`, `excalidraw-scene-rich`,
-`interactions`) falha **flaky** com o dado importado simplesmente **ausente**
-(`expect(els).toHaveLength(1)` recebeu `[]`; tabs vieram só `["Diagram 1"]`).
-Qual teste do arquivo falha **varia entre runs** — assinatura de timing, não de
-lógica. Passa isolado, falha no `make test` com `E2E_WORKERS=15`.
+**Symptom:** import E2Es (`excalidraw-scene-legacy`, `excalidraw-scene-rich`,
+`interactions`) fail **flakily** with the imported data simply **missing**
+(`expect(els).toHaveLength(1)` received `[]`; tabs came out as
+`["Diagram 1"]` only). Which test in the file fails **varies between runs** —
+a timing signature, not logic. Passes in isolation, fails in `make test` with
+`E2E_WORKERS=15`.
 
-**Causa raiz:** `src/ui/components/AppMenu.tsx:342-352` — o `<input type=file>`
-tem `onChange={(e) => onImportFile(e.target.files?.[0])}`, e `onImportFile`
-(`AppMenu.tsx:166`) é **`async`**, começando com `await file.text()`. O
-`page.setInputFiles(...)` do Playwright resolve assim que o evento `change` foi
-**disparado** — ele não espera o handler. Ler `editorState()` logo em seguida é
-uma corrida com `await file.text()` (+ parse + mutação do editor). Com 15
-browsers disputando CPU, o `file.text()` quase sempre perde.
+**Root cause:** `src/ui/components/AppMenu.tsx:342-352` — the
+`<input type=file>` has `onChange={(e) => onImportFile(e.target.files?.[0])}`,
+and `onImportFile` (`AppMenu.tsx:166`) is **`async`**, starting with
+`await file.text()`. Playwright's `page.setInputFiles(...)` resolves as soon
+as the `change` event has been **dispatched** — it does not wait for the
+handler. Reading `editorState()` right after races `await file.text()`
+(+ parse + editor mutation). With 15 browsers contending for CPU,
+`file.text()` almost always loses.
 
-**Não é bug de produto:** o handler termina corretamente nos 4 ramos
-(sucesso `.excalidraw`, inválido `.excalidraw`, sucesso `.archidraw`, inválido
-`.archidraw`) — todos chamam `toast(...)`. O produto está certo; o teste é que
-assume um settle que não observou.
+**Not a product bug:** the handler completes correctly on all 4 branches
+(successful `.excalidraw`, invalid `.excalidraw`, successful `.archidraw`,
+invalid `.archidraw`) — all call `toast(...)`. The product is right; the test
+assumed a settle it never observed.
 
-**Regra (sempre seguir):** nunca afirmar logo após
-`page.setInputFiles('[data-testid="import-input"]', ...)`. Usar o helper
-`importFile(page, file)` de `e2e/fixtures.ts`, que arma um `MutationObserver`
-**antes** de anexar o arquivo e resolve quando um nó `.toast-stack .toast`
-**novo** (ausente no snapshot inicial) entra no DOM:
+**Rule (always follow):** never assert right after
+`page.setInputFiles('[data-testid="import-input"]', ...)`. Use the
+`importFile(page, file)` helper from `tests/fixtures.ts`, which arms a
+`MutationObserver` **before** attaching the file and resolves when a **new**
+`.toast-stack .toast` node (absent from the initial snapshot) enters the DOM:
 
 ```ts
 import { importFile } from "../fixtures";
 await importFile(page, { name: "x.excalidraw", mimeType: "application/json", buffer });
 ```
 
-O helper também cobre o caso "import inválido não muda nada"
-(`elementCount === 0`), onde polling por mudança de estado não serviria — o
-sinal é o toast, não o estado.
+The helper also covers the "invalid import changes nothing" case
+(`elementCount === 0`), where polling state changes wouldn't help — the signal
+is the toast, not the state.
 
-**Variante relacionada:** o import da **biblioteca**
+**Related variant:** the library import
 (`.library-import-input`, `LibraryPanel.tsx:277` → `importExcalidrawLibFile`)
-**não** emite toast. `e2e/specs/library-import.spec.ts` espera o grupo
-aparecer via locator — mantenha esse padrão ao mexer nesse input.
+does **not** emit a toast. `tests/specs/library-import.spec.ts` waits for the
+group to appear via locator — keep that pattern when touching that input.
 
-## Variante 2 — atalho de teclado que abre file picker nativo
+## Variant 2 — keyboard shortcut that opens the native file picker
 
-**Sintoma:** `editor-flows.spec.ts` › *"img shortcut opens the image picker…"*
-dá **timeout de 30s** em `page.waitForEvent("filechooser")` (3 de 4 runs).
+**Symptom:** `editor-flows.spec.ts` › *"img shortcut opens the image picker…"*
+gets a **30s timeout** on `page.waitForEvent("filechooser")` (3 out of 4 runs).
 
-**Causa raiz:** não é o app. Diagnóstico com listener de captura provou que o
-keydown **chega** (`isTrusted: true`, `userActivation.isActive === true`) e o
-handler chama `input.click()` — o clique no `<input>` acontece
-(`inputClicks === 1`). O Chromium simplesmente **não emite o evento
-filechooser** nesse caminho. Medido com 10 workers + 8 processos `yes`
-disputando CPU:
+**Root cause:** not the app. Diagnosis with a capture listener proved the
+keydown **arrives** (`isTrusted: true`, `userActivation.isActive === true`)
+and the handler calls `input.click()` — the click on the `<input>` happens
+(`inputClicks === 1`). Chromium simply **doesn't emit the filechooser event**
+on that path. Measured with 10 workers + 8 `yes` processes contending for CPU:
 
-| caminho                                      | taxa de sucesso |
-| -------------------------------------------- | --------------- |
-| `page.keyboard.press("i")` (evento via CDP)   | ~50%            |
-| `page.keyboard.down("i")`                     | ~55%            |
+| path                                            | rate            |
+| ----------------------------------------------- | --------------- |
+| `page.keyboard.press("i")` (event via CDP)      | ~50%            |
+| `page.keyboard.down("i")`                       | ~55%            |
 | `dispatchEvent(new KeyboardEvent("keydown"))` in-page | **100% (20/20)** |
-| clique real do mouse no botão da toolbar      | 100% (20/20)    |
+| real mouse click on the toolbar button          | 100% (20/20)    |
 
-**Regra:** para abrir file picker por atalho, use
-`openFileChooserViaShortcut(page, key)` de `e2e/fixtures.ts` — mesma técnica
-já usada por `pressPaste` para o evento `paste` nativo (KB `clipboard-paste.md`).
-Nunca `page.keyboard.press` + `waitForEvent("filechooser")`.
+**Rule:** to open a file picker via a shortcut, use
+`openFileChooserViaShortcut(page, key)` from `tests/fixtures.ts` — the same
+technique `pressPaste` uses for the native `paste` event
+(KB `clipboard-paste.md`).
+Never `page.keyboard.press` + `waitForEvent("filechooser")`.
 
-## Variante 3 — governor de FPS não pode medir cadence de rAF
+## Variant 3 — FPS governor must not measure rAF cadence
 
-`performance.spec.ts` media o intervalo rAF-a-rAF e cobra `> PERF_MIN_FPS`
-(45 local / 25 CI). Esse número é **capacidade de agendamento do SO**, não
-trabalho do app: com 10 workers + 8 `yes` a cadence oscilou de **35 a 58 fps**
-enquanto o custo real de `renderTo` com 500 elementos ficou em **0.3–0.8 ms
-(mediana)**. Ou seja, o orçamento de 45 fps (22 ms/frame) tem folga de ~25x: o
-teste media contenção, não performance.
+`performance.spec.ts` used to measure rAF-to-rAF intervals and demand
+`> PERF_MIN_FPS` (45 local / 25 CI). That number is the **OS's scheduling
+capacity**, not the app's work: with 10 workers + 8 `yes` the cadence swung
+**35–58 fps** while the actual cost of `renderTo` with 500 elements stayed at
+**0.3–0.8 ms (median)**. I.e., the 45 fps budget (22 ms/frame) had ~25x
+headroom: the test was measuring contention, not performance.
 
-**Regra:** o governor mede o **custo de render por frame**
-(`performance.now()` em volta de `editor.renderTo(...)`, após warmup) e compara
-com o orçamento `1000 / MIN_FPS`, em mediana e p95. O loop rAF de 60 frames
-continua no teste, mas só como assert de **vivacidade** (`frameCount === 60`) e
-para cobrir o pipeline real de pan.
+**Rule:** the governor measures the **per-frame render cost**
+(`performance.now()` around `editor.renderTo(...)`, after warmup) and compares
+it with the `1000 / MIN_FPS` budget, median and p95. The 60-frame rAF loop
+stays in the test, but only as a **liveness** assert (`frameCount === 60`)
+and to cover the real pan pipeline.

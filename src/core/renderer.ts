@@ -16,12 +16,23 @@ import {
   elementCorners,
   isRotatable,
   measureText,
+  polygonLoops,
   rotatedBounds,
   toScenePoint,
+  translatedOrigin,
 } from "./utils";
+import { clipSegmentInLoops } from "./booleanOps";
 import { getLibraryItem } from "./library";
 import { getComponentImage, getCachedImage } from "./componentAssets";
-import { resolveFont, resolveTextColor, lineHeight, textBlockHeight, fontFamilyOf } from "./textStyle";
+import {
+  resolveFont,
+  resolveTextColor,
+  lineHeight,
+  textBlockHeight,
+  textBlockTop,
+  textElementOffsets,
+  fontFamilyOf,
+} from "./textStyle";
 import { themeColor } from "./color";
 import { strokeDashArray, strokeRoundCap } from "./strokeStyle";
 import {
@@ -75,9 +86,11 @@ const GRID_STEP = 20;
 
 interface ElementGeometryCache {
   bounds?: Bounds;
+  visualBounds?: Bounds;
   strokePath?: Path2D;
   fillPath?: Path2D;
   hachurePath?: Path2D;
+  childSet?: Set<string>;
   textLayout?: {
     lines: string[];
     lineWidths: number[];
@@ -86,6 +99,118 @@ interface ElementGeometryCache {
 }
 
 const geometryCache = new WeakMap<Element, ElementGeometryCache>();
+
+/**
+ * returns the exact Path2D the element's own stroke is drawn with (cached in
+ * ElementGeometryCache). Reused by the multi-selection highlight so members'
+ * own outlines are retraced instead of drawing a new box per element.
+ */
+function getStrokePath(el: Element): Path2D | null {
+  const cache = getElementCache(el);
+  if (cache.strokePath) return cache.strokePath;
+  switch (el.type) {
+    case "rectangle":
+    case "component":
+    case "context":
+      if (el.roughness === 0) {
+        const p = new Path2D();
+        p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+        cache.strokePath = p;
+      } else {
+        cache.strokePath = sketchStrokePath2D(
+          [
+            roundedRectLoop(
+              el.x,
+              el.y,
+              el.width,
+              el.height,
+              cornerRadius(el),
+            ),
+          ],
+          el.roughness,
+          seedOf(el.id),
+          cornerRadius(el) > 0 ? 0.30 : 1,
+        );
+      }
+      break;
+    case "diamond": {
+      const v = diamondVertices(el);
+      if (el.roughness === 0) {
+        const p = new Path2D();
+        p.moveTo(v[0].x, v[0].y);
+        for (let i = 1; i < v.length; i++) p.lineTo(v[i].x, v[i].y);
+        p.closePath();
+        cache.strokePath = p;
+      } else {
+        cache.strokePath = sketchStrokePath2D([diamondLoop(el)], el.roughness, seedOf(el.id));
+      }
+      break;
+    }
+    case "ellipse": {
+      const rx = Math.abs(el.width) / 2;
+      const ry = Math.abs(el.height) / 2;
+      const cx = el.x + el.width / 2;
+      const cy = el.y + el.height / 2;
+      if (el.roughness === 0) {
+        const p = new Path2D();
+        p.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        cache.strokePath = p;
+      } else {
+        cache.strokePath = sketchStrokePath2D(
+          [ellipseLoop(el.x, el.y, el.width, el.height)],
+          el.roughness,
+          seedOf(el.id),
+        );
+      }
+      break;
+    }
+    case "polygon": {
+      const loops = polygonLoops(el);
+      cache.strokePath =
+        el.roughness === 0
+          ? loopPath2D(loops)
+          : sketchStrokePath2D(loops, el.roughness, seedOf(el.id));
+      break;
+    }
+    case "line":
+    case "arrow": {
+      const a = arrowPoints(el)[0];
+      const tip = edgeTip(el);
+      const lineType = el.lineType ?? "straight";
+      const withHeads = el.type === "arrow";
+      if (lineType === "straight") {
+        if (el.strokeStyle === "solid" && el.roughness > 0) {
+          cache.strokePath = sketchStrokePath2D([[a, tip]], el.roughness, seedOf(el.id), 1, false, withHeads);
+        } else {
+          const p = new Path2D();
+          p.moveTo(a.x, a.y);
+          p.lineTo(tip.x, tip.y);
+          cache.strokePath = p;
+        }
+      } else if (lineType === "curved") {
+        const cp = curvedArrowControl(el, a, tip);
+        const p = new Path2D();
+        p.moveTo(a.x, a.y);
+        p.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+        cache.strokePath = p;
+      } else {
+        const pts = edgePathPoints(el);
+        if (el.strokeStyle === "solid" && el.roughness > 0) {
+          cache.strokePath = sketchStrokePath2D([pts], el.roughness, seedOf(el.id), 1, false, withHeads);
+        } else {
+          const p = new Path2D();
+          p.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
+          cache.strokePath = p;
+        }
+      }
+      break;
+    }
+    default:
+      return null;
+  }
+  return cache.strokePath;
+}
 
 /**
  * pushes a rotation transform (about the element center) so every drawing
@@ -110,10 +235,31 @@ function getElementCache(el: Element): ElementGeometryCache {
   return cache;
 }
 
+function getContextChildSet(ctx: ContextElement): Set<string> {
+  const cache = getElementCache(ctx);
+  if (!cache.childSet) {
+    cache.childSet = new Set(ctx.childIds);
+  }
+  return cache.childSet;
+}
+
 function getCachedBounds(el: Element): Bounds {
   const cache = getElementCache(el);
   if (!cache.bounds) {
-    cache.bounds = computeVisualBounds(el);
+    const root = translatedOrigin.get(el);
+    if (root) {
+      const rb = getCachedBounds(root);
+      const dx = el.x - root.x;
+      const dy = el.y - root.y;
+      cache.bounds = {
+        x1: rb.x1 + dx,
+        y1: rb.y1 + dy,
+        x2: rb.x2 + dx,
+        y2: rb.y2 + dy,
+      };
+    } else {
+      cache.bounds = computeVisualBounds(el);
+    }
   }
   return cache.bounds;
 }
@@ -161,99 +307,108 @@ function computeVisualBounds(el: Element): Bounds {
   };
 }
 
-const dotPatternCache = new Map<string, CanvasPattern>();
+interface GridPatternEntry {
+  pattern: CanvasPattern;
+  tilePx: number;
+}
 
-function getGridDotPattern(ctx: CanvasRenderingContext2D, color: string): CanvasPattern | null {
-  let pattern = dotPatternCache.get(color);
-  if (!pattern && typeof document !== "undefined") {
+const dotPatternCache = new Map<string, GridPatternEntry>();
+const linePatternCache = new Map<string, GridPatternEntry>();
+const GRID_CELLS = 10;
+
+function getGridDotPattern(
+  ctx: CanvasRenderingContext2D,
+  color: string,
+  scale: number,
+): GridPatternEntry {
+  const tilePx = Math.max(GRID_CELLS, Math.round(GRID_CELLS * GRID_STEP * scale));
+  const key = `${color}:${tilePx}`;
+  let entry = dotPatternCache.get(key);
+  if (!entry) {
     const tile = document.createElement("canvas");
-    tile.width = GRID_STEP;
-    tile.height = GRID_STEP;
-    const tctx = tile.getContext("2d");
-    if (tctx) {
-      tctx.fillStyle = color;
-      const r = 1.3;
-      const drawCorner = (cx: number, cy: number) => {
+    tile.width = tilePx;
+    tile.height = tilePx;
+    const tctx = tile.getContext("2d")!;
+    tctx.fillStyle = color;
+    const r = Math.max(0.8, 1.3 * scale);
+    for (let ix = 0; ix <= GRID_CELLS; ix++) {
+      const cx = (ix * tilePx) / GRID_CELLS;
+      for (let iy = 0; iy <= GRID_CELLS; iy++) {
+        const cy = (iy * tilePx) / GRID_CELLS;
         tctx.beginPath();
         tctx.arc(cx, cy, r, 0, Math.PI * 2);
         tctx.fill();
-      };
-      drawCorner(0, 0);
-      drawCorner(GRID_STEP, 0);
-      drawCorner(0, GRID_STEP);
-      drawCorner(GRID_STEP, GRID_STEP);
-      pattern = ctx.createPattern(tile, "repeat") ?? undefined;
-      if (pattern) dotPatternCache.set(color, pattern);
+      }
     }
+    entry = { pattern: ctx.createPattern(tile, "repeat")!, tilePx };
+    dotPatternCache.set(key, entry);
   }
-  return pattern ?? null;
+  return entry;
 }
 
-function drawGridDots(
+function getGridLinePattern(
   ctx: CanvasRenderingContext2D,
-  vx1: number,
-  vy1: number,
-  vx2: number,
-  vy2: number,
-  color: string,
-) {
-  const pattern = getGridDotPattern(ctx, color);
-  ctx.save();
-  ctx.fillStyle = pattern ?? color;
-  ctx.fillRect(vx1, vy1, vx2 - vx1, vy2 - vy1);
-  ctx.restore();
-}
-
-function drawGridLines(
-  ctx: CanvasRenderingContext2D,
-  vx1: number,
-  vy1: number,
-  vx2: number,
-  vy2: number,
   colorMicro: string,
   colorMaster: string,
+  scale: number,
+): GridPatternEntry {
+  const tilePx = Math.max(GRID_CELLS, Math.round(GRID_CELLS * GRID_STEP * scale));
+  const key = `${colorMicro}:${colorMaster}:${tilePx}`;
+  let entry = linePatternCache.get(key);
+  if (!entry) {
+    const tile = document.createElement("canvas");
+    tile.width = tilePx;
+    tile.height = tilePx;
+    const tctx = tile.getContext("2d")!;
+    tctx.strokeStyle = colorMicro;
+    tctx.lineWidth = Math.max(0.5, 0.7 * scale);
+    const dash = Math.max(1, 4 * scale);
+    tctx.setLineDash([dash, dash]);
+    tctx.beginPath();
+    for (let i = 1; i < GRID_CELLS; i++) {
+      if (i % 5 === 0) continue;
+      const p = (i * tilePx) / GRID_CELLS;
+      tctx.moveTo(p, 0);
+      tctx.lineTo(p, tilePx);
+      tctx.moveTo(0, p);
+      tctx.lineTo(tilePx, p);
+    }
+    tctx.stroke();
+
+    tctx.strokeStyle = colorMaster;
+    tctx.lineWidth = Math.max(0.7, 0.9 * scale);
+    tctx.setLineDash([]);
+    tctx.beginPath();
+    for (const i of [0, 5, 10]) {
+      const p = (i * tilePx) / GRID_CELLS;
+      tctx.moveTo(p, 0);
+      tctx.lineTo(p, tilePx);
+      tctx.moveTo(0, p);
+      tctx.lineTo(tilePx, p);
+    }
+    tctx.stroke();
+    entry = { pattern: ctx.createPattern(tile, "repeat")!, tilePx };
+    linePatternCache.set(key, entry);
+  }
+  return entry;
+}
+
+function fillDeviceGrid(
+  ctx: CanvasRenderingContext2D,
+  entry: GridPatternEntry,
+  cam: Camera,
+  canvasWidth: number,
+  canvasHeight: number,
 ) {
-  const step = GRID_STEP;
-  const masterEvery = 5;
-  const countX = (vx2 - vx1) / step;
-  const countY = (vy2 - vy1) / step;
-  const skipMicro = countX > 350 || countY > 350;
-
+  const m = ctx.getTransform();
+  const dpr = m.a / cam.zoom;
+  const { pattern, tilePx } = entry;
+  const ox = ((m.e % tilePx) + tilePx) % tilePx;
+  const oy = ((m.f % tilePx) + tilePx) % tilePx;
   ctx.save();
-
-  if (!skipMicro) {
-    ctx.strokeStyle = colorMicro;
-    ctx.lineWidth = 0.7;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    for (let x = Math.floor(vx1 / step) * step; x <= vx2; x += step) {
-      if (Math.round(x / step) % masterEvery === 0) continue;
-      ctx.moveTo(x, vy1);
-      ctx.lineTo(x, vy2);
-    }
-    for (let y = Math.floor(vy1 / step) * step; y <= vy2; y += step) {
-      if (Math.round(y / step) % masterEvery === 0) continue;
-      ctx.moveTo(vx1, y);
-      ctx.lineTo(vx2, y);
-    }
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = colorMaster;
-  ctx.lineWidth = 0.9;
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  for (let x = Math.floor(vx1 / step) * step; x <= vx2; x += step) {
-    if (Math.round(x / step) % masterEvery !== 0) continue;
-    ctx.moveTo(x, vy1);
-    ctx.lineTo(x, vy2);
-  }
-  for (let y = Math.floor(vy1 / step) * step; y <= vy2; y += step) {
-    if (Math.round(y / step) % masterEvery !== 0) continue;
-    ctx.moveTo(vx1, y);
-    ctx.lineTo(vx2, y);
-  }
-  ctx.stroke();
+  ctx.setTransform(1, 0, 0, 1, ox - tilePx, oy - tilePx);
+  ctx.fillStyle = pattern;
+  ctx.fillRect(0, 0, Math.ceil(canvasWidth * dpr) + tilePx, Math.ceil(canvasHeight * dpr) + tilePx);
   ctx.restore();
 }
 
@@ -553,66 +708,110 @@ function drawComponentIcon(ctx: CanvasRenderingContext2D, el: ComponentElement) 
   ctx.restore();
 }
 
-function traceShape(
-  ctx: CanvasRenderingContext2D,
-  el: Element,
-) {
-  if (el.type === "rectangle" || el.type === "component" || el.type === "context") {
-    ctx.beginPath();
-    ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-  } else if (el.type === "diamond") {
-    const v = diamondVertices(el);
-    ctx.beginPath();
-    ctx.moveTo(v[0].x, v[0].y);
-    for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
-    ctx.closePath();
-  } else if (el.type === "ellipse") {
-    const rx = Math.abs(el.width) / 2;
-    const ry = Math.abs(el.height) / 2;
-    ctx.beginPath();
-    ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, rx, ry, 0, 0, Math.PI * 2);
-  }
-}
-
-function boundsOf(el: Element): { x: number; y: number; w: number; h: number } {
-  if (el.type === "diamond") {
-    const v = diamondVertices(el);
-    let x1 = v[0].x, y1 = v[0].y, x2 = v[0].x, y2 = v[0].y;
-    for (const p of v) {
-      if (p.x < x1) x1 = p.x;
-      if (p.x > x2) x2 = p.x;
-      if (p.y < y1) y1 = p.y;
-      if (p.y > y2) y2 = p.y;
-    }
-    return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
-  }
-  return {
-    x: Math.min(el.x, el.x + el.width),
-    y: Math.min(el.y, el.y + el.height),
-    w: Math.abs(el.width),
-    h: Math.abs(el.height),
-  };
-}
-
 const HACHURE_SPACING = 4.8;
 
+/** Path2D of closed loops (one subpath per ring: outer solid + holes) */
+function loopPath2D(loops: Point[][]): Path2D {
+  const path = new Path2D();
+  for (const loop of loops) {
+    path.moveTo(loop[0].x, loop[0].y);
+    for (let i = 1; i < loop.length; i++) {
+      path.lineTo(loop[i].x, loop[i].y);
+    }
+    path.closePath();
+  }
+  return path;
+}
+
+function clipHachureLine(el: Element, p0: Point, p1: Point): [Point, Point] | null {
+  const b = elementBounds(el);
+  const w = b.x2 - b.x1;
+  const h = b.y2 - b.y1;
+  const cx = b.x1 + w / 2;
+  const cy = b.y1 + h / 2;
+  const rx = w / 2;
+  const ry = h / 2;
+  const dx = p1.x - p0.x;
+  const dy = p1.y - p0.y;
+
+  let t0 = 0;
+  let t1 = 1;
+
+  if (el.type === "ellipse") {
+    const u0 = (p0.x - cx) / rx;
+    const v0 = (p0.y - cy) / ry;
+    const du = dx / rx;
+    const dv = dy / ry;
+    const A = du * du + dv * dv;
+    const B = u0 * du + v0 * dv;
+    const C = u0 * u0 + v0 * v0 - 1;
+    const disc = B * B - A * C;
+    if (disc <= 0) return null;
+    const sq = Math.sqrt(disc);
+    t0 = Math.max(0, (-B - sq) / A);
+    t1 = Math.min(1, (-B + sq) / A);
+  } else if (el.type === "diamond") {
+    const u0 = (p0.x - cx) / rx;
+    const v0 = (p0.y - cy) / ry;
+    const du = dx / rx;
+    const dv = dy / ry;
+    const signs = [
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1],
+    ] as const;
+    for (const [sx, sy] of signs) {
+      const a = sx * du + sy * dv;
+      const rhs = 1 - (sx * u0 + sy * v0);
+      if (a > 0) t1 = Math.min(t1, rhs / a);
+      else if (a < 0) t0 = Math.max(t0, rhs / a);
+      else if (rhs < 0) return null;
+    }
+  } else {
+    t0 = Math.max(t0, (b.x1 - p0.x) / dx);
+    t1 = Math.min(t1, (b.x2 - p0.x) / dx);
+    const ty0 = (b.y1 - p0.y) / dy;
+    const ty1 = (b.y2 - p0.y) / dy;
+    t0 = Math.max(t0, Math.min(ty0, ty1));
+    t1 = Math.min(t1, Math.max(ty0, ty1));
+  }
+
+  if (t1 - t0 <= 1e-3) return null;
+  return [
+    { x: p0.x + t0 * dx, y: p0.y + t0 * dy },
+    { x: p0.x + t1 * dx, y: p0.y + t1 * dy },
+  ];
+}
+
 function buildHachurePath(el: Element, withCross: boolean): Path2D {
-  const b = boundsOf(el);
-  const halfSpan = (b.w + b.h) / 2 + HACHURE_SPACING;
-  const cx = b.x + b.w / 2;
-  const cy = b.y + b.h / 2;
-  const lines: Point[][] = [];
+  const b = elementBounds(el);
+  const w = b.x2 - b.x1;
+  const h = b.y2 - b.y1;
+  const halfSpan = (w + h) / 2 + HACHURE_SPACING;
+  const cx = b.x1 + w / 2;
+  const cy = b.y1 + h / 2;
+  const rawLines: [Point, Point][] = [];
   for (let d = -halfSpan; d <= halfSpan; d += HACHURE_SPACING) {
-    lines.push([
+    rawLines.push([
       { x: cx + d - halfSpan, y: cy - halfSpan },
       { x: cx + d + halfSpan, y: cy + halfSpan },
     ]);
     if (withCross) {
-      lines.push([
+      rawLines.push([
         { x: cx + d - halfSpan, y: cy + halfSpan },
         { x: cx + d + halfSpan, y: cy - halfSpan },
       ]);
     }
+  }
+  const lines: [Point, Point][] = [];
+  for (const [p0, p1] of rawLines) {
+    if (el.type === "polygon") {
+      lines.push(...clipSegmentInLoops(p0, p1, polygonLoops(el)));
+      continue;
+    }
+    const clipped = clipHachureLine(el, p0, p1);
+    if (clipped) lines.push(clipped);
   }
   const path = new Path2D();
   if (el.roughness === 0) {
@@ -623,20 +822,17 @@ function buildHachurePath(el: Element, withCross: boolean): Path2D {
   } else {
     const seedBase = seedOf(el.id) + 7;
     for (let j = 0; j < lines.length; j++) {
-      const segs = sketchStrokeSegments(
+      const seg = sketchStrokeSegments(
         [lines[j]],
         el.roughness,
         seedBase + j * 17,
-      );
-      for (const seg of segs) {
-        path.moveTo(seg.moveTo.x, seg.moveTo.y);
-        for (const c of seg.curves) {
-          if (c.kind === "quad" && c.ctrl) {
-            path.quadraticCurveTo(c.ctrl.x, c.ctrl.y, c.to.x, c.to.y);
-          } else {
-            path.lineTo(c.to.x, c.to.y);
-          }
-        }
+        0.5,
+        true,
+        true,
+      )[0];
+      path.moveTo(seg.moveTo.x, seg.moveTo.y);
+      for (const c of seg.curves) {
+        path.quadraticCurveTo(c.ctrl!.x, c.ctrl!.y, c.to.x, c.to.y);
       }
     }
   }
@@ -655,10 +851,8 @@ function drawHachureFill(
       : resolveStroke(el, colors);
   ctx.save();
   ctx.strokeStyle = hatchColor;
-  ctx.lineCap = "round";
+  ctx.lineCap = "butt";
   ctx.globalAlpha *= el.fillOpacity;
-  traceShape(ctx, el);
-  ctx.clip();
   ctx.lineWidth = 1.2;
   const cache = getElementCache(el);
   if (!cache.hachurePath) {
@@ -674,6 +868,14 @@ function drawElement(
   colors: RenderColors,
   animationPhase: number = 0,
 ) {
+  const root = translatedOrigin.get(el);
+  if (root) {
+    ctx.save();
+    ctx.translate(el.x - root.x, el.y - root.y);
+    drawElement(ctx, root, colors, animationPhase);
+    ctx.restore();
+    return;
+  }
   const cache = getElementCache(el);
   ctx.save();
   applyRotation(ctx, el);
@@ -702,30 +904,9 @@ function drawElement(
     if (el.strokeWidth > 0) {
       ctx.save();
       ctx.globalAlpha *= el.strokeOpacity;
-      if (!cache.strokePath) {
-        if (el.roughness === 0) {
-          const p = new Path2D();
-          p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-          cache.strokePath = p;
-        } else {
-          cache.strokePath = sketchStrokePath2D(
-            [
-              roundedRectLoop(
-                el.x,
-                el.y,
-                el.width,
-                el.height,
-                cornerRadius(el),
-              ),
-            ],
-            el.roughness,
-            seedOf(el.id),
-            cornerRadius(el) > 0 ? 0.30 : 1,
-          );
-        }
-      }
+      if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
       applyDash(ctx, el, el.strokeWidth);
-      ctx.stroke(cache.strokePath);
+      ctx.stroke(cache.strokePath!);
       ctx.restore();
     }
 
@@ -734,36 +915,20 @@ function drawElement(
     if (el.fillOpacity > 0) {
       ctx.save();
       ctx.globalAlpha *= el.fillOpacity;
-      ctx.beginPath();
-      ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-      ctx.fill();
+      if (!cache.fillPath) {
+        const p = new Path2D();
+        p.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
+        cache.fillPath = p;
+      }
+      ctx.fill(cache.fillPath);
       ctx.restore();
     }
     if (el.strokeWidth > 0) {
       ctx.save();
       ctx.globalAlpha *= el.strokeOpacity;
-      ctx.beginPath();
-      if (el.roughness === 0) {
-        ctx.roundRect(el.x, el.y, el.width, el.height, cornerRadius(el));
-      } else {
-        sketchStroke(
-          ctx,
-          [
-            roundedRectLoop(
-              el.x,
-              el.y,
-              el.width,
-              el.height,
-              cornerRadius(el),
-            ),
-          ],
-          el.roughness,
-          seedOf(el.id),
-          cornerRadius(el) > 0 ? 0.30 : 1,
-        );
-      }
+      if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
       applyDash(ctx, el, el.strokeWidth);
-      ctx.stroke();
+      ctx.stroke(cache.strokePath!);
       ctx.restore();
     }
   } else if (el.type === "diamond") {
@@ -787,19 +952,9 @@ function drawElement(
     }
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    if (!cache.strokePath) {
-      if (el.roughness === 0) {
-        const p = new Path2D();
-        p.moveTo(v[0].x, v[0].y);
-        for (let i = 1; i < v.length; i++) p.lineTo(v[i].x, v[i].y);
-        p.closePath();
-        cache.strokePath = p;
-      } else {
-        cache.strokePath = sketchStrokePath2D([diamondLoop(el)], el.roughness, seedOf(el.id));
-      }
-    }
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
     applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke(cache.strokePath);
+    ctx.stroke(cache.strokePath!);
     ctx.restore();
   } else if (el.type === "ellipse") {
     const rx = Math.abs(el.width) / 2;
@@ -823,59 +978,35 @@ function drawElement(
     }
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    if (!cache.strokePath) {
-      if (el.roughness === 0) {
-        const p = new Path2D();
-        p.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        cache.strokePath = p;
-      } else {
-        cache.strokePath = sketchStrokePath2D(
-          [ellipseLoop(el.x, el.y, el.width, el.height)],
-          el.roughness,
-          seedOf(el.id),
-        );
-      }
-    }
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
     applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke(cache.strokePath);
+    ctx.stroke(cache.strokePath!);
     ctx.restore();
-  } else if (el.type === "line") {
-    const a = arrowPoints(el)[0];
-    const tip = edgeTip(el);
-    const lineType = el.lineType ?? "straight";
-
+  } else if (el.type === "polygon") {
+    const loops = polygonLoops(el);
+    if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
+      if (el.fillOpacity > 0) {
+        ctx.save();
+        ctx.globalAlpha *= el.fillOpacity;
+        if (!cache.fillPath) cache.fillPath = loopPath2D(loops);
+        ctx.fill(cache.fillPath, "evenodd");
+        ctx.restore();
+      }
+    } else {
+      drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
+    }
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    if (!cache.strokePath) {
-      if (lineType === "straight") {
-        if (el.strokeStyle === "solid" && el.roughness > 0) {
-          cache.strokePath = sketchStrokePath2D([[a, tip]], el.roughness, seedOf(el.id));
-        } else {
-          const p = new Path2D();
-          p.moveTo(a.x, a.y);
-          p.lineTo(tip.x, tip.y);
-          cache.strokePath = p;
-        }
-      } else if (lineType === "curved") {
-        const cp = curvedArrowControl(el, a, tip);
-        const p = new Path2D();
-        p.moveTo(a.x, a.y);
-        p.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
-        cache.strokePath = p;
-      } else {
-        const pts = edgePathPoints(el);
-        if (el.strokeStyle === "solid" && el.roughness > 0) {
-          cache.strokePath = sketchStrokePath2D([pts], el.roughness, seedOf(el.id));
-        } else {
-          const p = new Path2D();
-          p.moveTo(pts[0].x, pts[0].y);
-          for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
-          cache.strokePath = p;
-        }
-      }
-    }
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
     applyDash(ctx, el, el.strokeWidth);
-    ctx.stroke(cache.strokePath);
+    ctx.stroke(cache.strokePath!);
+    ctx.restore();
+  } else if (el.type === "line") {
+    ctx.save();
+    ctx.globalAlpha *= el.strokeOpacity;
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
+    applyDash(ctx, el, el.strokeWidth);
+    ctx.stroke(cache.strokePath!);
     ctx.restore();
   } else if (el.type === "arrow") {
     const a = arrowPoints(el)[0];
@@ -889,36 +1020,9 @@ function drawElement(
 
     ctx.save();
     ctx.globalAlpha *= el.strokeOpacity;
-    if (!cache.strokePath) {
-      if (lineType === "straight") {
-        if (el.strokeStyle === "solid" && el.roughness > 0) {
-          cache.strokePath = sketchStrokePath2D([[a, tip]], el.roughness, seedOf(el.id), 1, false, true);
-        } else {
-          const p = new Path2D();
-          p.moveTo(a.x, a.y);
-          p.lineTo(tip.x, tip.y);
-          cache.strokePath = p;
-        }
-      } else if (lineType === "curved") {
-        const cp = curvedArrowControl(el, a, tip);
-        const p = new Path2D();
-        p.moveTo(a.x, a.y);
-        p.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
-        cache.strokePath = p;
-      } else {
-        const pts = edgePathPoints(el);
-        if (el.strokeStyle === "solid" && el.roughness > 0) {
-          cache.strokePath = sketchStrokePath2D([pts], el.roughness, seedOf(el.id), 1, false, true);
-        } else {
-          const p = new Path2D();
-          p.moveTo(pts[0].x, pts[0].y);
-          for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
-          cache.strokePath = p;
-        }
-      }
-    }
+    if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;
     applyDash(ctx, el, el.strokeWidth, animationPhase, !!el.animated);
-    ctx.stroke(cache.strokePath);
+    ctx.stroke(cache.strokePath!);
     if (lineType === "straight") {
       drawArrowHead(ctx, tip, a, headSize, headColor, el.roughness, headSeed, endType);
       drawArrowHead(ctx, a, tip, headSize, headColor, el.roughness, headSeed + 3, startType);
@@ -941,25 +1045,32 @@ function drawElement(
     ctx.font = resolveFont(el);
     ctx.textBaseline = "top";
     const lh = lineHeight(el);
-    const lines = el.text.split("\n");
+    if (!cache.textLayout) {
+      const lines = el.text.split("\n");
+      const lineWidths = lines.map((l) => ctx.measureText(l).width);
+      const maxWidth = Math.max(...lineWidths, 1);
+      cache.textLayout = { lines, lineWidths, maxWidth };
+    }
+    const { lines, lineWidths } = cache.textLayout;
     const align = el.textAlign ?? "left";
     ctx.textAlign = align;
     const n = lines.length;
     const textBlockH = textBlockHeight(el.fontSize, n, lh);
-    const vOffset = Math.max(0, (el.height - textBlockH) / 2);
+    const { padX } = textElementOffsets(el);
+    const blockTop = textBlockTop(el, textBlockH);
     const underlineOn = !!el.underline;
     lines.forEach((line, i) => {
-      let lx = el.x;
+      let lx = el.x + padX;
       if (align === "center") lx = el.x + el.width / 2;
-      else if (align === "right") lx = el.x + el.width;
-      const lineY = el.y + vOffset + i * el.fontSize * lh;
+      else if (align === "right") lx = el.x + el.width - padX;
+      const lineY = blockTop + i * el.fontSize * lh;
       ctx.fillText(line, lx, lineY);
       if (underlineOn && line.length > 0) {
-        const lw = ctx.measureText(line).width;
+        const lw = lineWidths[i];
         if (lw > 0) {
-          let ux = el.x;
-          if (align === "center") ux = el.x + (el.width - lw) / 2;
-          else if (align === "right") ux = el.x + el.width - lw;
+          let ux = lx;
+          if (align === "center") ux = lx - lw / 2;
+          else if (align === "right") ux = lx - lw;
           ctx.strokeStyle = resolveTextColor(el, colors);
           ctx.lineWidth = Math.max(2, el.fontSize * 0.07);
           ctx.beginPath();
@@ -1109,6 +1220,16 @@ function drawLockBadge(
 }
 
 export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element): Bounds {
+  const root = translatedOrigin.get(el);
+  if (root) {
+    const vb = elementVisualBounds(ctx, root);
+    const dx = el.x - root.x;
+    const dy = el.y - root.y;
+    return { x1: vb.x1 + dx, y1: vb.y1 + dy, x2: vb.x2 + dx, y2: vb.y2 + dy };
+  }
+  const cache = getElementCache(el);
+  if (cache.visualBounds) return cache.visualBounds;
+
   const eb = elementBounds(el);
   let x1 = eb.x1;
   let y1 = eb.y1;
@@ -1161,6 +1282,67 @@ export function elementVisualBounds(ctx: CanvasRenderingContext2D, el: Element):
     y2 = layout.iconY + layout.iconHeight;
   }
 
+  const vb = { x1, y1, x2, y2 };
+  cache.visualBounds = vb;
+  return vb;
+}
+
+/**
+ * padding used by the selection outline, in zoom-independent screen pixels,
+ * shared by the single-element box and the multi-selection group outline so
+ * the group outline hugs the inner member boxes.
+ */
+function selectionPad(zoom: number): number {
+  return 3 / zoom;
+}
+
+/** padded, rotation-aware selection box of one element (same as its dashed box) */
+function selectionBoxBounds(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  zoom: number,
+): Bounds {
+  const b = elementVisualBounds(ctx, el);
+  const pad = selectionPad(zoom);
+  const padded: Bounds = {
+    x1: b.x1 - pad,
+    y1: b.y1 - pad,
+    x2: b.x2 + pad,
+    y2: b.y2 + pad,
+  };
+  if (elementAngle(el) === 0) return padded;
+  const corners = elementCorners(el, padded);
+  let x1 = Infinity;
+  let y1 = Infinity;
+  let x2 = -Infinity;
+  let y2 = -Infinity;
+  for (const p of corners) {
+    x1 = Math.min(x1, p.x);
+    y1 = Math.min(y1, p.y);
+    x2 = Math.max(x2, p.x);
+    y2 = Math.max(y2, p.y);
+  }
+  return { x1, y1, x2, y2 };
+}
+
+/** union of the members' selection boxes: the multi-selection outline */
+function selectionOutlineBounds(
+  ctx: CanvasRenderingContext2D,
+  elements: Element[],
+  zoom: number,
+): Bounds | null {
+  if (elements.length === 0) return null;
+  let x1 = Infinity;
+  let y1 = Infinity;
+  let x2 = -Infinity;
+  let y2 = -Infinity;
+  for (const el of elements) {
+    const b = selectionBoxBounds(ctx, el, zoom);
+    x1 = Math.min(x1, b.x1);
+    y1 = Math.min(y1, b.y1);
+    x2 = Math.max(x2, b.x2);
+    y2 = Math.max(y2, b.y2);
+  }
   return { x1, y1, x2, y2 };
 }
 
@@ -1197,7 +1379,7 @@ function drawSelectionBox(
     return;
   }
   const b = elementVisualBounds(ctx, el);
-  const pad = 3 / zoom;
+  const pad = selectionPad(zoom);
   const padded: Bounds = {
     x1: b.x1 - pad,
     y1: b.y1 - pad,
@@ -1227,8 +1409,62 @@ function drawSelectionBox(
   ctx.restore();
 }
 
+const RESIZABLE_TYPES = new Set<string>([
+  "rectangle",
+  "diamond",
+  "ellipse",
+  "polygon",
+  "line",
+  "arrow",
+  "component",
+  "text",
+  "context",
+]);
+
+function drawGroupHandles(
+  ctx: CanvasRenderingContext2D,
+  b: Bounds,
+  zoom: number,
+  color: string,
+) {
+  const s = HANDLE_SIZE / zoom;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(0.75, 1 / zoom);
+  ctx.setLineDash([3 / zoom, 4 / zoom]);
+  ctx.strokeRect(b.x1, b.y1, b.x2 - b.x1, b.y2 - b.y1);
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#ffffff";
+  ctx.lineWidth = 1 / zoom;
+  const centers = [
+    { x: b.x1, y: b.y1 },
+    { x: (b.x1 + b.x2) / 2, y: b.y1 },
+    { x: b.x2, y: b.y1 },
+    { x: b.x2, y: (b.y1 + b.y2) / 2 },
+    { x: b.x2, y: b.y2 },
+    { x: (b.x1 + b.x2) / 2, y: b.y2 },
+    { x: b.x1, y: b.y2 },
+    { x: b.x1, y: (b.y1 + b.y2) / 2 },
+  ];
+  for (const p of centers) {
+    ctx.beginPath();
+    ctx.rect(p.x - s / 2, p.y - s / 2, s, s);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderColors) {
   if (el.type === "text" || !el.label) return;
+  const root = translatedOrigin.get(el);
+  if (root) {
+    ctx.save();
+    ctx.translate(el.x - root.x, el.y - root.y);
+    drawLabel(ctx, root, colors);
+    ctx.restore();
+    return;
+  }
   const cache = getElementCache(el);
   ctx.save();
   applyRotation(ctx, el);
@@ -1284,7 +1520,11 @@ function drawLabel(ctx: CanvasRenderingContext2D, el: Element, colors: RenderCol
     const fontSize = ctxEl.fontSize ?? 16;
     ctx.font = resolveFont(ctxEl, fontSize);
     const lh = lineHeight(ctxEl);
-    const lines = el.label.split("\n");
+    if (!cache.textLayout) {
+      const lines = el.label.split("\n");
+      cache.textLayout = { lines, lineWidths: [], maxWidth: 0 };
+    }
+    const { lines } = cache.textLayout;
     const step = fontSize * lh;
     const base = ctxEl.textOffsetGlobal ?? 8;
     const distH = base + (isLeft ? (ctxEl.textOffsetLeft ?? 0) : (ctxEl.textOffsetRight ?? 0));
@@ -1615,15 +1855,12 @@ export function render(
 
   // grid in scene coordinates – scales naturally with zoom
   if (state.gridMode === "dots" || state.gridMode === "lines") {
-    const vx1 = -cam.scrollX / cam.zoom;
-    const vy1 = -cam.scrollY / cam.zoom;
-    const vx2 = vx1 + canvasWidth / cam.zoom;
-    const vy2 = vy1 + canvasHeight / cam.zoom;
-    if (state.gridMode === "dots") {
-      drawGridDots(ctx, vx1, vy1, vx2, vy2, colors.gridDot);
-    } else {
-      drawGridLines(ctx, vx1, vy1, vx2, vy2, colors.gridLine, colors.gridLineMaster);
-    }
+    const scale = ctx.getTransform().a;
+    const entry =
+      state.gridMode === "dots"
+        ? getGridDotPattern(ctx, colors.gridDot, scale)
+        : getGridLinePattern(ctx, colors.gridLine, colors.gridLineMaster, scale);
+    fillDeviceGrid(ctx, entry, cam, canvasWidth, canvasHeight);
   }
 
   const cullPadding = 80 / Math.min(cam.zoom, 1);
@@ -1632,31 +1869,37 @@ export function render(
   const viewX2 = (-cam.scrollX + canvasWidth) / cam.zoom + cullPadding;
   const viewY2 = (-cam.scrollY + canvasHeight) / cam.zoom + cullPadding;
 
-  const hasContext = state.doc.elements.some((el) => el.type === "context");
-  const elementsToRender = hasContext
-    ? [...state.doc.elements].sort((a, b) => {
-        if (a.type === "context" && b.type !== "context") {
-          const ctx = a as ContextElement;
-          if (ctx.childIds?.includes(b.id)) return -1;
-          if (state.selectedIds?.has(b.id) && !state.selectedIds?.has(a.id)) return -1;
-        } else if (b.type === "context" && a.type !== "context") {
-          const ctx = b as ContextElement;
-          if (ctx.childIds?.includes(a.id)) return 1;
-          if (state.selectedIds?.has(a.id) && !state.selectedIds?.has(b.id)) return 1;
-        }
-        return 0;
-      })
-    : state.doc.elements;
-
-  for (const el of elementsToRender) {
-    // cull against the ROTATED footprint, so a turned shape that pokes outside
-    // its axis-aligned box is still drawn
+  const visibleElements: Element[] = [];
+  let hasContext = false;
+  for (const el of state.doc.elements) {
     const cb = elementAngle(el) === 0 ? getCachedBounds(el) : rotatedBounds(el);
     if (cb.x2 < viewX1 || cb.x1 > viewX2 || cb.y2 < viewY1 || cb.y1 > viewY2) {
       continue;
     }
+    if (el.type === "context") hasContext = true;
+    visibleElements.push(el);
+  }
+
+  if (hasContext) {
+    visibleElements.sort((a, b) => {
+      if (a.type === "context" && b.type !== "context") {
+        const ctxEl = a as ContextElement;
+        if (getContextChildSet(ctxEl).has(b.id)) return -1;
+        if (state.selectedIds?.has(b.id) && !state.selectedIds?.has(a.id)) return -1;
+      } else if (b.type === "context" && a.type !== "context") {
+        const ctxEl = b as ContextElement;
+        if (getContextChildSet(ctxEl).has(a.id)) return 1;
+        if (state.selectedIds?.has(a.id) && !state.selectedIds?.has(b.id)) return 1;
+      }
+      return 0;
+    });
+  }
+
+  for (const el of visibleElements) {
     const isEditingThisLabel =
       !!state.hiddenLabelId && el.id === state.hiddenLabelId;
+    const isMultiSelectMember =
+      state.selectedIds.size > 1 && state.selectedIds.has(el.id);
     const dim =
       Boolean(state.highlightedIds && state.highlightedIds.size > 0 && !state.highlightedIds.has(el.id));
     if (dim) {
@@ -1672,12 +1915,19 @@ export function render(
       drawContextHighlight(ctx, el as ContextElement, cam.zoom, colors.selection);
     }
     drawLabel(ctx, el, colors);
+    if (isMultiSelectMember && !isEditingThisLabel) {
+      drawSelectionBox(ctx, el, cam.zoom, colors.selection);
+    }
     if (dim) {
       ctx.restore();
     }
     drawDetailsBadge(ctx, el, cam.zoom, colors);
     drawLockBadge(ctx, el, cam.zoom, colors, cam);
-    if (state.selectedIds.has(el.id) && !isEditingThisLabel)
+    if (
+      state.selectedIds.size === 1 &&
+      state.selectedIds.has(el.id) &&
+      !isEditingThisLabel
+    )
       drawSelectionBox(ctx, el, cam.zoom, colors.selection);
   }
 
@@ -1690,6 +1940,7 @@ export function render(
       (sel.type === "rectangle" ||
         sel.type === "diamond" ||
         sel.type === "ellipse" ||
+        sel.type === "polygon" ||
         sel.type === "line" ||
         sel.type === "arrow" ||
         sel.type === "component" ||
@@ -1699,6 +1950,29 @@ export function render(
       !(state.hiddenTextId && sel.id === state.hiddenTextId)
     ) {
       drawHandles(ctx, sel, cam.zoom, colors.selection);
+    }
+  }
+
+  // resize handles spanning the whole multi-selection; the frame is grown a
+  // further pad so it encircles the members' own boxes without coinciding
+  if (!state.draft && state.selectedIds.size > 1) {
+    const selected = state.doc.elements.filter((el) =>
+      state.selectedIds.has(el.id),
+    );
+    const members = selected.filter(
+      (el) => !el.locked && RESIZABLE_TYPES.has(el.type),
+    );
+    if (members.length > 0) {
+      const gb = selectionOutlineBounds(ctx, selected, cam.zoom);
+      if (gb) {
+        const pad = selectionPad(cam.zoom);
+        drawGroupHandles(
+          ctx,
+          { x1: gb.x1 - pad, y1: gb.y1 - pad, x2: gb.x2 + pad, y2: gb.y2 + pad },
+          cam.zoom,
+          colors.selection,
+        );
+      }
     }
   }
 
