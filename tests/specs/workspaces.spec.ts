@@ -31,14 +31,25 @@ test.describe("workspaces panel", () => {
     await expect(panel(page)).toHaveAttribute("data-open", "false");
   });
 
-  test("toggle button is pushed by the panel edge", async ({ page }) => {
+  test("toggle button stays in place; the panel overlays the canvas", async ({
+    page,
+  }) => {
     const toggle = page.locator('[data-testid="panel-toggle"]');
     const closed = (await toggle.boundingBox())!;
+    const canvas = await page.locator("canvas").boundingBox();
     await openPanel(page);
     const openBox = (await toggle.boundingBox())!;
+    await expect
+      .poll(async () => (await panel(page).boundingBox())?.x ?? -999)
+      .toBeGreaterThan(-50);
     const panelBox = (await panel(page).boundingBox())!;
-    expect(closed.x).toBeLessThan(40);
-    expect(openBox.x).toBeGreaterThan(panelBox.x + panelBox.width - 10);
+    expect(openBox.x).toBeCloseTo(closed.x, 0);
+    expect(panelBox.x + panelBox.width).toBeGreaterThan(
+      (canvas?.x ?? 0) + (canvas?.width ?? 0) / 6,
+    );
+    // 50% of the viewport height, vertically centered
+    expect(panelBox.height).toBeCloseTo(400, 0);
+    expect(panelBox.y + panelBox.height / 2).toBeCloseTo(400, 0);
   });
 
   test("panel opens remembered across reloads", async ({ page }) => {

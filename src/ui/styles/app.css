@@ -61,14 +61,6 @@ button {
   --panel-w: 272px;
 }
 
-.app {
-  --panel-shift: 0px;
-}
-
-.app[data-panel-open="true"] {
-  --panel-shift: var(--panel-w);
-}
-
 /* estilo do hamburger (.tool-btn.menu-btn): mesmo widget, mesmo tema */
 .corner-toggle {
   position: absolute;
@@ -77,10 +69,10 @@ button {
   z-index: 40;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
+  gap: var(--space-1);
+  width: auto;
   height: 34px;
-  padding: 0;
+  padding: 0 var(--space-2);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -88,7 +80,6 @@ button {
   color: var(--text-primary);
   cursor: pointer;
   transition:
-    left var(--transition-med),
     background-color var(--transition-fast),
     border-color var(--transition-fast),
     color var(--transition-fast);
@@ -105,22 +96,14 @@ button {
   border-color: var(--accent);
 }
 
-/* o toggle é empurrado pela borda do painel quando ele abre */
-.app[data-panel-open="true"] .corner-toggle {
-  left: calc(var(--space-4) + var(--panel-w));
-}
-
-/* mesma escala do .tool-key dos botões de ferramenta */
 .corner-kbd {
-  position: absolute;
-  bottom: 1px;
-  right: 2px;
-  font-size: 8px;
-  line-height: 1;
-  font-family: inherit;
-  font-weight: 500;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono-ui);
   color: var(--text-muted);
-  pointer-events: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+  background: var(--bg-surface-hover);
 }
 
 .corner-toggle.open .corner-kbd {
@@ -378,12 +361,6 @@ button {
   outline: none;
   border-bottom: 1.5px solid var(--accent);
   padding: 0;
-}
-
-/* o canvas real entra quando o painel está aberto */
-.canvas-host {
-  margin-left: var(--panel-shift);
-  transition: margin-left var(--transition-med);
 }
 
 /* ---- confirmação de fechamento de aba ---- */
@@ -697,8 +674,7 @@ button {
   position: absolute;
   top: var(--space-3);
   left: 50%;
-  transform: translateX(calc(-50% + (var(--panel-shift) / 2)));
-  transition: transform var(--transition-med);
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 2px;
@@ -770,9 +746,8 @@ button {
 .properties-panel-container {
   position: absolute;
   top: 50%;
-  left: calc(var(--space-4) + var(--panel-shift));
+  left: var(--space-4);
   transform: translateY(-50%);
-  transition: left var(--transition-med);
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
@@ -1700,8 +1675,7 @@ button {
 .status-bar {
   position: absolute;
   bottom: var(--space-4);
-  left: calc(var(--space-4) + var(--panel-shift));
-  transition: left var(--transition-med);
+  left: var(--space-4);
   display: flex;
   align-items: center;
   font-size: var(--font-size-xs);
