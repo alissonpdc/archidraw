@@ -592,8 +592,9 @@ test.describe("export / import", () => {
   });
 
   test("filename is derived from active tab name", async ({ page }) => {
-    await page.dblclick('[data-testid="tab-seg-Diagram 1"]');
-    const input = page.locator(".tab-rename");
+    await page.click('[data-testid="panel-toggle"]');
+    await page.dblclick('[data-testid="ws-canvas-Diagram 1"] .tree-name');
+    const input = page.locator('[data-testid="rename-input"]');
     await input.fill("My Architecture!");
     await input.press("Enter");
 

@@ -1,6 +1,7 @@
 import { History } from "./history";
 import { hitTest, elementsInBounds } from "./hitTest";
 import { parse, serialize, serializeSingleTab } from "./storage";
+import { writeIndex, writeWorkspaceData, removeWorkspaceEntry, type WorkspaceBoot } from "./workspaceRegistry";
 import { render, type RenderColors } from "./renderer";
 import type {
   ArrowBinding,
@@ -473,6 +474,19 @@ interface TabData extends TabInfo {
   camera: Camera;
 }
 
+export interface WorkspaceInfo {
+  id: string;
+  name: string;
+  canvases: readonly TabInfo[];
+}
+
+interface WorkspaceEntry {
+  id: string;
+  name: string;
+  activeTabId: string;
+  tabs: TabData[];
+}
+
 export interface EditorSnapshot {
   doc: Document;
   camera: Camera;
@@ -482,17 +496,45 @@ export interface EditorSnapshot {
   editingKind: "text" | "label";
   tabs: readonly TabInfo[];
   activeTabId: string;
+  workspaces: readonly WorkspaceInfo[];
+  activeWorkspaceId: string;
   hasDraft: boolean;
   focusMode: boolean;
 }
 
 let tabSeq = 0;
+let workspaceSeq = 0;
+
+const nextWorkspaceId = () => `ws_${Date.now().toString(36)}_${++workspaceSeq}`;
+
+const freshTab = (name: string): TabData => ({
+  id: `tab_${Date.now().toString(36)}_${++tabSeq}`,
+  name,
+  doc: { schemaVersion: 1, elements: [] },
+  camera: { scrollX: 0, scrollY: 0, zoom: 1 },
+});
+
+const EMPTY_DOCUMENT: Document = { schemaVersion: 1, elements: [] };
+const INITIAL_CAMERA: Camera = { scrollX: 0, scrollY: 0, zoom: 1 };
 
 export class Editor {
-  private tabs: TabData[] = [
-    { id: `tab_${++tabSeq}`, name: "Diagram 1", doc: { schemaVersion: 1, elements: [] }, camera: { scrollX: 0, scrollY: 0, zoom: 1 } },
-  ];
-  private activeTabId = this.tabs[0].id;
+  private workspaces: WorkspaceEntry[] = [this.defaultWorkspace()];
+  private activeWorkspaceId = this.workspaces[0].id;
+
+  private defaultWorkspace(): WorkspaceEntry {
+    const tab: TabData = {
+      id: `tab_${++tabSeq}`,
+      name: "Diagram 1",
+      doc: { schemaVersion: 1, elements: [] },
+      camera: { scrollX: 0, scrollY: 0, zoom: 1 },
+    };
+    return {
+      id: nextWorkspaceId(),
+      name: "Workspace 1",
+      activeTabId: tab.id,
+      tabs: [tab],
+    };
+  }
   private tool: Tool = "selection";
   private selectedIds = new Set<string>();
   private editingTextId: string | null = null;
@@ -525,28 +567,60 @@ export class Editor {
   private renderVersion = 0;
 
   // ---- active-tab accessors --------------------------------------------
-  private get tab(): TabData {
-    return this.tabs.find((t) => t.id === this.activeTabId)!;
+  /**
+   * active tab = the currently OPEN workspace's canvas. `tabs`/`activeTabId`
+   * were private fields before multi-workspace support; the accessors below
+   * keep every call site working against the active workspace entry.
+   */
+  private get ws(): WorkspaceEntry {
+    return this.workspaces.find((w) => w.id === this.activeWorkspaceId) ?? this.workspaces[0];
+  }
+  private get tabs(): TabData[] {
+    return this.ws.tabs;
+  }
+  private set tabs(next: TabData[]) {
+    this.ws.tabs = next;
+  }
+  private get activeTabId(): string {
+    return this.ws.activeTabId;
+  }
+  private set activeTabId(id: string) {
+    this.ws.activeTabId = id;
   }
 
-  /** document of the ACTIVE tab */
+  private get tab(): TabData | undefined {
+    return this.ws.tabs.find((t) => t.id === this.ws.activeTabId) ?? this.ws.tabs[0];
+  }
+
   private get doc(): Document {
-    return this.tab.doc;
+    return this.tab?.doc ?? EMPTY_DOCUMENT;
   }
 
   private set doc(d: Document) {
-    this.tab.doc = d;
+    // editing while the active workspace has no canvas seeds its first canvas
+    const tab = this.tab;
+    if (tab) {
+      tab.doc = d;
+    } else {
+      const fresh = freshTab("Diagram 1");
+      fresh.doc = d;
+      this.ws.tabs = [fresh];
+      this.ws.activeTabId = fresh.id;
+    }
     this.renderVersion++;
   }
 
   /** camera of the ACTIVE tab */
   private get camera(): Camera {
-    return this.tab.camera;
+    return this.tab?.camera ?? INITIAL_CAMERA;
   }
 
   private set camera(c: Camera) {
-    this.tab.camera = c;
-    this.renderVersion++;
+    const tab = this.tab;
+    if (tab) {
+      tab.camera = c;
+      this.renderVersion++;
+    }
   }
 
   private get history(): History {
@@ -579,6 +653,12 @@ export class Editor {
         editingKind: this.editingKind,
         tabs: this.tabs.map(({ id, name }) => ({ id, name })),
         activeTabId: this.activeTabId,
+        workspaces: this.workspaces.map((w) => ({
+          id: w.id,
+          name: w.name,
+          canvases: w.tabs.map(({ id, name }) => ({ id, name })),
+        })),
+        activeWorkspaceId: this.activeWorkspaceId,
         hasDraft: this.draft !== null,
         focusMode: this.focusMode,
       };
@@ -1219,9 +1299,9 @@ borderRadius: 20,
   }
 
   // ---- tabs ------------------------------------------------------------
-  private nextTabName(): string {
+  private nextTabName(tabs: TabData[]): string {
     let max = 0;
-    for (const t of this.tabs) {
+    for (const t of tabs) {
       const m = t.name.match(/^Diagram (\d+)$/);
       if (m) max = Math.max(max, Number(m[1]));
     }
@@ -1229,12 +1309,7 @@ borderRadius: 20,
   }
 
   addTab() {
-    const tab: TabData = {
-      id: `tab_${Date.now().toString(36)}_${++tabSeq}`,
-      name: this.nextTabName(),
-      doc: { schemaVersion: 1, elements: [] },
-      camera: { scrollX: 0, scrollY: 0, zoom: 1 },
-    };
+    const tab = freshTab(this.nextTabName(this.tabs));
     this.tabs = [...this.tabs, tab];
     this.activateTab(tab.id);
   }
@@ -1277,12 +1352,7 @@ borderRadius: 20,
     if (this.tabs.length === 1) {
       // last tab: replace with a fresh one instead of closing
       this.histories.delete(id);
-      const fresh: TabData = {
-        id: `tab_${Date.now().toString(36)}_${++tabSeq}`,
-        name: this.nextTabName(),
-        doc: { schemaVersion: 1, elements: [] },
-        camera: { scrollX: 0, scrollY: 0, zoom: 1 },
-      };
+      const fresh = freshTab(this.nextTabName(this.tabs));
       this.tabs = [fresh];
       this.activateTab(fresh.id);
       return;
@@ -1300,14 +1370,182 @@ borderRadius: 20,
 
   /** switches active tab and resets transient interaction state */
   private activateTab(id: string) {
-    this.finishTextEdit();
+    this.resetTransientState();
     this.activeTabId = id;
+    this.emit();
+  }
+
+  private resetTransientState() {
+    this.finishTextEdit();
     this.selectedIds.clear();
     this.editingTextId = null;
     this.draft = null;
     this.bindingPreview = null;
     this.marquee = null;
     this.interaction = { kind: "none" };
+  }
+
+  // ---- workspaces -------------------------------------------------------
+  /** index (names + active workspace) — data blobs are written by autosave */
+  private persistWorkspaceIndex() {
+    writeIndex({
+      metas: this.workspaces.map((w) => ({
+        id: w.id,
+        name: w.name,
+        updatedAt: Date.now(),
+      })),
+      activeId: this.activeWorkspaceId,
+    });
+  }
+
+  private activateWorkspaceEntry(id: string) {
+    this.resetTransientState();
+    this.activeWorkspaceId = id;
+    this.persistWorkspaceIndex();
+    this.emit();
+  }
+
+  private nextWorkspaceName(): string {
+    let max = 0;
+    for (const w of this.workspaces) {
+      const m = w.name.match(/^Workspace (\d+)$/);
+      if (m) max = Math.max(max, Number(m[1]));
+    }
+    return `Workspace ${max + 1}`;
+  }
+
+  newWorkspace() {
+    const entry: WorkspaceEntry = {
+      id: nextWorkspaceId(),
+      name: this.nextWorkspaceName(),
+      activeTabId: "",
+      tabs: [],
+    };
+    this.workspaces = [...this.workspaces, entry];
+    this.activateWorkspaceEntry(entry.id);
+  }
+
+  openWorkspace(id: string) {
+    if (id === this.activeWorkspaceId) return;
+    if (!this.workspaces.some((w) => w.id === id)) return;
+    this.activateWorkspaceEntry(id);
+  }
+
+  renameWorkspace(id: string, name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (!this.workspaces.some((w) => w.id === id)) return;
+    this.workspaces = this.workspaces.map((w) =>
+      w.id === id ? { ...w, name: trimmed } : w,
+    );
+    this.persistWorkspaceIndex();
+    this.emit();
+  }
+
+  deleteWorkspace(id: string) {
+    const index = this.workspaces.findIndex((w) => w.id === id);
+    if (index === -1) return;
+    for (const t of this.workspaces[index].tabs) this.histories.delete(t.id);
+    removeWorkspaceEntry(id);
+    this.workspaces = this.workspaces.filter((w) => w.id !== id);
+    if (this.workspaces.length === 0) {
+      this.workspaces = [this.defaultWorkspace()];
+      this.activateWorkspaceEntry(this.workspaces[0].id);
+      return;
+    }
+    if (id === this.activeWorkspaceId) {
+      const neighbor = this.workspaces[Math.min(index, this.workspaces.length - 1)];
+      this.activateWorkspaceEntry(neighbor.id);
+    } else {
+      this.persistWorkspaceIndex();
+      this.emit();
+    }
+  }
+
+  /** moves a workspace to toIndex (order persists in the index) */
+  reorderWorkspaces(id: string, toIndex: number) {
+    const from = this.workspaces.findIndex((w) => w.id === id);
+    if (from === -1) return;
+    const to = Math.max(0, Math.min(toIndex, this.workspaces.length - 1));
+    if (to === from) return;
+    const next = [...this.workspaces];
+    const [ws] = next.splice(from, 1);
+    next.splice(to, 0, ws);
+    this.workspaces = next;
+    this.persistWorkspaceIndex();
+    this.emit();
+  }
+
+  /** starts editing the tab's name via the editor's rename flow */
+  addCanvasTo(wsId: string) {
+    const ws = this.workspaces.find((w) => w.id === wsId);
+    if (!ws) return;
+    const tab = freshTab(this.nextTabName(ws.tabs));
+    ws.tabs = [...ws.tabs, tab];
+    ws.activeTabId = tab.id;
+    if (wsId === this.activeWorkspaceId) {
+      this.resetTransientState();
+      this.emit();
+    } else {
+      this.emit();
+    }
+  }
+
+  /** closes a canvas that may belong to a NON-active workspace */
+  closeCanvasOf(wsId: string, tabId: string) {
+    if (wsId === this.activeWorkspaceId) {
+      this.closeTab(tabId);
+      return;
+    }
+    const ws = this.workspaces.find((w) => w.id === wsId);
+    if (!ws) return;
+    const index = ws.tabs.findIndex((t) => t.id === tabId);
+    if (index === -1) return;
+    this.histories.delete(tabId);
+    if (ws.tabs.length === 1) {
+      const fresh = freshTab(this.nextTabName(ws.tabs));
+      ws.tabs = [fresh];
+      ws.activeTabId = fresh.id;
+      this.emit();
+      return;
+    }
+    ws.tabs = ws.tabs.filter((t) => t.id !== tabId);
+    if (ws.activeTabId === tabId) {
+      const neighbor = ws.tabs[Math.min(index, ws.tabs.length - 1)];
+      ws.activeTabId = neighbor.id;
+    }
+    this.emit();
+  }
+
+  /** renames a canvas that may belong to a NON-active workspace */
+  renameCanvasOf(wsId: string, tabId: string, name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (wsId === this.activeWorkspaceId) {
+      this.renameTab(tabId, name);
+      return;
+    }
+    const ws = this.workspaces.find((w) => w.id === wsId);
+    if (!ws?.tabs.some((t) => t.id === tabId)) return;
+    ws.tabs = ws.tabs.map((t) => (t.id === tabId ? { ...t, name: trimmed } : t));
+    this.emit();
+  }
+
+  /** reorders canvases within any workspace (order persists via autosave) */
+  reorderCanvasOf(wsId: string, tabId: string, toIndex: number) {
+    if (wsId === this.activeWorkspaceId) {
+      this.reorderTab(tabId, toIndex);
+      return;
+    }
+    const ws = this.workspaces.find((w) => w.id === wsId);
+    const from = ws?.tabs.findIndex((t) => t.id === tabId);
+    if (!ws || from === undefined || from === -1) return;
+    const to = Math.max(0, Math.min(toIndex, ws.tabs.length - 1));
+    if (to === from) return;
+    const next = [...ws.tabs];
+    const [tab] = next.splice(from, 1);
+    next.splice(to, 0, tab);
+    ws.tabs = next;
     this.emit();
   }
 
@@ -2916,7 +3154,53 @@ strokeOpacity?: number;
 
   /** serializes only the active tab as a single-tab workspace */
   serializeActiveTab(): string {
-    return serializeSingleTab(this.tab);
+    return serializeSingleTab(this.tab ?? freshTab(this.nextTabName(this.tabs)));
+  }
+
+  /**
+   * hydrates workspaces from the registry boot (called once, before first
+   * render). Entries with no parsable tabs (corrupted persisted data) are
+   * skipped; falls back to the in-memory defaults when nothing is hydratable.
+   */
+  /**
+   * hydrates workspaces from the registry boot (called once, before first
+   * render). Entries with no parsable tabs (corrupted persisted data) are
+   * skipped; falls back to the in-memory defaults when nothing is hydratable.
+   * Blobs are flushed for every workspace here: on a fresh boot the default
+   * workspace would otherwise never gain a blob and be dropped on reload.
+   */
+  hydrateWorkspaceStore(boot: WorkspaceBoot) {
+    const entries: WorkspaceEntry[] = [];
+    for (const { meta, data } of boot.entries) {
+      entries.push({
+        id: meta.id,
+        name: meta.name,
+        activeTabId: data.tabs.some((t) => t.id === data.activeTabId)
+          ? data.activeTabId
+          : (data.tabs[0]?.id ?? ""),
+        tabs: data.tabs,
+      });
+    }
+    if (entries.length > 0) {
+      this.workspaces = entries;
+      const wantedId = boot.activeId;
+      this.activeWorkspaceId =
+        wantedId && entries.some((e) => e.id === wantedId)
+          ? wantedId
+          : entries[0].id;
+      this.histories.clear();
+      this.resetTransientState();
+    }
+    this.persistWorkspaceIndex();
+    this.flushWorkspaceBlobs();
+    this.emit();
+  }
+
+  /** writes every workspace's data blob (index is handled separately) */
+  private flushWorkspaceBlobs() {
+    for (const w of this.workspaces) {
+      writeWorkspaceData(w.id, serialize(w.tabs, w.activeTabId));
+    }
   }
 
   /** restores workspace (all tabs) from serialized data; returns false if invalid */
@@ -2926,14 +3210,9 @@ strokeOpacity?: number;
     this.tabs = data.tabs;
     this.activeTabId = this.tabs.some((t) => t.id === data.activeTabId)
       ? data.activeTabId
-      : this.tabs[0].id;
+      : (this.tabs[0]?.id ?? "");
     this.histories.clear();
-    this.selectedIds.clear();
-    this.editingTextId = null;
-    this.draft = null;
-    this.bindingPreview = null;
-    this.marquee = null;
-    this.interaction = { kind: "none" };
+    this.resetTransientState();
     this.emit();
     return true;
   }
@@ -2966,12 +3245,7 @@ strokeOpacity?: number;
       this.activeTabId = id;
     }
     this.histories.clear();
-    this.selectedIds.clear();
-    this.editingTextId = null;
-    this.draft = null;
-    this.bindingPreview = null;
-    this.marquee = null;
-    this.interaction = { kind: "none" };
+    this.resetTransientState();
     this.emit();
   }
 

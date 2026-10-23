@@ -56,114 +56,308 @@ button {
   cursor: grab;
 }
 
-/* ---- tab strip (bottom center): limites só em cima/embaixo, sem caixa ---- */
-.tabbar {
+/* ---- workspace panel (navegação estilo IDE, à esquerda) ---- */
+:root {
+  --panel-w: 272px;
+}
+
+.app {
+  --panel-shift: 0px;
+}
+
+.app[data-panel-open="true"] {
+  --panel-shift: var(--panel-w);
+}
+
+.corner-toggle {
   position: absolute;
-  bottom: var(--space-4);
-  left: 50%;
-  transform: translateX(-50%);
+  top: var(--space-3);
+  left: var(--space-4);
+  z-index: 40;
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: var(--space-1);
-  max-width: calc(100% - 420px);
+  height: 36px;
+  padding: 0 var(--space-2);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    left var(--transition-med),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
-.tabbar-seg-wrap {
+.corner-toggle:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.corner-toggle.open {
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+}
+
+/* o toggle é empurrado pela borda do painel quando ele abre */
+.app[data-panel-open="true"] .corner-toggle {
+  left: calc(var(--space-4) + var(--panel-w));
+}
+
+.corner-kbd {
+  margin-left: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono-ui);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+  background: var(--bg-surface-hover);
+}
+
+.workspace-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 39;
+  width: var(--panel-w);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  transform: translateX(-104%);
+  visibility: hidden;
+  transition:
+    transform var(--transition-med),
+    visibility var(--transition-med);
+}
+
+.app[data-panel-open="true"] .workspace-panel {
+  transform: translateX(0);
+  visibility: visible;
+  box-shadow: var(--shadow-md);
+}
+
+.wp-head {
   display: flex;
   align-items: center;
-  min-width: 0;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2) var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--border);
 }
 
-/* middle dot entre abas inativas (oculto junto à aba ativa) */
-.tabbar-dot {
-  flex-shrink: 0;
+.wp-title {
+  flex: 1;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
   color: var(--text-muted);
-  opacity: 0.6;
-  font-size: 15px;
-  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   user-select: none;
 }
 
-.tabbar-seg {
+.wp-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-1) var(--space-1) var(--space-5);
+  overscroll-behavior: contain;
+}
+
+.icon-btn {
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 0 var(--space-2);
-  height: 26px;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.icon-btn.visible {
+  opacity: 0.7;
+}
+
+.icon-btn:hover,
+.tree-row.active .icon-btn.visible,
+.tree-row:hover .icon-btn {
+  opacity: 1;
+}
+
+.tree-row.active .icon-btn.visible,
+.tree-row:hover .icon-btn {
+  color: var(--text-primary);
+}
+
+.icon-btn:hover {
+  background: var(--bg-surface-hover);
+}
+
+/* ---- tree rows ---- */
+.tree-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  padding-right: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
   font-size: var(--font-size-md);
   min-width: 0;
   cursor: pointer;
+  user-select: none;
+  position: relative;
   transition:
     background-color var(--transition-fast),
     color var(--transition-fast);
 }
 
-.tabbar-seg.dragging {
+.tree-row:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.tree-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.tree-row.dragging {
   opacity: 0.45;
   cursor: grabbing;
 }
 
-/* × na aba ativa: no fluxo, logo à direita do nome (nome trunca se precisar) */
-.tabbar-seg.active .tab-close {
-  flex-shrink: 0;
-  width: 15px;
-  height: 15px;
-  display: flex;
+/* linha de ativo: barra accent na esquerda (padrão do canvas ativo) */
+.tree-row.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
 }
 
-.tabbar-seg-name {
+.tree-caret {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 28px;
   border: none;
+  border-radius: var(--radius-sm);
   background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
   padding: 0;
-  color: inherit;
+}
+
+.tree-caret:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.tree-caret svg {
+  transition: transform var(--transition-fast);
+}
+
+.tree-caret-open {
+  transform: rotate(90deg);
+}
+
+.tree-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.tree-row.active .tree-icon.doc {
+  color: var(--accent);
+}
+
+.tree-indent {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.tree-name {
+  flex: 1;
+  min-width: 0;
   font-size: inherit;
+  color: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tabbar-seg:hover {
-  background: var(--bg-surface-hover);
+.tree-row.active .tree-name {
   color: var(--text-primary);
-}
-
-.tabbar-seg.active .tabbar-seg-name {
   font-weight: 600;
 }
 
-/* aba ativa: pinta o espaço inteiro (altura/largura totais, sem box próprio) */
-.tabbar-seg.active {
-  background: var(--accent);
-  color: var(--on-accent);
+.tree-name::selection {
+  background: none;
 }
 
-.tabbar-add {
-  align-self: center;
-  width: 26px;
-  height: 26px;
+.tree-count {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  transition: background-color var(--transition-fast);
-}
-
-.tabbar-add:hover {
   background: var(--bg-surface-hover);
-  color: var(--text-primary);
+  border-radius: var(--radius-full);
+  padding: 0 6px;
+  line-height: 16px;
 }
 
-.tab-rename {
-  width: 110px;
+.tree-children {
+  margin-left: 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  background: transparent;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.tree-empty:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.tree-rename {
+  flex: 1;
+  min-width: 0;
   font-size: var(--font-size-md);
   font-family: inherit;
   color: var(--text-primary);
@@ -174,34 +368,11 @@ button {
   padding: 0;
 }
 
-.tab-close {
-  width: 16px;
-  height: 16px;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  padding: 0;
-  transition: background-color var(--transition-fast);
+/* o canvas real entra quando o painel está aberto */
+.canvas-host {
+  margin-left: var(--panel-shift);
+  transition: margin-left var(--transition-med);
 }
-
-.tab-close::before {
-  content: "";
-  position: absolute;
-  inset: -6px;
-}
-
-.tab-close:hover {
-  background: var(--border);
-  color: var(--text-primary);
-}
-
-/* × da aba ativa acompanha o texto do strip */
 
 /* ---- confirmação de fechamento de aba ---- */
 .tab-confirm-backdrop {
@@ -514,7 +685,8 @@ button {
   position: absolute;
   top: var(--space-3);
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(calc(-50% + (var(--panel-shift) / 2)));
+  transition: transform var(--transition-med);
   display: flex;
   align-items: center;
   gap: 2px;
@@ -586,8 +758,9 @@ button {
 .properties-panel-container {
   position: absolute;
   top: 50%;
-  left: var(--space-4);
+  left: calc(var(--space-4) + var(--panel-shift));
   transform: translateY(-50%);
+  transition: left var(--transition-med);
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
@@ -1515,7 +1688,8 @@ button {
 .status-bar {
   position: absolute;
   bottom: var(--space-4);
-  left: var(--space-4);
+  left: calc(var(--space-4) + var(--panel-shift));
+  transition: left var(--transition-med);
   display: flex;
   align-items: center;
   font-size: var(--font-size-xs);
@@ -2383,7 +2557,7 @@ button {
 /* ---- Blueprint skin chrome: rigid look, per design/ui-options/04 ---- */
 /* widgets get ink-colored 1.5px borders + hard offset shadow (no blur) */
 :root[data-skin="blueprint"] .toolbar,
-:root[data-skin="blueprint"] .tabbar,
+:root[data-skin="blueprint"] .workspace-panel,
 :root[data-skin="blueprint"] .properties-panel,
 :root[data-skin="blueprint"] .menu-btn,
 :root[data-skin="blueprint"] .menu-dropdown,
@@ -2435,7 +2609,7 @@ button {
   font-weight: 700;
 }
 
-:root[data-skin="blueprint"] .tabbar-seg,
+:root[data-skin="blueprint"] .tree-row,
 :root[data-skin="blueprint"] .zoom-level,
 :root[data-skin="blueprint"] .status-bar {
   font-weight: 600;
@@ -2447,7 +2621,7 @@ button {
 :root[data-skin="midnight"] .menu-section-title,
 :root[data-skin="midnight"] .hover-info-title,
 :root[data-skin="midnight"] .status-bar,
-:root[data-skin="midnight"] .tabbar-seg,
+:root[data-skin="midnight"] .tree-row,
 :root[data-skin="midnight"] .zoom-level {
   font-family: var(--font-mono-ui);
 }
@@ -2460,7 +2634,7 @@ button {
 /* ---- Swiss Ink skin chrome: brutalist, per design/ui-options/05 ---- */
 /* widgets: 2px ink borders, zero radius, hard offset shadow */
 :root[data-skin="swiss"] .toolbar,
-:root[data-skin="swiss"] .tabbar,
+:root[data-skin="swiss"] .workspace-panel,
 :root[data-skin="swiss"] .properties-panel,
 :root[data-skin="swiss"] .menu-btn,
 :root[data-skin="swiss"] .menu-dropdown,
@@ -2495,7 +2669,7 @@ button {
 
 /* active states invert to ink instead of accent */
 :root[data-skin="swiss"] .tool-btn.active,
-:root[data-skin="swiss"] .tabbar-seg.active {
+:root[data-skin="swiss"] .tree-row.active {
   background: var(--text-primary);
   color: var(--bg-surface);
 }
@@ -2528,7 +2702,7 @@ button {
 }
 
 :root[data-skin="swiss"] .panel-tab,
-:root[data-skin="swiss"] .tabbar-seg,
+:root[data-skin="swiss"] .tree-row,
 :root[data-skin="swiss"] .menu-section-title,
 :root[data-skin="swiss"] .panel-subtitle,
 :root[data-skin="swiss"] .hover-info-title,

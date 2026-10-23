@@ -1,6 +1,7 @@
 import type { Editor } from "./editor";
 import type { ArrowBinding, ArrowElement, Camera, Document, Element, LineElement } from "./types";
 import { addImportedImage } from "./importedImages";
+import { writeWorkspaceData } from "./workspaceRegistry";
 
 const STORAGE_KEY = "archidraw:workspace";
 export const SCHEMA_VERSION = 2;
@@ -196,7 +197,8 @@ export function parse(json: string): WorkspaceData | null {
 
   if (d.schemaVersion !== SCHEMA_VERSION) return null;
   if (typeof d.activeTabId !== "string") return null;
-  if (!Array.isArray(d.tabs) || d.tabs.length === 0) return null;
+  // empty workspaces are valid (created with no canvas yet)
+  if (!Array.isArray(d.tabs)) return null;
 
   const tabs: TabData[] = [];
   for (const t of d.tabs) {
@@ -237,14 +239,6 @@ export function loadFromStorage(): WorkspaceData | null {
   }
 }
 
-export function clearStorage() {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
-}
-
 // ---- autosave ---------------------------------------------------------
 
 export function attachAutosave(
@@ -253,16 +247,25 @@ export function attachAutosave(
   onSaved?: () => void,
 ): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let pendingId: string | null = null;
+  let pendingJson: string = "";
   const unsubscribe = editor.subscribe(() => {
+    // snapshot BEFORE the debounce: a workspace switch during the delay must
+    // not re-target the save to the newly opened workspace
+    pendingId = editor.getSnapshot().activeWorkspaceId;
+    pendingJson = editor.serializeState();
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      saveToStorage(editor.serializeState());
+      if (pendingId) writeWorkspaceData(pendingId, pendingJson);
       onSaved?.();
       timer = null;
     }, delayMs);
   });
   // flush immediately when leaving the page
-  const flush = () => saveToStorage(editor.serializeState());
+  const flush = () => {
+    const id = editor.getSnapshot().activeWorkspaceId;
+    if (id) writeWorkspaceData(id, editor.serializeState());
+  };
   window.addEventListener("beforeunload", flush);
   return () => {
     unsubscribe();

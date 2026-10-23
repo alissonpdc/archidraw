@@ -13,6 +13,12 @@ type TestFixtures = {
 
 const collectCoverage = process.env.E2E_COVERAGE === "1";
 
+export interface WorkspaceInfoLike {
+  id: string;
+  name: string;
+  canvases: { id: string; name: string }[];
+}
+
 export interface EditorSnapshotLike {
   tool: string;
   selectedIds: string[];
@@ -21,6 +27,8 @@ export interface EditorSnapshotLike {
   elementCount: number;
   tabs: { id: string; name: string }[];
   activeTabId: string;
+  workspaces: WorkspaceInfoLike[];
+  activeWorkspaceId: string;
   focusMode: boolean;
   elements: {
     id: string;
@@ -85,8 +93,14 @@ export const test = base.extend<TestFixtures>({
           editingTextId: s.editingTextId,
           camera: { ...s.camera },
           elementCount: s.doc.elements.length,
-          tabs: s.tabs.map((t) => ({ ...t })),
+          tabs: s.tabs.map((t: any) => ({ ...t })),
           activeTabId: s.activeTabId,
+          workspaces: s.workspaces.map((w: any) => ({
+            id: w.id,
+            name: w.name,
+            canvases: w.canvases.map((c: any) => ({ id: c.id, name: c.name })),
+          })),
+          activeWorkspaceId: s.activeWorkspaceId,
           focusMode: s.focusMode,
           elements: s.doc.elements.map((el: any) => ({
             id: el.id,
