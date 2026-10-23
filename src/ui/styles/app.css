@@ -107,8 +107,10 @@ button {
 }
 
 .corner-toggle.open .corner-kbd {
-  color: var(--on-accent);
-  opacity: 0.7;
+  background: var(--on-accent);
+  border-color: var(--on-accent);
+  color: var(--accent);
+  opacity: 1;
 }
 
 .workspace-panel {
@@ -235,7 +237,7 @@ button {
   cursor: grabbing;
 }
 
-/* linha de ativo: barra accent na esquerda (padrão do canvas ativo) */
+/* canvas aberto herda a mesma marca do workspace ativo (barra accent) */
 .tree-row.active::before {
   content: "";
   position: absolute;

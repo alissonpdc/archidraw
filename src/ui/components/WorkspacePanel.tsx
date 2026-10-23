@@ -159,6 +159,14 @@ export function WorkspacePanel({ open }: { open: boolean }) {
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
+  const toggleExpanded = (wsId: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(wsId)) next.delete(wsId);
+      else next.add(wsId);
+      return next;
+    });
+
   const openCanvas = (wsId: string, canvasId: string) => {
     if (wsId !== activeWorkspaceId) editor.openWorkspace(wsId);
     editor.switchTab(canvasId);
@@ -283,8 +291,9 @@ export function WorkspacePanel({ open }: { open: boolean }) {
         onPointerCancel={endDrag}
       >
         <div className="wp-head">
+          <span className="wp-title">Workspaces</span>
           <button
-            className="icon-btn visible"
+            className="icon-btn wp-add"
             data-testid="ws-add"
             aria-label="New workspace"
             title="New workspace"
@@ -292,7 +301,6 @@ export function WorkspacePanel({ open }: { open: boolean }) {
           >
             <PlusIcon size={14} />
           </button>
-          <span className="wp-title">Workspaces</span>
         </div>
         <div className="wp-scroll">
           {orderedWorkspaces.map((ws) => (
@@ -319,7 +327,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                 }}
                 onClick={() => {
                   if (movedRef.current) return;
-                  editor.openWorkspace(ws.id);
+                  toggleExpanded(ws.id);
                 }}
               >
                 <button
@@ -328,12 +336,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                   aria-label={`Expand ${ws.name}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setExpanded((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(ws.id)) next.delete(ws.id);
-                      else next.add(ws.id);
-                      return next;
-                    });
+                    toggleExpanded(ws.id);
                   }}
                 >
                   <CaretIcon open={expanded.has(ws.id)} />

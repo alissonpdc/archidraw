@@ -31,10 +31,30 @@ test.describe("workspaces panel", () => {
     await expect(panel(page)).toHaveAttribute("data-open", "false");
   });
 
+  test("opening the panel clears the selection", async ({ page }) => {
+    await selectTool(page, "2");
+    await drag(page, { x: 400, y: 300 }, { x: 520, y: 380 });
+    await selectTool(page, "1");
+    await page.mouse.click(460, 340); // select the rectangle
+    // properties panel visible while selection exists
+    await expect(page.locator(".properties-panel")).toBeVisible();
+    // opening the panel drops the selection: the properties panel sits at
+    // the left edge and would overlap the popup
+    await page.keyboard.press("w");
+    await expect(page.locator('[data-testid="panel-toggle"]')).toHaveClass(/open/);
+    await expect(page.locator(".properties-panel")).toHaveCount(0);
+  });
+
+  test("workspaces heading puts the add button on the right", async ({ page }) => {
+    await openPanel(page);
+    const title = await page.locator(".wp-title").boundingBox();
+    const add = await page.locator('[data-testid="ws-add"]').boundingBox();
+    expect(add!.x).toBeGreaterThan(title!.x + title!.width - 4);
+  });
+
   test("toggle button stays in place; the panel overlays the canvas", async ({
     page,
-  }) => {
-    const toggle = page.locator('[data-testid="panel-toggle"]');
+  }) => {    const toggle = page.locator('[data-testid="panel-toggle"]');
     const closed = (await toggle.boundingBox())!;
     const canvas = await page.locator("canvas").boundingBox();
     await openPanel(page);
@@ -149,6 +169,26 @@ test.describe("workspaces panel", () => {
     await expect(row).toHaveCount(0);
     await caret.click();
     await expect(row).toBeVisible();
+  });
+
+  test("clicking a workspace row toggles its canvases without opening it", async ({
+    page,
+    editorState,
+  }) => {
+    await openPanel(page);
+    await page.click('[data-testid="ws-add"]'); // Workspace 2 active, both expanded
+    const ws1Canvas = groupFor(page, "Workspace 1").locator('[data-testid="ws-canvas-Diagram 1"]');
+    await expect(ws1Canvas).toBeVisible();
+
+    await page.locator('[data-testid="ws-row-Workspace 1"]').click();
+    await expect(ws1Canvas).toHaveCount(0);
+    let s = await editorState();
+    expect(s.activeWorkspaceId).toBe(s.workspaces[1].id);
+
+    await page.locator('[data-testid="ws-row-Workspace 1"]').click();
+    await expect(ws1Canvas).toBeVisible();
+    s = await editorState();
+    expect(s.activeWorkspaceId).toBe(s.workspaces[1].id);
   });
 
   test("empty workspace offers a New canvas shortcut", async ({
@@ -694,6 +734,27 @@ test.describe("workspaces panel", () => {
     expect(s.workspaces).toHaveLength(2);
     expect(s.workspaces[1].canvases).toHaveLength(0);
     expect(s.activeWorkspaceId).toBe(s.workspaces[1].id);
+  });
+
+  test("active canvas row is marked like the active workspace, not filled", async ({
+    page,
+  }) => {
+    await openPanel(page);
+    const row = page.locator('[data-testid="ws-canvas-Diagram 1"]');
+    const style = await row.evaluate((el) => {
+      const marker = getComputedStyle(el, "::before");
+      return {
+        background: getComputedStyle(el).backgroundColor,
+        markerContent: marker.content,
+        markerWidth: marker.width,
+        markerBackground: marker.backgroundColor,
+      };
+    });
+    // no full accent wash: only the left marker bar, as on the active workspace
+    expect(style.background).toBe("rgba(0, 0, 0, 0)");
+    expect(style.markerContent).not.toBe("none");
+    expect(style.markerWidth).toBe("3px");
+    expect(style.markerBackground).not.toBe("rgba(0, 0, 0, 0)");
   });
 
   test("legacy autosave migrates into the registry", async ({ page, editorState }) => {

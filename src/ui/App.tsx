@@ -55,6 +55,12 @@ export function App() {
     savePanelOpenPref(workspacesOpen);
   }, [workspacesOpen]);
 
+  // abrir o painel derruba a seleção: o properties-panel fica na borda
+  // esquerda e sobreporia o popup
+  useEffect(() => {
+    if (workspacesOpen) editor.clearSelection();
+  }, [workspacesOpen]);
+
   const toggleWorkspacesPanel = useCallback(() => {
     setWorkspacesOpen((v) => !v);
   }, []);
