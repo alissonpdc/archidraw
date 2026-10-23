@@ -69,6 +69,7 @@ button {
   --panel-shift: var(--panel-w);
 }
 
+/* estilo do hamburger (.tool-btn.menu-btn): mesmo widget, mesmo tema */
 .corner-toggle {
   position: absolute;
   top: var(--space-3);
@@ -76,14 +77,15 @@ button {
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 2px;
-  height: 36px;
-  padding: 0 var(--space-2);
+  justify-content: center;
+  width: 36px;
+  height: 34px;
+  padding: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
-  color: var(--text-muted);
+  color: var(--text-primary);
   cursor: pointer;
   transition:
     left var(--transition-med),
@@ -94,12 +96,13 @@ button {
 
 .corner-toggle:hover {
   background: var(--bg-surface-hover);
-  color: var(--text-primary);
 }
 
+/* aberto = accent, como o .menu-btn.active do menu principal */
 .corner-toggle.open {
-  color: var(--text-primary);
-  box-shadow: var(--shadow-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
 }
 
 /* o toggle é empurrado pela borda do painel quando ele abre */
@@ -107,29 +110,38 @@ button {
   left: calc(var(--space-4) + var(--panel-w));
 }
 
+/* mesma escala do .tool-key dos botões de ferramenta */
 .corner-kbd {
-  margin-left: var(--space-1);
-  font-size: var(--font-size-xs);
-  font-family: var(--font-mono-ui);
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  font-size: 8px;
+  line-height: 1;
+  font-family: inherit;
+  font-weight: 500;
   color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0 4px;
-  background: var(--bg-surface-hover);
+  pointer-events: none;
+}
+
+.corner-toggle.open .corner-kbd {
+  color: var(--on-accent);
+  opacity: 0.7;
 }
 
 .workspace-panel {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 50%;
   left: 0;
   z-index: 39;
   width: var(--panel-w);
+  height: 50%;
   display: flex;
   flex-direction: column;
   background: var(--bg-surface);
-  border-right: 1px solid var(--border);
-  transform: translateX(-104%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transform: translate(-104%, -50%);
   visibility: hidden;
   transition:
     transform var(--transition-med),
@@ -137,7 +149,7 @@ button {
 }
 
 .app[data-panel-open="true"] .workspace-panel {
-  transform: translateX(0);
+  transform: translate(0, -50%);
   visibility: visible;
   box-shadow: var(--shadow-md);
 }
@@ -2560,6 +2572,7 @@ button {
 :root[data-skin="blueprint"] .workspace-panel,
 :root[data-skin="blueprint"] .properties-panel,
 :root[data-skin="blueprint"] .menu-btn,
+:root[data-skin="blueprint"] .corner-toggle,
 :root[data-skin="blueprint"] .menu-dropdown,
 :root[data-skin="blueprint"] .zoom-widget,
 :root[data-skin="blueprint"] .focus-widget,
@@ -2579,7 +2592,8 @@ button {
   box-shadow: var(--shadow-md);
 }
 
-:root[data-skin="blueprint"] .menu-btn.active {
+:root[data-skin="blueprint"] .menu-btn.active,
+:root[data-skin="blueprint"] .corner-toggle.open {
   border-color: var(--accent);
 }
 
@@ -2637,6 +2651,7 @@ button {
 :root[data-skin="swiss"] .workspace-panel,
 :root[data-skin="swiss"] .properties-panel,
 :root[data-skin="swiss"] .menu-btn,
+:root[data-skin="swiss"] .corner-toggle,
 :root[data-skin="swiss"] .menu-dropdown,
 :root[data-skin="swiss"] .zoom-widget,
 :root[data-skin="swiss"] .focus-widget,
@@ -2656,14 +2671,16 @@ button {
   box-shadow: var(--shadow-md);
 }
 
-:root[data-skin="swiss"] .menu-btn.active {
+:root[data-skin="swiss"] .menu-btn.active,
+:root[data-skin="swiss"] .corner-toggle.open {
   border-color: var(--text-primary);
   background: var(--text-primary);
   color: var(--bg-surface);
 }
 
 :root[data-skin="swiss"] .zoom-btn,
-:root[data-skin="swiss"] .tool-btn {
+:root[data-skin="swiss"] .tool-btn,
+:root[data-skin="swiss"] .corner-toggle {
   border-radius: 0;
 }
 
