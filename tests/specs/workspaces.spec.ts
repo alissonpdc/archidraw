@@ -736,25 +736,38 @@ test.describe("workspaces panel", () => {
     expect(s.activeWorkspaceId).toBe(s.workspaces[1].id);
   });
 
-  test("active canvas row is marked like the active workspace, not filled", async ({
+  test("selected canvas is filled; its workspace keeps only the marker", async ({
     page,
   }) => {
     await openPanel(page);
-    const row = page.locator('[data-testid="ws-canvas-Diagram 1"]');
-    const style = await row.evaluate((el) => {
-      const marker = getComputedStyle(el, "::before");
-      return {
-        background: getComputedStyle(el).backgroundColor,
-        markerContent: marker.content,
-        markerWidth: marker.width,
-        markerBackground: marker.backgroundColor,
-      };
-    });
-    // no full accent wash: only the left marker bar, as on the active workspace
-    expect(style.background).toBe("rgba(0, 0, 0, 0)");
-    expect(style.markerContent).not.toBe("none");
-    expect(style.markerWidth).toBe("3px");
-    expect(style.markerBackground).not.toBe("rgba(0, 0, 0, 0)");
+    const canvasRow = page.locator('[data-testid="ws-canvas-Diagram 1"]');
+    const wsRow = page.locator('[data-testid="ws-row-Workspace 1"]');
+
+    const readRow = (locator: typeof canvasRow) =>
+      locator.evaluate((el) => {
+        const marker = getComputedStyle(el, "::before");
+        const name = el.querySelector(".tree-name");
+        return {
+          background: getComputedStyle(el).backgroundColor,
+          markerWidth: marker.width,
+          markerBackground: marker.backgroundColor,
+          nameColor: name ? getComputedStyle(name).color : "",
+        };
+      });
+
+    const canvas = await readRow(canvasRow);
+    const ws = await readRow(wsRow);
+
+    // open canvas: accent wash + thicker bar, so it never reads as just
+    // another highlighted row next to the active workspace
+    expect(canvas.background).not.toBe("rgba(0, 0, 0, 0)");
+    expect(canvas.markerWidth).toBe("4px");
+    // parent workspace: context only, marker bar without a wash
+    expect(ws.background).toBe("rgba(0, 0, 0, 0)");
+    expect(ws.markerBackground).not.toBe("rgba(0, 0, 0, 0)");
+    // and the label emphasis differs between the two levels
+    expect(canvas.nameColor).not.toBe(ws.nameColor);
+    await expect(canvasRow).toHaveAttribute("aria-selected", "true");
   });
 
   test("legacy autosave migrates into the registry", async ({ page, editorState }) => {
