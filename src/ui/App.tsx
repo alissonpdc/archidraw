@@ -48,6 +48,7 @@ export function App() {
   const [exportImageOpen, setExportImageOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [workspacesOpen, setWorkspacesOpen] = useState(loadPanelOpenPref);
+  const selectionBeforePanelRef = useRef<string[] | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,9 +57,20 @@ export function App() {
   }, [workspacesOpen]);
 
   // abrir o painel derruba a seleção: o properties-panel fica na borda
-  // esquerda e sobreporia o popup
+  // esquerda e sobreporia o popup. Ao fechar, a seleção anterior volta — mas
+  // só se o usuário não tiver selecionado outra coisa nesse meio-tempo.
   useEffect(() => {
-    if (workspacesOpen) editor.clearSelection();
+    if (workspacesOpen) {
+      const selected = [...editor.getSnapshot().selectedIds];
+      selectionBeforePanelRef.current = selected.length > 0 ? selected : null;
+      editor.clearSelection();
+      return;
+    }
+    const saved = selectionBeforePanelRef.current;
+    selectionBeforePanelRef.current = null;
+    if (saved && editor.getSnapshot().selectedIds.size === 0) {
+      editor.restoreSelection(saved);
+    }
   }, [workspacesOpen]);
 
   const toggleWorkspacesPanel = useCallback(() => {

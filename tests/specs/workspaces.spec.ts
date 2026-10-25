@@ -45,6 +45,63 @@ test.describe("workspaces panel", () => {
     await expect(page.locator(".properties-panel")).toHaveCount(0);
   });
 
+  test("closing the panel restores the selection it cleared", async ({
+    page,
+    editorState,
+  }) => {
+    await selectTool(page, "2");
+    await drag(page, { x: 400, y: 300 }, { x: 520, y: 380 });
+    await selectTool(page, "1");
+    await page.mouse.click(460, 340);
+    const before = await editorState();
+    expect(before.selectedIds).toHaveLength(1);
+
+    await page.keyboard.press("w");
+    await expect(panel(page)).toHaveAttribute("data-open", "true");
+    expect((await editorState()).selectedIds).toHaveLength(0);
+
+    // closing the panel undoes the deselection done on open
+    await page.keyboard.press("w");
+    await expect(panel(page)).toHaveAttribute("data-open", "false");
+    expect((await editorState()).selectedIds).toEqual(before.selectedIds);
+    await expect(page.locator(".properties-panel")).toBeVisible();
+  });
+
+  test("closing the panel keeps the canvas untouched when nothing was selected", async ({
+    page,
+    editorState,
+  }) => {
+    await openPanel(page);
+    await page.keyboard.press("w");
+    await expect(panel(page)).toHaveAttribute("data-open", "false");
+    expect((await editorState()).selectedIds).toHaveLength(0);
+    await expect(page.locator(".properties-panel")).toHaveCount(0);
+  });
+
+  test("closing the panel does not override a selection made while it was open", async ({
+    page,
+    editorState,
+  }) => {
+    await selectTool(page, "2");
+    await drag(page, { x: 300, y: 650 }, { x: 360, y: 690 }); // left shape
+    await drag(page, { x: 700, y: 300 }, { x: 760, y: 340 }); // right shape
+    await selectTool(page, "1");
+    await page.mouse.click(330, 670);
+    expect((await editorState()).selectedIds).toHaveLength(1);
+
+    await page.keyboard.press("w");
+    await expect(panel(page)).toHaveAttribute("data-open", "true");
+
+    // the canvas stays usable next to the panel: picking another shape wins
+    await page.mouse.click(730, 320);
+    const picked = (await editorState()).selectedIds;
+    expect(picked).toHaveLength(1);
+
+    await page.keyboard.press("w");
+    await expect(panel(page)).toHaveAttribute("data-open", "false");
+    expect((await editorState()).selectedIds).toEqual(picked);
+  });
+
   test("workspaces heading puts the add button on the right", async ({ page }) => {
     await openPanel(page);
     const title = await page.locator(".wp-title").boundingBox();

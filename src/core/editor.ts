@@ -1274,6 +1274,22 @@ borderRadius: 20,
     this.emit();
   }
 
+  /**
+   * Re-applies a selection captured before another UI surface stole it (the
+   * workspaces panel clears the selection while open). Ids that no longer
+   * exist in the active doc — the user may have switched canvas meanwhile —
+   * are dropped; an all-stale list is a no-op.
+   * Usage: `editor.restoreSelection(["el_1", "el_2"])`
+   */
+  restoreSelection(ids: readonly string[]) {
+    const present = new Set(this.doc.elements.map((el) => el.id));
+    const kept = ids.filter((id) => present.has(id));
+    if (kept.length === 0) return;
+    this.tool = "selection";
+    this.selectedIds = new Set(kept);
+    this.emit();
+  }
+
   /** registers a raster image file in the "Imported" library group and inserts
    *  it as a component at the viewport center (same pipeline as lib items) */
   insertImage(file: File) {
