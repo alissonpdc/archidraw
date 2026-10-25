@@ -19,14 +19,6 @@ function PanelIcon() {
   );
 }
 
-function CanvasIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-      <rect x="2.5" y="2.5" width="11" height="11" rx="1" />
-    </svg>
-  );
-}
-
 function CaretIcon({ open }: CanvasTagProps) {
   return (
     <svg
@@ -426,9 +418,6 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                           renameField(editing.initial)
                         ) : (
                           <>
-                            <span className="tree-icon doc" aria-hidden>
-                              <CanvasIcon />
-                            </span>
                             <span
                               className="tree-name"
                               data-testid={`ws-canvas-name-${c.id}`}

@@ -777,6 +777,8 @@ test.describe("workspaces panel", () => {
     expect(ws.background).toBe("rgba(0, 0, 0, 0)");
     expect(ws.markerContent).not.toBe("none");
     expect(ws.markerBackground).not.toBe("rgba(0, 0, 0, 0)");
+    // canvas rows are text-only: the square doc icon is gone
+    await expect(canvasRow.locator(".tree-icon")).toHaveCount(0);
     await expect(canvasRow).toHaveAttribute("aria-selected", "true");
   });
 

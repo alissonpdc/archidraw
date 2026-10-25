@@ -253,6 +253,12 @@ button {
 /* canvas aberto: mesmo accent sólido dos demais controles ativos (.tool-btn,
    .menu-btn). O workspace pai já é marcado pela barra, então o canvas não
    precisa de marca extra — só a cor. */
+/* canvas rows are text-only (no doc icon): give the label some breathing room
+   instead of starting flush against the accent fill */
+.tree-row.canvas-row {
+  padding-left: var(--space-2);
+}
+
 .tree-row.canvas-row.active {
   background: var(--accent);
   color: var(--on-accent);
@@ -300,10 +306,6 @@ button {
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-}
-
-.tree-row.canvas-row.active .tree-icon.doc {
-  color: var(--on-accent);
 }
 
 .tree-row.canvas-row.active .icon-btn {
@@ -2701,7 +2703,6 @@ button {
 }
 
 :root[data-skin="swiss"] .tree-row.canvas-row.active .tree-name,
-:root[data-skin="swiss"] .tree-row.canvas-row.active .tree-icon.doc,
 :root[data-skin="swiss"] .tree-row.canvas-row.active .icon-btn {
   color: var(--bg-surface);
 }
