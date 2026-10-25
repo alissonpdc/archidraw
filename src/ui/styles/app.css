@@ -393,6 +393,14 @@ button {
   padding: 0;
 }
 
+/* o canvas aberto tem preenchimento accent: manter o text-primary do input
+   deixaria o texto ilegível (ex.: blueprint light, #17334f sobre #1e5aa8).
+   Usa o mesmo on-accent do label no estado ativo. */
+.tree-row.canvas-row.active .tree-rename {
+  color: var(--on-accent);
+  border-bottom-color: var(--on-accent);
+}
+
 /* ---- confirmação de fechamento de aba ---- */
 .tab-confirm-backdrop {
   z-index: 90;

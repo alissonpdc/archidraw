@@ -220,6 +220,26 @@ test.describe("workspaces panel", () => {
     expect(s.workspaces[1].name).toBe("Workspace 2");
   });
 
+  test("rename input on the active canvas keeps readable contrast", async ({
+    page,
+  }) => {
+    await openPanel(page);
+    const activeRow = panel(page).locator(".tree-row.canvas-row.active");
+    await activeRow.locator(".tree-name").dblclick();
+    const input = page.locator('[data-testid="rename-input"]');
+    await expect(input).toBeVisible();
+
+    const contrast = await input.evaluate((el) => {
+      const { contrastRatio, parseColor } = (window as any).__color__;
+      const row = el.closest(".tree-row") as HTMLElement;
+      return contrastRatio(
+        parseColor(getComputedStyle(el).color),
+        parseColor(getComputedStyle(row).backgroundColor),
+      );
+    });
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
+  });
+
   test("elements are isolated across workspaces", async ({
     page,
     editorState,
