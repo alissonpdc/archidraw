@@ -3234,20 +3234,40 @@ strokeOpacity?: number;
   }
 
   /**
-   * Parses a workspace file and adds all its tabs as new diagrams.
-   * Never replaces existing tabs — always additive.
-   * Returns the number of diagrams added, or 0 if the file was invalid.
+   * Imports a workspace file. A single-canvas file lands as a new canvas in
+   * the workspace that is currently selected; a multi-canvas file becomes a
+   * new workspace named after the imported file.
+   * Returns the number of canvases added, or 0 when the file is invalid.
    */
-  importAsNewDiagrams(json: string): number {
+  importWorkspaceFile(json: string, fileName: string): number {
     const data = parse(json);
-    if (!data) return 0;
-    const newTabs = data.tabs.map((t) => ({
+    if (!data || data.tabs.length === 0) return 0;
+    const importedTabs = data.tabs.map((t) => ({
       ...t,
       id: `tab_${Date.now().toString(36)}_${++tabSeq}`,
     }));
-    this.tabs = [...this.tabs, ...newTabs];
-    this.activateTab(newTabs[0].id);
-    return newTabs.length;
+    if (importedTabs.length === 1) {
+      this.appendTabsToActiveWorkspace(importedTabs);
+    } else {
+      this.insertWorkspaceFromImport(fileName, importedTabs);
+    }
+    return importedTabs.length;
+  }
+
+  private appendTabsToActiveWorkspace(tabs: TabData[]) {
+    this.tabs = [...this.tabs, ...tabs];
+    this.activateTab(tabs[0].id);
+  }
+
+  private insertWorkspaceFromImport(name: string, tabs: TabData[]) {
+    const entry: WorkspaceEntry = {
+      id: nextWorkspaceId(),
+      name: name.trim() || this.nextWorkspaceName(),
+      activeTabId: tabs[0].id,
+      tabs,
+    };
+    this.workspaces = [...this.workspaces, entry];
+    this.activateWorkspaceEntry(entry.id);
   }
 
   /** imports a Document into the current active tab (used by .excalidraw import) */

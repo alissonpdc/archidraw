@@ -339,16 +339,59 @@ test.describe("editor.ts misc edge cases", () => {
     expect(s.elementCount).toBe(0);
   });
 
-  test("importAsNewDiagrams with invalid JSON is a no-op", async ({
+  test("importWorkspaceFile with invalid JSON is a no-op", async ({
     page,
     editorState,
   }) => {
     await open(page);
     await page.evaluate(() =>
-      (window as any).__editor__.importAsNewDiagrams("bad"),
+      (window as any).__editor__.importWorkspaceFile("bad", "bad"),
     );
     const s = await editorState();
     expect(s.tabs).toHaveLength(1);
+  });
+
+  test("importWorkspaceFile with an empty tabs array is a no-op", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+    await page.evaluate(() =>
+      (window as any).__editor__.importWorkspaceFile(
+        JSON.stringify({ schemaVersion: 2, activeTabId: "a", tabs: [] }),
+        "empty",
+      ),
+    );
+    const s = await editorState();
+    expect(s.tabs).toHaveLength(1);
+    expect(s.workspaces).toHaveLength(1);
+  });
+
+  test("importWorkspaceFile without a file name falls back to the next workspace name", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+    const tab = {
+      id: "a",
+      name: "Imported A",
+      doc: { schemaVersion: 1, elements: [] },
+      camera: { scrollX: 0, scrollY: 0, zoom: 1 },
+    };
+    await page.evaluate(
+      (payload) =>
+        (window as any).__editor__.importWorkspaceFile(payload, "  "),
+      JSON.stringify({
+        schemaVersion: 2,
+        activeTabId: "a",
+        tabs: [tab, { ...tab, id: "b", name: "Imported B" }],
+      }),
+    );
+    const s = await editorState();
+    expect(s.workspaces.map((w) => w.name)).toEqual([
+      "Workspace 1",
+      "Workspace 2",
+    ]);
   });
 
   test("finishTextEdit when no text is being edited is a no-op", async ({
