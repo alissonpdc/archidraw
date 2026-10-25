@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client";
 import "./ui/styles/app.css";
 import { App } from "./ui/App";
 import { editor } from "./ui/hooks/useEditor";
-import { attachAutosave, loadFromStorage } from "./core/storage";
+import { attachAutosave } from "./core/storage";
+import { bootWorkspaceStore } from "./core/workspaceRegistry";
 import { markSaved } from "./ui/saveStatus";
 import {
   applySkinPref,
@@ -92,11 +93,9 @@ initImportedLibraries();
 initImportedImages();
 initCustomLibrary();
 
-// restore last session before first render (no flash of empty canvas)
-const saved = loadFromStorage();
-if (saved) {
-  editor.restoreState(JSON.stringify(saved));
-}
+// restore last session before first render (no flash of empty canvas);
+// legacy single-key autosave migrates into the workspace registry here
+editor.hydrateWorkspaceStore(bootWorkspaceStore());
 
 attachAutosave(editor, 400, markSaved);
 attachThemeColorCorrelation(editor);

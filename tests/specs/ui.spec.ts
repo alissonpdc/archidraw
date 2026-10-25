@@ -254,7 +254,7 @@ test.describe("ui widgets", () => {
     await open(page);
     await page.click('[data-testid="app-menu-button"]');
     await page.getByRole("button", { name: "Save…" }).click();
-    await page.getByRole("button", { name: "Save All" }).click();
+    await page.getByRole("button", { name: "Save Workspace" }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(page.locator(".toast")).toHaveText(/Workspace saved/);

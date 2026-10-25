@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { editor } from "./hooks/useEditor";
 import { toggleLightDark } from "./theme";
 import { CanvasHost } from "./components/CanvasHost";
 import { Toolbar } from "./components/Toolbar";
 import { PropertiesPanel } from "./components/PropertiesPanel";
-import { TabBar } from "./components/TabBar";
-import { AppMenu } from "./components/AppMenu";
-import { ZoomWidget, FocusWidget } from "./components/ZoomWidget";
+import { WorkspacePanel, WorkspacePanelToggle } from "./components/WorkspacePanel";
+import { loadPanelOpenPref, savePanelOpenPref } from "./panelPrefs";
+import { AppMenu } from "./components/AppMenu";import { ZoomWidget, FocusWidget } from "./components/ZoomWidget";
 import { HistoryWidget } from "./components/HistoryWidget";
 import { StatusBar } from "./components/StatusBar";
 import { Toasts } from "./components/Toasts";
@@ -47,8 +47,47 @@ export function App() {
   const [focusMode, setFocusMode] = useState(false);
   const [exportImageOpen, setExportImageOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [workspacesOpen, setWorkspacesOpen] = useState(loadPanelOpenPref);
+  const selectionBeforePanelRef = useRef<string[] | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    savePanelOpenPref(workspacesOpen);
+  }, [workspacesOpen]);
+
+  // abrir o painel derruba a seleção: o properties-panel fica na borda
+  // esquerda e sobreporia o popup. Ao fechar, a seleção anterior volta — mas
+  // só se o usuário não tiver selecionado outra coisa nesse meio-tempo.
+  useEffect(() => {
+    if (workspacesOpen) {
+      const selected = [...editor.getSnapshot().selectedIds];
+      selectionBeforePanelRef.current = selected.length > 0 ? selected : null;
+      editor.clearSelection();
+      return;
+    }
+    const saved = selectionBeforePanelRef.current;
+    selectionBeforePanelRef.current = null;
+    if (saved && editor.getSnapshot().selectedIds.size === 0) {
+      editor.restoreSelection(saved);
+    }
+  }, [workspacesOpen]);
+
+  // selecionar um objeto no canvas fecha o painel: o menu aberto não deve
+  // continuar por cima do trabalho que o usuário acabou de começar
+  useEffect(() => {
+    if (!workspacesOpen) return;
+    const unsub = editor.subscribe(() => {
+      if (editor.getSnapshot().selectedIds.size > 0) setWorkspacesOpen(false);
+    });
+    return () => {
+      unsub();
+    };
+  }, [workspacesOpen]);
+
+  const toggleWorkspacesPanel = useCallback(() => {
+    setWorkspacesOpen((v) => !v);
+  }, []);
 
   useEffect(() => {
     const unsub = editor.subscribe(() => {
@@ -178,6 +217,11 @@ export function App() {
         setLibraryOpen((v) => !v);
         return;
       }
+      if (e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        toggleWorkspacesPanel();
+        return;
+      }
       if (e.key.toLowerCase() === "i") {
         e.preventDefault();
         imageInputRef.current?.click();
@@ -208,7 +252,7 @@ export function App() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, []);
+  }, [toggleWorkspacesPanel]);
 
   useEffect(() => {
     const internalClipboardHas = () => {
@@ -250,13 +294,20 @@ export function App() {
   }, []);
 
   return (
-    <div className="app" data-library-open={libraryOpen || undefined}>
+    <div
+      className="app"
+      data-library-open={libraryOpen || undefined}
+      data-panel-open={workspacesOpen || undefined}
+    >
       <CanvasHost />
       <ContextMenu />
       <HoverInfoBox />
       {!focusMode && (
         <>
-          <TabBar />
+          <WorkspacePanelToggle open={workspacesOpen} onToggle={toggleWorkspacesPanel} />
+          <WorkspacePanel
+            open={workspacesOpen}
+          />
           <div className="top-right">
             <AppMenu
               onExportImage={() => setExportImageOpen(true)}

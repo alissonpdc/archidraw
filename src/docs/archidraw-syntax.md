@@ -93,11 +93,13 @@ Important: in a schema 2 file the app does not default geometry or color fields.
 
 ### 2.4 Import semantics
 
-- Import is additive. Existing tabs are never replaced or removed.
+- Import is additive. Existing tabs and workspaces are never replaced or removed.
+- A file with one tab is added as a new canvas to the workspace that is currently selected. A tab still carrying the default `Diagram N` name is renamed to the file name.
+- A file with two or more tabs becomes a new workspace named after the file (`.archidraw`, `.archidraw.json` and `.json` suffixes stripped). The new workspace is activated and holds every imported tab as one of its canvases; the previously selected workspace is left untouched.
 - Tab ids are regenerated as `tab_<base36 timestamp>_<counter>`.
 - Tab names and cameras are preserved.
 - The first imported tab becomes the active tab: the tab order decides what you see first after an Open, while `activeTabId` (section 2.1) is honored only when the whole workspace is restored from the autosave when the app starts.
-- The picker accepts `.archidraw`, `.archidraw.json` and plain `.json` files carrying this envelope. `.excalidraw` files take a separate import path that is out of scope here.
+- The picker accepts `.archidraw`, `.archidraw.json` and plain `.json` files carrying this envelope. `.excalidraw` files take a separate import path that is out of scope here; they always behave like a one-tab file and land in the selected workspace.
 
 The same envelope is used for the localStorage autosave (key `archidraw:workspace`), for Save Diagram (active tab exported as a one-tab file `<slug>.archidraw`) and for Save All (`workspace.archidraw`).
 

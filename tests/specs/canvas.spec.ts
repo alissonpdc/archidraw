@@ -257,7 +257,8 @@ test.describe("clipboard", () => {
     await page.mouse.click(150, 140);
     await page.keyboard.press("Control+c");
 
-    await page.click('[data-testid="tab-add"]'); // new empty tab
+    await page.click('[data-testid="panel-toggle"]');
+    await page.click('[data-testid="ws-add-canvas"]'); // new empty canvas
     await pressPaste(page);
 
     await expect

@@ -183,16 +183,19 @@ export function AppMenu({
     }
 
     // ArchiDraw format (.archidraw or .archidraw.json)
-    const count = editor.importAsNewDiagrams(text);
-    if (count > 0) {
-      const baseName = file.name.replace(/\.archidraw(\.json)?$/i, "");
-      // rename the first imported tab to the filename if it was the default name
+    const baseName = file.name.replace(/(\.archidraw(\.json)?|\.json)$/i, "");
+    const count = editor.importWorkspaceFile(text, baseName);
+    if (count === 1) {
+      // a single canvas joins the selected workspace, renamed to the file
+      // name when the file still carries the default tab name
       const snap = editor.getSnapshot();
       const first = snap.tabs.find((t) => t.id === snap.activeTabId);
       if (first && /^Diagram \d+$/.test(first.name)) {
         editor.renameTab(first.id, baseName);
       }
-      toast(`${count} diagram(s) imported`);
+      toast(`"${baseName}" imported`);
+    } else if (count > 1) {
+      toast(`${count} diagrams imported into "${baseName}"`);
     } else {
       toast("Invalid file — import cancelled");
     }

@@ -346,4 +346,28 @@ test.describe("persistence", () => {
     const s = await editorState();
     expect(s.elementCount).toBe(0);
   });
+
+  test("beforeunload flushes the autosave without the debounce", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+    await selectTool(page, "2");
+    await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
+
+    // flush synchronously via the page-leave hook (no waitForTimeout)
+    const count = await page.evaluate(() => {
+      window.dispatchEvent(new Event("beforeunload"));
+      const blob = Object.keys(localStorage)
+        .filter((k) => k.startsWith("archidraw:workspaces:"))
+        .map((k) => JSON.parse(localStorage.getItem(k)!))[0];
+      return blob?.tabs[0]?.doc?.elements?.length ?? 0;
+    });
+    expect(count).toBe(1);
+
+    await page.reload();
+    await open(page);
+    const s = await editorState();
+    expect(s.elementCount).toBe(1);
+  });
 });

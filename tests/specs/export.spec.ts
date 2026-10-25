@@ -5,6 +5,13 @@ async function createRect(page: import("@playwright/test").Page) {
   await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
 }
 
+async function readArchidraw(download: import("@playwright/test").Download) {
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  return JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+}
+
 test.describe("export / import", () => {
   test.beforeEach(async ({ page }) => {
     await open(page);
@@ -15,16 +22,13 @@ test.describe("export / import", () => {
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
     await page.getByRole("button", { name: "Save…" }).click();
-    await page.getByRole("button", { name: "Save Diagram" }).click();
+    await page.getByRole("button", { name: "Save Canvas" }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     const download = await downloadPromise;
 
     expect(download.suggestedFilename()).toMatch(/\.archidraw$/);
 
-    const stream = await download.createReadStream();
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) chunks.push(chunk as Buffer);
-    const data = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+    const data = await readArchidraw(download);
 
     expect(data.schemaVersion).toBe(2);
     expect(data.tabs).toHaveLength(1);
@@ -32,12 +36,20 @@ test.describe("export / import", () => {
     expect(data.tabs[0].doc.elements[0].type).toBe("rectangle");
   });
 
+  test("Ctrl+S offers saving the canvas or the workspace", async ({ page }) => {
+    await page.keyboard.press("Control+s");
+
+    const dialog = page.getByRole("dialog", { name: "Save" });
+    await expect(dialog.getByRole("button", { name: "Save Canvas" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Save Workspace" })).toBeVisible();
+  });
+
   test("import .archidraw restores a workspace round-trip", async ({ page }) => {
     // export first
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
     await page.getByRole("button", { name: "Save…" }).click();
-    await page.getByRole("button", { name: "Save Diagram" }).click();
+    await page.getByRole("button", { name: "Save Canvas" }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     const download = await downloadPromise;
     const path = await download.path();
@@ -592,8 +604,9 @@ test.describe("export / import", () => {
   });
 
   test("filename is derived from active tab name", async ({ page }) => {
-    await page.dblclick('[data-testid="tab-seg-Diagram 1"]');
-    const input = page.locator(".tab-rename");
+    await page.click('[data-testid="panel-toggle"]');
+    await page.dblclick('[data-testid="ws-canvas-Diagram 1"] .tree-name');
+    const input = page.locator('[data-testid="rename-input"]');
     await input.fill("My Architecture!");
     await input.press("Enter");
 

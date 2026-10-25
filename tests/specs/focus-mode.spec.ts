@@ -14,8 +14,7 @@ test.describe("focus mode", () => {
     await expect(page.locator(".bottom-right")).toHaveCount(0);
     await expect(page.locator(".status-bar")).toHaveCount(0);
     await expect(page.locator(".properties-panel")).toHaveCount(0);
-    await expect(page.locator(".tabbar")).toHaveCount(0);
-    // canvas remains visible
+    await expect(page.locator(".workspace-panel")).toHaveCount(0);
     await expect(page.locator("canvas")).toBeVisible();
   });
 

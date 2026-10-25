@@ -144,8 +144,15 @@ test.describe("empty clipboard", () => {
   });
 });
 
+const tab = (id: string, name: string) => ({
+  id,
+  name,
+  doc: { schemaVersion: 1, elements: [] },
+  camera: { scrollX: 0, scrollY: 0, zoom: 1 },
+});
+
 test.describe("archidraw workspace import", () => {
-  test("importing a multi-tab .archidraw file adds new diagrams", async ({
+  test("importing a multi-tab .archidraw file creates a workspace named after the file", async ({
     page,
     editorState,
   }) => {
@@ -153,20 +160,7 @@ test.describe("archidraw workspace import", () => {
     const workspace = JSON.stringify({
       schemaVersion: 2,
       activeTabId: "a",
-      tabs: [
-        {
-          id: "a",
-          name: "Imported A",
-          doc: { schemaVersion: 1, elements: [] },
-          camera: { scrollX: 0, scrollY: 0, zoom: 1 },
-        },
-        {
-          id: "b",
-          name: "Imported B",
-          doc: { schemaVersion: 1, elements: [] },
-          camera: { scrollX: 0, scrollY: 0, zoom: 1 },
-        },
-      ],
+      tabs: [tab("a", "Imported A"), tab("b", "Imported B")],
     });
     await importFile(page, {
       name: "pack.archidraw.json",
@@ -175,8 +169,92 @@ test.describe("archidraw workspace import", () => {
     });
 
     const s = await editorState();
-    expect(s.tabs.map((t) => t.name)).toContain("Imported A");
-    expect(s.tabs.map((t) => t.name)).toContain("Imported B");
-    expect(s.tabs.length).toBeGreaterThanOrEqual(3);
+    expect(s.workspaces.map((w) => w.name)).toEqual(["Workspace 1", "pack"]);
+    expect(s.workspaces[0].canvases.map((c) => c.name)).toEqual(["Diagram 1"]);
+    expect(s.workspaces[1].canvases.map((c) => c.name)).toEqual([
+      "Imported A",
+      "Imported B",
+    ]);
+    expect(s.activeWorkspaceId).toBe(s.workspaces[1].id);
+    expect(s.tabs.map((t) => t.name)).toEqual(["Imported A", "Imported B"]);
+    expect(s.activeTabId).toBe(s.tabs[0].id);
+  });
+
+  test("importing a multi-tab file keeps the selected workspace untouched", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+    await page.evaluate(() => (window as any).__editor__.newWorkspace());
+    const workspace = JSON.stringify({
+      schemaVersion: 2,
+      activeTabId: "a",
+      tabs: [tab("a", "Imported A"), tab("b", "Imported B")],
+    });
+    await importFile(page, {
+      name: "design-system.archidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(workspace, "utf-8"),
+    });
+
+    const s = await editorState();
+    expect(s.workspaces.map((w) => w.name)).toEqual([
+      "Workspace 1",
+      "Workspace 2",
+      "design-system",
+    ]);
+    expect(s.workspaces[1].canvases).toHaveLength(0);
+    expect(s.activeWorkspaceId).toBe(s.workspaces[2].id);
+  });
+
+  test("importing a single-tab .archidraw file adds a canvas to the selected workspace", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+    const workspace = JSON.stringify({
+      schemaVersion: 2,
+      activeTabId: "a",
+      tabs: [tab("a", "Imported A")],
+    });
+    await importFile(page, {
+      name: "single.archidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(workspace, "utf-8"),
+    });
+
+    const s = await editorState();
+    expect(s.workspaces).toHaveLength(1);
+    expect(s.workspaces[0].canvases.map((c) => c.name)).toEqual([
+      "Diagram 1",
+      "Imported A",
+    ]);
+    expect(s.activeWorkspaceId).toBe(s.workspaces[0].id);
+    expect(s.tabs.map((t) => t.name)).toEqual(["Diagram 1", "Imported A"]);
+    expect(s.activeTabId).toBe(s.tabs[1].id);
+  });
+
+  test("importing a single-tab file without a name renames the canvas to the file name", async ({
+    page,
+    editorState,
+  }) => {
+    await open(page);
+    const workspace = JSON.stringify({
+      schemaVersion: 2,
+      activeTabId: "a",
+      tabs: [tab("a", "Diagram 1")],
+    });
+    await importFile(page, {
+      name: "landing-page.archidraw",
+      mimeType: "application/json",
+      buffer: Buffer.from(workspace, "utf-8"),
+    });
+
+    const s = await editorState();
+    expect(s.workspaces).toHaveLength(1);
+    expect(s.workspaces[0].canvases.map((c) => c.name)).toEqual([
+      "Diagram 1",
+      "landing-page",
+    ]);
   });
 });
