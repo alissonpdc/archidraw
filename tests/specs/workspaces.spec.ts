@@ -736,7 +736,7 @@ test.describe("workspaces panel", () => {
     expect(s.activeWorkspaceId).toBe(s.workspaces[1].id);
   });
 
-  test("selected canvas is filled; its workspace keeps only the marker", async ({
+  test("selected canvas uses the active-control color, without a marker", async ({
     page,
   }) => {
     await openPanel(page);
@@ -749,6 +749,8 @@ test.describe("workspaces panel", () => {
         const name = el.querySelector(".tree-name");
         return {
           background: getComputedStyle(el).backgroundColor,
+          boxShadow: getComputedStyle(el).boxShadow,
+          markerContent: marker.content,
           markerWidth: marker.width,
           markerBackground: marker.backgroundColor,
           nameColor: name ? getComputedStyle(name).color : "",
@@ -757,16 +759,24 @@ test.describe("workspaces panel", () => {
 
     const canvas = await readRow(canvasRow);
     const ws = await readRow(wsRow);
+    const activeCtrl = await page
+      .locator(".tool-btn.active")
+      .first()
+      .evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { background: s.backgroundColor, color: s.color };
+      });
 
-    // open canvas: accent wash + thicker bar, so it never reads as just
-    // another highlighted row next to the active workspace
-    expect(canvas.background).not.toBe("rgba(0, 0, 0, 0)");
-    expect(canvas.markerWidth).toBe("4px");
-    // parent workspace: context only, marker bar without a wash
+    // the open canvas is a plain solid fill in the same accent as any other
+    // active control — no left bar, no outline
+    expect(canvas.background).toBe(activeCtrl.background);
+    expect(canvas.nameColor).toBe(activeCtrl.color);
+    expect(canvas.markerContent).toBe("none");
+    expect(canvas.boxShadow).toBe("none");
+    // parent workspace: context only, marker bar without a fill
     expect(ws.background).toBe("rgba(0, 0, 0, 0)");
+    expect(ws.markerContent).not.toBe("none");
     expect(ws.markerBackground).not.toBe("rgba(0, 0, 0, 0)");
-    // and the label emphasis differs between the two levels
-    expect(canvas.nameColor).not.toBe(ws.nameColor);
     await expect(canvasRow).toHaveAttribute("aria-selected", "true");
   });
 

@@ -250,21 +250,20 @@ button {
   background: color-mix(in srgb, var(--accent) 65%, transparent);
 }
 
-/* canvas aberto: preenchimento accent + barra cheia. Sem isso ele fica
-   idêntico ao workspace pai (que também recebe .active) e some na árvore. */
+/* canvas aberto: mesmo accent sólido dos demais controles ativos (.tool-btn,
+   .menu-btn). O workspace pai já é marcado pela barra, então o canvas não
+   precisa de marca extra — só a cor. */
 .tree-row.canvas-row.active {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .tree-row.canvas-row.active:hover {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  background: var(--accent-strong);
 }
 
 .tree-row.canvas-row.active::before {
-  top: 4px;
-  bottom: 4px;
-  width: 4px;
+  content: none;
 }
 
 .tree-caret {
@@ -304,7 +303,11 @@ button {
 }
 
 .tree-row.canvas-row.active .tree-icon.doc {
-  color: var(--accent);
+  color: var(--on-accent);
+}
+
+.tree-row.canvas-row.active .icon-btn {
+  color: var(--on-accent);
 }
 
 .tree-indent {
@@ -327,9 +330,9 @@ button {
   font-weight: 600;
 }
 
-/* o nome do canvas aberto fala accent, não text-primary: diferencia do pai */
+/* o nome do canvas aberto usa o on-accent do preenchimento */
 .tree-row.canvas-row.active .tree-name {
-  color: var(--accent);
+  color: var(--on-accent);
 }
 
 .tree-name::selection {
@@ -2690,18 +2693,16 @@ button {
   color: var(--bg-surface);
 }
 
-/* swiss hierarchy, mirroring the default skin: the open canvas is the only
-   ink-filled row; the parent workspace keeps the plain marker bar */
-:root[data-skin="swiss"] .tree-row.canvas-row.active {
-  box-shadow: none;
-}
-
+/* swiss hierarchy: the open canvas is the only ink-filled row, the parent
+   workspace keeps the plain marker bar (matching the default skin) */
 :root[data-skin="swiss"] .tree-row.ws-row.active {
   background: transparent;
   color: var(--text-primary);
 }
 
-:root[data-skin="swiss"] .tree-row.canvas-row.active .tree-name {
+:root[data-skin="swiss"] .tree-row.canvas-row.active .tree-name,
+:root[data-skin="swiss"] .tree-row.canvas-row.active .tree-icon.doc,
+:root[data-skin="swiss"] .tree-row.canvas-row.active .icon-btn {
   color: var(--bg-surface);
 }
 
