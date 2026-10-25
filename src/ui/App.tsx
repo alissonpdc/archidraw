@@ -73,6 +73,18 @@ export function App() {
     }
   }, [workspacesOpen]);
 
+  // selecionar um objeto no canvas fecha o painel: o menu aberto não deve
+  // continuar por cima do trabalho que o usuário acabou de começar
+  useEffect(() => {
+    if (!workspacesOpen) return;
+    const unsub = editor.subscribe(() => {
+      if (editor.getSnapshot().selectedIds.size > 0) setWorkspacesOpen(false);
+    });
+    return () => {
+      unsub();
+    };
+  }, [workspacesOpen]);
+
   const toggleWorkspacesPanel = useCallback(() => {
     setWorkspacesOpen((v) => !v);
   }, []);

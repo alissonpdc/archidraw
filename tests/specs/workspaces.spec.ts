@@ -78,7 +78,7 @@ test.describe("workspaces panel", () => {
     await expect(page.locator(".properties-panel")).toHaveCount(0);
   });
 
-  test("closing the panel does not override a selection made while it was open", async ({
+  test("selecting an object while the panel is open closes it", async ({
     page,
     editorState,
   }) => {
@@ -87,19 +87,21 @@ test.describe("workspaces panel", () => {
     await drag(page, { x: 700, y: 300 }, { x: 760, y: 340 }); // right shape
     await selectTool(page, "1");
     await page.mouse.click(330, 670);
-    expect((await editorState()).selectedIds).toHaveLength(1);
+    const before = (await editorState()).selectedIds;
+    expect(before).toHaveLength(1);
 
     await page.keyboard.press("w");
     await expect(panel(page)).toHaveAttribute("data-open", "true");
+    expect((await editorState()).selectedIds).toHaveLength(0);
 
-    // the canvas stays usable next to the panel: picking another shape wins
+    // the canvas stays usable next to the panel: picking an object closes the
+    // panel and keeps that pick (the pre-panel selection is not restored)
     await page.mouse.click(730, 320);
+    await expect(panel(page)).toHaveAttribute("data-open", "false");
     const picked = (await editorState()).selectedIds;
     expect(picked).toHaveLength(1);
-
-    await page.keyboard.press("w");
-    await expect(panel(page)).toHaveAttribute("data-open", "false");
-    expect((await editorState()).selectedIds).toEqual(picked);
+    expect(picked).not.toEqual(before);
+    await expect(page.locator(".properties-panel")).toBeVisible();
   });
 
   test("workspaces heading puts the add button on the right", async ({ page }) => {
@@ -194,7 +196,10 @@ test.describe("workspaces panel", () => {
     await drag(page, { x: 500, y: 400 }, { x: 650, y: 500 }); // arrow in ws2
     s = await editorState();
     expect(s.elementCount).toBe(1);
+    // drawing auto-selects the new element, which closes the panel
+    await expect(panel(page)).toHaveAttribute("data-open", "false");
 
+    await openPanel(page);
     await groupFor(page, "Workspace 1").locator('[data-testid="ws-canvas-Diagram 1"]').click();
     s = await editorState();
     expect(s.activeWorkspaceId).toBe(s.workspaces[0].id);
