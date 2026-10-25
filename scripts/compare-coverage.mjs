@@ -35,7 +35,9 @@ async function main() {
     const curPct = current[metric].pct;
     const prevPct = previous[metric].pct;
     const delta = curPct - prevPct;
-    const regressed = delta < -0.1;
+    // -0.2%: e2e block coverage noise (V8 attribution on canvas apps) swings
+    // ±0.1–0.2 p.p. on branches between identical-tree runs
+    const regressed = delta < -0.2;
     if (regressed) hasRegression = true;
     rows.push({ label: labels[metric], curPct, prevPct, delta, regressed });
   }
