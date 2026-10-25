@@ -1,6 +1,21 @@
+import type { Download, Page } from "@playwright/test";
 import { test, expect, drag, selectTool, open } from "../fixtures";
 
 const panel = (page: any) => page.locator('[data-testid="workspace-panel"]');
+
+async function readArchidraw(download: Download) {
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  return JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+}
+
+async function downloadArchidraw(page: Page, selector: string) {
+  const pending = page.waitForEvent("download");
+  await page.locator(selector).click();
+  const download = await pending;
+  return { download, data: await readArchidraw(download) };
+}
 
 const openPanel = async (page: any) => {
   await page.click('[data-testid="panel-toggle"]');
@@ -144,6 +159,32 @@ test.describe("workspaces panel", () => {
     expect(s.workspaces[0].name).toBe("Workspace 1");
     expect(s.activeWorkspaceId).toBe(s.workspaces[0].id);
     expect(s.workspaces[0].canvases.map((c) => c.name)).toEqual(["Diagram 1"]);
+  });
+
+  test("workspace and canvas rows download .archidraw files", async ({
+    page,
+  }) => {
+    await selectTool(page, "2");
+    await drag(page, { x: 300, y: 300 }, { x: 420, y: 380 }); // rect in Diagram 1
+    await openPanel(page);
+    await groupFor(page, "Workspace 1")
+      .locator('[data-testid="ws-add-canvas"]')
+      .click(); // Diagram 2 becomes active
+
+    const canvas = await downloadArchidraw(
+      page,
+      '[data-testid="ws-canvas-Diagram 1"] [data-testid="ws-canvas-download"]',
+    );
+    expect(canvas.download.suggestedFilename()).toBe("diagram-1.archidraw");
+    expect(canvas.data.tabs).toHaveLength(1);
+    expect(canvas.data.tabs[0].doc.elements).toHaveLength(1);
+
+    const workspace = await downloadArchidraw(
+      page,
+      '[data-testid="ws-group-Workspace 1"] [data-testid="ws-download"]',
+    );
+    expect(workspace.download.suggestedFilename()).toBe("workspace-1.archidraw");
+    expect(workspace.data.tabs).toHaveLength(2);
   });
 
   test("new workspace is created, activated and renamable", async ({

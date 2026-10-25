@@ -3173,6 +3173,20 @@ strokeOpacity?: number;
     return serializeSingleTab(this.tab ?? freshTab(this.nextTabName(this.tabs)));
   }
 
+  /** serializes a specific canvas of any workspace as a single-tab workspace */
+  serializeCanvasOf(wsId: string, tabId: string): string | null {
+    const tab = this.workspaces
+      .find((w) => w.id === wsId)
+      ?.tabs.find((t) => t.id === tabId);
+    return tab ? serializeSingleTab(tab) : null;
+  }
+
+  /** serializes any workspace (all its canvases) for download */
+  serializeWorkspace(id: string): string | null {
+    const ws = this.workspaces.find((w) => w.id === id);
+    return ws ? serialize(ws.tabs, ws.activeTabId) : null;
+  }
+
   /**
    * hydrates workspaces from the registry boot (called once, before first
    * render). Entries with no parsable tabs (corrupted persisted data) are

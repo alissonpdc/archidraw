@@ -1,20 +1,10 @@
 import { useEffect, useState } from "react";
 import { editor } from "../hooks/useEditor";
-import { slugify } from "../../core/exporter";
+import { archidrawFilename, downloadArchidraw } from "../archidrawDownload";
 import { toast } from "../toasts";
 import { SaveIcon, ExportIcon } from "./icons";
 
-type SaveTarget = "diagram" | "all";
-
-function downloadBlob(content: string, filename: string) {
-  const blob = new Blob([content], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+type SaveTarget = "canvas" | "workspace";
 
 export function SaveModal({
   open,
@@ -23,7 +13,7 @@ export function SaveModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const [target, setTarget] = useState<SaveTarget>("diagram");
+  const [target, setTarget] = useState<SaveTarget>("canvas");
 
   useEffect(() => {
     if (!open) return;
@@ -38,15 +28,15 @@ export function SaveModal({
 
   const snap = editor.getSnapshot();
   const activeTab = snap.tabs.find((t) => t.id === snap.activeTabId);
-  const diagramName = activeTab?.name ?? "diagram";
-  const diagramFilename = `${slugify(diagramName)}.archidraw`;
+  const canvasName = activeTab?.name ?? "canvas";
+  const canvasFilename = archidrawFilename(canvasName);
 
   const handleSave = () => {
-    if (target === "diagram") {
-      downloadBlob(editor.serializeActiveTab(), diagramFilename);
-      toast(`"${diagramName}" saved`);
+    if (target === "canvas") {
+      downloadArchidraw(editor.serializeActiveTab(), canvasName);
+      toast(`"${canvasName}" saved`);
     } else {
-      downloadBlob(editor.serializeState(), "workspace.archidraw");
+      downloadArchidraw(editor.serializeState(), "workspace");
       toast("Workspace saved");
     }
     onClose();
@@ -70,21 +60,21 @@ export function SaveModal({
           <div className="save-modal-label">What to save</div>
           <div className="save-modal-options">
             <button
-              className={`save-modal-option ${target === "diagram" ? "active" : ""}`}
-              onClick={() => setTarget("diagram")}
+              className={`save-modal-option ${target === "canvas" ? "active" : ""}`}
+              onClick={() => setTarget("canvas")}
             >
               <SaveIcon size={18} />
-              <span className="save-modal-option-title">Save Diagram</span>
+              <span className="save-modal-option-title">Save Canvas</span>
               <span className="save-modal-option-desc">
-                Save "{diagramName}" as {diagramFilename}
+                Save "{canvasName}" as {canvasFilename}
               </span>
             </button>
             <button
-              className={`save-modal-option ${target === "all" ? "active" : ""}`}
-              onClick={() => setTarget("all")}
+              className={`save-modal-option ${target === "workspace" ? "active" : ""}`}
+              onClick={() => setTarget("workspace")}
             >
               <ExportIcon size={18} />
-              <span className="save-modal-option-title">Save All</span>
+              <span className="save-modal-option-title">Save Workspace</span>
               <span className="save-modal-option-desc">
                 Save entire workspace as workspace.archidraw
               </span>
