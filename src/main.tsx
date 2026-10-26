@@ -28,6 +28,7 @@ import {
 import { initImportedLibraries } from "./core/importedLibraries";
 import { initImportedImages } from "./core/importedImages";
 import { initCustomLibrary } from "./core/customLibrary";
+import { initNativeLibraries } from "./core/nativeLibraries";
 import { elementVisualBounds, detailsBadgeAnchor } from "./core/renderer";
 import {
   parseColor,
@@ -112,6 +113,7 @@ applySkinPref(loadSkinPref());
 
 // re-registra bibliotecas .excalidrawlib importadas e imagens importadas
 // ANTES do restore (elementos salvos podem referenciar seus componentIds)
+initNativeLibraries();
 initImportedLibraries();
 initImportedImages();
 initCustomLibrary();

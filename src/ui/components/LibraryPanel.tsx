@@ -45,6 +45,10 @@ import {
 } from "../../core/customLibrary";
 import type { CustomLibraryItemData } from "../../core/customLibrary";
 import { downloadCustomLibrary } from "../../core/archidrawLibExport";
+import {
+  getNativeLibraries,
+  type NativeLibrary,
+} from "../../core/nativeLibraries";
 
 export const COMPONENT_DND_TYPE = "application/x-archidraw-component";
 
@@ -195,6 +199,8 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [importedImages, setImportedImages] = useState<ImportedImageData[]>(getImportedImages);
   const [customItems, setCustomItems] = useState<CustomLibraryItemData[]>(getCustomLibrary);
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set());
+  const [nativeLibs] = useState<NativeLibrary[]>(getNativeLibraries);
+  const [openNativeGroups, setOpenNativeGroups] = useState<Set<string>>(() => new Set());
   const [customOpen, setCustomOpen] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -256,12 +262,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
     () =>
       !searching && recents.length > 0
         ? recents
-            .map((id) =>
-              LIBRARY.find((i) => i.id === id) ??
-              LIBRARY_GCP.find((i) => i.id === id) ??
-              LIBRARY_AZURE.find((i) => i.id === id) ??
-              LIBRARY_KUBERNETES.find((i) => i.id === id),
-            )
+            .map((id) => getLibraryItem(id))
             .filter((i): i is LibraryItem => !!i)
             .slice(0, RECENTS_LIMIT)
         : [],
@@ -415,6 +416,39 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                 {importError}
               </div>
             )}
+            {nativeLibs.map((lib) => {
+              const isOpen = openNativeGroups.has(lib.id);
+              return (
+                <section
+                  key={lib.id}
+                  className="library-section"
+                  data-testid={`library-native-${lib.id}`}
+                >
+                  <SectionHeader
+                    open={isOpen}
+                    onToggle={() =>
+                      setOpenNativeGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(lib.id)) next.delete(lib.id);
+                        else next.add(lib.id);
+                        return next;
+                      })
+                    }
+                  >
+                    {lib.name}
+                  </SectionHeader>
+                  {isOpen && (
+                    <div className="library-subgroup">
+                      <div className="library-grid">
+                        {lib.items.map((item) => (
+                          <Tile key={item.id} item={item} onInsert={insert} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
             <section className="library-section">
               <SectionHeader
                 open={awsOpen}
