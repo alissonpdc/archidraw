@@ -906,15 +906,15 @@ test.describe("workspace file sync errors", () => {
       .poll(async () => (await readWorkspaceJson(page, WORKSPACE_FILE)).data.tabs[0].doc.elements.length)
       .toBe(2);
 
-    // the menu Save As picks a new file for the same workspace
-    await queueDocumentSave(page, "copy.archidraw");
+    // the menu Save As presents the modal to download the canvas or workspace
     await page.click('[data-testid="app-menu-button"]');
     await page
       .locator(".menu-item", {
         has: page.locator(".menu-item-label", { hasText: /^Save As/ }),
       })
       .click();
-    await expect.poll(() => readOpfs(page, "copy.archidraw")).not.toBeNull();
+    await expect(page.getByRole("dialog", { name: "Save" })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
 
     // drawing selects the new element, which closes the panel by design
     await page.click('[data-testid="panel-toggle"]');

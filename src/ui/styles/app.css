@@ -516,6 +516,16 @@ button {
   white-space: nowrap;
 }
 
+button.status-file {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  pointer-events: auto;
+}
+
 .status-file[data-status="conflict"],
 .status-file[data-status="missing"],
 .status-file[data-status="invalid"],

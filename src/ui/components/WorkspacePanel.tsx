@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { editor, useEditorSelector } from "../hooks/useEditor";
 import type { TabInfo, WorkspaceInfo } from "../../core/editor";
-import { downloadArchidraw } from "../archidrawDownload";
+import { archidrawFilename, downloadArchidraw } from "../archidrawDownload";
 import { toast } from "../toasts";
 import { ConfirmModal, type ConfirmRequest } from "./ConfirmModal";
-import { CloseIcon, DownloadIcon, LayersIcon, PlusIcon } from "./icons";
+import { CloseIcon, DownloadIcon, LayersIcon, PlusIcon, SaveIcon } from "./icons";
 import { documents } from "../documents";
+import { filePicker } from "../../core/documents/filePicker";
 import {
   getDocumentSyncSnapshot,
   subscribeDocumentSync,
 } from "../../core/documents/syncState";
-import { WorkspaceFileAction, WorkspaceFileBadge } from "./WorkspaceFileControls";
+import { WorkspaceFileAction } from "./WorkspaceFileControls";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -277,6 +278,21 @@ export function WorkspacePanel({ open }: { open: boolean }) {
     }
   };
 
+  const saveCanvas = async (wsId: string, canvas: TabInfo) => {
+    const json = editor.serializeCanvasOf(wsId, canvas.id);
+    if (!json) return;
+    try {
+      const handle = await filePicker.saveArchidraw(archidrawFilename(canvas.name));
+      if (!handle) return;
+      const writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      toast(`"${canvas.name}" saved`);
+    } catch {
+      toast(`Could not save "${canvas.name}"`);
+    }
+  };
+
   const downloadWorkspace = (ws: WorkspaceInfo) => {
     const json = editor.serializeWorkspace(ws.id);
     if (downloadArchidraw(json, ws.name)) {
@@ -386,7 +402,6 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                     {ws.name}
                   </span>
                 )}
-                {view && <WorkspaceFileBadge workspace={ws} view={view} />}
                 <span className="tree-count" aria-label={`${ws.canvases.length} canvases`}>
                   {ws.canvases.length}
                 </span>
@@ -407,18 +422,20 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                   view={view}
                   supported={documents.isSupported()}
                 />
-                <button
-                  className="icon-btn visible"
-                  data-testid="ws-download"
-                  aria-label={`Download workspace ${ws.name}`}
-                  title="Download workspace"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    downloadWorkspace(ws);
-                  }}
-                >
-                  <DownloadIcon size={12} />
-                </button>
+                {!documents.isSupported() && (
+                  <button
+                    className="icon-btn visible"
+                    data-testid="ws-download"
+                    aria-label={`Download workspace ${ws.name}`}
+                    title="Download workspace"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadWorkspace(ws);
+                    }}
+                  >
+                    <DownloadIcon size={12} />
+                  </button>
+                )}
                 <button
                   className="icon-btn visible"
                   data-testid="ws-delete"
@@ -482,18 +499,33 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                             >
                               {c.name}
                             </span>
-                            <button
-                              className="icon-btn"
-                              data-testid="ws-canvas-download"
-                              aria-label={`Download canvas ${c.name}`}
-                              title="Download canvas"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                downloadCanvas(ws.id, c);
-                              }}
-                            >
-                              <DownloadIcon size={11} />
-                            </button>
+                            {documents.isSupported() ? (
+                              <button
+                                className="icon-btn"
+                                data-testid="ws-canvas-save"
+                                aria-label={`Save canvas ${c.name}`}
+                                title="Save canvas"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void saveCanvas(ws.id, c);
+                                }}
+                              >
+                                <SaveIcon size={11} />
+                              </button>
+                            ) : (
+                              <button
+                                className="icon-btn"
+                                data-testid="ws-canvas-download"
+                                aria-label={`Download canvas ${c.name}`}
+                                title="Download canvas"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  downloadCanvas(ws.id, c);
+                                }}
+                              >
+                                <DownloadIcon size={11} />
+                              </button>
+                            )}
                             <button
                               className="icon-btn"
                               data-testid="ws-canvas-close"

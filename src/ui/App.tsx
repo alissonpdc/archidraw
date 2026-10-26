@@ -102,8 +102,7 @@ export function App() {
   }, []);
 
   const saveDocumentAs = useCallback(() => {
-    if (documents.isSupported()) void documents.saveAs();
-    else setSaveOpen(true);
+    setSaveOpen(true);
   }, []);
 
   useEffect(() => {

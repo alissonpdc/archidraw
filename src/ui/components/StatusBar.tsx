@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { useEditorSelector } from "../hooks/useEditor";
+import { documents } from "../documents";
 import {
   getDocumentSyncSnapshot,
   subscribeDocumentSync,
@@ -29,9 +30,27 @@ export function StatusBar() {
 
   return (
     <div className="status-bar">
-      <span className="status-file" data-testid="status-file" data-status={view?.status ?? "local"}>
-        {fileStatus}
-      </span>
+      {view?.status === "permission" ? (
+        <button
+          type="button"
+          className="status-file"
+          data-testid="status-file"
+          data-status={view.status}
+          onClick={() => {
+            void documents.reconnect(activeWorkspaceId);
+          }}
+        >
+          {fileStatus}
+        </button>
+      ) : (
+        <span
+          className="status-file"
+          data-testid="status-file"
+          data-status={view?.status ?? "local"}
+        >
+          {fileStatus}
+        </span>
+      )}
       <button
         className="status-link"
         onClick={() => window.dispatchEvent(new Event("archidraw:shortcuts"))}

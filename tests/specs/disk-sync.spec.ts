@@ -51,10 +51,11 @@ test.describe("workspace file sync", () => {
     expect(data.tabs[0].doc.elements).toHaveLength(1);
     expect(data.tabs[0].camera).toEqual({ scrollX: 0, scrollY: 0, zoom: 1 });
 
-    await expect(page.locator('[data-testid="ws-file-plan"]')).toHaveAttribute(
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
       "data-status",
       "saved",
     );
+    await expect(page.locator('[data-testid="ws-file-plan"]')).toHaveCount(0);
 
     // a later edit reaches the file through the 800ms autosave
     await drawRect(page, { x: 320, y: 100 }, { x: 420, y: 180 });
@@ -472,11 +473,11 @@ test.describe("workspace file sync", () => {
       .toBe("missing");
 
     await page.click('[data-testid="panel-toggle"]');
-    const badge = page.locator('[data-testid="ws-file-plan"]');
-    await expect(badge).toHaveAttribute("data-status", "missing");
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute("data-status", "missing");
+    await expect(page.locator('[data-testid="ws-file-plan"]')).toHaveCount(0);
 
     await queueDocumentSave(page, "recovered.archidraw");
-    await badge.click();
+    await page.click('[data-testid="ws-save-as"]');
     await expect.poll(() => readOpfs(page, "recovered.archidraw")).not.toBeNull();
     await expect
       .poll(async () => (await documentSyncSnapshot(page)).views[0]?.status)
@@ -497,17 +498,17 @@ test.describe("workspace file sync", () => {
       .toBe("invalid");
 
     await page.click('[data-testid="panel-toggle"]');
-    const badge = page.locator('[data-testid="ws-file-plan"]');
-    await expect(badge).toHaveAttribute("data-status", "invalid");
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute("data-status", "invalid");
+    await expect(page.locator('[data-testid="ws-file-plan"]')).toHaveCount(0);
     await queueDocumentSave(page, "fixed.archidraw");
-    await badge.click();
+    await page.click('[data-testid="ws-save-as"]');
     await expect.poll(() => readOpfs(page, "fixed.archidraw")).not.toBeNull();
     await expect
       .poll(async () => (await documentSyncSnapshot(page)).views[0]?.fileName)
       .toBe("fixed.archidraw");
   });
 
-  test("permission loss shows Reconnect and the badge re-requests access", async ({
+  test("permission loss shows Reconnect and the status bar re-requests access", async ({
     page,
   }) => {
     await drawRect(page);
@@ -523,23 +524,22 @@ test.describe("workspace file sync", () => {
     });
 
     await pollDocuments(page);
-    await page.click('[data-testid="panel-toggle"]');
-    const badge = page.locator('[data-testid="ws-file-plan"]');
-    await expect(badge).toHaveAttribute("data-status", "permission");
-    await expect(badge).toContainText("Reconnect");
+    const statusFile = page.locator('[data-testid="status-file"]');
+    await expect(statusFile).toHaveAttribute("data-status", "permission");
+    await expect(statusFile).toContainText("reconnect to save");
 
-    await badge.click();
+    await statusFile.click();
     await expect(page.locator(".toast", { hasText: "permission was not granted" })).toBeVisible();
-    await expect(badge).toHaveAttribute("data-status", "permission");
+    await expect(statusFile).toHaveAttribute("data-status", "permission");
 
     await page.evaluate(() => {
       const access = (window as any).__documents__.access;
       access.queryPermission = async () => true;
       access.requestPermission = async () => true;
     });
-    await badge.click();
+    await statusFile.click();
     await expect(page.locator(".toast", { hasText: "Reconnected" })).toBeVisible();
-    await expect(badge).toHaveAttribute("data-status", "saved");
+    await expect(statusFile).toHaveAttribute("data-status", "saved");
   });
 
   test("unsupported browsers keep the download flow and hide file actions", async ({
@@ -556,12 +556,51 @@ test.describe("workspace file sync", () => {
     await expect(page.getByRole("dialog", { name: "Save" })).toBeVisible();
     await page.getByRole("button", { name: "Cancel" }).click();
 
+    await page.getByTestId("app-menu-button").click();
+    await expect(page.locator(".menu-item", { hasText: /^Download…/ })).toBeVisible();
+    await expect(page.locator(".menu-item", { hasText: /^Save$/ })).toHaveCount(0);
+    await expect(page.locator(".menu-item", { hasText: /^Save As…/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+
     await page.click('[data-testid="panel-toggle"]');
     await expect(page.locator('[data-testid="ws-save-file"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="ws-download"]')).toBeVisible();
+    await expect(page.locator('[data-testid="ws-canvas-download"]')).toBeVisible();
+    await expect(page.locator('[data-testid="ws-canvas-save"]')).toHaveCount(0);
     expect(
       await page.evaluate(() => (window as any).__documents__.saveAs()),
     ).toBe(false);
     await expect(page.locator(".toast", { hasText: "requires Chrome or Edge" })).toBeVisible();
+  });
+
+  test("supported browsers keep save actions and hide download buttons", async ({
+    page,
+  }) => {
+    await page.getByTestId("app-menu-button").click();
+    await expect(
+      page.locator(".menu-item", {
+        has: page.locator(".menu-item-label", { hasText: /^Save$/ }),
+      }),
+    ).toBeVisible();
+    const saveAsItem = page.locator(".menu-item", {
+      has: page.locator(".menu-item-label", { hasText: /^Save As…/ }),
+    });
+    await expect(saveAsItem).toBeVisible();
+    await expect(page.locator(".menu-item", { hasText: /Download/ })).toHaveCount(0);
+    await saveAsItem.click();
+    await expect(page.getByRole("dialog", { name: "Save" })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await page.click('[data-testid="panel-toggle"]');
+    await expect(page.locator('[data-testid="ws-save-file"]')).toBeVisible();
+    await expect(page.locator('[data-testid="ws-download"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid^="ws-file-"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="ws-canvas-save"]')).toBeVisible();
+    await expect(page.locator('[data-testid="ws-canvas-download"]')).toHaveCount(0);
+
+    await queueDocumentSave(page, "diagram-saved.archidraw");
+    await page.click('[data-testid="ws-canvas-save"]');
+    await expect.poll(() => readOpfs(page, "diagram-saved.archidraw")).not.toBeNull();
   });
 
   test("native picker wrappers forward options and swallow aborts only", async ({

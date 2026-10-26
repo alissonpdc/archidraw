@@ -27,14 +27,15 @@ test.describe("export / import", () => {
   });
 
   test("export .archidraw downloads a valid workspace file", async ({ page }) => {
+    await installDocumentPicker(page, { supported: false });
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Download a copy…" }).click();
+    await page.getByRole("button", { name: "Download…" }).click();
     await page.getByRole("button", { name: "Save Canvas" }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     const download = await downloadPromise;
 
-    expect(download.suggestedFilename()).toMatch(/\.archidraw$/);
+    expect(download.suggestedFilename()).toBe("diagram-1.archidraw");
 
     const data = await readArchidraw(download);
 
@@ -42,6 +43,18 @@ test.describe("export / import", () => {
     expect(data.tabs).toHaveLength(1);
     expect(data.tabs[0].doc.elements).toHaveLength(1);
     expect(data.tabs[0].doc.elements[0].type).toBe("rectangle");
+  });
+
+  test("save modal workspace download respects workspace name", async ({ page }) => {
+    await installDocumentPicker(page, { supported: false });
+    const downloadPromise = page.waitForEvent("download");
+    await page.click(".menu-btn");
+    await page.getByRole("button", { name: "Download…" }).click();
+    await page.getByRole("button", { name: "Save Workspace" }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toBe("workspace-1.archidraw");
   });
 
   test("Ctrl+S falls back to the save dialog without file access", async ({
@@ -58,10 +71,11 @@ test.describe("export / import", () => {
   });
 
   test("import .archidraw restores a workspace round-trip", async ({ page }) => {
+    await installDocumentPicker(page, { supported: false });
     // export first
     const downloadPromise = page.waitForEvent("download");
     await page.click(".menu-btn");
-    await page.getByRole("button", { name: "Download a copy…" }).click();
+    await page.getByRole("button", { name: "Download…" }).click();
     await page.getByRole("button", { name: "Save Canvas" }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     const download = await downloadPromise;
