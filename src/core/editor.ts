@@ -1,6 +1,10 @@
 import { History } from "./history";
 import { hitTest, elementsInBounds } from "./hitTest";
-import { parse, serialize, serializeSingleTab } from "./storage";
+import { parse, serialize, serializeSingleTab, type WorkspaceData, type WorkspaceTabData } from "./storage";
+import {
+  serializeWorkspaceFile as serializeWorkspaceDocument,
+  type WorkspaceFileIdentity,
+} from "./documents/workspaceFile";
 import { writeIndex, writeWorkspaceData, removeWorkspaceEntry, type WorkspaceBoot } from "./workspaceRegistry";
 import { render, type RenderColors } from "./renderer";
 import type {
@@ -3185,6 +3189,124 @@ strokeOpacity?: number;
   serializeWorkspace(id: string): string | null {
     const ws = this.workspaces.find((w) => w.id === id);
     return ws ? serialize(ws.tabs, ws.activeTabId) : null;
+  }
+
+  /** serializes a workspace for the repository file (normalized view state) */
+  serializeWorkspaceFile(id: string, identity: WorkspaceFileIdentity): string | null {
+    const ws = this.workspaces.find((w) => w.id === id);
+    return ws ? serializeWorkspaceDocument(ws.tabs, identity) : null;
+  }
+
+  /** true when the workspace exists and has no element on any canvas */
+  isWorkspaceEmpty(id: string): boolean {
+    const ws = this.workspaces.find((w) => w.id === id);
+    if (!ws) return false;
+    return ws.tabs.every((tab) => tab.doc.elements.length === 0);
+  }
+
+  /**
+   * Remaps canvas ids that collide with another workspace. Files are
+   * standalone documents; ids only need to be unique inside this editor.
+   */
+  private remapTabIds(
+    tabs: readonly WorkspaceTabData[],
+    activeTabId: string,
+    excludeWorkspaceId?: string,
+  ): { tabs: TabData[]; activeTabId: string } {
+    const used = new Set<string>();
+    for (const workspace of this.workspaces) {
+      if (workspace.id === excludeWorkspaceId) continue;
+      for (const tab of workspace.tabs) used.add(tab.id);
+    }
+    const remapped: TabData[] = [];
+    let nextActiveId = "";
+    for (const tab of tabs) {
+      const id = used.has(tab.id)
+        ? `tab_${Date.now().toString(36)}_${++tabSeq}`
+        : tab.id;
+      used.add(id);
+      if (tab.id === activeTabId) nextActiveId = id;
+      remapped.push({ ...tab, id });
+    }
+    return {
+      tabs: remapped,
+      activeTabId: remapped.some((tab) => tab.id === nextActiveId)
+        ? nextActiveId
+        : (remapped[0]?.id ?? ""),
+    };
+  }
+
+  /**
+   * Opens a parsed document: reuses the active workspace when it is still
+   * empty, otherwise creates a new workspace. Returns the target workspace id.
+   */
+  openWorkspaceFile(data: WorkspaceData, name: string): string {
+    const displayName = name.trim() || this.nextWorkspaceName();
+    const reuseActive = this.isWorkspaceEmpty(this.activeWorkspaceId);
+    const remapped = this.remapTabIds(
+      data.tabs,
+      data.activeTabId,
+      reuseActive ? this.activeWorkspaceId : undefined,
+    );
+    if (reuseActive) {
+      const ws = this.ws;
+      ws.name = displayName;
+      ws.tabs = remapped.tabs;
+      ws.activeTabId = remapped.activeTabId;
+      this.histories.clear();
+      this.resetTransientState();
+      this.persistWorkspaceIndex();
+      this.emit();
+      return ws.id;
+    }
+    const entry: WorkspaceEntry = {
+      id: nextWorkspaceId(),
+      name: displayName,
+      activeTabId: remapped.activeTabId,
+      tabs: remapped.tabs,
+    };
+    this.workspaces = [...this.workspaces, entry];
+    this.activateWorkspaceEntry(entry.id);
+    return entry.id;
+  }
+
+  /**
+   * Replaces an existing workspace with a document read from disk. With
+   * `preserveView`, cameras/active canvas are kept when their ids still exist,
+   * so a disk update does not disturb the local pan/zoom state.
+   */
+  replaceWorkspaceFromFile(
+    id: string,
+    data: WorkspaceData,
+    name: string,
+    options: { preserveView?: boolean } = {},
+  ): boolean {
+    const ws = this.workspaces.find((w) => w.id === id);
+    if (!ws) return false;
+    const remapped = this.remapTabIds(data.tabs, data.activeTabId, id);
+    if (options.preserveView) {
+      const cameras = new Map(ws.tabs.map((tab) => [tab.id, tab.camera]));
+      for (const tab of remapped.tabs) {
+        const camera = cameras.get(tab.id);
+        if (camera) tab.camera = camera;
+      }
+      if (remapped.tabs.some((tab) => tab.id === ws.activeTabId)) {
+        remapped.activeTabId = ws.activeTabId;
+      }
+    }
+    ws.name = name.trim() || ws.name;
+    ws.tabs = remapped.tabs;
+    ws.activeTabId = remapped.activeTabId;
+    this.histories.clear();
+    if (id === this.activeWorkspaceId) this.resetTransientState();
+    this.persistWorkspaceIndex();
+    this.emit();
+    return true;
+  }
+
+  /** closes a workspace without touching its file on disk */
+  closeWorkspace(id: string) {
+    this.deleteWorkspace(id);
   }
 
   /**

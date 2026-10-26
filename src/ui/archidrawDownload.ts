@@ -1,8 +1,9 @@
-import { downloadBlob, slugify } from "../core/exporter";
+import { downloadBlob } from "../core/exporter";
+import { workspaceFileName } from "../core/documents/fileNames";
 
 /** `<slugified name>.archidraw` — shared by the save modal and panel downloads */
 export function archidrawFilename(name: string): string {
-  return `${slugify(name)}.archidraw`;
+  return workspaceFileName(name);
 }
 
 /**

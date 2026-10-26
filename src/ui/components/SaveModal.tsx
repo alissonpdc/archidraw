@@ -31,13 +31,17 @@ export function SaveModal({
   const canvasName = activeTab?.name ?? "canvas";
   const canvasFilename = archidrawFilename(canvasName);
 
+  const activeWorkspace = snap.workspaces.find((w) => w.id === snap.activeWorkspaceId);
+  const workspaceName = activeWorkspace?.name ?? "workspace";
+  const workspaceFilename = archidrawFilename(workspaceName);
+
   const handleSave = () => {
     if (target === "canvas") {
       downloadArchidraw(editor.serializeActiveTab(), canvasName);
       toast(`"${canvasName}" saved`);
     } else {
-      downloadArchidraw(editor.serializeState(), "workspace");
-      toast("Workspace saved");
+      downloadArchidraw(editor.serializeState(), workspaceName);
+      toast(`"${workspaceName}" saved`);
     }
     onClose();
   };
@@ -76,7 +80,7 @@ export function SaveModal({
               <ExportIcon size={18} />
               <span className="save-modal-option-title">Save Workspace</span>
               <span className="save-modal-option-desc">
-                Save entire workspace as workspace.archidraw
+                Save "{workspaceName}" as {workspaceFilename}
               </span>
             </button>
           </div>

@@ -1,4 +1,4 @@
-import { test, expect, open } from "../fixtures";
+import { test, expect, open, installDocumentPicker } from "../fixtures";
 
 test.describe("ui widgets", () => {
   test("zoom widget buttons change zoom level", async ({ page }) => {
@@ -252,12 +252,13 @@ test.describe("ui widgets", () => {
 
   test("export shows a toast", async ({ page }) => {
     await open(page);
+    await installDocumentPicker(page, { supported: false });
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Save…" }).click();
+    await page.getByRole("button", { name: "Download…" }).click();
     await page.getByRole("button", { name: "Save Workspace" }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
 
-    await expect(page.locator(".toast")).toHaveText(/Workspace saved/);
+    await expect(page.locator(".toast")).toHaveText(/"Workspace 1" saved/);
   });
 
   test("status bar shows shortcuts link", async ({ page }) => {

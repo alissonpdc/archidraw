@@ -6,6 +6,18 @@ import { editor } from "./ui/hooks/useEditor";
 import { attachAutosave } from "./core/storage";
 import { bootWorkspaceStore } from "./core/workspaceRegistry";
 import { markSaved } from "./ui/saveStatus";
+import { documents } from "./ui/documents";
+import {
+  browserFilePicker,
+  resetFilePicker,
+  setFilePicker,
+} from "./core/documents/filePicker";
+import { clearFileBindingStore } from "./core/documents/fileBindingStore";
+import {
+  getDocumentSyncSnapshot,
+  resetDocumentSyncState,
+} from "./core/documents/syncState";
+import { hashText } from "./core/documents/hashText";
 import {
   applySkinPref,
   applyThemePref,
@@ -81,6 +93,17 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
     tokenizeYaml,
     tokenizeStructured,
   };
+  (window as unknown as Record<string, unknown>).__documents__ = documents;
+  (window as unknown as Record<string, unknown>).__documentsTest__ = {
+    setPicker: setFilePicker,
+    resetPicker: resetFilePicker,
+    browserPicker: browserFilePicker,
+    clearBindings: clearFileBindingStore,
+    resetState: resetDocumentSyncState,
+    hashText,
+    syncSnapshot: getDocumentSyncSnapshot,
+    poll: () => documents.refreshAll(),
+  };
 }
 
 // restore theme preference before first render (no flash of wrong theme)
@@ -99,6 +122,14 @@ editor.hydrateWorkspaceStore(bootWorkspaceStore());
 
 attachAutosave(editor, 400, markSaved);
 attachThemeColorCorrelation(editor);
+void documents
+  .boot()
+  .catch((error: unknown) => {
+    console.error("document sync boot failed", error);
+  })
+  .finally(() => {
+    (window as unknown as Record<string, unknown>).__documentsReady__ = true;
+  });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

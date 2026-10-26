@@ -1,5 +1,5 @@
 import type { Download, Page } from "@playwright/test";
-import { test, expect, drag, selectTool, open } from "../fixtures";
+import { test, expect, drag, selectTool, open, installDocumentPicker } from "../fixtures";
 
 const panel = (page: any) => page.locator('[data-testid="workspace-panel"]');
 
@@ -164,6 +164,7 @@ test.describe("workspaces panel", () => {
   test("workspace and canvas rows download .archidraw files", async ({
     page,
   }) => {
+    await installDocumentPicker(page, { supported: false });
     await selectTool(page, "2");
     await drag(page, { x: 300, y: 300 }, { x: 420, y: 380 }); // rect in Diagram 1
     await openPanel(page);

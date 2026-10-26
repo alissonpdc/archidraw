@@ -1,5 +1,6 @@
 import { useState, useEffect, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { editor } from "../hooks/useEditor";
+import { documents } from "../documents";
 import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import {
   applySkinPref,
@@ -21,6 +22,7 @@ import {
   CheckIcon,
   ChevronLeftIcon,
   DropletIcon,
+  ExportIcon,
   GridDotsIcon,
   GridIcon,
   GridLinesIcon,
@@ -127,11 +129,17 @@ function MenuSubmenu({
 
 export function AppMenu({
   onExportImage,
+  onOpen,
   onSave,
+  onSaveAs,
+  onDownloadCopy,
   fileInputRef,
 }: {
   onExportImage: () => void;
+  onOpen: () => void;
   onSave: () => void;
+  onSaveAs: () => void;
+  onDownloadCopy: () => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
 }) {
   const [open, setOpen] = useState(false);
@@ -232,17 +240,43 @@ export function AppMenu({
                 label="Open"
                 icon={<OpenIcon size={14} />}
                 shortcut={`${MOD}+O`}
-                onClick={() => fileInputRef.current?.click()}
-              />
-              <MenuItem
-                label="Save…"
-                icon={<SaveIcon size={14} />}
-                shortcut={`${MOD}+S`}
                 onClick={() => {
-                  onSave();
+                  onOpen();
                   close();
                 }}
               />
+              {documents.isSupported() ? (
+                <>
+                  <MenuItem
+                    label="Save"
+                    icon={<SaveIcon size={14} />}
+                    shortcut={`${MOD}+S`}
+                    onClick={() => {
+                      onSave();
+                      close();
+                    }}
+                  />
+                  <MenuItem
+                    label="Save As…"
+                    icon={<SaveIcon size={14} />}
+                    shortcut={`${MOD}+Shift+S`}
+                    onClick={() => {
+                      onSaveAs();
+                      close();
+                    }}
+                  />
+                </>
+              ) : (
+                <MenuItem
+                  label="Download…"
+                  icon={<ExportIcon size={14} />}
+                  shortcut={`${MOD}+S`}
+                  onClick={() => {
+                    onDownloadCopy();
+                    close();
+                  }}
+                />
+              )}
               <MenuItem
                 label="Export Image…"
                 icon={<ImageIcon size={14} />}
