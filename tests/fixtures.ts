@@ -132,6 +132,162 @@ export async function open(page: Page) {
   );
 }
 
+/**
+ * Navigates and waits for both the editor and the document-sync boot. Boot
+ * reconciles persisted file bindings before the app can safely autosave.
+ */
+export async function openWithDocuments(page: Page) {
+  await open(page);
+  await page.waitForFunction(() => (window as any).__documentsReady__ === true);
+}
+
+interface DocumentPickerState {
+  supported: boolean;
+  cancelSave: boolean;
+  saveQueue: string[];
+  openQueue: string[];
+  saveCalls: string[];
+  openCalls: (string | null)[];
+}
+
+/**
+ * Replaces the native pickers with a deterministic OPFS-backed picker and
+ * exposes queues in `window.__documentPicker__`:
+ *
+ *   await queueDocumentSave(page, "plan.archidraw");
+ *   await page.getByTestId("ws-save-file").click();
+ */
+export async function installDocumentPicker(
+  page: Page,
+  options: { supported?: boolean; cancelSave?: boolean } = {},
+) {
+  await page.evaluate((opts: { supported: boolean; cancelSave: boolean }) => {
+    const state: DocumentPickerState = {
+      supported: opts.supported,
+      cancelSave: opts.cancelSave,
+      saveQueue: [],
+      openQueue: [],
+      saveCalls: [],
+      openCalls: [],
+    };
+    (window as any).__documentPicker__ = state;
+    const handleFor = async (name: string, create: boolean) => {
+      const root = await navigator.storage.getDirectory();
+      const handle = await root.getFileHandle(name, { create });
+      if (create) return handle;
+      // fails like an external deletion when the queued file does not exist
+      await handle.getFile();
+      return handle;
+    };
+    (window as any).__documentsTest__.setPicker({
+      isSupported: () => state.supported,
+      openArchidraw: async () => {
+        const name = state.openQueue.shift() ?? null;
+        state.openCalls.push(name);
+        if (!name) return null;
+        return handleFor(name, false);
+      },
+      saveArchidraw: async (suggestedName: string) => {
+        state.saveCalls.push(suggestedName);
+        if (state.cancelSave) return null;
+        const name = state.saveQueue.shift() ?? suggestedName;
+        return handleFor(name, true);
+      },
+    });
+  }, { supported: options.supported ?? true, cancelSave: options.cancelSave ?? false });
+}
+
+export async function documentPickerState(page: Page) {
+  return page.evaluate(() => {
+    const state = (window as any).__documentPicker__ as DocumentPickerState;
+    return {
+      supported: state.supported,
+      saveQueue: [...state.saveQueue],
+      openQueue: [...state.openQueue],
+      saveCalls: [...state.saveCalls],
+      openCalls: [...state.openCalls],
+    };
+  });
+}
+
+export async function queueDocumentSave(page: Page, ...names: string[]) {
+  await page.evaluate((queued: string[]) => {
+    (window as any).__documentPicker__.saveQueue.push(...queued);
+  }, names);
+}
+
+export async function queueDocumentOpen(page: Page, ...names: string[]) {
+  await page.evaluate((queued: string[]) => {
+    (window as any).__documentPicker__.openQueue.push(...queued);
+  }, names);
+}
+
+export async function setDocumentPickerSupport(page: Page, supported: boolean) {
+  await page.evaluate((value: boolean) => {
+    (window as any).__documentPicker__.supported = value;
+  }, supported);
+}
+
+/** writes a file into the origin-private file system used by the picker stub */
+export async function writeOpfs(page: Page, name: string, text: string) {
+  await page.evaluate(
+    async ({ fileName, content }: { fileName: string; content: string }) => {
+      const root = await navigator.storage.getDirectory();
+      const handle = await root.getFileHandle(fileName, { create: true });
+      const writable = await handle.createWritable();
+      await writable.write(content);
+      await writable.close();
+    },
+    { fileName: name, content: text },
+  );
+}
+
+/** reads an OPFS file, or null when it does not exist */
+export async function readOpfs(page: Page, name: string): Promise<string | null> {
+  return page.evaluate(async (fileName: string) => {
+    const root = await navigator.storage.getDirectory();
+    try {
+      const handle = await root.getFileHandle(fileName);
+      return await (await handle.getFile()).text();
+    } catch {
+      return null;
+    }
+  }, name);
+}
+
+export async function removeOpfs(page: Page, name: string) {
+  await page.evaluate(async (fileName: string) => {
+    const root = await navigator.storage.getDirectory();
+    await root.removeEntry(fileName).catch(() => {});
+  }, name);
+}
+
+export async function listOpfs(page: Page): Promise<string[]> {
+  return page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const names: string[] = [];
+    for await (const [name] of (root as any).entries()) names.push(name);
+    return names.sort();
+  });
+}
+
+/** runs the document service reconciliation immediately (instead of waiting) */
+export async function pollDocuments(page: Page) {
+  await page.evaluate(() => (window as any).__documentsTest__.poll());
+}
+
+export async function documentSyncSnapshot(page: Page) {
+  return page.evaluate(() => {
+    const docs = (window as any).__documents__;
+    const snapshot = (window as any).__documentsTest__.syncSnapshot();
+    return {
+      bindings: docs.getBindingCount(),
+      views: snapshot.views,
+      conflicts: snapshot.conflicts,
+    };
+  });
+}
+
 /** drag on canvas from scene-independent screen coords */
 export async function drag(
   page: Page,

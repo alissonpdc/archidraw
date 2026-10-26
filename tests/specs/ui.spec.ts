@@ -253,7 +253,7 @@ test.describe("ui widgets", () => {
   test("export shows a toast", async ({ page }) => {
     await open(page);
     await page.click('[data-testid="app-menu-button"]');
-    await page.getByRole("button", { name: "Save…" }).click();
+    await page.getByRole("button", { name: "Download a copy…" }).click();
     await page.getByRole("button", { name: "Save Workspace" }).click();
     await page.getByRole("button", { name: "Save", exact: true }).click();
 

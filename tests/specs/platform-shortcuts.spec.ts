@@ -32,7 +32,9 @@ test.describe("platform shortcuts on macOS", () => {
 
     await page.getByTestId("app-menu-button").click();
     const openItem = page.locator(".menu-item", { hasText: "Open" });
-    const saveItem = page.locator(".menu-item", { hasText: "Save" });
+    const saveItem = page.locator(".menu-item", {
+      has: page.locator(".menu-item-label", { hasText: /^Save$/ }),
+    });
     const modeShortcut = page.locator(".menu-mode-shortcut");
     await expect(openItem).toContainText("⌘+O");
     await expect(saveItem).toContainText("⌘+S");
@@ -113,7 +115,9 @@ test.describe("platform shortcuts on Windows", () => {
 
     await page.getByTestId("app-menu-button").click();
     const openItem = page.locator(".menu-item", { hasText: "Open" });
-    const saveItem = page.locator(".menu-item", { hasText: "Save" });
+    const saveItem = page.locator(".menu-item", {
+      has: page.locator(".menu-item-label", { hasText: /^Save$/ }),
+    });
     const modeShortcut = page.locator(".menu-mode-shortcut");
     await expect(openItem).toContainText("Ctrl+O");
     await expect(saveItem).toContainText("Ctrl+S");

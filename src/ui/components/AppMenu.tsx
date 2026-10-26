@@ -21,6 +21,7 @@ import {
   CheckIcon,
   ChevronLeftIcon,
   DropletIcon,
+  ExportIcon,
   GridDotsIcon,
   GridIcon,
   GridLinesIcon,
@@ -127,11 +128,17 @@ function MenuSubmenu({
 
 export function AppMenu({
   onExportImage,
+  onOpen,
   onSave,
+  onSaveAs,
+  onDownloadCopy,
   fileInputRef,
 }: {
   onExportImage: () => void;
+  onOpen: () => void;
   onSave: () => void;
+  onSaveAs: () => void;
+  onDownloadCopy: () => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
 }) {
   const [open, setOpen] = useState(false);
@@ -232,14 +239,34 @@ export function AppMenu({
                 label="Open"
                 icon={<OpenIcon size={14} />}
                 shortcut={`${MOD}+O`}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => {
+                  onOpen();
+                  close();
+                }}
               />
               <MenuItem
-                label="Save…"
+                label="Save"
                 icon={<SaveIcon size={14} />}
                 shortcut={`${MOD}+S`}
                 onClick={() => {
                   onSave();
+                  close();
+                }}
+              />
+              <MenuItem
+                label="Save As…"
+                icon={<SaveIcon size={14} />}
+                shortcut={`${MOD}+Shift+S`}
+                onClick={() => {
+                  onSaveAs();
+                  close();
+                }}
+              />
+              <MenuItem
+                label="Download a copy…"
+                icon={<ExportIcon size={14} />}
+                onClick={() => {
+                  onDownloadCopy();
                   close();
                 }}
               />

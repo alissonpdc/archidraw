@@ -6,7 +6,7 @@ import { writeWorkspaceData } from "./workspaceRegistry";
 const STORAGE_KEY = "archidraw:workspace";
 export const SCHEMA_VERSION = 2;
 
-interface TabData {
+export interface WorkspaceTabData {
   id: string;
   name: string;
   doc: Document;
@@ -16,21 +16,25 @@ interface TabData {
 export interface WorkspaceData {
   schemaVersion: number;
   activeTabId: string;
-  tabs: TabData[];
+  tabs: WorkspaceTabData[];
+  /** optional document identity written by file-backed workspaces */
+  uid?: string;
+  /** optional document name written by file-backed workspaces */
+  name?: string;
 }
 
 /** serializes workspace (all tabs) to a portable JSON string */
-export function serialize(tabs: TabData[], activeTabId: string): string {
+export function serialize(tabs: readonly WorkspaceTabData[], activeTabId: string): string {
   const data: WorkspaceData = {
     schemaVersion: SCHEMA_VERSION,
     activeTabId,
-    tabs,
+    tabs: [...tabs],
   };
   return JSON.stringify(data);
 }
 
 /** serializes a single tab as a one-tab workspace */
-export function serializeSingleTab(tab: TabData): string {
+export function serializeSingleTab(tab: WorkspaceTabData): string {
   return serialize([tab], tab.id);
 }
 
@@ -200,24 +204,30 @@ export function parse(json: string): WorkspaceData | null {
   // empty workspaces are valid (created with no canvas yet)
   if (!Array.isArray(d.tabs)) return null;
 
-  const tabs: TabData[] = [];
+  const tabs: WorkspaceTabData[] = [];
   for (const t of d.tabs) {
     if (
       typeof t !== "object" ||
       t === null ||
-      typeof (t as TabData).id !== "string" ||
-      typeof (t as TabData).name !== "string" ||
-      !isValidDoc((t as TabData).doc) ||
-      !isValidCamera((t as TabData).camera)
+      typeof (t as WorkspaceTabData).id !== "string" ||
+      typeof (t as WorkspaceTabData).name !== "string" ||
+      !isValidDoc((t as WorkspaceTabData).doc) ||
+      !isValidCamera((t as WorkspaceTabData).camera)
     ) {
       return null;
     }
     tabs.push({
       ...t,
-      doc: normalizeDoc((t as TabData).doc),
-    } as TabData);
+      doc: normalizeDoc((t as WorkspaceTabData).doc),
+    } as WorkspaceTabData);
   }
-  return { schemaVersion: SCHEMA_VERSION, activeTabId: d.activeTabId, tabs };
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    activeTabId: d.activeTabId,
+    tabs,
+    ...(typeof d.uid === "string" ? { uid: d.uid } : {}),
+    ...(typeof d.name === "string" ? { name: d.name } : {}),
+  };
 }
 
 // ---- localStorage -----------------------------------------------------

@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { editor, useEditorSelector } from "../hooks/useEditor";
 import type { TabInfo, WorkspaceInfo } from "../../core/editor";
 import { downloadArchidraw } from "../archidrawDownload";
 import { toast } from "../toasts";
 import { ConfirmModal, type ConfirmRequest } from "./ConfirmModal";
 import { CloseIcon, DownloadIcon, LayersIcon, PlusIcon } from "./icons";
+import { documents } from "../documents";
+import {
+  getDocumentSyncSnapshot,
+  subscribeDocumentSync,
+} from "../../core/documents/syncState";
+import { WorkspaceFileAction, WorkspaceFileBadge } from "./WorkspaceFileControls";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -78,7 +84,9 @@ export function WorkspacePanelToggle({ open, onToggle }: { open: boolean; onTogg
 
 const isActionTarget = (target: EventTarget | null) =>
   target !== null &&
-  (target as HTMLElement).closest?.(".icon-btn, .tree-caret, .tree-empty") !== null;
+  (target as HTMLElement).closest?.(
+    ".icon-btn, .tree-caret, .tree-empty, .tree-file-badge",
+  ) !== null;
 
 export function WorkspacePanel({ open }: { open: boolean }) {
   const { workspaces, activeWorkspaceId, activeTabId } = useEditorSelector(
@@ -106,6 +114,12 @@ export function WorkspacePanel({ open }: { open: boolean }) {
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set([editor.getSnapshot().activeWorkspaceId]),
   );
+  const sync = useSyncExternalStore(
+    subscribeDocumentSync,
+    getDocumentSyncSnapshot,
+  );
+  const fileViewFor = (workspaceId: string) =>
+    sync.views.find((view) => view.workspaceId === workspaceId) ?? null;
   const [editing, setEditing] = useState<RenameCtx | null>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -217,24 +231,32 @@ export function WorkspacePanel({ open }: { open: boolean }) {
   };
 
   const commitRename = (ctx: RenameCtx, value: string) => {
+    if (workspaces.some((w) => w.id === ctx.id)) {
+      setEditing(null);
+      void documents.rename(ctx.id, value);
+      return;
+    }
     const owning = workspaces.find((w) => w.canvases.some((c) => c.id === ctx.id));
     if (owning?.id === activeWorkspaceId) {
-      if (workspaces.some((w) => w.id === ctx.id)) editor.renameWorkspace(ctx.id, value);
-      else editor.renameTab(ctx.id, value);
+      editor.renameTab(ctx.id, value);
     } else if (owning) {
       editor.renameCanvasOf(owning.id, ctx.id, value);
-    } else {
-      editor.renameWorkspace(ctx.id, value);
     }
     setEditing(null);
   };
 
-  const requestDeleteWorkspace = (ws: WorkspaceInfo) =>
+  const requestDeleteWorkspace = (ws: WorkspaceInfo) => {
+    const view = fileViewFor(ws.id);
     setConfirm({
-      label: "Delete workspace",
-      message: `Delete "${ws.name}"? The workspace and its ${ws.canvases.length} canvas(es) will be lost.`,
-      onConfirm: () => editor.deleteWorkspace(ws.id),
+      label: "Close workspace",
+      message: view
+        ? `Close "${ws.name}"? The file ${view.fileName} will stay on disk.`
+        : `Close "${ws.name}"? It is not saved to a file and its ${ws.canvases.length} canvas(es) will be lost.`,
+      onConfirm: () => {
+        void documents.close(ws.id);
+      },
     });
+  };
 
   const requestDeleteCanvas = (wsId: string, canvas: TabInfo) =>
     setConfirm({
@@ -311,7 +333,9 @@ export function WorkspacePanel({ open }: { open: boolean }) {
           </button>
         </div>
         <div className="wp-scroll">
-          {orderedWorkspaces.map((ws) => (
+          {orderedWorkspaces.map((ws) => {
+            const view = fileViewFor(ws.id);
+            return (
             <div key={ws.id} className="tree-group" data-testid={`ws-group-${ws.name}`}>
               <div
                 ref={(el) => {
@@ -362,6 +386,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                     {ws.name}
                   </span>
                 )}
+                {view && <WorkspaceFileBadge workspace={ws} view={view} />}
                 <span className="tree-count" aria-label={`${ws.canvases.length} canvases`}>
                   {ws.canvases.length}
                 </span>
@@ -377,6 +402,11 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                 >
                   <PlusIcon size={12} />
                 </button>
+                <WorkspaceFileAction
+                  workspace={ws}
+                  view={view}
+                  supported={documents.isSupported()}
+                />
                 <button
                   className="icon-btn visible"
                   data-testid="ws-download"
@@ -484,7 +514,8 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </>

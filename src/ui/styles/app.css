@@ -207,7 +207,7 @@ button {
 .tree-row {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   height: 28px;
   padding-right: var(--space-1);
   border-radius: var(--radius-sm);
@@ -319,7 +319,8 @@ button {
 
 .tree-name {
   flex: 1;
-  min-width: 0;
+  /* keep the label readable next to the file badge and row actions */
+  min-width: 40px;
   font-size: inherit;
   color: inherit;
   white-space: nowrap;
@@ -349,6 +350,60 @@ button {
   border-radius: var(--radius-full);
   padding: 0 6px;
   line-height: 16px;
+}
+
+/* file-backed workspace: compact file + sync status under the name */
+.tree-file-badge {
+  flex-shrink: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 92px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  cursor: default;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tree-file-badge:disabled {
+  cursor: default;
+}
+
+.tree-file-badge:not(:disabled):hover {
+  color: var(--text-primary);
+}
+
+.tree-file-name {
+  max-width: 48px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-file-status {
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface-hover);
+  padding: 0 5px;
+  line-height: 16px;
+}
+
+.tree-file-badge[data-status="conflict"] .tree-file-status,
+.tree-file-badge[data-status="missing"] .tree-file-status,
+.tree-file-badge[data-status="invalid"] .tree-file-status,
+.tree-file-badge[data-status="error"] .tree-file-status {
+  background: color-mix(in srgb, #e03131 22%, transparent);
+  color: #e03131;
+}
+
+.tree-file-badge[data-status="permission"] .tree-file-status {
+  background: color-mix(in srgb, #f59f00 22%, transparent);
+  color: #b26b00;
 }
 
 .tree-children {
@@ -441,6 +496,35 @@ button {
 
 .tab-confirm-btn.danger:hover {
   background: #c92a2a;
+}
+
+/* ---- sync conflict ---- */
+.sync-conflict {
+  width: min(440px, calc(100vw - 48px));
+}
+
+.sync-conflict-actions {
+  flex-wrap: wrap;
+}
+
+/* ---- status bar file state ---- */
+.status-file {
+  margin-right: var(--space-3);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-file[data-status="conflict"],
+.status-file[data-status="missing"],
+.status-file[data-status="invalid"],
+.status-file[data-status="error"] {
+  color: #e03131;
+}
+
+.status-file[data-status="permission"] {
+  color: #b26b00;
 }
 
 /* ---- top right cluster ---- */

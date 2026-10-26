@@ -24,7 +24,8 @@ const TOOLS: ShortcutGroup = {
 const FILE: ShortcutGroup = {
   title: "File",
   items: [
-    { keys: `${MOD}+S`, desc: "Save" },
+    { keys: `${MOD}+S`, desc: "Save to file" },
+    { keys: `${MOD}+Shift+S`, desc: "Save as…" },
     { keys: `${MOD}+O`, desc: "Open" },
   ],
 };

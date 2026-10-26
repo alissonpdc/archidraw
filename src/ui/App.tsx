@@ -13,9 +13,11 @@ import { Toasts } from "./components/Toasts";
 import { ShortcutsModal } from "./components/ShortcutsModal";
 import { ExportImageModal } from "./components/ExportImageModal";
 import { SaveModal } from "./components/SaveModal";
+import { SyncConflictModal } from "./components/SyncConflictModal";
 import { LibraryPanel } from "./components/LibraryPanel";
 import { ContextMenu } from "./components/ContextMenu";
 import { HoverInfoBox } from "./components/HoverInfoBox";
+import { documents } from "./documents";
 
 const TOOL_KEYS: Record<string, Parameters<typeof editor.setTool>[0]> = {
   "1": "selection",
@@ -87,6 +89,21 @@ export function App() {
 
   const toggleWorkspacesPanel = useCallback(() => {
     setWorkspacesOpen((v) => !v);
+  }, []);
+
+  const openDocument = useCallback(() => {
+    if (documents.isSupported()) void documents.open();
+    else fileInputRef.current?.click();
+  }, []);
+
+  const saveDocument = useCallback(() => {
+    if (documents.isSupported()) void documents.save();
+    else setSaveOpen(true);
+  }, []);
+
+  const saveDocumentAs = useCallback(() => {
+    if (documents.isSupported()) void documents.saveAs();
+    else setSaveOpen(true);
   }, []);
 
   useEffect(() => {
@@ -190,12 +207,13 @@ export function App() {
       }
       if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        setSaveOpen(true);
+        if (e.shiftKey) saveDocumentAs();
+        else saveDocument();
         return;
       }
       if (mod && e.key.toLowerCase() === "o") {
         e.preventDefault();
-        fileInputRef.current?.click();
+        openDocument();
         return;
       }
       if (mod) return;
@@ -252,7 +270,7 @@ export function App() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [toggleWorkspacesPanel]);
+  }, [toggleWorkspacesPanel, openDocument, saveDocument, saveDocumentAs]);
 
   useEffect(() => {
     const internalClipboardHas = () => {
@@ -311,7 +329,10 @@ export function App() {
           <div className="top-right">
             <AppMenu
               onExportImage={() => setExportImageOpen(true)}
-              onSave={() => setSaveOpen(true)}
+              onOpen={openDocument}
+              onSave={saveDocument}
+              onSaveAs={saveDocumentAs}
+              onDownloadCopy={() => setSaveOpen(true)}
               fileInputRef={fileInputRef}
             />
           </div>
@@ -357,6 +378,7 @@ export function App() {
         open={saveOpen}
         onClose={() => setSaveOpen(false)}
       />
+      <SyncConflictModal />
     </div>
   );
 }
