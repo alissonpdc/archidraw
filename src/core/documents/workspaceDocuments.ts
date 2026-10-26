@@ -47,6 +47,8 @@ export class WorkspaceDocuments implements DocumentRuntime {
 
   bindings = new Map<string, WorkspaceFileBinding>();
   writeTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  inFlightWrites = new Map<string, Promise<void>>();
+  pendingFlushes = new Set<string>();
   pollingTimer: ReturnType<typeof setTimeout> | null = null;
   pollingIds = new Set<string>();
   unsubscribeEditor: (() => void) | null = null;

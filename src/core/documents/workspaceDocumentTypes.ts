@@ -69,6 +69,8 @@ export interface DocumentRuntime {
   now: () => number;
   bindings: Map<string, WorkspaceFileBinding>;
   writeTimers: Map<string, ReturnType<typeof setTimeout>>;
+  inFlightWrites: Map<string, Promise<void>>;
+  pendingFlushes: Set<string>;
   pollingTimer: ReturnType<typeof setTimeout> | null;
   pollingIds: Set<string>;
   unsubscribeEditor: (() => void) | null;

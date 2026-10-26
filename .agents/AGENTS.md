@@ -60,6 +60,7 @@ All critical rules live as knowledge entries in `.agents/knowledges/`. **Read th
 | `panel-intercepts-canvas-clicks.md` | Once a selection exists, synthetic canvas clicks must stay at `x > 260` (and `y > 80` below the toolbar) — the properties panel floats over the canvas. |
 | `stroke-path-duplication.md` | Exactly ONE `Path2D` construction site (`getStrokePath(el)`); inline rebuilds defeat DRY and make the helper's branches uncoverable. |
 | `theme-reload-color-flip.md` | Install `data-theme` observers only after applying the persisted pref; attribute appliers and theme autosave handlers must be idempotent. |
+| `workspace-file-sync-races.md` | Synchronize file writes with `inFlightWrites` and `pendingFlushes`; skip polling during active saves; never trigger parallel writes from polling while debounce timer is active. |
 | `canvas-performance.md` | `translatedOrigin` on pure translations, cached grid `CanvasPattern`s, algebraic hachure pre-clip, `getRenderToken()` gate, `getDocIndex()` O(1) lookups, immutable `Document` history snapshots. |
 
 Add a new `.md` entry there whenever a fix or architectural constraint warrants a general rule, and reference it in this file.

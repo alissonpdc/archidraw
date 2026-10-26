@@ -55,6 +55,8 @@ export function disposeDocuments(runtime: DocumentRuntime): void {
   runtime.unsubscribeEditor = null;
   for (const timer of runtime.writeTimers.values()) clearTimeout(timer);
   runtime.writeTimers.clear();
+  runtime.inFlightWrites.clear();
+  runtime.pendingFlushes.clear();
   if (runtime.pollingTimer) clearTimeout(runtime.pollingTimer);
   runtime.pollingTimer = null;
   if (runtime.visibilityListener) {
@@ -91,6 +93,32 @@ export async function flush(
   runtime: DocumentRuntime,
   workspaceId: string,
 ): Promise<void> {
+  const existing = runtime.inFlightWrites.get(workspaceId);
+  if (existing) {
+    runtime.pendingFlushes.add(workspaceId);
+    await existing;
+    const next = runtime.inFlightWrites.get(workspaceId);
+    if (next) await next;
+    return;
+  }
+  const writePromise = (async () => {
+    try {
+      await performFlush(runtime, workspaceId);
+    } finally {
+      runtime.inFlightWrites.delete(workspaceId);
+      if (runtime.pendingFlushes.delete(workspaceId)) {
+        void flush(runtime, workspaceId);
+      }
+    }
+  })();
+  runtime.inFlightWrites.set(workspaceId, writePromise);
+  await writePromise;
+}
+
+async function performFlush(
+  runtime: DocumentRuntime,
+  workspaceId: string,
+): Promise<void> {
   const binding = runtime.bindings.get(workspaceId);
   if (!binding || getSyncConflict(workspaceId)) return;
   const local = await localDocument(runtime, workspaceId, binding);
@@ -99,21 +127,33 @@ export async function flush(
     markSaved(runtime, binding);
     return;
   }
-  await writeIfBaseUnchanged(runtime, workspaceId, binding, local);
+  await writeIfBaseUnchanged(runtime, workspaceId, local);
 }
 
 async function writeIfBaseUnchanged(
   runtime: DocumentRuntime,
   workspaceId: string,
-  binding: WorkspaceFileBinding,
   local: LocalDocument,
 ): Promise<void> {
   await withFileLock(workspaceId, async () => {
+    const binding = runtime.bindings.get(workspaceId);
+    if (!binding || getSyncConflict(workspaceId)) return;
     updateView(runtime, workspaceId, binding.fileName, "saving");
     const disk = await readDisk(runtime, binding);
     if (!disk) return;
     const diskHash = await hashText(disk.text);
     if (diskHash !== binding.lastSyncedHash) {
+      if (diskHash === local.hash) {
+        const next: WorkspaceFileBinding = {
+          ...binding,
+          lastSyncedHash: diskHash,
+          lastDiskMtime: disk.mtime,
+          lastDiskSize: disk.size,
+        };
+        await persistBinding(runtime, next);
+        markSaved(runtime, next);
+        return;
+      }
       registerConflict(runtime, binding, disk, diskHash);
       return;
     }
@@ -187,11 +227,24 @@ async function reconcileDisk(
   }
   const diskHash = await hashText(disk.text);
   if (diskHash === binding.lastSyncedHash) {
+    if (
+      disk.mtime !== binding.lastDiskMtime ||
+      disk.size !== binding.lastDiskSize
+    ) {
+      const updated: WorkspaceFileBinding = {
+        ...binding,
+        lastDiskMtime: disk.mtime,
+        lastDiskSize: disk.size,
+      };
+      await persistBinding(runtime, updated);
+    }
     if (!local || local.hash === diskHash) {
       markSaved(runtime, binding);
       return;
     }
-    await writeIfBaseUnchanged(runtime, workspaceId, binding, local);
+    if (!runtime.writeTimers.has(workspaceId)) {
+      await flush(runtime, workspaceId);
+    }
     return;
   }
   if (
@@ -293,6 +346,7 @@ async function pollWorkspace(
   runtime: DocumentRuntime,
   workspaceId: string,
 ): Promise<void> {
+  if (runtime.inFlightWrites.has(workspaceId)) return;
   const binding = runtime.bindings.get(workspaceId);
   if (!binding || getSyncConflict(workspaceId)) return;
   if (runtime.pollingIds.has(workspaceId)) return;
@@ -316,12 +370,22 @@ async function pollWorkspace(
       reportAccessError(runtime, binding, error);
       return;
     }
+    const currentStatus = getFileView(workspaceId)?.status;
+    if (currentStatus === "saving" || runtime.inFlightWrites.has(workspaceId)) {
+      return;
+    }
     const unchanged =
       stat.mtime === binding.lastDiskMtime &&
       stat.size === binding.lastDiskSize;
-    if (unchanged && getFileView(workspaceId)?.status === "saved") return;
+    const isErrorStatus =
+      currentStatus === "missing" ||
+      currentStatus === "permission" ||
+      currentStatus === "error";
+    if (unchanged && !isErrorStatus) return;
+    if (runtime.inFlightWrites.has(workspaceId)) return;
     const disk = await readDisk(runtime, binding);
     if (!disk) return;
+    if (runtime.inFlightWrites.has(workspaceId)) return;
     await reconcileDisk(runtime, binding, disk);
   } finally {
     runtime.pollingIds.delete(workspaceId);

@@ -63,6 +63,94 @@ test.describe("workspace file sync", () => {
       .toBe(2);
   });
 
+  test("drawing continuously while autosave flushes never triggers a conflict modal", async ({
+    page,
+  }) => {
+    await drawRect(page);
+    await saveActiveToFile(page, WORKSPACE_FILE);
+
+    await page.evaluate(() => {
+      const access = (window as any).__documents__.access;
+      const originalWrite = access.write;
+      access.write = async (...args: any[]) => {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        return originalWrite.apply(access, args);
+      };
+    });
+
+    for (let i = 0; i < 4; i++) {
+      await drawRect(
+        page,
+        { x: 260 + i * 30, y: 100 + i * 20 },
+        { x: 300 + i * 30, y: 140 + i * 20 },
+      );
+      await page.waitForTimeout(400);
+      await page.evaluate(() => (window as any).__documents__.refreshAll());
+    }
+
+    await page.waitForTimeout(1500);
+
+    await expect(page.locator('[data-testid="sync-conflict"]')).toHaveCount(0);
+    expect((await documentSyncSnapshot(page)).conflicts).toHaveLength(0);
+  });
+
+  test("polling while a flush is in progress does not cause a conflict", async ({
+    page,
+  }) => {
+    await drawRect(page);
+    await saveActiveToFile(page, WORKSPACE_FILE);
+
+    await page.evaluate(() => {
+      const access = (window as any).__documents__.access;
+      const originalWrite = access.write;
+      access.write = async (...args: any[]) => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        return originalWrite.apply(access, args);
+      };
+    });
+
+    await drawRect(page, { x: 320, y: 100 }, { x: 420, y: 180 });
+
+    await page.evaluate(() => {
+      const docs = (window as any).__documents__;
+      const wsId = docs.editor.getSnapshot().activeWorkspaceId;
+      void docs.save(wsId);
+      void docs.refreshAll();
+    });
+
+    await page.waitForTimeout(500);
+
+    await expect(page.locator('[data-testid="sync-conflict"]')).toHaveCount(0);
+    expect((await documentSyncSnapshot(page)).conflicts).toHaveLength(0);
+  });
+
+  test("two flushes in flight do not cause a conflict", async ({ page }) => {
+    await drawRect(page);
+    await saveActiveToFile(page, WORKSPACE_FILE);
+
+    await page.evaluate(() => {
+      const access = (window as any).__documents__.access;
+      const originalWrite = access.write;
+      access.write = async (...args: any[]) => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        return originalWrite.apply(access, args);
+      };
+    });
+
+    await drawRect(page, { x: 320, y: 100 }, { x: 420, y: 180 });
+
+    await page.evaluate(() => {
+      const docs = (window as any).__documents__;
+      const wsId = docs.editor.getSnapshot().activeWorkspaceId;
+      void docs.save(wsId);
+      void docs.save(wsId);
+    });
+
+    await page.waitForTimeout(500);
+
+    await expect(page.locator('[data-testid="sync-conflict"]')).toHaveCount(0);
+  });
+
   test("pan, zoom and tab switches never rewrite camera or active tab", async ({
     page,
   }) => {
