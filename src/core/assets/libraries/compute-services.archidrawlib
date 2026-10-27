@@ -168,7 +168,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Server",
-          "groupId": "std_grp_14"
+          "groupId": "std_grp_14",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -217,7 +218,8 @@
           "label": "VM",
           "fontSize": 16,
           "bold": true,
-          "textColor": "#0b4635"
+          "textColor": "#0b4635",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_3_3",
@@ -282,7 +284,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Virtual Machine",
-          "groupId": "pv_grp_3"
+          "groupId": "pv_grp_3",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -432,7 +435,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Container",
-          "groupId": "pv_grp_2"
+          "groupId": "pv_grp_2",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -585,7 +589,8 @@
           "label": "μS",
           "fontSize": 13,
           "bold": true,
-          "textColor": "#0b4635"
+          "textColor": "#0b4635",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_4_lbl",
@@ -610,7 +615,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Microservice",
-          "groupId": "pv_grp_4"
+          "groupId": "pv_grp_4",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -659,7 +665,8 @@
           "label": "λ",
           "fontSize": 36,
           "bold": true,
-          "textColor": "#0b4635"
+          "textColor": "#0b4635",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_1_lbl",
@@ -684,7 +691,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Serverless Function",
-          "groupId": "pv_grp_1"
+          "groupId": "pv_grp_1",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -741,7 +749,8 @@
           "label": "API",
           "fontSize": 14,
           "bold": true,
-          "textColor": "#168866"
+          "textColor": "#168866",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "el_std_11_lbl",
@@ -766,7 +775,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "API",
-          "groupId": "std_grp_11"
+          "groupId": "std_grp_11",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -794,7 +804,8 @@
           "groupId": "grp_workers",
           "label": "Master",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "wp_l1",
@@ -877,7 +888,8 @@
           "groupId": "grp_workers",
           "label": "W-1",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "wp_w2",
@@ -900,7 +912,8 @@
           "groupId": "grp_workers",
           "label": "W-2",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "wp_w3",
@@ -923,7 +936,8 @@
           "groupId": "grp_workers",
           "label": "W-3",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "wp_txt",
@@ -948,7 +962,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1104,7 +1119,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Scheduler",
-          "groupId": "std_grp_15"
+          "groupId": "std_grp_15",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1254,12 +1270,13 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Batch Job",
-          "groupId": "pv_grp_5"
+          "groupId": "pv_grp_5",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
     {
-      "name": "Service Mesh Sidecar",
+      "name": "Service Mesh",
       "archidrawElements": [
         {
           "id": "sm_pod",
@@ -1302,7 +1319,8 @@
           "groupId": "grp_mesh",
           "label": "App",
           "fontSize": 12,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "sm_proxy",
@@ -1325,7 +1343,8 @@
           "groupId": "grp_mesh",
           "label": "Proxy",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "sm_link",
@@ -1370,7 +1389,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1521,7 +1541,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1651,7 +1672,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1801,7 +1823,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1971,7 +1994,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Service Registry",
-          "groupId": "pv_grp_10"
+          "groupId": "pv_grp_10",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     }

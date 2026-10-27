@@ -273,7 +273,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Message Queue",
-          "groupId": "std_grp_2"
+          "groupId": "std_grp_2",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -301,7 +302,8 @@
           "groupId": "grp_pubsub",
           "label": "Topic",
           "fontSize": 12,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "ps_in",
@@ -410,7 +412,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -440,7 +443,8 @@
           "textVAlign": "bottom",
           "textOffsetBottom": 5,
           "bold": true,
-          "fontSize": 13
+          "fontSize": 13,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "el_std_17_2",
@@ -505,7 +509,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Event",
-          "groupId": "std_grp_17"
+          "groupId": "std_grp_17",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -553,7 +558,8 @@
           "groupId": "grp_stream",
           "label": "W1",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "stp_w2",
@@ -576,7 +582,8 @@
           "groupId": "grp_stream",
           "label": "W2",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "stp_w3",
@@ -599,7 +606,8 @@
           "groupId": "grp_stream",
           "label": "W3",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "stp_flow",
@@ -645,7 +653,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -693,7 +702,8 @@
           "groupId": "grp_dlq",
           "label": "MSG",
           "fontSize": 10,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "dlq_m2",
@@ -717,7 +727,8 @@
           "label": "FAIL",
           "fontSize": 10,
           "bold": true,
-          "textColor": "#9b1717"
+          "textColor": "#9b1717",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "dlq_alert",
@@ -741,7 +752,8 @@
           "label": "!",
           "fontSize": 16,
           "bold": true,
-          "textColor": "#9b1717"
+          "textColor": "#9b1717",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "dlq_txt",
@@ -766,7 +778,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -794,7 +807,8 @@
           "groupId": "grp_webhook",
           "label": "Event",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "wh_arrow",
@@ -838,7 +852,8 @@
           "groupId": "grp_webhook",
           "label": "POST",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "wh_txt",
@@ -863,7 +878,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1030,7 +1046,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Data Pipeline",
-          "groupId": "std_grp_1"
+          "groupId": "std_grp_1",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     }

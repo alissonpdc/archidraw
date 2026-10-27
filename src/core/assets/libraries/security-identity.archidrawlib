@@ -148,7 +148,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Identity Provider",
-          "groupId": "pv_grp_16"
+          "groupId": "pv_grp_16",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -306,7 +307,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Auth",
-          "groupId": "std_grp_auth"
+          "groupId": "std_grp_auth",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -335,7 +337,8 @@
           "label": "H",
           "fontSize": 13,
           "bold": true,
-          "textColor": "#9b1717"
+          "textColor": "#9b1717",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_20_2",
@@ -359,7 +362,8 @@
           "label": "P",
           "fontSize": 13,
           "bold": true,
-          "textColor": "#3d1f99"
+          "textColor": "#3d1f99",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_20_3",
@@ -383,7 +387,8 @@
           "label": "S",
           "fontSize": 13,
           "bold": true,
-          "textColor": "#0b4635"
+          "textColor": "#0b4635",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_20_4",
@@ -428,7 +433,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Access Token (JWT)",
-          "groupId": "pv_grp_20"
+          "groupId": "pv_grp_20",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -598,7 +604,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -728,7 +735,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Key Management",
-          "groupId": "pv_grp_18"
+          "groupId": "pv_grp_18",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -922,7 +930,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "TLS Certificate",
-          "groupId": "pv_grp_17"
+          "groupId": "pv_grp_17",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -930,35 +939,35 @@
       "name": "Firewall",
       "archidrawElements": [
         {
-          "id": "el_std_6_1",
+          "id": "fw_1",
           "type": "rectangle",
-          "x": 26.48,
-          "y": 12,
-          "width": 107.04,
-          "height": 80,
+          "x": 26,
+          "y": 16,
+          "width": 108,
+          "height": 72,
           "strokeColor": "#9b1717",
           "backgroundColor": "#edd4d4",
-          "strokeWidth": 1,
+          "strokeWidth": 1.5,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
           "strokeStyle": "solid",
           "fillStyle": "solid",
           "roughness": 1,
-          "borderRadius": 8,
+          "borderRadius": 4,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_2",
+          "id": "fw_2",
           "type": "line",
-          "x": 26.48,
-          "y": 32,
-          "width": 107.04,
+          "x": 26,
+          "y": 34,
+          "width": 108,
           "height": 0,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -967,18 +976,18 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_3",
+          "id": "fw_3",
           "type": "line",
-          "x": 26.48,
+          "x": 26,
           "y": 52,
-          "width": 107.04,
+          "width": 108,
           "height": 0,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -987,18 +996,18 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_4",
+          "id": "fw_4",
           "type": "line",
-          "x": 26.48,
-          "y": 72,
-          "width": 107.04,
+          "x": 26,
+          "y": 70,
+          "width": 108,
           "height": 0,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -1007,18 +1016,18 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_5",
+          "id": "fw_5",
           "type": "line",
-          "x": 53.65,
-          "y": 12,
+          "x": 62,
+          "y": 16,
           "width": 0,
-          "height": 20,
+          "height": 18,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -1027,18 +1036,18 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_6",
+          "id": "fw_6",
           "type": "line",
-          "x": 89.88,
-          "y": 12,
+          "x": 98,
+          "y": 16,
           "width": 0,
-          "height": 20,
+          "height": 18,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -1047,78 +1056,18 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_7",
+          "id": "fw_7",
           "type": "line",
-          "x": 40.48,
-          "y": 32,
-          "width": 0,
-          "height": 20,
-          "strokeColor": "#9b1717",
-          "backgroundColor": "transparent",
-          "strokeWidth": 1,
-          "opacity": 1,
-          "strokeOpacity": 1,
-          "fillOpacity": 1,
-          "strokeStyle": "solid",
-          "fillStyle": "solid",
-          "roughness": 1,
-          "borderRadius": 0,
-          "angle": 0,
-          "groupId": "std_grp_6"
-        },
-        {
-          "id": "el_std_6_8",
-          "type": "line",
-          "x": 71.77,
-          "y": 32,
-          "width": 0,
-          "height": 20,
-          "strokeColor": "#9b1717",
-          "backgroundColor": "transparent",
-          "strokeWidth": 1,
-          "opacity": 1,
-          "strokeOpacity": 1,
-          "fillOpacity": 1,
-          "strokeStyle": "solid",
-          "fillStyle": "solid",
-          "roughness": 1,
-          "borderRadius": 0,
-          "angle": 0,
-          "groupId": "std_grp_6"
-        },
-        {
-          "id": "el_std_6_9",
-          "type": "line",
-          "x": 106.35,
-          "y": 32,
-          "width": 0,
-          "height": 20,
-          "strokeColor": "#9b1717",
-          "backgroundColor": "transparent",
-          "strokeWidth": 1,
-          "opacity": 1,
-          "strokeOpacity": 1,
-          "fillOpacity": 1,
-          "strokeStyle": "solid",
-          "fillStyle": "solid",
-          "roughness": 1,
-          "borderRadius": 0,
-          "angle": 0,
-          "groupId": "std_grp_6"
-        },
-        {
-          "id": "el_std_6_10",
-          "type": "line",
-          "x": 53.65,
+          "x": 62,
           "y": 52,
           "width": 0,
-          "height": 20,
+          "height": 18,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -1127,18 +1076,18 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_11",
+          "id": "fw_8",
           "type": "line",
-          "x": 89.88,
+          "x": 98,
           "y": 52,
           "width": 0,
-          "height": 20,
+          "height": 18,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -1147,18 +1096,18 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_12",
+          "id": "fw_9",
           "type": "line",
-          "x": 41.82,
-          "y": 74.36,
+          "x": 44,
+          "y": 34,
           "width": 0,
-          "height": 17.64,
+          "height": 18,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -1167,18 +1116,18 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_13",
+          "id": "fw_10",
           "type": "line",
-          "x": 73.11,
-          "y": 74.36,
+          "x": 80,
+          "y": 34,
           "width": 0,
-          "height": 17.64,
+          "height": 18,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -1187,18 +1136,18 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_14",
+          "id": "fw_11",
           "type": "line",
-          "x": 107.69,
-          "y": 74.36,
+          "x": 116,
+          "y": 34,
           "width": 0,
-          "height": 17.64,
+          "height": 18,
           "strokeColor": "#9b1717",
           "backgroundColor": "transparent",
-          "strokeWidth": 1,
+          "strokeWidth": 1.2,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
@@ -1207,13 +1156,73 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw"
         },
         {
-          "id": "el_std_6_lbl",
+          "id": "fw_12",
+          "type": "line",
+          "x": 44,
+          "y": 70,
+          "width": 0,
+          "height": 18,
+          "strokeColor": "#9b1717",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_fw"
+        },
+        {
+          "id": "fw_13",
+          "type": "line",
+          "x": 80,
+          "y": 70,
+          "width": 0,
+          "height": 18,
+          "strokeColor": "#9b1717",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_fw"
+        },
+        {
+          "id": "fw_14",
+          "type": "line",
+          "x": 116,
+          "y": 70,
+          "width": 0,
+          "height": 18,
+          "strokeColor": "#9b1717",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_fw"
+        },
+        {
+          "id": "fw_lbl",
           "type": "text",
           "x": 0,
-          "y": 98,
+          "y": 94,
           "width": 160,
           "height": 22,
           "strokeColor": "#9b1717",
@@ -1232,12 +1241,13 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Firewall",
-          "groupId": "std_grp_6"
+          "groupId": "std_grp_fw",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
     {
-      "name": "Web App Firewall",
+      "name": "WAF",
       "archidrawElements": [
         {
           "id": "waf_shield",
@@ -1289,7 +1299,8 @@
               }
             ]
           ],
-          "textColor": "#9b1717"
+          "textColor": "#9b1717",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "waf_txt",
@@ -1310,11 +1321,12 @@
           "borderRadius": 0,
           "angle": 0,
           "groupId": "grp_waf",
-          "text": "WAF / Firewall",
+          "text": "WAF",
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1456,7 +1468,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "DDoS Protection",
-          "groupId": "pv_grp_19"
+          "groupId": "pv_grp_19",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     }

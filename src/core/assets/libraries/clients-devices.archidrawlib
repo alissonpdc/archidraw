@@ -70,7 +70,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "User",
-          "groupId": "std_grp_13"
+          "groupId": "std_grp_13",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -226,7 +227,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Users",
-          "groupId": "std_grp_3"
+          "groupId": "std_grp_3",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -297,7 +299,8 @@
           "groupId": "std_grp_4",
           "textColor": "#0b2ebc",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "el_std_4_4",
@@ -342,7 +345,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Developer",
-          "groupId": "std_grp_4"
+          "groupId": "std_grp_4",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -439,7 +443,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Admin",
-          "groupId": "std_grp_12"
+          "groupId": "std_grp_12",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -629,7 +634,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Mobile App",
-          "groupId": "std_grp_mob"
+          "groupId": "std_grp_mob",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -859,7 +865,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1109,7 +1116,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1239,7 +1247,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1435,7 +1444,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1763,7 +1773,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -2052,7 +2063,8 @@
           "label": "IoT",
           "fontSize": 12,
           "bold": true,
-          "textColor": "#26292c"
+          "textColor": "#26292c",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_31_lbl",
@@ -2077,7 +2089,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "IoT Device",
-          "groupId": "pv_grp_31"
+          "groupId": "pv_grp_31",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     }

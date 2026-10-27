@@ -287,7 +287,8 @@
           "label": "www",
           "fontSize": 13,
           "bold": true,
-          "textColor": "#1971c2"
+          "textColor": "#1971c2",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_9_lbl",
@@ -312,7 +313,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Internet",
-          "groupId": "pv_grp_9"
+          "groupId": "pv_grp_9",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -341,7 +343,8 @@
           "label": "DNS",
           "fontSize": 13,
           "bold": true,
-          "textColor": "#0b2ebc"
+          "textColor": "#0b2ebc",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "el_std_10_2",
@@ -406,12 +409,13 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "DNS",
-          "groupId": "std_grp_10"
+          "groupId": "std_grp_10",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
     {
-      "name": "CDN / Edge Network",
+      "name": "CDN",
       "archidrawElements": [
         {
           "id": "cdn_core",
@@ -435,7 +439,8 @@
           "label": "EDGE",
           "fontSize": 12,
           "bold": true,
-          "textColor": "#177d8c"
+          "textColor": "#177d8c",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "cdn_n1",
@@ -616,11 +621,12 @@
           "borderRadius": 0,
           "angle": 0,
           "groupId": "grp_cdn",
-          "text": "CDN / Edge",
+          "text": "CDN",
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -774,7 +780,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1064,7 +1071,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "API Gateway",
-          "groupId": "std_grp_20"
+          "groupId": "std_grp_20",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1093,7 +1101,8 @@
           "label": "proxy",
           "fontSize": 12,
           "bold": true,
-          "textColor": "#114c83"
+          "textColor": "#114c83",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_6_2",
@@ -1206,7 +1215,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Reverse Proxy",
-          "groupId": "pv_grp_6"
+          "groupId": "pv_grp_6",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1235,7 +1245,8 @@
           "label": "NAT",
           "fontSize": 15,
           "bold": true,
-          "textColor": "#114c83"
+          "textColor": "#114c83",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_8_2",
@@ -1348,7 +1359,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "NAT Gateway",
-          "groupId": "pv_grp_8"
+          "groupId": "pv_grp_8",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1478,7 +1490,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "VPN Tunnel",
-          "groupId": "pv_grp_7"
+          "groupId": "pv_grp_7",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1508,7 +1521,8 @@
           "fontSize": 11,
           "bold": true,
           "textVAlign": "top",
-          "textColor": "#1971c2"
+          "textColor": "#1971c2",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "wss_a1",
@@ -1577,7 +1591,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     }

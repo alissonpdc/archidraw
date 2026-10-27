@@ -342,7 +342,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Monitoring",
-          "groupId": "std_grp_mon"
+          "groupId": "std_grp_mon",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -492,7 +493,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Logs",
-          "groupId": "pv_grp_21"
+          "groupId": "pv_grp_21",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -662,7 +664,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Metrics",
-          "groupId": "pv_grp_22"
+          "groupId": "pv_grp_22",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -812,7 +815,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Distributed Tracing",
-          "groupId": "pv_grp_23"
+          "groupId": "pv_grp_23",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -933,7 +937,8 @@
           "label": "!",
           "fontSize": 13,
           "bold": true,
-          "textColor": "#ffffff"
+          "textColor": "#ffffff",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_24_lbl",
@@ -958,7 +963,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Alerting",
-          "groupId": "pv_grp_24"
+          "groupId": "pv_grp_24",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     }

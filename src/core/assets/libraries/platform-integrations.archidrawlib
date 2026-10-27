@@ -208,12 +208,13 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Git Repository",
-          "groupId": "pv_grp_25"
+          "groupId": "pv_grp_25",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
     {
-      "name": "CI/CD Pipeline",
+      "name": "CI-CD Pipeline",
       "archidrawElements": [
         {
           "id": "pv_26_1",
@@ -382,7 +383,8 @@
           "fontSize": 10,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_26_5",
@@ -407,7 +409,8 @@
           "fontSize": 10,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_26_6",
@@ -432,7 +435,8 @@
           "fontSize": 10,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_26_lbl",
@@ -456,8 +460,9 @@
           "fontSize": 14,
           "textAlign": "center",
           "textVAlign": "middle",
-          "text": "CI/CD Pipeline",
-          "groupId": "pv_grp_26"
+          "text": "CI-CD Pipeline",
+          "groupId": "pv_grp_26",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -687,12 +692,13 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Container Registry",
-          "groupId": "pv_grp_27"
+          "groupId": "pv_grp_27",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
     {
-      "name": "LLM / AI Model",
+      "name": "AI Model",
       "archidrawElements": [
         {
           "id": "pv_28_1",
@@ -848,8 +854,9 @@
           "fontSize": 14,
           "textAlign": "center",
           "textVAlign": "middle",
-          "text": "LLM / AI Model",
-          "groupId": "pv_grp_28"
+          "text": "AI Model",
+          "groupId": "pv_grp_28",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1039,7 +1046,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "AI Agent",
-          "groupId": "pv_grp_29"
+          "groupId": "pv_grp_29",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1068,7 +1076,8 @@
           "label": "3rd party",
           "fontSize": 12,
           "bold": true,
-          "textColor": "#545c63"
+          "textColor": "#545c63",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_30_2",
@@ -1115,7 +1124,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "External System",
-          "groupId": "pv_grp_30"
+          "groupId": "pv_grp_30",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1205,7 +1215,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Email Service",
-          "groupId": "pv_grp_32"
+          "groupId": "pv_grp_32",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1335,7 +1346,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Payment Gateway",
-          "groupId": "pv_grp_33"
+          "groupId": "pv_grp_33",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     }

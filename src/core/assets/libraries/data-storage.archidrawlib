@@ -107,7 +107,8 @@
           "label": "SQL",
           "fontSize": 15,
           "bold": true,
-          "textColor": "#0b2ebc"
+          "textColor": "#0b2ebc",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_11_2",
@@ -152,7 +153,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Relational DB",
-          "groupId": "pv_grp_11"
+          "groupId": "pv_grp_11",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -181,7 +183,8 @@
           "label": "Writer",
           "fontSize": 11,
           "bold": true,
-          "textColor": "#0b2ebc"
+          "textColor": "#0b2ebc",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "dbc_pbot",
@@ -266,7 +269,8 @@
           "label": "Reader",
           "fontSize": 11,
           "bold": true,
-          "textColor": "#545c63"
+          "textColor": "#545c63",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "dbc_rbot",
@@ -331,7 +335,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -384,7 +389,8 @@
           "label": "{ }",
           "fontSize": 22,
           "bold": true,
-          "textColor": "#3d1f99"
+          "textColor": "#3d1f99",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_12_2",
@@ -445,7 +451,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Document DB",
-          "groupId": "pv_grp_12"
+          "groupId": "pv_grp_12",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -514,7 +521,8 @@
           "label": "K",
           "fontSize": 11,
           "bold": true,
-          "textColor": "#ffffff"
+          "textColor": "#ffffff",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_13_4",
@@ -538,7 +546,8 @@
           "label": "V",
           "fontSize": 11,
           "bold": true,
-          "textColor": "#ffffff"
+          "textColor": "#ffffff",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_13_5",
@@ -603,7 +612,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Key-Value Store",
-          "groupId": "pv_grp_13"
+          "groupId": "pv_grp_13",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -821,7 +831,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1060,7 +1071,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Object Storage",
-          "groupId": "std_grp_7"
+          "groupId": "std_grp_7",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1108,7 +1120,8 @@
           "groupId": "grp_blob",
           "label": "IMG",
           "fontSize": 10,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "blob_b2",
@@ -1131,7 +1144,8 @@
           "groupId": "grp_blob",
           "label": "MP4",
           "fontSize": 10,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "blob_b3",
@@ -1154,7 +1168,8 @@
           "groupId": "grp_blob",
           "label": "PDF",
           "fontSize": 10,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "blob_txt",
@@ -1179,7 +1194,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1276,7 +1292,8 @@
           "label": "NFS",
           "fontSize": 13,
           "bold": true,
-          "textColor": "#a35f00"
+          "textColor": "#a35f00",
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "pv_15_lbl",
@@ -1301,7 +1318,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "File Storage",
-          "groupId": "pv_grp_15"
+          "groupId": "pv_grp_15",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1911,7 +1929,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Data Lake",
-          "groupId": "pv_grp_14"
+          "groupId": "pv_grp_14",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -1959,7 +1978,8 @@
           "groupId": "grp_olap",
           "label": "DIM",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "dw_c2",
@@ -1982,7 +2002,8 @@
           "groupId": "grp_olap",
           "label": "FACT",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "dw_c3",
@@ -2005,7 +2026,8 @@
           "groupId": "grp_olap",
           "label": "AGG",
           "fontSize": 11,
-          "bold": true
+          "bold": true,
+          "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
           "id": "dw_txt",
@@ -2030,7 +2052,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -2424,7 +2447,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Graph DB",
-          "groupId": "std_grp_8"
+          "groupId": "std_grp_8",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -2745,7 +2769,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Time-Series DB",
-          "groupId": "std_grp_9"
+          "groupId": "std_grp_9",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -2915,7 +2940,8 @@
           "fontSize": 14,
           "bold": true,
           "textAlign": "center",
-          "textVAlign": "middle"
+          "textVAlign": "middle",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     },
@@ -3085,7 +3111,8 @@
           "textAlign": "center",
           "textVAlign": "middle",
           "text": "Search Engine",
-          "groupId": "std_grp_16"
+          "groupId": "std_grp_16",
+          "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]
     }

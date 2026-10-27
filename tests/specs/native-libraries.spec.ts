@@ -222,9 +222,9 @@ test.describe("native system design libraries", () => {
 
     const platSection = page.locator('[data-testid="library-native-platform-integrations"]');
     await platSection.locator(".library-section-header").click();
-    await expect(platSection.locator('[data-tip="LLM / AI Model"]')).toBeVisible();
+    await expect(platSection.locator('[data-tip="AI Model"]')).toBeVisible();
 
-    await platSection.locator('[data-tip="LLM / AI Model"]').click();
+    await platSection.locator('[data-tip="AI Model"]').click();
     const state = await editorState();
     expect(state.elementCount).toBe(4);
     expect(state.selectedIds.length).toBe(4);
