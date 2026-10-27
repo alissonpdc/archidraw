@@ -416,39 +416,6 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                 {importError}
               </div>
             )}
-            {nativeLibs.map((lib) => {
-              const isOpen = openNativeGroups.has(lib.id);
-              return (
-                <section
-                  key={lib.id}
-                  className="library-section"
-                  data-testid={`library-native-${lib.id}`}
-                >
-                  <SectionHeader
-                    open={isOpen}
-                    onToggle={() =>
-                      setOpenNativeGroups((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(lib.id)) next.delete(lib.id);
-                        else next.add(lib.id);
-                        return next;
-                      })
-                    }
-                  >
-                    {lib.name}
-                  </SectionHeader>
-                  {isOpen && (
-                    <div className="library-subgroup">
-                      <div className="library-grid">
-                        {lib.items.map((item) => (
-                          <Tile key={item.id} item={item} onInsert={insert} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </section>
-              );
-            })}
             <section className="library-section">
               <SectionHeader
                 open={awsOpen}
@@ -518,6 +485,39 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                   );
                 })}
             </section>
+            {nativeLibs.map((lib) => {
+              const isOpen = openNativeGroups.has(lib.id);
+              return (
+                <section
+                  key={lib.id}
+                  className="library-section"
+                  data-testid={`library-native-${lib.id}`}
+                >
+                  <SectionHeader
+                    open={isOpen}
+                    onToggle={() =>
+                      setOpenNativeGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(lib.id)) next.delete(lib.id);
+                        else next.add(lib.id);
+                        return next;
+                      })
+                    }
+                  >
+                    {lib.name}
+                  </SectionHeader>
+                  {isOpen && (
+                    <div className="library-subgroup">
+                      <div className="library-grid">
+                        {lib.items.map((item) => (
+                          <Tile key={item.id} item={item} onInsert={insert} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
             <section className="library-section">
               <SectionHeader
                 open={k8sOpen}

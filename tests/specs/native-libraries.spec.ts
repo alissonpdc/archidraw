@@ -27,6 +27,23 @@ test.describe("native system design libraries", () => {
     }
   });
 
+  test("renders library sections in order: AWS, GCP, Azure, Clients & Personas, etc.", async ({
+    page,
+  }) => {
+    await openLibrary(page);
+
+    const headers = page.locator(".library-section-header");
+    const titles = (await headers.allTextContents()).map((t) => t.trim());
+
+    expect(titles.slice(0, 5)).toEqual([
+      "AWS",
+      "GCP",
+      "Azure",
+      "Clients & Personas",
+      "Infrastructure & Network",
+    ]);
+  });
+
   test("expands Clients & Personas and displays all 10 components", async ({
     page,
   }) => {
