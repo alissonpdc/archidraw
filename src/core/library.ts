@@ -5,6 +5,11 @@
  */
 
 import type { Element } from "./types";
+import {
+  getAllNativeLibraryItems,
+  getNativeLibraryItem,
+  isNativeLibraryItem,
+} from "./nativeLibraries";
 
 export interface LibraryItem {
   id: string;
@@ -697,17 +702,19 @@ export function getLibraryItem(id: string): LibraryItem | undefined {
     LIBRARY_GCP.find((i) => i.id === id) ??
     LIBRARY_AZURE.find((i) => i.id === id) ??
     LIBRARY_KUBERNETES.find((i) => i.id === id) ??
+    getNativeLibraryItem(id) ??
     importedItems.get(id)
   );
 }
 
-/** true for the bundled AWS/GCP/Azure/Kubernetes catalog (never removed at runtime) */
+/** true for the bundled AWS/GCP/Azure/Kubernetes/Native catalog (never removed at runtime) */
 export function isBuiltinLibraryItem(id: string): boolean {
   return (
     LIBRARY.some((i) => i.id === id) ||
     LIBRARY_GCP.some((i) => i.id === id) ||
     LIBRARY_AZURE.some((i) => i.id === id) ||
-    LIBRARY_KUBERNETES.some((i) => i.id === id)
+    LIBRARY_KUBERNETES.some((i) => i.id === id) ||
+    isNativeLibraryItem(id)
   );
 }
 
@@ -719,6 +726,7 @@ export function searchLibrary(query: string): LibraryItem[] {
     ...LIBRARY_GCP,
     ...LIBRARY_AZURE,
     ...LIBRARY_KUBERNETES,
+    ...getAllNativeLibraryItems(),
     ...importedItems.values(),
   ];
   if (!q) return pool;
