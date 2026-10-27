@@ -1,4 +1,8 @@
 import { type Page, test, expect, open } from "../fixtures";
+import {
+  NATIVE_LIBRARIES_MAP,
+  NATIVE_LIBRARY_ENTRIES,
+} from "../../src/core/nativeLibrariesMap";
 
 async function openLibrary(page: Page) {
   await open(page);
@@ -138,5 +142,36 @@ test.describe("native system design libraries", () => {
 
     const section = page.locator('[data-testid="library-native-clients-personas"]');
     await expect(section.locator(".library-group-remove")).toHaveCount(0);
+  });
+
+  test("defines single-responsibility name/lib mapping", () => {
+    expect(NATIVE_LIBRARIES_MAP["Clients & Personas"]).toBe("clients-personas.archidrawlib");
+    expect(NATIVE_LIBRARIES_MAP["Infrastructure & Network"]).toBe("infra-network.archidrawlib");
+    expect(NATIVE_LIBRARIES_MAP["Compute & Services"]).toBe("compute-services.archidrawlib");
+    expect(NATIVE_LIBRARIES_MAP["Messaging & Integration"]).toBe("messaging-integration.archidrawlib");
+    expect(NATIVE_LIBRARIES_MAP["Data & Storage"]).toBe("data-storage.archidrawlib");
+    expect(NATIVE_LIBRARY_ENTRIES.length).toBe(5);
+  });
+
+  test("expands Infrastructure & Network and inserts a component", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+
+    const section = page.locator('[data-testid="library-native-infra-network"]');
+    await expect(section).toBeVisible();
+
+    const header = section.locator(".library-section-header");
+    await header.click();
+    await expect(header).toHaveAttribute("aria-expanded", "true");
+
+    const dnsTile = section.locator('[data-tip="DNS"]');
+    await expect(dnsTile).toBeVisible();
+    await dnsTile.click();
+
+    const state = await editorState();
+    expect(state.elementCount).toBeGreaterThan(0);
+    expect(state.selectedIds.length).toBeGreaterThan(0);
   });
 });
