@@ -27,7 +27,7 @@ test.describe("native system design libraries", () => {
     }
   });
 
-  test("renders library sections in order: AWS, GCP, Azure, Clients & Personas, etc.", async ({
+  test("renders library sections in order: AWS, GCP, Azure, Kubernetes, Clients & Personas, etc.", async ({
     page,
   }) => {
     await openLibrary(page);
@@ -39,8 +39,8 @@ test.describe("native system design libraries", () => {
       "AWS",
       "GCP",
       "Azure",
+      "Kubernetes",
       "Clients & Personas",
-      "Infrastructure & Network",
     ]);
   });
 
