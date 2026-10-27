@@ -427,4 +427,44 @@ test.describe("component library", () => {
       "rds",
     );
   });
+
+  test("uses Archidraw tooltips without browser native title on action buttons and tiles", async ({
+    page,
+  }) => {
+    await openLibrary(page);
+
+    const importBtn = page.locator('[data-testid="library-import"]');
+    await expect(importBtn).toHaveAttribute(
+      "data-tip",
+      "Import .excalidrawlib / .archidrawlib",
+    );
+    await expect(importBtn).not.toHaveAttribute("title");
+
+    const closeBtn = page.locator(".library-close");
+    await expect(closeBtn).toHaveAttribute("data-tip", "Close library");
+    await expect(closeBtn).not.toHaveAttribute("title");
+
+    await importBtn.hover();
+    const tooltip = page.locator(".panel-tooltip");
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toHaveText("Import .excalidrawlib / .archidrawlib");
+
+    await page.mouse.move(0, 0);
+    await expect(tooltip).toHaveCount(0);
+
+    await page.locator(".library-section-header", { hasText: "AWS" }).click();
+    const ec2 = page.locator('.library-panel [data-component-id="ec2"]');
+    await expect(ec2).not.toHaveAttribute("title");
+    await ec2.hover();
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toHaveText("EC2");
+
+    const pseudoDisplay = await page.evaluate(() =>
+      window.getComputedStyle(
+        document.querySelector(".library-panel [data-tip]")!,
+        "::after",
+      ).display,
+    );
+    expect(pseudoDisplay).toBe("none");
+  });
 });

@@ -1612,8 +1612,9 @@ button.status-file {
   position: relative;
 }
 
-/* the panel uses a portal-based fixed tooltip instead (never clipped) */
-.properties-panel [data-tip]::after {
+/* the panels use a portal-based fixed tooltip instead (never clipped) */
+.properties-panel [data-tip]::after,
+.library-panel [data-tip]::after {
   display: none;
 }
 

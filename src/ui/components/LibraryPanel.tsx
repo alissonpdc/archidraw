@@ -55,12 +55,17 @@ interface TipState {
   text: string;
   x: number;
   y: number;
+  bottom?: number;
 }
 
 /** fixed-position tooltip in a portal — panel overflow never clips it */
 function TileTooltip({ tip }: { tip: TipState | null }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [pos, setPos] = useState<{
+    left: number;
+    top: number;
+    transform?: string;
+  } | null>(null);
 
   useLayoutEffect(() => {
     if (!tip || !ref.current) return;
@@ -69,7 +74,12 @@ function TileTooltip({ tip }: { tip: TipState | null }) {
       Math.max(8, tip.x - r.width / 2),
       window.innerWidth - r.width - 8,
     );
-    setPos({ left, top: tip.y });
+    const placeBelow = tip.y < 40;
+    setPos({
+      left,
+      top: placeBelow ? (tip.bottom ?? tip.y) + 8 : tip.y,
+      transform: placeBelow ? "none" : undefined,
+    });
   }, [tip]);
 
   if (!tip) return null;
@@ -80,6 +90,7 @@ function TileTooltip({ tip }: { tip: TipState | null }) {
       style={{
         left: pos?.left ?? tip.x,
         top: pos?.top ?? tip.y,
+        transform: pos?.transform,
         visibility: pos ? "visible" : "hidden",
       }}
     >
@@ -310,6 +321,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
       text: el.getAttribute("data-tip") || "",
       x: r.left + r.width / 2,
       y: r.top,
+      bottom: r.bottom,
     });
   };
 
@@ -328,7 +340,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
           <button
             className="tool-btn library-import"
             aria-label="Import library"
-            title="Import .excalidrawlib / .archidrawlib"
+            data-tip="Import .excalidrawlib / .archidrawlib"
             data-testid="library-import"
             onClick={() => fileInputRef.current?.click()}
           >
@@ -351,6 +363,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
           <button
             className="tool-btn library-close"
             aria-label="Close library"
+            data-tip="Close library"
             onClick={close}
           >
             ×
@@ -606,7 +619,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
                   <button
                     className="tool-btn library-group-export"
                     aria-label="Export custom library"
-                    title="Export .archidrawlib"
+                    data-tip="Export .archidrawlib"
                     data-testid="library-export"
                     onClick={() => downloadCustomLibrary()}
                   >

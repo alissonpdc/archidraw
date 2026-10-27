@@ -82,7 +82,8 @@ Mandatory CSS when using the portal (suppresses the double tooltip inside the
 container):
 
 ```css
-.properties-panel [data-tip]::after { display: none; }
+.properties-panel [data-tip]::after,
+.library-panel [data-tip]::after { display: none; }
 .panel-tooltip {
   position: fixed;
   transform: translateY(calc(-100% - 8px));

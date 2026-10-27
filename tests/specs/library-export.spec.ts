@@ -47,7 +47,14 @@ test.describe("custom library export (.archidrawlib)", () => {
 
     await page.keyboard.press("l");
     await expect(page.locator(".library-panel")).toBeVisible();
-    await expect(page.locator('[data-testid="library-export"]')).toBeVisible();
+    const exportBtn = page.locator('[data-testid="library-export"]');
+    await expect(exportBtn).toBeVisible();
+    await expect(exportBtn).toHaveAttribute("data-tip", "Export .archidrawlib");
+    await expect(exportBtn).not.toHaveAttribute("title");
+    await exportBtn.hover();
+    const tooltip = page.locator(".panel-tooltip");
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toHaveText("Export .archidrawlib");
   });
 
   test("export button is hidden when custom library is empty", async ({
