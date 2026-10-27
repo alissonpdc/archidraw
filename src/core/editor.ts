@@ -1770,6 +1770,7 @@ borderRadius: 20,
       (hitEl.type === "rectangle" ||
         hitEl.type === "diamond" ||
         hitEl.type === "ellipse" ||
+        hitEl.type === "polygon" ||
         hitEl.type === "line" ||
         hitEl.type === "arrow" ||
         hitEl.type === "component" ||

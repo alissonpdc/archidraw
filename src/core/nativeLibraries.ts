@@ -17,19 +17,25 @@ export interface NativeLibrary {
 }
 
 export const NATIVE_LIBRARY_NAMES: Record<string, string> = {
-  "clients-personas.archidrawlib": "Clients & Personas",
+  "clients-devices.archidrawlib": "Clients & Devices",
   "infra-network.archidrawlib": "Infrastructure & Network",
   "compute-services.archidrawlib": "Compute & Services",
-  "messaging-integration.archidrawlib": "Messaging & Integration",
   "data-storage.archidrawlib": "Data & Storage",
+  "messaging-events.archidrawlib": "Messaging & Events",
+  "security-identity.archidrawlib": "Security & Identity",
+  "observability-ops.archidrawlib": "Observability & Operations",
+  "platform-integrations.archidrawlib": "Platform & Integrations",
 };
 
 export const NATIVE_LIBRARY_ORDER = [
-  "clients-personas.archidrawlib",
+  "clients-devices.archidrawlib",
   "infra-network.archidrawlib",
   "compute-services.archidrawlib",
-  "messaging-integration.archidrawlib",
   "data-storage.archidrawlib",
+  "messaging-events.archidrawlib",
+  "security-identity.archidrawlib",
+  "observability-ops.archidrawlib",
+  "platform-integrations.archidrawlib",
 ] as const;
 
 const rawModules = import.meta.glob("./assets/libraries/*.archidrawlib", {
@@ -63,7 +69,7 @@ function buildNativeLibrary(displayName: string, fileName: string): NativeLibrar
   const parsed = parseExcalidrawLib(content);
 
   const items: LibraryItem[] = parsed.items.map((it) => {
-    const itemId = `sd-${slugify(it.name)}`;
+    const itemId = `sd-${libSlug}-${slugify(it.name)}`;
     registerCustomAsset(itemId, it.svg);
     return {
       id: itemId,
