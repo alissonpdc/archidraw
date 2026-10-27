@@ -281,4 +281,44 @@ test.describe("library dark mode insertion", () => {
     expect(info.lineCount).toBe(8);
     expect(info.labelText).toBe("Vector Database");
   });
+
+  test("Database Cluster renders both Writer and Reader as cylinders without loose bottom ellipses", async ({
+    page,
+  }) => {
+    await open(page);
+
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      ed.insertComponent("sd-data-storage-database-cluster");
+    });
+
+    const info = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const elements = ed.getSnapshot().doc.elements;
+      const cylinders = elements.filter((e: any) => e.type === "polygon");
+      const ellipses = elements.filter((e: any) => e.type === "ellipse");
+      const rectangles = elements.filter((e: any) => e.type === "rectangle");
+      const arrow = elements.find((e: any) => e.type === "arrow");
+      const label = elements.find((e: any) => e.type === "text");
+      return {
+        cylinderCount: cylinders.length,
+        ellipseCount: ellipses.length,
+        rectangleCount: rectangles.length,
+        hasArrow: !!arrow,
+        labelText: label?.text,
+        writerLabel: cylinders.find((c: any) => c.label === "Writer")?.label,
+        readerLabel: cylinders.find((c: any) => c.label === "Reader")?.label,
+      };
+    });
+
+    expect(info.cylinderCount).toBe(2);
+    // Only 2 top caps, no loose bottom ellipses:
+    expect(info.ellipseCount).toBe(2);
+    // No rectangular bodies:
+    expect(info.rectangleCount).toBe(0);
+    expect(info.hasArrow).toBe(true);
+    expect(info.labelText).toBe("Database Cluster");
+    expect(info.writerLabel).toBe("Writer");
+    expect(info.readerLabel).toBe("Reader");
+  });
 });

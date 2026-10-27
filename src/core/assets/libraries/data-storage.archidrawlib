@@ -163,36 +163,11 @@
       "archidrawElements": [
         {
           "id": "dbc_pbody",
-          "type": "rectangle",
+          "type": "polygon",
           "x": 16,
           "y": 26,
           "width": 52,
-          "height": 36,
-          "strokeColor": "#0b2ebc",
-          "backgroundColor": "#d1d7ef",
-          "strokeWidth": 1,
-          "opacity": 1,
-          "strokeOpacity": 1,
-          "fillOpacity": 1,
-          "strokeStyle": "solid",
-          "fillStyle": "solid",
-          "roughness": 1,
-          "borderRadius": 4,
-          "angle": 0,
-          "groupId": "grp_dbcluster",
-          "label": "Writer",
-          "fontSize": 11,
-          "bold": true,
-          "textColor": "#0b2ebc",
-          "fontFamily": "\"Architects Daughter\", cursive"
-        },
-        {
-          "id": "dbc_pbot",
-          "type": "ellipse",
-          "x": 16,
-          "y": 54,
-          "width": 52,
-          "height": 16,
+          "height": 46,
           "strokeColor": "#0b2ebc",
           "backgroundColor": "#d1d7ef",
           "strokeWidth": 1,
@@ -204,7 +179,92 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "grp_dbcluster"
+          "groupId": "grp_dbcluster",
+          "label": "Writer",
+          "fontSize": 11,
+          "bold": true,
+          "textColor": "#0b2ebc",
+          "fontFamily": "\"Architects Daughter\", cursive",
+          "rings": [
+            [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 38
+              },
+              {
+                "x": 0.5,
+                "y": 39.56
+              },
+              {
+                "x": 1.98,
+                "y": 41.06
+              },
+              {
+                "x": 4.38,
+                "y": 42.44
+              },
+              {
+                "x": 7.62,
+                "y": 43.66
+              },
+              {
+                "x": 11.56,
+                "y": 44.65
+              },
+              {
+                "x": 16.05,
+                "y": 45.39
+              },
+              {
+                "x": 20.93,
+                "y": 45.85
+              },
+              {
+                "x": 26,
+                "y": 46
+              },
+              {
+                "x": 31.07,
+                "y": 45.85
+              },
+              {
+                "x": 35.95,
+                "y": 45.39
+              },
+              {
+                "x": 40.44,
+                "y": 44.65
+              },
+              {
+                "x": 44.38,
+                "y": 43.66
+              },
+              {
+                "x": 47.62,
+                "y": 42.44
+              },
+              {
+                "x": 50.02,
+                "y": 41.06
+              },
+              {
+                "x": 51.5,
+                "y": 39.56
+              },
+              {
+                "x": 52,
+                "y": 38
+              },
+              {
+                "x": 52,
+                "y": 0
+              }
+            ]
+          ]
         },
         {
           "id": "dbc_ptop",
@@ -249,36 +309,11 @@
         },
         {
           "id": "dbc_rbody",
-          "type": "rectangle",
+          "type": "polygon",
           "x": 92,
-          "y": 28,
+          "y": 26,
           "width": 52,
-          "height": 34,
-          "strokeColor": "#3d4248",
-          "backgroundColor": "#dfe0e2",
-          "strokeWidth": 1,
-          "opacity": 1,
-          "strokeOpacity": 1,
-          "fillOpacity": 1,
-          "strokeStyle": "solid",
-          "fillStyle": "solid",
-          "roughness": 1,
-          "borderRadius": 4,
-          "angle": 0,
-          "groupId": "grp_dbcluster",
-          "label": "Reader",
-          "fontSize": 11,
-          "bold": true,
-          "textColor": "#3d4248",
-          "fontFamily": "\"Architects Daughter\", cursive"
-        },
-        {
-          "id": "dbc_rbot",
-          "type": "ellipse",
-          "x": 92,
-          "y": 54,
-          "width": 52,
-          "height": 16,
+          "height": 46,
           "strokeColor": "#545c63",
           "backgroundColor": "#dfe0e2",
           "strokeWidth": 1,
@@ -290,13 +325,98 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "grp_dbcluster"
+          "groupId": "grp_dbcluster",
+          "label": "Reader",
+          "fontSize": 11,
+          "bold": true,
+          "textColor": "#545c63",
+          "fontFamily": "\"Architects Daughter\", cursive",
+          "rings": [
+            [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 38
+              },
+              {
+                "x": 0.5,
+                "y": 39.56
+              },
+              {
+                "x": 1.98,
+                "y": 41.06
+              },
+              {
+                "x": 4.38,
+                "y": 42.44
+              },
+              {
+                "x": 7.62,
+                "y": 43.66
+              },
+              {
+                "x": 11.56,
+                "y": 44.65
+              },
+              {
+                "x": 16.05,
+                "y": 45.39
+              },
+              {
+                "x": 20.93,
+                "y": 45.85
+              },
+              {
+                "x": 26,
+                "y": 46
+              },
+              {
+                "x": 31.07,
+                "y": 45.85
+              },
+              {
+                "x": 35.95,
+                "y": 45.39
+              },
+              {
+                "x": 40.44,
+                "y": 44.65
+              },
+              {
+                "x": 44.38,
+                "y": 43.66
+              },
+              {
+                "x": 47.62,
+                "y": 42.44
+              },
+              {
+                "x": 50.02,
+                "y": 41.06
+              },
+              {
+                "x": 51.5,
+                "y": 39.56
+              },
+              {
+                "x": 52,
+                "y": 38
+              },
+              {
+                "x": 52,
+                "y": 0
+              }
+            ]
+          ]
         },
         {
           "id": "dbc_rtop",
           "type": "ellipse",
           "x": 92,
-          "y": 20,
+          "y": 18,
           "width": 52,
           "height": 16,
           "strokeColor": "#545c63",
@@ -316,7 +436,7 @@
           "id": "dbc_txt",
           "type": "text",
           "x": 0,
-          "y": 78,
+          "y": 80,
           "width": 160,
           "height": 20,
           "strokeColor": "#3d4248",
