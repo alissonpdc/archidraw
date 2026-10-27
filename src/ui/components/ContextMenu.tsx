@@ -344,8 +344,12 @@ export function ContextMenu() {
     const rawH = b ? b.y2 - b.y1 : 0;
     const aspect = rawW > 0 && rawH > 0 ? rawW / rawH : 1;
     // guarda os ELEMENTOS Nativos (re-inseridos como grupo editável); o SVG
-    // é usado apenas como thumbnail no painel da library
-    const item = addCustomItem(selected, svg, aspect);
+    // é usado apenas como thumbnail no painel da library. Salva sempre no
+    // formato light canônico para correta adaptação futura.
+    const canonical = editor.isDarkMode
+      ? selected.map((el) => editor.correlateElement(el))
+      : selected;
+    const item = addCustomItem(canonical, svg, aspect);
     toast(`Added "${item.name}" to library`);
     close();
   };

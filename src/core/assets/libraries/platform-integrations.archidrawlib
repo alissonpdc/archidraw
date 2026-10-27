@@ -1061,7 +1061,7 @@
           "y": 22,
           "width": 112,
           "height": 58,
-          "strokeColor": "#545c63",
+          "strokeColor": "#3d4248",
           "backgroundColor": "#dfe0e2",
           "strokeWidth": 1.5,
           "opacity": 1,
@@ -1076,7 +1076,7 @@
           "label": "3rd party",
           "fontSize": 12,
           "bold": true,
-          "textColor": "#545c63",
+          "textColor": "#3d4248",
           "fontFamily": "\"Architects Daughter\", cursive"
         },
         {
@@ -1086,7 +1086,7 @@
           "y": 44,
           "width": 16,
           "height": -14,
-          "strokeColor": "#545c63",
+          "strokeColor": "#3d4248",
           "backgroundColor": "transparent",
           "strokeWidth": 2,
           "opacity": 1,
