@@ -27,7 +27,7 @@ test.describe("native system design libraries", () => {
     }
   });
 
-  test("expands Clients & Personas and displays all 6 components", async ({
+  test("expands Clients & Personas and displays all 10 components", async ({
     page,
   }) => {
     await openLibrary(page);
@@ -45,6 +45,10 @@ test.describe("native system design libraries", () => {
       "Admin",
       "Mobile App",
       "Web Browser",
+      "Browser",
+      "Smartphone",
+      "Search Engine",
+      "Tablet",
     ];
 
     for (const name of expectedComponents) {
@@ -72,6 +76,34 @@ test.describe("native system design libraries", () => {
     // User component consists of 3 elements: head, torso, text caption
     expect(state.elementCount).toBe(3);
     expect(state.selectedIds.length).toBe(3);
+  });
+
+  test("clicking a newly added client component inserts it with caption", async ({
+    page,
+    editorState,
+  }) => {
+    await openLibrary(page);
+
+    const header = page.locator(".library-section-header", {
+      hasText: "Clients & Personas",
+    });
+    await header.click();
+
+    const phoneTile = page.locator('.library-panel [data-tip="Smartphone"]');
+    await expect(phoneTile).toBeVisible();
+    await phoneTile.click();
+
+    const state = await editorState();
+    // Smartphone component consists of 6 elements: 5 shape elements + 1 caption
+    expect(state.elementCount).toBe(6);
+    expect(state.selectedIds.length).toBe(6);
+    expect(state.elements.some((el) => el.type === "text")).toBe(true);
+
+    const hasCaption = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      return ed.getSnapshot().doc.elements.some((el: any) => el.type === "text" && el.text === "Smartphone");
+    });
+    expect(hasCaption).toBe(true);
   });
 
   test("native library components are searchable", async ({ page }) => {
