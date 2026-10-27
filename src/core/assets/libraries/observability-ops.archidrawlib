@@ -113,7 +113,7 @@
           "width": 52,
           "height": 38,
           "strokeColor": "#a44405",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#dfe0e2",
           "strokeWidth": 1,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -133,9 +133,7 @@
           "width": 10,
           "height": -18,
           "strokeColor": "#a44405",
-          "backgroundColor": {
-            "strokeWidth": 1.5
-          },
+          "backgroundColor": "transparent",
           "strokeWidth": 1.5,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -155,9 +153,7 @@
           "width": 12,
           "height": 14,
           "strokeColor": "#a44405",
-          "backgroundColor": {
-            "strokeWidth": 1.5
-          },
+          "backgroundColor": "transparent",
           "strokeWidth": 1.5,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -177,9 +173,7 @@
           "width": 16,
           "height": -20,
           "strokeColor": "#a44405",
-          "backgroundColor": {
-            "strokeWidth": 1.5
-          },
+          "backgroundColor": "transparent",
           "strokeWidth": 1.5,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -219,7 +213,7 @@
           "width": 40,
           "height": 16,
           "strokeColor": "#a44405",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#dfe0e2",
           "strokeWidth": 1,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -239,9 +233,7 @@
           "width": 0,
           "height": -8,
           "strokeColor": "#a44405",
-          "backgroundColor": {
-            "strokeWidth": 2
-          },
+          "backgroundColor": "transparent",
           "strokeWidth": 1.5,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -261,9 +253,7 @@
           "width": 0,
           "height": -11,
           "strokeColor": "#a44405",
-          "backgroundColor": {
-            "strokeWidth": 2
-          },
+          "backgroundColor": "transparent",
           "strokeWidth": 1.5,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -283,9 +273,7 @@
           "width": 0,
           "height": -6,
           "strokeColor": "#a44405",
-          "backgroundColor": {
-            "strokeWidth": 2
-          },
+          "backgroundColor": "transparent",
           "strokeWidth": 1.5,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -305,9 +293,7 @@
           "width": 0,
           "height": -10,
           "strokeColor": "#a44405",
-          "backgroundColor": {
-            "strokeWidth": 2
-          },
+          "backgroundColor": "transparent",
           "strokeWidth": 1.5,
           "opacity": 1,
           "strokeOpacity": 1,
@@ -326,7 +312,7 @@
           "y": 92,
           "width": 160,
           "height": 22,
-          "strokeColor": "#a44405",
+          "strokeColor": "#3d4248",
           "backgroundColor": "transparent",
           "strokeWidth": 1,
           "opacity": 1,
@@ -477,7 +463,7 @@
           "y": 94,
           "width": 160,
           "height": 22,
-          "strokeColor": "#a44405",
+          "strokeColor": "#3d4248",
           "backgroundColor": "transparent",
           "strokeWidth": 1,
           "opacity": 1,
@@ -648,7 +634,7 @@
           "y": 90,
           "width": 160,
           "height": 22,
-          "strokeColor": "#a44405",
+          "strokeColor": "#3d4248",
           "backgroundColor": "transparent",
           "strokeWidth": 1,
           "opacity": 1,
@@ -799,7 +785,7 @@
           "y": 90,
           "width": 160,
           "height": 22,
-          "strokeColor": "#a44405",
+          "strokeColor": "#3d4248",
           "backgroundColor": "transparent",
           "strokeWidth": 1,
           "opacity": 1,
@@ -947,7 +933,7 @@
           "y": 92,
           "width": 160,
           "height": 22,
-          "strokeColor": "#a44405",
+          "strokeColor": "#3d4248",
           "backgroundColor": "transparent",
           "strokeWidth": 1,
           "opacity": 1,
