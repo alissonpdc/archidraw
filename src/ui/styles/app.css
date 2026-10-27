@@ -125,18 +125,19 @@ button {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  transform: translate(-104%, -50%);
+  box-shadow: var(--shadow-md);
+  transform: translate3d(-104%, -50%, 0);
+  will-change: transform;
+  contain: layout style;
   visibility: hidden;
   transition:
     transform var(--transition-med),
     visibility var(--transition-med);
 }
 
-.app[data-panel-open="true"] .workspace-panel {
-  transform: translate(0, -50%);
+.workspace-panel[data-open="true"] {
+  transform: translate3d(0, -50%, 0);
   visibility: visible;
-  box-shadow: var(--shadow-md);
 }
 
 .wp-head {
@@ -162,6 +163,7 @@ button {
   overflow-y: auto;
   padding: var(--space-1) var(--space-1) var(--space-5);
   overscroll-behavior: contain;
+  contain: content;
 }
 
 .icon-btn {

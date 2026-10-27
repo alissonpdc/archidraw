@@ -50,29 +50,14 @@ export function App() {
   const [exportImageOpen, setExportImageOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [workspacesOpen, setWorkspacesOpen] = useState(loadPanelOpenPref);
+  const workspacesOpenRef = useRef(workspacesOpen);
   const selectionBeforePanelRef = useRef<string[] | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    workspacesOpenRef.current = workspacesOpen;
     savePanelOpenPref(workspacesOpen);
-  }, [workspacesOpen]);
-
-  // abrir o painel derruba a seleção: o properties-panel fica na borda
-  // esquerda e sobreporia o popup. Ao fechar, a seleção anterior volta — mas
-  // só se o usuário não tiver selecionado outra coisa nesse meio-tempo.
-  useEffect(() => {
-    if (workspacesOpen) {
-      const selected = [...editor.getSnapshot().selectedIds];
-      selectionBeforePanelRef.current = selected.length > 0 ? selected : null;
-      editor.clearSelection();
-      return;
-    }
-    const saved = selectionBeforePanelRef.current;
-    selectionBeforePanelRef.current = null;
-    if (saved && editor.getSnapshot().selectedIds.size === 0) {
-      editor.restoreSelection(saved);
-    }
   }, [workspacesOpen]);
 
   // selecionar um objeto no canvas fecha o painel: o menu aberto não deve
@@ -80,15 +65,39 @@ export function App() {
   useEffect(() => {
     if (!workspacesOpen) return;
     const unsub = editor.subscribe(() => {
-      if (editor.getSnapshot().selectedIds.size > 0) setWorkspacesOpen(false);
+      if (editor.getSnapshot().selectedIds.size > 0) {
+        selectionBeforePanelRef.current = null;
+        workspacesOpenRef.current = false;
+        setWorkspacesOpen(false);
+      }
     });
     return () => {
       unsub();
     };
   }, [workspacesOpen]);
 
+  // abrir o painel derruba a seleção: o properties-panel fica na borda
+  // esquerda e sobreporia o popup. Ao fechar, a seleção anterior volta — mas
+  // só se o usuário não tiver selecionado outra coisa nesse meio-tempo.
   const toggleWorkspacesPanel = useCallback(() => {
-    setWorkspacesOpen((v) => !v);
+    const nextOpen = !workspacesOpenRef.current;
+    workspacesOpenRef.current = nextOpen;
+    setWorkspacesOpen(nextOpen);
+    if (nextOpen) {
+      const selected = [...editor.getSnapshot().selectedIds];
+      if (selected.length > 0) {
+        selectionBeforePanelRef.current = selected;
+        editor.clearSelection();
+      } else {
+        selectionBeforePanelRef.current = null;
+      }
+      return;
+    }
+    const saved = selectionBeforePanelRef.current;
+    selectionBeforePanelRef.current = null;
+    if (saved) {
+      editor.restoreSelection(saved);
+    }
   }, []);
 
   const openDocument = useCallback(() => {

@@ -55,6 +55,15 @@ export const COMPONENT_DND_TYPE = "application/x-archidraw-component";
 /** recents cap: 3 rows of the 5-column tile grid */
 const RECENTS_LIMIT = 15;
 
+const awsItems = [...LIBRARY].sort((a, b) => a.name.localeCompare(b.name));
+const k8sItems = [...LIBRARY_KUBERNETES].sort((a, b) =>
+  a.name.localeCompare(b.name),
+);
+const gcpItems = [...LIBRARY_GCP].sort((a, b) => a.name.localeCompare(b.name));
+const azureItems = [...LIBRARY_AZURE].sort((a, b) =>
+  a.name.localeCompare(b.name),
+);
+
 interface TipState {
   text: string;
   x: number;
@@ -252,22 +261,6 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
 
   const searching = query.trim() !== "";
   const results = useMemo(() => searchLibrary(query), [query]);
-  const awsItems = useMemo(
-    () => [...LIBRARY].sort((a, b) => a.name.localeCompare(b.name)),
-    [],
-  );
-  const k8sItems = useMemo(
-    () => [...LIBRARY_KUBERNETES].sort((a, b) => a.name.localeCompare(b.name)),
-    [],
-  );
-  const gcpItems = useMemo(
-    () => [...LIBRARY_GCP].sort((a, b) => a.name.localeCompare(b.name)),
-    [],
-  );
-  const azureItems = useMemo(
-    () => [...LIBRARY_AZURE].sort((a, b) => a.name.localeCompare(b.name)),
-    [],
-  );
 
   const recentItems = useMemo(
     () =>
