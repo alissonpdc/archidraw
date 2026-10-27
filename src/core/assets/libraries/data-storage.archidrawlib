@@ -2778,12 +2778,12 @@
       "name": "Vector Database",
       "archidrawElements": [
         {
-          "id": "vdb_box",
-          "type": "rectangle",
-          "x": 24,
-          "y": 14,
-          "width": 112,
-          "height": 64,
+          "id": "vdb_body",
+          "type": "polygon",
+          "x": 39.2,
+          "y": 22.21,
+          "width": 81.59,
+          "height": 69.79,
           "strokeColor": "#168866",
           "backgroundColor": "#d4ede5",
           "strokeWidth": 1,
@@ -2793,17 +2793,310 @@
           "strokeStyle": "solid",
           "fillStyle": "solid",
           "roughness": 1,
-          "borderRadius": 8,
+          "borderRadius": 0,
           "angle": 0,
-          "groupId": "grp_vectordb"
+          "rings": [
+            [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 81.59,
+                "y": 0
+              },
+              {
+                "x": 81.59,
+                "y": 60.69
+              },
+              {
+                "x": 80.27,
+                "y": 60.69
+              },
+              {
+                "x": 80.2,
+                "y": 60.79
+              },
+              {
+                "x": 78.49,
+                "y": 62.3
+              },
+              {
+                "x": 76.13,
+                "y": 63.72
+              },
+              {
+                "x": 73.16,
+                "y": 65.04
+              },
+              {
+                "x": 69.64,
+                "y": 66.24
+              },
+              {
+                "x": 65.63,
+                "y": 67.28
+              },
+              {
+                "x": 61.19,
+                "y": 68.16
+              },
+              {
+                "x": 56.41,
+                "y": 68.87
+              },
+              {
+                "x": 51.35,
+                "y": 69.38
+              },
+              {
+                "x": 46.12,
+                "y": 69.69
+              },
+              {
+                "x": 40.8,
+                "y": 69.79
+              },
+              {
+                "x": 35.47,
+                "y": 69.69
+              },
+              {
+                "x": 30.24,
+                "y": 69.38
+              },
+              {
+                "x": 25.18,
+                "y": 68.87
+              },
+              {
+                "x": 20.4,
+                "y": 68.16
+              },
+              {
+                "x": 15.96,
+                "y": 67.28
+              },
+              {
+                "x": 11.95,
+                "y": 66.24
+              },
+              {
+                "x": 8.43,
+                "y": 65.04
+              },
+              {
+                "x": 5.47,
+                "y": 63.72
+              },
+              {
+                "x": 3.11,
+                "y": 62.3
+              },
+              {
+                "x": 1.39,
+                "y": 60.79
+              },
+              {
+                "x": 1.32,
+                "y": 60.69
+              },
+              {
+                "x": 0,
+                "y": 60.69
+              }
+            ]
+          ],
+          "groupId": "std_grp_vdb",
+          "fontSize": 16
+        },
+        {
+          "id": "vdb_top",
+          "type": "ellipse",
+          "x": 39.2,
+          "y": 12,
+          "width": 81.59,
+          "height": 20.42,
+          "strokeColor": "#168866",
+          "backgroundColor": "#7dd9be",
+          "strokeWidth": 1,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_vdb"
+        },
+        {
+          "id": "vdb_l1",
+          "type": "line",
+          "x": 56,
+          "y": 45,
+          "width": 22,
+          "height": 12,
+          "strokeColor": "#168866",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_vdb"
+        },
+        {
+          "id": "vdb_l2",
+          "type": "line",
+          "x": 98,
+          "y": 43,
+          "width": -20,
+          "height": 14,
+          "strokeColor": "#168866",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_vdb"
+        },
+        {
+          "id": "vdb_l3",
+          "type": "line",
+          "x": 58,
+          "y": 71,
+          "width": 20,
+          "height": -14,
+          "strokeColor": "#168866",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_vdb"
+        },
+        {
+          "id": "vdb_l4",
+          "type": "line",
+          "x": 98,
+          "y": 69,
+          "width": -20,
+          "height": -12,
+          "strokeColor": "#168866",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_vdb"
+        },
+        {
+          "id": "vdb_l5",
+          "type": "line",
+          "x": 56,
+          "y": 45,
+          "width": 42,
+          "height": -2,
+          "strokeColor": "#168866",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_vdb"
+        },
+        {
+          "id": "vdb_l6",
+          "type": "line",
+          "x": 56,
+          "y": 45,
+          "width": 2,
+          "height": 26,
+          "strokeColor": "#168866",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_vdb"
+        },
+        {
+          "id": "vdb_l7",
+          "type": "line",
+          "x": 98,
+          "y": 43,
+          "width": 0,
+          "height": 26,
+          "strokeColor": "#168866",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_vdb"
+        },
+        {
+          "id": "vdb_l8",
+          "type": "line",
+          "x": 58,
+          "y": 71,
+          "width": 40,
+          "height": -2,
+          "strokeColor": "#168866",
+          "backgroundColor": "transparent",
+          "strokeWidth": 1.2,
+          "opacity": 1,
+          "strokeOpacity": 1,
+          "fillOpacity": 1,
+          "strokeStyle": "solid",
+          "fillStyle": "solid",
+          "roughness": 1,
+          "borderRadius": 0,
+          "angle": 0,
+          "groupId": "std_grp_vdb"
         },
         {
           "id": "vdb_n1",
           "type": "ellipse",
-          "x": 46,
-          "y": 28,
-          "width": 10,
-          "height": 10,
+          "x": 52,
+          "y": 41,
+          "width": 8,
+          "height": 8,
           "strokeColor": "#168866",
           "backgroundColor": "#7dd9be",
           "strokeWidth": 1,
@@ -2815,16 +3108,16 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "grp_vectordb"
+          "groupId": "std_grp_vdb"
         },
         {
           "id": "vdb_n2",
           "type": "ellipse",
-          "x": 74,
-          "y": 38,
-          "width": 12,
-          "height": 12,
-          "strokeColor": "#0b4635",
+          "x": 94,
+          "y": 39,
+          "width": 8,
+          "height": 8,
+          "strokeColor": "#168866",
           "backgroundColor": "#7dd9be",
           "strokeWidth": 1,
           "opacity": 1,
@@ -2835,16 +3128,16 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "grp_vectordb"
+          "groupId": "std_grp_vdb"
         },
         {
           "id": "vdb_n3",
           "type": "ellipse",
-          "x": 104,
-          "y": 32,
+          "x": 73,
+          "y": 52,
           "width": 10,
           "height": 10,
-          "strokeColor": "#168866",
+          "strokeColor": "#0b4635",
           "backgroundColor": "#7dd9be",
           "strokeWidth": 1,
           "opacity": 1,
@@ -2855,35 +3148,15 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "grp_vectordb"
+          "groupId": "std_grp_vdb"
         },
         {
           "id": "vdb_n4",
           "type": "ellipse",
-          "x": 86,
-          "y": 58,
-          "width": 12,
-          "height": 12,
-          "strokeColor": "#0b4635",
-          "backgroundColor": "#7dd9be",
-          "strokeWidth": 1,
-          "opacity": 1,
-          "strokeOpacity": 1,
-          "fillOpacity": 1,
-          "strokeStyle": "solid",
-          "fillStyle": "solid",
-          "roughness": 1,
-          "borderRadius": 0,
-          "angle": 0,
-          "groupId": "grp_vectordb"
-        },
-        {
-          "id": "vdb_n5",
-          "type": "ellipse",
-          "x": 116,
-          "y": 52,
-          "width": 10,
-          "height": 10,
+          "x": 54,
+          "y": 67,
+          "width": 8,
+          "height": 8,
           "strokeColor": "#168866",
           "backgroundColor": "#7dd9be",
           "strokeWidth": 1,
@@ -2895,35 +3168,35 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "grp_vectordb"
+          "groupId": "std_grp_vdb"
         },
         {
-          "id": "vdb_dist",
-          "type": "line",
-          "x": 74,
-          "y": 38,
-          "width": 12,
-          "height": 20,
-          "strokeColor": "#0b4635",
-          "backgroundColor": "transparent",
-          "strokeWidth": 1.5,
+          "id": "vdb_n5",
+          "type": "ellipse",
+          "x": 94,
+          "y": 65,
+          "width": 8,
+          "height": 8,
+          "strokeColor": "#168866",
+          "backgroundColor": "#7dd9be",
+          "strokeWidth": 1,
           "opacity": 1,
           "strokeOpacity": 1,
           "fillOpacity": 1,
-          "strokeStyle": "dashed",
+          "strokeStyle": "solid",
           "fillStyle": "solid",
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "grp_vectordb"
+          "groupId": "std_grp_vdb"
         },
         {
-          "id": "vdb_txt",
+          "id": "vdb_lbl",
           "type": "text",
           "x": 0,
-          "y": 84,
+          "y": 98,
           "width": 160,
-          "height": 20,
+          "height": 22,
           "strokeColor": "#3d4248",
           "backgroundColor": "transparent",
           "strokeWidth": 1,
@@ -2935,12 +3208,12 @@
           "roughness": 1,
           "borderRadius": 0,
           "angle": 0,
-          "groupId": "grp_vectordb",
-          "text": "Vector Database",
-          "fontSize": 14,
           "bold": true,
+          "fontSize": 14,
           "textAlign": "center",
           "textVAlign": "middle",
+          "text": "Vector Database",
+          "groupId": "std_grp_vdb",
           "fontFamily": "\"Architects Daughter\", cursive"
         }
       ]

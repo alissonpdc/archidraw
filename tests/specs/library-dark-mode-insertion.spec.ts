@@ -247,4 +247,38 @@ test.describe("library dark mode insertion", () => {
     expect(res.kbStroke).toBe("#3d4248");
     expect(res.frameStroke).toBe("#3d4248");
   });
+
+  test("Vector Database renders as a standard cylinder with interconnected vector nodes", async ({
+    page,
+  }) => {
+    await open(page);
+
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      ed.insertComponent("sd-data-storage-vector-database");
+    });
+
+    const info = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const elements = ed.getSnapshot().doc.elements;
+      const body = elements.find((e: any) => e.type === "polygon");
+      const top = elements.find((e: any) => e.type === "ellipse" && e.width > 50);
+      const nodes = elements.filter((e: any) => e.type === "ellipse" && e.width <= 15);
+      const lines = elements.filter((e: any) => e.type === "line");
+      const label = elements.find((e: any) => e.type === "text");
+      return {
+        hasBody: !!body && body.strokeColor === "#168866" && body.backgroundColor === "#d4ede5",
+        hasTop: !!top && top.strokeColor === "#168866" && top.backgroundColor === "#7dd9be",
+        nodeCount: nodes.length,
+        lineCount: lines.length,
+        labelText: label?.text,
+      };
+    });
+
+    expect(info.hasBody).toBe(true);
+    expect(info.hasTop).toBe(true);
+    expect(info.nodeCount).toBe(5);
+    expect(info.lineCount).toBe(8);
+    expect(info.labelText).toBe("Vector Database");
+  });
 });
