@@ -721,6 +721,7 @@ export function isBuiltinLibraryItem(id: string): boolean {
 /** Simple case-insensitive search by name, keywords, and category */
 export function searchLibrary(query: string): LibraryItem[] {
   const q = query.trim().toLowerCase();
+  if (!q) return [];
   const pool = [
     ...LIBRARY,
     ...LIBRARY_GCP,
@@ -729,7 +730,6 @@ export function searchLibrary(query: string): LibraryItem[] {
     ...getAllNativeLibraryItems(),
     ...importedItems.values(),
   ];
-  if (!q) return pool;
   const terms = q.split(/\s+/);
   return pool.filter((item) => {
     const hay = `${item.name} ${item.category} ${item.keywords.join(" ")}`.toLowerCase();

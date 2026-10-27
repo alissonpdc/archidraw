@@ -63,3 +63,16 @@ loops, and (5) synchronous `JSON.stringify` in `History`.
    Since `this.doc` is immutable, `History` must store `Document` directly by
    reference — never serialize with `JSON.stringify` / `JSON.parse` in
    `commitHistory()`, `undo()` or `redo()`.
+7. **Zero main-thread stalls on UI panel transitions (e.g. `W` / `L`)**:
+   - In `attachAutosave`, defer `editor.serializeState()` (`JSON.stringify`) to
+     inside the debounced `setTimeout` callback — never serialize synchronously
+     inside `editor.subscribe` on every `emit()`.
+   - When toggling `WorkspacePanel` (`W`), batch `clearSelection()` /
+     `restoreSelection()` inside the toggle handler and skip `clearSelection()`
+     when `selectedIds.size === 0` so toggling the panel does not increment
+     `renderVersion` or force a Canvas 2D repaint.
+   - In `useEditorSelector`, short-circuit with `lastSnapRef.current === snap`
+     and keep `getSelection` referentially stable (`useCallback(..., [])`) so
+     re-renders of parent components do not re-run selectors or `isEqual`.
+   - Keep `.workspace-panel` GPU-composited (`translate3d`, `will-change: transform`,
+     `contain: layout style`, static `box-shadow: var(--shadow-md)`).

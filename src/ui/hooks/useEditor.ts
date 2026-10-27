@@ -11,11 +11,17 @@ export function useEditorSelector<T>(
   selector: (snap: EditorSnapshot) => T,
   isEqual: (prev: T, next: T) => boolean = Object.is,
 ): T {
+  const lastSnapRef = useRef<EditorSnapshot | null>(null);
   const lastValRef = useRef<T | undefined>(undefined);
   const hasValRef = useRef(false);
 
   const getSelection = useCallback(() => {
-    const nextVal = selector(editor.getSnapshot());
+    const snap = editor.getSnapshot();
+    if (lastSnapRef.current === snap) {
+      return lastValRef.current as T;
+    }
+    lastSnapRef.current = snap;
+    const nextVal = selector(snap);
     if (!hasValRef.current || !isEqual(lastValRef.current as T, nextVal)) {
       lastValRef.current = nextVal;
       hasValRef.current = true;

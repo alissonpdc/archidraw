@@ -258,15 +258,11 @@ export function attachAutosave(
 ): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let pendingId: string | null = null;
-  let pendingJson: string = "";
   const unsubscribe = editor.subscribe(() => {
-    // snapshot BEFORE the debounce: a workspace switch during the delay must
-    // not re-target the save to the newly opened workspace
     pendingId = editor.getSnapshot().activeWorkspaceId;
-    pendingJson = editor.serializeState();
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      if (pendingId) writeWorkspaceData(pendingId, pendingJson);
+      if (pendingId) writeWorkspaceData(pendingId, editor.serializeState());
       onSaved?.();
       timer = null;
     }, delayMs);

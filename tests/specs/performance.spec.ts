@@ -360,4 +360,63 @@ test.describe("canvas performance", () => {
     const s = await editorState();
     expect(s.elements.length).toBe(3);
   });
+
+  test("toggling the workspaces panel (W) does not invalidate canvas render token or block frame budget", async ({
+    page,
+  }) => {
+    const MIN_FPS = Number(process.env.PERF_MIN_FPS) || 45;
+    const frameBudgetMs = 1000 / MIN_FPS;
+
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const elements: Element[] = [];
+      for (let i = 0; i < 300; i++) {
+        elements.push({
+          id: `ws-perf-${i}`,
+          type: "rectangle",
+          x: (i % 20) * 120,
+          y: Math.floor(i / 20) * 90,
+          width: 100,
+          height: 60,
+          strokeColor: "#3d4248",
+          backgroundColor: "transparent",
+          strokeWidth: 2,
+          opacity: 1,
+          strokeOpacity: 1,
+          fillOpacity: 1,
+          strokeStyle: "solid",
+          fillStyle: "solid",
+          roughness: 1,
+          borderRadius: 4,
+          label: `Box ${i}`,
+          fontSize: 14,
+        } as any);
+      }
+      ed.doc = { ...ed.doc, elements };
+      ed.emit();
+    });
+
+    const metrics = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const btn = document.querySelector(
+        '[data-testid="panel-toggle"]',
+      ) as HTMLButtonElement;
+      const tokenBefore = ed.getRenderToken();
+      const samples: number[] = [];
+      for (let i = 0; i < 10; i++) {
+        const t0 = performance.now();
+        btn.click();
+        samples.push(performance.now() - t0);
+      }
+      const tokenAfter = ed.getRenderToken();
+      samples.sort((a, b) => a - b);
+      return {
+        tokenDelta: tokenAfter - tokenBefore,
+        medianMs: samples[Math.floor(samples.length / 2)],
+      };
+    });
+
+    expect(metrics.tokenDelta).toBe(0);
+    expect(metrics.medianMs).toBeLessThan(frameBudgetMs);
+  });
 });
