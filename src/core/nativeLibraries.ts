@@ -1,11 +1,13 @@
-/**
- * Native System Design libraries bundled with Archidraw.
- * Loaded from .archidrawlib files in ./assets/libraries/.
- */
-
 import { registerCustomAsset } from "./componentAssets";
 import { parseExcalidrawLib } from "./excalidrawImport";
 import type { LibraryItem } from "./library";
+import {
+  NATIVE_LIBRARY_ENTRIES,
+  NATIVE_LIBRARIES_MAP,
+  NATIVE_LIBRARIES,
+} from "./nativeLibrariesMap";
+
+export { NATIVE_LIBRARIES_MAP, NATIVE_LIBRARIES };
 
 export interface NativeLibrary {
   id: string;
@@ -15,19 +17,25 @@ export interface NativeLibrary {
 }
 
 export const NATIVE_LIBRARY_NAMES: Record<string, string> = {
-  "clients-personas.archidrawlib": "Clients & Personas",
-  "infrastructure-network.archidrawlib": "Infrastructure & Network",
+  "clients-devices.archidrawlib": "Clients & Devices",
+  "infra-network.archidrawlib": "Infrastructure & Network",
   "compute-services.archidrawlib": "Compute & Services",
-  "messaging-integration.archidrawlib": "Messaging & Integration",
   "data-storage.archidrawlib": "Data & Storage",
+  "messaging-events.archidrawlib": "Messaging & Events",
+  "security-identity.archidrawlib": "Security & Identity",
+  "observability-ops.archidrawlib": "Observability & Operations",
+  "platform-integrations.archidrawlib": "Platform & Integrations",
 };
 
 export const NATIVE_LIBRARY_ORDER = [
-  "clients-personas.archidrawlib",
-  "infrastructure-network.archidrawlib",
+  "clients-devices.archidrawlib",
+  "infra-network.archidrawlib",
   "compute-services.archidrawlib",
-  "messaging-integration.archidrawlib",
   "data-storage.archidrawlib",
+  "messaging-events.archidrawlib",
+  "security-identity.archidrawlib",
+  "observability-ops.archidrawlib",
+  "platform-integrations.archidrawlib",
 ] as const;
 
 const rawModules = import.meta.glob("./assets/libraries/*.archidrawlib", {
@@ -46,34 +54,22 @@ function slugify(text: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-function resolveLibraryName(fileName: string): string {
-  if (NATIVE_LIBRARY_NAMES[fileName]) return NATIVE_LIBRARY_NAMES[fileName];
-  const base = fileName.replace(/\.archidrawlib$/i, "");
-  return base
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" & ");
-}
-
-function findModuleRaw(fileName: string): string | undefined {
+function findModuleRaw(fileName: string): string {
   for (const [path, content] of Object.entries(rawModules)) {
     if (path.endsWith(`/${fileName}`) || path.endsWith(fileName)) {
       return content;
     }
   }
-  return undefined;
+  return "";
 }
 
-function buildNativeLibrary(fileName: string): NativeLibrary | null {
+function buildNativeLibrary(displayName: string, fileName: string): NativeLibrary {
   const content = findModuleRaw(fileName);
-  if (!content) return null;
-
-  const displayName = resolveLibraryName(fileName);
   const libSlug = slugify(fileName.replace(/\.archidrawlib$/i, ""));
   const parsed = parseExcalidrawLib(content);
 
   const items: LibraryItem[] = parsed.items.map((it) => {
-    const itemId = `sd-${slugify(it.name)}`;
+    const itemId = `sd-${libSlug}-${slugify(it.name)}`;
     registerCustomAsset(itemId, it.svg);
     return {
       id: itemId,
@@ -82,7 +78,7 @@ function buildNativeLibrary(fileName: string): NativeLibrary | null {
       keywords: [displayName.toLowerCase(), it.name.toLowerCase(), "system design", "native"],
       aspect: it.aspect,
       group: libSlug,
-      ...(it.nativeElements && it.nativeElements.length > 0 ? { elements: it.nativeElements } : {}),
+      elements: it.nativeElements,
     };
   });
 
@@ -98,9 +94,8 @@ export function initNativeLibraries(): void {
   if (nativeLibraries.length > 0) return;
 
   const loaded: NativeLibrary[] = [];
-  for (const fileName of NATIVE_LIBRARY_ORDER) {
-    const lib = buildNativeLibrary(fileName);
-    if (!lib) continue;
+  for (const [displayName, fileName] of NATIVE_LIBRARY_ENTRIES) {
+    const lib = buildNativeLibrary(displayName, fileName);
     loaded.push(lib);
     for (const item of lib.items) {
       nativeItemMap.set(item.id, item);
@@ -109,25 +104,20 @@ export function initNativeLibraries(): void {
   nativeLibraries = loaded;
 }
 
-// Initialise immediately so native libraries are ready at module import time
 initNativeLibraries();
 
 export function getNativeLibraries(): NativeLibrary[] {
-  if (nativeLibraries.length === 0) initNativeLibraries();
   return nativeLibraries;
 }
 
 export function getAllNativeLibraryItems(): LibraryItem[] {
-  if (nativeLibraries.length === 0) initNativeLibraries();
   return Array.from(nativeItemMap.values());
 }
 
 export function getNativeLibraryItem(id: string): LibraryItem | undefined {
-  if (nativeLibraries.length === 0) initNativeLibraries();
   return nativeItemMap.get(id);
 }
 
 export function isNativeLibraryItem(id: string): boolean {
-  if (nativeLibraries.length === 0) initNativeLibraries();
   return nativeItemMap.has(id);
 }

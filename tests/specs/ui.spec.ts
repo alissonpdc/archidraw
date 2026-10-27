@@ -266,6 +266,7 @@ test.describe("ui widgets", () => {
 
     const bar = await page.locator(".status-bar").textContent();
     expect(bar).toContain("shortcuts (?)");
+    await expect(page.locator('[data-testid="status-file"]')).toHaveText("local");
 
     await page.click(".status-bar .status-link");
     await expect(page.locator(".shortcuts-modal")).toBeVisible();

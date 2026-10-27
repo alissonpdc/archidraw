@@ -1242,20 +1242,32 @@ borderRadius: 20,
     this.emit();
   }
 
+  /** whether the active canvas theme is dark mode */
+  isDarkMode = false;
+
+  setDarkMode(isDark: boolean) {
+    this.isDarkMode = isDark;
+  }
+
   /**
    * re-adiciona um conjunto de elementos salvos na library ("Custom") como um
    * GRUPO nativo e editável, centralizado no viewport (ou no ponto de drop).
    * Os elementos recebem ids novos e um único groupId compartilhado; arestas
    * com bindings internos são remapeadas para os clones.
+   * Elementos vindos da biblioteca (em formato light canônico) são adaptados
+   * à intensidade do modo escuro caso o editor esteja em modo dark.
    */
   insertElementGroup(elements: Element[], screenPoint?: Point) {
     const screen = screenPoint ?? this.screenCenter();
     const scene = screenToScene(screen, this.camera);
     this.commitHistory();
-    const b = unionBounds(elements);
+    const sourceElements = this.isDarkMode
+      ? elements.map((el) => this.correlateElement(el))
+      : elements;
+    const b = unionBounds(sourceElements);
     const dx = b ? scene.x - (b.x1 + b.x2) / 2 : 0;
     const dy = b ? scene.y - (b.y1 + b.y2) / 2 : 0;
-    const clones = this.cloneElements(elements, dx, dy);
+    const clones = this.cloneElements(sourceElements, dx, dy);
     const gid = newId();
     const grouped = clones.map((el) => ({ ...el, groupId: gid }));
     this.doc = {
@@ -1770,6 +1782,7 @@ borderRadius: 20,
       (hitEl.type === "rectangle" ||
         hitEl.type === "diamond" ||
         hitEl.type === "ellipse" ||
+        hitEl.type === "polygon" ||
         hitEl.type === "line" ||
         hitEl.type === "arrow" ||
         hitEl.type === "component" ||
@@ -3537,53 +3550,61 @@ strokeOpacity?: number;
     this.emit();
   }
 
-  correlateColorsForTheme() {
-    const correlateEl = <T extends Element>(el: T): T => {
-      let strokeColor = el.strokeColor;
-      let backgroundColor = el.backgroundColor;
-      let textColor = el.textColor;
-      let changed = false;
+  correlateElement<T extends Element>(el: T): T {
+    let strokeColor = el.strokeColor;
+    let backgroundColor = el.backgroundColor;
+    let textColor = el.textColor;
+    let changed = false;
 
-      if (
-        strokeColor &&
-        strokeColor !== DEFAULT_STROKE &&
-        strokeColor !== CONTEXT_STROKE &&
-        strokeColor !== CONTEXT_STROKE_DARK
-      ) {
-        const nextStroke = correlateIntensity(strokeColor);
-        if (nextStroke !== strokeColor) {
-          strokeColor = nextStroke;
-          changed = true;
-        }
+    if (
+      strokeColor &&
+      strokeColor !== DEFAULT_STROKE &&
+      strokeColor !== CONTEXT_STROKE &&
+      strokeColor !== CONTEXT_STROKE_DARK
+    ) {
+      const nextStroke = correlateIntensity(strokeColor);
+      if (nextStroke !== strokeColor) {
+        strokeColor = nextStroke;
+        changed = true;
       }
+    }
 
-      if (
-        backgroundColor &&
-        backgroundColor !== "transparent" &&
-        backgroundColor !== DEFAULT_BG
-      ) {
-        const nextBg = correlateIntensity(backgroundColor);
-        if (nextBg !== backgroundColor) {
-          backgroundColor = nextBg;
-          changed = true;
-        }
+    if (
+      backgroundColor &&
+      backgroundColor !== "transparent" &&
+      backgroundColor !== DEFAULT_BG
+    ) {
+      const nextBg = correlateIntensity(backgroundColor);
+      if (nextBg !== backgroundColor) {
+        backgroundColor = nextBg;
+        changed = true;
       }
+    }
 
-      if (
-        textColor &&
-        textColor !== DEFAULT_STROKE &&
-        textColor !== CONTEXT_STROKE &&
-        textColor !== CONTEXT_STROKE_DARK
-      ) {
-        const nextText = correlateIntensity(textColor);
-        if (nextText !== textColor) {
-          textColor = nextText;
-          changed = true;
-        }
+    if (
+      textColor &&
+      textColor !== DEFAULT_STROKE &&
+      textColor !== CONTEXT_STROKE &&
+      textColor !== CONTEXT_STROKE_DARK
+    ) {
+      const nextText = correlateIntensity(textColor);
+      if (nextText !== textColor) {
+        textColor = nextText;
+        changed = true;
       }
+    }
 
-      return changed ? ({ ...el, strokeColor, backgroundColor, textColor } as T) : el;
-    };
+    return changed ? ({ ...el, strokeColor, backgroundColor, textColor } as T) : el;
+  }
+
+  correlateColorsForTheme(targetIsDark?: boolean) {
+    if (typeof targetIsDark === "boolean") {
+      this.isDarkMode = targetIsDark;
+    } else {
+      this.isDarkMode = !this.isDarkMode;
+    }
+
+    const correlateEl = <T extends Element>(el: T): T => this.correlateElement(el);
 
     this.tabs = this.tabs.map((tab) => ({
       ...tab,

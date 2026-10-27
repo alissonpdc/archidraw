@@ -80,9 +80,26 @@ export function toggleLightDark(): ThemePref {
   return next;
 }
 
+function isResolvedDark(): boolean {
+  if (typeof document === "undefined") return false;
+  if (document.documentElement.dataset.theme === "dark") return true;
+  if (document.documentElement.dataset.theme === "light") return false;
+  return (
+    typeof window !== "undefined" &&
+    !!window.matchMedia?.("(prefers-color-scheme: dark)")?.matches
+  );
+}
+
 export function attachThemeColorCorrelation(editor: import("../core/editor").Editor): () => void {
-  const handler = () => {
-    editor.correlateColorsForTheme();
+  editor.setDarkMode(isResolvedDark());
+
+  const handler = (e: Event) => {
+    const custom = e as CustomEvent<{ isDark: boolean }>;
+    const isDark =
+      typeof custom.detail?.isDark === "boolean"
+        ? custom.detail.isDark
+        : isResolvedDark();
+    editor.correlateColorsForTheme(isDark);
   };
   window.addEventListener("archidraw:mode-switch", handler);
   return () => {

@@ -26,7 +26,7 @@ export function StatusBar() {
   const view = sync.views.find((item) => item.workspaceId === activeWorkspaceId);
   const fileStatus = view
     ? `${view.fileName} · ${STATUS_TEXT[view.status]}`
-    : "local only";
+    : "local";
 
   return (
     <div className="status-bar">

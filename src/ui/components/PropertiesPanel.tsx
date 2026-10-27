@@ -417,6 +417,8 @@ export function PropertiesPanel() {
   const hasRectangle = selected.some((el) => el.type === "rectangle");
   const hasDiamond = selected.some((el) => el.type === "diamond");
   const hasEllipse = selected.some((el) => el.type === "ellipse");
+  const hasPolygon = selected.some((el) => el.type === "polygon");
+  const hasBoxLabel = hasRectangle || hasDiamond || hasEllipse || hasPolygon;
   const hasArrow = selected.some((el) => el.type === "arrow");
   const hasContext = selected.some((el) => el.type === "context");
   const isOnlyText = selected.length > 0 && selected.every((el) => el.type === "text");
@@ -1050,7 +1052,7 @@ export function PropertiesPanel() {
             </div>
           </Group>
 
-          {(hasText || hasRectangle || hasDiamond || hasEllipse || hasArrow) && (
+          {(hasText || hasBoxLabel || hasArrow) && (
             <Group title="Horizontal alignment">
               {(["left", "center", "right"] as const).map((a) => (
                 <button
@@ -1088,7 +1090,7 @@ export function PropertiesPanel() {
             </Group>
           )}
 
-          {hasRectangle && (
+          {(hasRectangle || hasPolygon) && (
             <Group title="Vertical position">
               {TEXT_VALIGNS.map((va) => (
                 <button
@@ -1256,59 +1258,59 @@ export function PropertiesPanel() {
             </Group>
           )}
 
-          {(hasCaption || hasRectangle || hasDiamond || hasEllipse || hasContext) && (
+          {(hasCaption || hasBoxLabel || hasContext) && (
             <Group title="Text offset (px)" vertical>
                 <SpacingRow
                   label="Global"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionGap" : "textOffsetGlobal", hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? 2 : 8)}
+                  value={unifiedOffset(hasCaption && !hasBoxLabel && !hasContext ? "captionGap" : "textOffsetGlobal", hasCaption && !hasBoxLabel && !hasContext ? 2 : 8)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionGap = v;
-                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetGlobal = v;
+                    if (hasBoxLabel) patch.textOffsetGlobal = v;
                     if (hasContext) patch.textOffsetGlobal = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Left"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetLeft" : "textOffsetLeft", 0)}
+                  value={unifiedOffset(hasCaption && !hasBoxLabel && !hasContext ? "captionOffsetLeft" : "textOffsetLeft", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetLeft = v;
-                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetLeft = v;
+                    if (hasBoxLabel) patch.textOffsetLeft = v;
                     if (hasContext) patch.textOffsetLeft = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Right"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetRight" : "textOffsetRight", 0)}
+                  value={unifiedOffset(hasCaption && !hasBoxLabel && !hasContext ? "captionOffsetRight" : "textOffsetRight", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetRight = v;
-                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetRight = v;
+                    if (hasBoxLabel) patch.textOffsetRight = v;
                     if (hasContext) patch.textOffsetRight = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Top"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetTop" : "textOffsetTop", 0)}
+                  value={unifiedOffset(hasCaption && !hasBoxLabel && !hasContext ? "captionOffsetTop" : "textOffsetTop", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetTop = v;
-                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetTop = v;
+                    if (hasBoxLabel) patch.textOffsetTop = v;
                     if (hasContext) patch.textOffsetTop = v;
                     apply(patch);
                   }}
                 />
                 <SpacingRow
                   label="Bottom"
-                  value={unifiedOffset(hasCaption && !hasRectangle && !hasDiamond && !hasEllipse && !hasContext ? "captionOffsetBottom" : "textOffsetBottom", 0)}
+                  value={unifiedOffset(hasCaption && !hasBoxLabel && !hasContext ? "captionOffsetBottom" : "textOffsetBottom", 0)}
                   onChange={(v) => {
                     const patch: Record<string, number> = {};
                     if (hasCaption) patch.captionOffsetBottom = v;
-                    if (hasRectangle || hasDiamond || hasEllipse) patch.textOffsetBottom = v;
+                    if (hasBoxLabel) patch.textOffsetBottom = v;
                     if (hasContext) patch.textOffsetBottom = v;
                     apply(patch);
                   }}
