@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { BASE_COLORS, hexToHsl, locate, shadesOf } from "../../core/color";
+import {
+  BASE_COLORS,
+  hexToHsl,
+  locate,
+  normalizeHex,
+  shadesOf,
+} from "../../core/color";
 
 const MIXED = "\u0000";
 const AUTO = "";
@@ -94,14 +100,30 @@ export function ColorSubmenu({
 }: ColorSubmenuProps) {
   const loc = locate(current);
   const isAutoActive = allowAuto && current === AUTO;
+  const isMixed = current === MIXED;
+  const normCurrent = normalizeHex(current);
+  const isCustomInitial = !isAutoActive && !isMixed && !loc && Boolean(normCurrent);
 
-  const [overrideBase, setOverrideBase] = useState<number | null>(null);
-  const [overrideIntensity, setOverrideIntensity] = useState<number | null>(null);
+  const [activeBase, setActiveBase] = useState<number>(() => loc?.base ?? 0);
+  const [activeIntensity, setActiveIntensity] = useState<number>(() => loc?.intensity ?? 2);
+  const [customHex, setCustomHex] = useState<string | null>(
+    isCustomInitial && normCurrent ? normCurrent : null,
+  );
+  const [hexInput, setHexInput] = useState<string>(() => {
+    if (isAutoActive || isMixed) return "";
+    if (normCurrent) return normCurrent.slice(1);
+    return "";
+  });
   const [hovered, setHovered] = useState<number | null>(null);
   const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const selectAllRef = useRef(false);
 
-  const selectedBase = overrideBase ?? (loc?.base ?? 6);
-  const selectedIntensity = overrideIntensity ?? (loc?.intensity ?? 2);
+  const isCustom = !isAutoActive && !isMixed && customHex !== null;
+
+  const shades = shadesOf(BASE_COLORS[activeBase].color);
+  const previewIntensity = hovered ?? activeIntensity;
+  const preview = isCustom ? customHex : shades[previewIntensity];
+
   const opacityVal = opacity ?? 100;
   const [opacityThumbLeft, setOpacityThumbLeft] = useState<number>(() => {
     const pct = (opacity ?? 100) / 100;
@@ -121,39 +143,126 @@ export function ColorSubmenu({
   }, [opacity]);
 
   useEffect(() => {
-    cellRefs.current[selectedIntensity]?.focus();
-  }, [selectedIntensity]);
+    if (!isCustom && document.activeElement?.tagName !== "INPUT") {
+      cellRefs.current[activeIntensity]?.focus();
+    }
+  }, [activeIntensity, isCustom]);
 
-  const shades = shadesOf(BASE_COLORS[selectedBase].color);
-  const previewIntensity = hovered ?? selectedIntensity;
-  const preview = shades[previewIntensity];
+  const applyHex = (norm: string) => {
+    const matchedLoc = locate(norm);
+    if (matchedLoc) {
+      setActiveBase(matchedLoc.base);
+      setActiveIntensity(matchedLoc.intensity);
+      setCustomHex(null);
+    } else {
+      setCustomHex(norm);
+    }
+    onPick(norm);
+  };
+
+  const commitHex = (norm: string) => {
+    applyHex(norm);
+    setHexInput(norm.slice(1));
+  };
 
   const handleBaseClick = (baseIdx: number) => {
-    setOverrideBase(baseIdx);
+    setCustomHex(null);
+    setActiveBase(baseIdx);
     setHovered(null);
     const newShades = shadesOf(BASE_COLORS[baseIdx].color);
     const nextIntensity = baseIdx === loc?.base ? loc.intensity : 2;
-    setOverrideIntensity(nextIntensity);
-    onPick(newShades[nextIntensity]);
+    setActiveIntensity(nextIntensity);
+    const picked = newShades[nextIntensity];
+    setHexInput(picked.slice(1));
+    onPick(picked);
+  };
+
+  const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/^#/, "").slice(0, 6);
+    setHexInput(raw);
+    if (raw.length === 6) {
+      const norm = normalizeHex(raw);
+      if (norm) {
+        applyHex(norm);
+      }
+    }
+  };
+
+  const handleHexKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      const norm = normalizeHex(hexInput);
+      if (norm) {
+        commitHex(norm);
+        onClose();
+      }
+    }
+  };
+
+  const handleHexBlur = () => {
+    selectAllRef.current = false;
+    const norm = normalizeHex(hexInput);
+    if (norm) {
+      commitHex(norm);
+    } else {
+      const currentNorm = normalizeHex(preview);
+      setHexInput(currentNorm ? currentNorm.slice(1) : "");
+    }
+  };
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    selectAllRef.current = true;
+    e.currentTarget.select();
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLInputElement>) => {
+    if (selectAllRef.current) {
+      selectAllRef.current = false;
+      e.preventDefault();
+      e.currentTarget.select();
+    }
+  };
+
+  const handleNativeChange = (e: React.FormEvent<HTMLInputElement>) => {
+    const val = e.currentTarget.value.toLowerCase();
+    const norm = normalizeHex(val);
+    if (norm) {
+      commitHex(norm);
+    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.target as HTMLElement)?.tagName === "INPUT") {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+      return;
+    }
     if (e.key === "Escape") {
       e.stopPropagation();
       onClose();
       return;
     }
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      if (isCustom) return;
       e.stopPropagation();
       const dir = e.key === "ArrowRight" ? 1 : -1;
-      const currentIdx = hovered ?? selectedIntensity;
+      const currentIdx = hovered ?? activeIntensity;
       const next = Math.min(4, Math.max(0, currentIdx + dir));
       setHovered(next);
-      setOverrideIntensity(next);
+      setActiveIntensity(next);
       cellRefs.current[next]?.focus();
-      onPick(shades[next]);
+      const nextShade = shades[next];
+      setHexInput(nextShade.slice(1));
+      onPick(nextShade);
     }
   };
+
+  const title = isCustom
+    ? "CUSTOM"
+    : `${BASE_COLORS[activeBase].name.toUpperCase()} · ${previewIntensity + 1}`;
 
   return (
     <div
@@ -166,7 +275,7 @@ export function ColorSubmenu({
       <div className="submenu-header pop-header">
         <div className="submenu-title-group">
           <span className="pop-title">
-            {BASE_COLORS[selectedBase].name.toUpperCase()} · {previewIntensity + 1}
+            {title}
           </span>
           <span className="pop-hex">{preview.toUpperCase()}</span>
         </div>
@@ -186,6 +295,7 @@ export function ColorSubmenu({
           className={`submenu-auto-btn${isAutoActive ? " active" : ""}`}
           aria-label={`${label} Auto`}
           onClick={() => {
+            setHexInput("");
             onPick(AUTO);
             onClose();
           }}
@@ -202,7 +312,7 @@ export function ColorSubmenu({
 
       <div className="matrix-3x5" role="group" aria-label="Base colors">
         {BASE_COLORS.map((entry, i) => {
-          const isBaseSelected = selectedBase === i && !isAutoActive;
+          const isBaseSelected = activeBase === i && !isAutoActive && !isCustom;
           return (
             <button
               key={entry.name}
@@ -220,23 +330,70 @@ export function ColorSubmenu({
       <div className="submenu-intensity">
         <span className="panel-subtitle">Intensity</span>
         <div className="ramp" onMouseLeave={() => setHovered(null)}>
-          {shades.map((shade, i) => (
-            <button
-              key={shade}
-              type="button"
-              ref={(el) => {
-                cellRefs.current[i] = el;
-              }}
-              className={`ramp-cell${i === selectedIntensity && !isAutoActive ? ` selected ${inkClass(shade)}` : ""}${i === hovered ? " hovered" : ""}`}
-              style={{ background: shade }}
-              aria-label={`${label} ${BASE_COLORS[selectedBase].name} intensity ${i + 1}`}
-              onMouseEnter={() => setHovered(i)}
-              onClick={() => {
-                onPick(shade);
-                onClose();
-              }}
+          {shades.map((shade, i) => {
+            const isRampSelected = i === activeIntensity && !isAutoActive && !isCustom;
+            return (
+              <button
+                key={shade}
+                type="button"
+                ref={(el) => {
+                  cellRefs.current[i] = el;
+                }}
+                className={`ramp-cell${isRampSelected ? ` selected ${inkClass(shade)}` : ""}${i === hovered ? " hovered" : ""}`}
+                style={{ background: shade }}
+                aria-label={`${label} ${BASE_COLORS[activeBase].name} intensity ${i + 1}`}
+                onMouseEnter={() => setHovered(i)}
+                onClick={() => {
+                  setCustomHex(null);
+                  setActiveIntensity(i);
+                  setHexInput(shade.slice(1));
+                  onPick(shade);
+                  onClose();
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="pop-hex-section">
+        <span className="panel-subtitle">Hex</span>
+        <div className="pop-hex-row">
+          <label className="pop-hex-swatch-wrap" title="Custom color picker">
+            <input
+              type="color"
+              className="pop-hex-native"
+              value={normalizeHex(preview) ?? "#000000"}
+              tabIndex={-1}
+              aria-label="Custom color picker"
+              onChange={handleNativeChange}
+              onInput={handleNativeChange}
             />
-          ))}
+            <span
+              className={`pop-hex-swatch${preview === "transparent" ? " transparent-checker" : ""}`}
+              style={{ backgroundColor: preview }}
+            />
+          </label>
+          <div className="pop-hex-input-wrap">
+            <span className="pop-hex-prefix">#</span>
+            <input
+              type="text"
+              className="pop-hex-input"
+              value={hexInput}
+              placeholder="000000"
+              maxLength={7}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              aria-label={`${label} hex`}
+              onFocus={handleFocus}
+              onMouseUp={handleMouseUp}
+              onChange={handleHexChange}
+              onKeyDown={handleHexKeyDown}
+              onBlur={handleHexBlur}
+            />
+          </div>
         </div>
       </div>
 

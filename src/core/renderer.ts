@@ -1,4 +1,5 @@
 import type { ArrowBinding, ArrowElement, ArrowHeadType, Bounds, Camera, ComponentElement, ContextElement, Document, Element, LineElement, Point } from "./types";
+import { DEFAULT_BG } from "./types";
 import {
   arrowHeadVectors,
   arrowPoints,
@@ -485,7 +486,10 @@ function resolveStroke(el: Element, colors: RenderColors): string {
 /** resolves the element fill; transparent / DEFAULT_BG sentinel → theme-aware grey */
 function resolveFill(el: Element, colors: RenderColors): string {
   if (!el.backgroundColor || el.backgroundColor === "transparent") return "transparent";
-  return themeColor(el.backgroundColor, colors.elementStroke, colors.canvasBg);
+  if (el.backgroundColor === DEFAULT_BG) {
+    return themeColor(DEFAULT_BG, colors.elementStroke, colors.canvasBg);
+  }
+  return el.backgroundColor;
 }
 
 /**

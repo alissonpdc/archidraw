@@ -8,6 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import { editor, useEditorSelector } from "../hooks/useEditor";
 import type { Element } from "../../core/types";
+import { CONTEXT_STROKE, DEFAULT_BG, DEFAULT_STROKE } from "../../core/types";
 import { translatedOrigin } from "../../core/utils";
 import {
   DEFAULT_FONT_FAMILY,
@@ -23,6 +24,13 @@ function resolveThemeColor(color: string): string {
   const elementStroke = s.getPropertyValue("--element-stroke").trim() || "#26292c";
   const canvasBg = s.getPropertyValue("--bg-canvas").trim() || "#ffffff";
   return themeColor(color, elementStroke, canvasBg);
+}
+
+function resolvePanelColor(color: string): string {
+  if (color === DEFAULT_STROKE || color === DEFAULT_BG || color === CONTEXT_STROKE) {
+    return resolveThemeColor(color);
+  }
+  return color;
 }
 
 const themeListeners = new Set<() => void>();
@@ -531,7 +539,7 @@ export function PropertiesPanel() {
       ? {
           label: "Stroke color",
           kind: "stroke" as const,
-          current: resolveThemeColor(selected[0].strokeColor),
+          current: resolvePanelColor(selected[0].strokeColor),
           onPick: (strokeColor: string) => apply({ strokeColor }),
           opacity: strokeOpacityValue,
           onOpacity: (v: number) => apply({ strokeOpacity: v / 100 }),
@@ -540,7 +548,7 @@ export function PropertiesPanel() {
         ? {
             label: "Fill",
             kind: "fill" as const,
-            current: resolveThemeColor(selected[0].backgroundColor),
+            current: resolvePanelColor(selected[0].backgroundColor),
             onPick: (backgroundColor: string) => apply({ backgroundColor }),
             opacity: fillOpacityValue,
             onOpacity: (v: number) => apply({ fillOpacity: v / 100 }),
@@ -552,7 +560,7 @@ export function PropertiesPanel() {
               current: textColorValue ?? "\u0000",
               onPick: (textColor: string) => apply({ textColor }),
               allowAuto: true,
-              autoColor: selected[0].strokeColor,
+              autoColor: resolvePanelColor(selected[0].strokeColor),
             }
           : null;
 
@@ -595,7 +603,7 @@ export function PropertiesPanel() {
         <Section title="Stroke">
           <Group title="Color">
             <ColorBox
-              current={resolveThemeColor(selected[0].strokeColor)}
+              current={resolvePanelColor(selected[0].strokeColor)}
               label="Stroke color"
               kind="stroke"
               isOpen={openPicker === "stroke"}
@@ -890,7 +898,7 @@ export function PropertiesPanel() {
           <Section title="Fill">
             <Group title="Color">
               <ColorBox
-                current={resolveThemeColor(selected[0].backgroundColor)}
+                current={resolvePanelColor(selected[0].backgroundColor)}
                 label="Fill"
                 kind="fill"
                 isOpen={openPicker === "fill"}
@@ -963,7 +971,7 @@ export function PropertiesPanel() {
               label="Text color"
               kind="text"
               allowAuto
-              autoColor={resolveThemeColor(selected[0].strokeColor)}
+              autoColor={resolvePanelColor(selected[0].strokeColor)}
               isOpen={openPicker === "text"}
               onToggle={() =>
                 setOpenPicker((curr) => (curr === "text" ? null : "text"))

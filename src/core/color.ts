@@ -282,3 +282,15 @@ export function correlateIntensity(color: string): string {
   const targetIntensity = 4 - loc.intensity;
   return shadesOf(BASE_COLORS[loc.base].color)[targetIntensity];
 }
+
+export function normalizeHex(raw: string): string | null {
+  const trimmed = raw.trim();
+  const hex = trimmed.startsWith("#") ? trimmed.slice(1) : trimmed;
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+    return `#${hex.toLowerCase()}`;
+  }
+  if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+    return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`.toLowerCase();
+  }
+  return null;
+}
