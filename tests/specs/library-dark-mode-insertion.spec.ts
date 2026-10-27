@@ -218,4 +218,33 @@ test.describe("library dark mode insertion", () => {
     expect(iotDie!.strokeColor).toBe("#3d4248");
     expect(iotDie!.textColor).toBe("#3d4248");
   });
+
+  test("Developer laptop keyboard and Browser frame invert properly in dark mode", async ({
+    page,
+  }) => {
+    await open(page);
+    await setTheme(page, "dark");
+
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      ed.insertComponent("sd-clients-devices-developer");
+      ed.insertComponent("sd-clients-devices-browser");
+    });
+
+    const res = await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const elements = ed.getSnapshot().doc.elements;
+      // keyboard is the rectangle with height ~8.61
+      const kb = elements.find((e: any) => e.type === "rectangle" && Math.abs(e.height - 8.61) < 0.1);
+      // outer frame of browser is the rectangle with width ~126.99
+      const frame = elements.find((e: any) => e.type === "rectangle" && Math.abs(e.width - 126.99) < 0.1);
+      return {
+        kbStroke: kb?.strokeColor,
+        frameStroke: frame?.strokeColor,
+      };
+    });
+
+    expect(res.kbStroke).toBe("#3d4248");
+    expect(res.frameStroke).toBe("#3d4248");
+  });
 });
