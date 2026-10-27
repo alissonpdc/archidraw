@@ -994,26 +994,6 @@
           "groupId": "std_grp_browser_alt"
         },
         {
-          "id": "el_std_brw_6",
-          "type": "line",
-          "x": 85.13,
-          "y": 48.74,
-          "width": 0,
-          "height": 0,
-          "strokeColor": "#168866",
-          "backgroundColor": "#7ec88c",
-          "strokeWidth": 1,
-          "opacity": 1,
-          "strokeOpacity": 1,
-          "fillOpacity": 0.85,
-          "strokeStyle": "solid",
-          "fillStyle": "solid",
-          "roughness": 0,
-          "borderRadius": 0,
-          "angle": 0,
-          "groupId": "std_grp_browser_alt"
-        },
-        {
           "id": "el_std_brw_7",
           "type": "line",
           "x": 59.29,
