@@ -6,6 +6,7 @@ import {
   subscribeDocumentSync,
   type FileSyncStatus,
 } from "../../core/documents/syncState";
+import { getAppVersion } from "../../core/version";
 
 const STATUS_TEXT: Record<FileSyncStatus, string> = {
   saved: "saved",
@@ -27,6 +28,7 @@ export function StatusBar() {
   const fileStatus = view
     ? `${view.fileName} · ${STATUS_TEXT[view.status]}`
     : "local";
+  const appVersion = getAppVersion();
 
   return (
     <div className="status-bar">
@@ -57,6 +59,9 @@ export function StatusBar() {
       >
         shortcuts (?)
       </button>
+      <span className="status-version" data-testid="status-version">
+        {appVersion}
+      </span>
     </div>
   );
 }

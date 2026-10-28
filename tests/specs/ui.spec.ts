@@ -261,12 +261,41 @@ test.describe("ui widgets", () => {
     await expect(page.locator(".toast")).toHaveText(/"Workspace 1" saved/);
   });
 
-  test("status bar shows shortcuts link", async ({ page }) => {
+  test("status bar shows shortcuts link and version to its right", async ({ page }) => {
     await open(page);
 
     const bar = await page.locator(".status-bar").textContent();
     expect(bar).toContain("shortcuts (?)");
     await expect(page.locator('[data-testid="status-file"]')).toHaveText("local");
+
+    const versionLocator = page.locator('[data-testid="status-version"]');
+    await expect(versionLocator).toBeVisible();
+    await expect(versionLocator).toHaveText(/^v\d+\.\d+\.\d+/);
+
+    const shortcutsBox = await page.locator(".status-bar .status-link").boundingBox();
+    const versionBox = await versionLocator.boundingBox();
+    expect(shortcutsBox).not.toBeNull();
+    expect(versionBox).not.toBeNull();
+    expect((versionBox?.x ?? 0)).toBeGreaterThan((shortcutsBox?.x ?? 0));
+
+    // Test version formatting helper branches
+    const formatResults = await page.evaluate(() => {
+      const v = (window as unknown as { __version__?: { formatAppVersion: (raw?: string) => string; getAppVersion: () => string } }).__version__;
+      return [
+        v?.formatAppVersion(""),
+        v?.formatAppVersion(undefined),
+        v?.formatAppVersion("   "),
+        v?.formatAppVersion("1.0.0"),
+        v?.formatAppVersion("v1.0.0"),
+        v?.getAppVersion(),
+      ];
+    });
+    expect(formatResults[0]).toBe("v0.0.0");
+    expect(formatResults[1]).toBe("v0.0.0");
+    expect(formatResults[2]).toBe("v0.0.0");
+    expect(formatResults[3]).toBe("v1.0.0");
+    expect(formatResults[4]).toBe("v1.0.0");
+    expect(formatResults[5]).toMatch(/^v\d+\.\d+\.\d+/);
 
     await page.click(".status-bar .status-link");
     await expect(page.locator(".shortcuts-modal")).toBeVisible();
