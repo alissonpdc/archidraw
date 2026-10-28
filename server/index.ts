@@ -1,9 +1,3 @@
-// Servidor Node único de produção (substitui o nginx). Roteia:
-//   POST /validate        validação de payloads (src/core/validate)
-//   GET  /docs, /docs.md  markdown cru p/ agentes de IA
-//   GET  /*               assets estáticos de dist/ + fallback SPA
-// Sem dependências externas (só builtins de Node). Porta via --port, PORT ou
-// 5000; diretório do build via DIST_DIR ou ./dist.
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 import { tryHandleValidate } from "../src/core/validate/httpHandler.ts";
