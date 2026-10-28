@@ -1,33 +1,68 @@
-// Serve o markdown cru de /docs e /docs.md (fonte única emitida no build para
-// dist/docs.md). Sem render de SPA: agentes de IA leem o markdown direto.
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const DOCS_ROUTES = ["/docs", "/docs.md"];
-const MISSING = "# docs.md não encontrado no build\n";
+const AI_DOC_SLUGS = [
+  "index",
+  "workspace",
+  "elements",
+  "catalog",
+  "clipboard",
+  "library",
+  "recipes",
+  "validate",
+] as const;
 
-let cached: string | null = null;
+const MISSING = "# ai/full.md não encontrado no build\n";
+const NOT_FOUND_MD = `# 404 — Unknown /ai route
 
-function readDocs(distRoot: string): string {
-  if (cached === null) {
-    const file = join(distRoot, "docs.md");
-    cached = existsSync(file) ? readFileSync(file, "utf8") : MISSING;
-  }
-  return cached;
+Use \`GET /ai\` for the full compiled reference or one of the modular \`GET /ai/<slug>.md\` routes:
+
+${AI_DOC_SLUGS.map((s) => `- \`/ai/${s}.md\``).join("\n")}
+`;
+
+const cache = new Map<string, string>();
+
+function readAsset(distRoot: string, relPath: string): string {
+  const key = `${distRoot}:${relPath}`;
+  const hit = cache.get(key);
+  if (hit !== undefined) return hit;
+  const file = join(distRoot, relPath);
+  const content = existsSync(file) ? readFileSync(file, "utf8") : MISSING;
+  cache.set(key, content);
+  return content;
 }
 
-/** responde /docs e /docs.md; devolve true se tratou a requisição. */
 export function serveDocs(
   req: IncomingMessage,
   res: ServerResponse,
   distRoot: string,
 ): boolean {
   const path = (req.url ?? "").split("?")[0].replace(/\/+$/, "");
-  if (!DOCS_ROUTES.includes(path)) return false;
-  res.statusCode = 200;
-  res.setHeader("Content-Type", "text/markdown; charset=utf-8");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.end(readDocs(distRoot));
-  return true;
+  if (path === "/ai") {
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.end(readAsset(distRoot, join("ai", "full.md")));
+    return true;
+  }
+  if (path.startsWith("/ai/")) {
+    const sub = path.slice("/ai/".length);
+    if (sub.endsWith(".md")) {
+      const slug = sub.slice(0, -3);
+      if ((AI_DOC_SLUGS as readonly string[]).includes(slug)) {
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.end(readAsset(distRoot, join("ai", `${slug}.md`)));
+        return true;
+      }
+    }
+    res.statusCode = 404;
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.end(NOT_FOUND_MD);
+    return true;
+  }
+  return false;
 }

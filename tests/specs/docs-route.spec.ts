@@ -4,7 +4,7 @@ import { test, expect, open, pressPasteText, importFile, type Page } from "../fi
 // esse markdown direto pelo canal HTTP e validam que os exemplos JSON continuam
 // sendo aceitos pelos parsers reais (import/paste).
 async function fetchDocsMarkdown(request: import("@playwright/test").APIRequestContext) {
-  const res = await request.get("/docs");
+  const res = await request.get("/ai");
   expect(res.status()).toBe(200);
   return await res.text();
 }

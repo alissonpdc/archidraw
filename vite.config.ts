@@ -1,23 +1,36 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { validateApiPlugin } from "./vite.validate-plugin.ts";
 
-// Caminho do markdown-fonte servido cru em /docs (e /docs.md). Nao ha render
-// de SPA para docs: agentes de IA leem o markdown direto, sem executar JS.
-const DOCS_SOURCE = fileURLToPath(
-  new URL("./src/docs/archidraw-syntax.md", import.meta.url),
-);
+const AI_DOCS_DIR = fileURLToPath(new URL("./src/ai", import.meta.url));
 
-const DOCS_ROUTES = ["/docs", "/docs.md"];
+const AI_DOC_SLUGS = [
+  "index",
+  "workspace",
+  "elements",
+  "catalog",
+  "clipboard",
+  "library",
+  "recipes",
+  "validate",
+] as const;
 
-// Intercepta /docs (e /docs.md) e devolve o markdown cru como text/markdown.
-// Assim agentes de IA conseguem ler a referencia sem executar nenhum JS.
+const NOT_FOUND_MD = `# 404 — Unknown /ai route
+
+Use \`GET /ai\` for the full compiled reference or one of the modular \`GET /ai/<slug>.md\` routes:
+
+${AI_DOC_SLUGS.map((s) => `- \`/ai/${s}.md\``).join("\n")}
+`;
+
 function serveDocsMarkdown(): Plugin {
-  const readSource = () => readFileSync(DOCS_SOURCE, "utf8");
+  const readModule = (slug: string) =>
+    readFileSync(join(AI_DOCS_DIR, `${slug}.md`), "utf8");
+  const readCompiled = () =>
+    AI_DOC_SLUGS.map((slug) => readModule(slug).trimEnd()).join("\n\n") + "\n";
 
-  // Connect middleware compartilhado entre dev e preview.
   const middleware = (
     req: { url?: string },
     res: {
@@ -28,34 +41,56 @@ function serveDocsMarkdown(): Plugin {
     next: () => void,
   ) => {
     const path = (req.url ?? "").split("?")[0].replace(/\/+$/, "");
-    if (!DOCS_ROUTES.includes(path)) return next();
-    res.statusCode = 200;
-    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
-    res.end(readSource());
+    if (path === "/ai") {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      res.end(readCompiled());
+      return;
+    }
+    if (path.startsWith("/ai/")) {
+      const sub = path.slice("/ai/".length);
+      if (sub.endsWith(".md")) {
+        const slug = sub.slice(0, -3);
+        if ((AI_DOC_SLUGS as readonly string[]).includes(slug)) {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+          res.end(readModule(slug));
+          return;
+        }
+      }
+      res.statusCode = 404;
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      res.end(NOT_FOUND_MD);
+      return;
+    }
+    next();
   };
 
   return {
-    name: "archidraw-docs-markdown",
-    // dev server
+    name: "archidraw-ai-markdown",
     configureServer(server) {
       server.middlewares.use(middleware);
     },
-    // preview server (usado pelo e2e)
     configurePreviewServer(server) {
       server.middlewares.use(middleware);
     },
-    // build: emite docs.md, que o servidor Node serve em /docs e /docs.md
     generateBundle() {
       this.emitFile({
         type: "asset",
-        fileName: "docs.md",
-        source: readSource(),
+        fileName: "ai/full.md",
+        source: readCompiled(),
       });
+      for (const slug of AI_DOC_SLUGS) {
+        this.emitFile({
+          type: "asset",
+          fileName: `ai/${slug}.md`,
+          source: readModule(slug),
+        });
+      }
     },
   };
 }
 
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react(), serveDocsMarkdown(), validateApiPlugin()],
   build: {
