@@ -330,7 +330,7 @@ Unknown extra fields are tolerated and ignored. A rejected import adds nothing a
             "borderRadius": 0,
             "angle": 0,
             "text": "Latency budget: 50ms",
-            "fontSize": 16,
+            "fontSize": 14,
             "bold": false,
             "textAlign": "left"
           }

@@ -1,4 +1,4 @@
-import { type Page, test, expect, open, drag, selectTool } from "../fixtures";
+import { cleanDefaults, type Page, test, expect, open, drag, selectTool } from "../fixtures";
 
 const RECT1 = { a: { x: 200, y: 150 }, b: { x: 320, y: 220 } };
 const RECT2 = { a: { x: 360, y: 150 }, b: { x: 480, y: 220 } };
@@ -59,6 +59,7 @@ async function savedCustomElementCount(page: Page): Promise<number> {
 test.describe("save components (context menu → SAVE)", () => {
   test("right-click on an element offers the SAVE section", async ({ page }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page);
 
     await rightClickMenu(page, 260, 185);
@@ -77,6 +78,7 @@ test.describe("save components (context menu → SAVE)", () => {
     editorState,
   }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page);
     const origId = (await editorState()).elements[0].id;
     const styles = await page.evaluate(() => {
@@ -134,6 +136,7 @@ test.describe("save components (context menu → SAVE)", () => {
     editorState,
   }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
     await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
     await drag(page, { x: 140, y: 30 }, { x: 560, y: 290 });
@@ -169,6 +172,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
   test("component names increment: custom-1, custom-2", async ({ page }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page);
 
     await rightClickMenu(page, 260, 185);
@@ -187,6 +191,7 @@ test.describe("save components (context menu → SAVE)", () => {
     page,
   }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page);
 
     await rightClickMenu(page, 260, 185);
@@ -208,6 +213,7 @@ test.describe("save components (context menu → SAVE)", () => {
     page,
   }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page, { x: 200, y: 150 }, { x: 280, y: 200 });
     await drawDiamond(page, { x: 320, y: 150 }, { x: 420, y: 200 });
     await drawEllipse(page, { x: 450, y: 150 }, { x: 560, y: 200 });
@@ -230,6 +236,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
   test("Download SVG includes every selected shape type", async ({ page }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page, { x: 200, y: 150 }, { x: 280, y: 200 });
     await drawDiamond(page, { x: 320, y: 150 }, { x: 420, y: 200 });
     await drawEllipse(page, { x: 450, y: 150 }, { x: 560, y: 200 });
@@ -259,6 +266,7 @@ test.describe("save components (context menu → SAVE)", () => {
     // regression: font families like "Architects Daughter", cursive (sketch
     // import) contain literal quotes that broke the saved SVG XML.
     await open(page);
+    await cleanDefaults(page);
     await selectTool(page, "7");
     await page.mouse.click(320, 185);
     await page.keyboard.type("handwritten");
@@ -283,6 +291,7 @@ test.describe("save components (context menu → SAVE)", () => {
     editorState,
   }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page, RECT1.a, RECT1.b);
     await drawRect(page, RECT2.a, RECT2.b);
 
@@ -307,6 +316,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
   test("custom library items persist after reload", async ({ page }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page);
 
     await rightClickMenu(page, 260, 185);
@@ -314,6 +324,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
     await page.reload();
     await open(page);
+    await cleanDefaults(page);
     await page.keyboard.press("l");
     const custom = page.locator('[data-testid="library-custom"]');
     await custom.locator(".library-section-header").click();
@@ -324,6 +335,7 @@ test.describe("save components (context menu → SAVE)", () => {
     page,
   }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
     await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
     await page.keyboard.press("ControlOrMeta+a");
@@ -356,6 +368,7 @@ test.describe("save components (context menu → SAVE)", () => {
     page,
   }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
     await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
 
@@ -395,6 +408,7 @@ test.describe("save components (context menu → SAVE)", () => {
     page,
   }) => {
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
     await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
     await page.keyboard.press("ControlOrMeta+a");
@@ -419,6 +433,7 @@ test.describe("save components (context menu → SAVE)", () => {
     // regression: deleting a saved custom item must never delete the elements
     // the user already placed on the canvas from that item
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page, { x: 200, y: 150 }, { x: 320, y: 220 });
     await drawRect(page, { x: 360, y: 150 }, { x: 480, y: 220 });
     await drag(page, { x: 140, y: 30 }, { x: 560, y: 290 });
@@ -454,6 +469,7 @@ test.describe("save components (context menu → SAVE)", () => {
     // must embed their asset so removing the library item from the palette
     // never makes them disappear from the canvas
     await open(page);
+    await cleanDefaults(page);
     await page.keyboard.press("l");
     const lib = JSON.stringify({
       type: "excalidrawlib",
@@ -525,6 +541,7 @@ test.describe("save components (context menu → SAVE)", () => {
     // regression: saved custom item thumbnails lost the sketch (rough) style
     // and came out with clean straight lines
     await open(page);
+    await cleanDefaults(page);
     await drawRect(page);
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
@@ -543,6 +560,7 @@ test.describe("save components (context menu → SAVE)", () => {
 
   test("sketch line downloads as hand-drawn path", async ({ page }) => {
     await open(page);
+    await cleanDefaults(page);
     await selectTool(page, "5");
     await drag(page, { x: 200, y: 200 }, { x: 500, y: 200 });
     await selectTool(page, "1");

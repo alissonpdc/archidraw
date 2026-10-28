@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { editor } from "./hooks/useEditor";
 import { toggleLightDark } from "./theme";
 import { CanvasHost } from "./components/CanvasHost";
+import { GlobalTooltip } from "./components/GlobalTooltip";
 import { Toolbar } from "./components/Toolbar";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { WorkspacePanel, WorkspacePanelToggle } from "./components/WorkspacePanel";
@@ -328,6 +329,7 @@ export function App() {
       <CanvasHost />
       <ContextMenu />
       <HoverInfoBox />
+      <GlobalTooltip />
       {!focusMode && (
         <>
           <WorkspacePanelToggle open={workspacesOpen} onToggle={toggleWorkspacesPanel} />

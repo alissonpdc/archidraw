@@ -5,7 +5,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { createPortal } from "react-dom";
 import { editor, useEditorSelector } from "../hooks/useEditor";
 import type { Element } from "../../core/types";
 import { CONTEXT_STROKE, DEFAULT_BG, DEFAULT_STROKE } from "../../core/types";
@@ -65,7 +64,7 @@ const EMPTY_ELEMENTS: Element[] = [];
 
 const STROKE_WIDTHS = [1, 2, 4, 8] as const;
 const FONT_SIZES = [
-  { label: "S", value: 16 },
+  { label: "S", value: 14 },
   { label: "M", value: 20 },
   { label: "L", value: 28 },
   { label: "XL", value: 36 },
@@ -138,44 +137,6 @@ type Patch = Partial<{
 }>;
 
 // ---- components ---------------------------------------------------------
-
-interface TipState {
-  text: string;
-  x: number;
-  y: number;
-}
-
-/** fixed-position tooltip rendered in a portal so panel overflow never clips it */
-function PanelTooltip({ tip }: { tip: TipState | null }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
-
-  useLayoutEffect(() => {
-    if (!tip || !ref.current) return;
-    const r = ref.current.getBoundingClientRect();
-    const left = Math.min(
-      Math.max(8, tip.x - r.width / 2),
-      window.innerWidth - r.width - 8,
-    );
-    setPos({ left, top: tip.y });
-  }, [tip]);
-
-  if (!tip) return null;
-  return createPortal(
-    <div
-      ref={ref}
-      className="panel-tooltip"
-      style={{
-        left: pos?.left ?? tip.x,
-        top: pos?.top ?? tip.y,
-        visibility: pos ? "visible" : "hidden",
-      }}
-    >
-      {tip.text}
-    </div>,
-    document.body,
-  );
-}
 
 function Group({
   title,
@@ -333,7 +294,6 @@ export function PropertiesPanel() {
       );
     },
   );
-  const [tip, setTip] = useState<TipState | null>(null);
   const [activeTab, setActiveTab] = useState<"style" | "text" | "layers">("style");
   const [maxTabHeight, setMaxTabHeight] = useState<number | null>(null);
   const maxTabHeightRef = useRef<number | null>(null);
@@ -370,17 +330,6 @@ export function PropertiesPanel() {
   }, [selKey, activeTab]);
 
   if (selected.length === 0) return null;
-
-  const showTip = (e: React.MouseEvent) => {
-    const el = (e.target as HTMLElement).closest("[data-tip]");
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    setTip({
-      text: el.getAttribute("data-tip") || "",
-      x: r.left + r.width / 2,
-      y: r.top,
-    });
-  };
 
   const apply = (patch: Patch) => {
     editor.commitHistory();
@@ -571,11 +520,7 @@ export function PropertiesPanel() {
       <div
         className="properties-panel"
         style={maxTabHeight ? { minHeight: maxTabHeight } : undefined}
-        onMouseOver={showTip}
-        onMouseLeave={() => setTip(null)}
-        onScroll={() => setTip(null)}
       >
-      <PanelTooltip tip={tip} />
       {/* Tab bar */}
       <div className="panel-tabs">
         {!isOnlyText && (

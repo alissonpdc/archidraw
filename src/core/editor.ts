@@ -558,7 +558,8 @@ export class Editor {
   private pasteCount = 0;
   private lastDefaultStroke: string = DEFAULT_STROKE;
   private lastStrokeStyle: StrokeStyle = "solid";
-  private lastRoughness: Roughness = 0;
+  private lastRoughness: Roughness = 1;
+  private lastStrokeWidth: number | null = null;
   private lastBorderRadius = 0;
   private lastFillStyle: FillStyle = "solid";
   private focusMode = false;
@@ -1213,16 +1214,16 @@ export class Editor {
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
       // no border and no label by default: just the icon
-      strokeWidth: 0,
+      strokeWidth: this.lastStrokeWidth ?? 0,
       opacity: 1,
       strokeOpacity: 1,
       fillOpacity: 0,
-      strokeStyle: "solid",
+      strokeStyle: this.lastStrokeStyle,
       fillStyle: this.lastFillStyle,
-      roughness: 0,
+      roughness: this.lastRoughness,
 borderRadius: 20,
-      // legenda/edição usa a mesma fonte default do texto (média, sans)
-      fontSize: 20,
+      fontSize: isBuiltinLibraryItem(componentId) ? 14 : 20,
+      bold: false,
       // imagens (asset raster) embedam o src para renderizar mesmo se o item
       // de lib for removido da biblioteca depois; itens de bibliotecas
       // importadas/removeíveis (não-bundled AWS/K8s) também embedam o asset:
@@ -1810,11 +1811,11 @@ borderRadius: 20,
       fontSize: 20,
       strokeColor: this.lastDefaultStroke,
       backgroundColor: DEFAULT_BG,
-      strokeWidth: 1,
+      strokeWidth: this.lastStrokeWidth ?? 2,
       opacity: 1,
       strokeOpacity: 1,
       fillOpacity: 0,
-      strokeStyle: "solid",
+      strokeStyle: this.lastStrokeStyle,
       fillStyle: this.lastFillStyle,
       roughness: this.lastRoughness,
       borderRadius: 0,
@@ -1903,6 +1904,7 @@ strokeOpacity?: number;
       }),
     };
     // remember style choices for the next created element
+    if (patch.strokeWidth !== undefined && ids.length > 0) this.lastStrokeWidth = patch.strokeWidth;
     if (patch.strokeStyle !== undefined) this.lastStrokeStyle = patch.strokeStyle;
     if (patch.fillStyle !== undefined) this.lastFillStyle = patch.fillStyle;
     if (patch.roughness !== undefined) this.lastRoughness = patch.roughness;
@@ -2161,7 +2163,7 @@ strokeOpacity?: number;
           id: newId(),
           strokeColor: stroke,
           backgroundColor: DEFAULT_BG,
-          strokeWidth: 2,
+          strokeWidth: this.lastStrokeWidth ?? 2,
           opacity: 1,
           strokeOpacity: 1,
           fillOpacity: 0,
@@ -2179,7 +2181,7 @@ strokeOpacity?: number;
         } else if (this.tool === "ellipse") {
           el = { ...base, type: "ellipse", ...bbox } satisfies EllipseElement;
         } else if (this.tool === "line") {
-          el = { ...base, type: "line", strokeWidth: 1, ...bbox } satisfies LineElement;
+          el = { ...base, type: "line", ...bbox } satisfies LineElement;
         } else if (this.tool === "context") {
           el = {
             ...base,
@@ -2188,16 +2190,17 @@ strokeOpacity?: number;
             strokeColor: CONTEXT_STROKE,
             strokeWidth: 1,
             strokeStyle: "solid",
+            roughness: 0,
             backgroundColor: "transparent",
             borderRadius: 10,
-            fontSize: 16,
+            fontSize: 14,
             label: "Context",
             labelPosition: "top-left",
             labelSide: "internal",
             childIds: [],
           } satisfies ContextElement;
         } else {
-          el = { ...base, type: "arrow", strokeWidth: 1, ...bbox, startArrowhead: "none", endArrowhead: "arrow" } satisfies ArrowElement;
+          el = { ...base, type: "arrow", ...bbox, startArrowhead: "none", endArrowhead: "arrow" } satisfies ArrowElement;
         }
         // drawing that starts over/near a shape binds and snaps the start
         // to the nearest outline point (or to a cardinal center nearby)
@@ -2229,7 +2232,7 @@ strokeOpacity?: number;
           fontSize: 20,
           strokeColor: stroke,
           backgroundColor: DEFAULT_BG,
-          strokeWidth: 1,
+          strokeWidth: this.lastStrokeWidth ?? 2,
           opacity: 1,
           strokeOpacity: 1,
           fillOpacity: 0,

@@ -1,4 +1,4 @@
-import { test, expect, drag, selectTool, open, pressPasteText, type Page } from "../fixtures";
+import { cleanDefaults, test, expect, drag, selectTool, open, pressPasteText, type Page } from "../fixtures";
 
 async function createRects(page: Page) {
   await selectTool(page, "2");
@@ -117,6 +117,7 @@ test.describe("multi-selection outline", () => {
       }
     });
     await open(page);
+    await cleanDefaults(page);
     await createRects(page);
   });
 

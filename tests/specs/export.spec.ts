@@ -6,6 +6,7 @@ import {
   open,
   openWithDocuments,
   installDocumentPicker,
+  cleanDefaults,
 } from "../fixtures";
 
 async function createRect(page: import("@playwright/test").Page) {
@@ -23,6 +24,7 @@ async function readArchidraw(download: import("@playwright/test").Download) {
 test.describe("export / import", () => {
   test.beforeEach(async ({ page }) => {
     await open(page);
+    await cleanDefaults(page);
     await createRect(page);
   });
 

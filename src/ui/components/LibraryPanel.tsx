@@ -1,11 +1,9 @@
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import {
   LIBRARY,
   LIBRARY_CATEGORIES,
@@ -63,55 +61,6 @@ const gcpItems = [...LIBRARY_GCP].sort((a, b) => a.name.localeCompare(b.name));
 const azureItems = [...LIBRARY_AZURE].sort((a, b) =>
   a.name.localeCompare(b.name),
 );
-
-interface TipState {
-  text: string;
-  x: number;
-  y: number;
-  bottom?: number;
-}
-
-/** fixed-position tooltip in a portal — panel overflow never clips it */
-function TileTooltip({ tip }: { tip: TipState | null }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{
-    left: number;
-    top: number;
-    transform?: string;
-  } | null>(null);
-
-  useLayoutEffect(() => {
-    if (!tip || !ref.current) return;
-    const r = ref.current.getBoundingClientRect();
-    const left = Math.min(
-      Math.max(8, tip.x - r.width / 2),
-      window.innerWidth - r.width - 8,
-    );
-    const placeBelow = tip.y < 40;
-    setPos({
-      left,
-      top: placeBelow ? (tip.bottom ?? tip.y) + 8 : tip.y,
-      transform: placeBelow ? "none" : undefined,
-    });
-  }, [tip]);
-
-  if (!tip) return null;
-  return createPortal(
-    <div
-      ref={ref}
-      className="panel-tooltip"
-      style={{
-        left: pos?.left ?? tip.x,
-        top: pos?.top ?? tip.y,
-        transform: pos?.transform,
-        visibility: pos ? "visible" : "hidden",
-      }}
-    >
-      {tip.text}
-    </div>,
-    document.body,
-  );
-}
 
 function ItemIcon({ item, size = 28 }: { item: LibraryItem; size?: number }) {
   if (hasComponentAsset(item.id)) {
@@ -214,7 +163,6 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [azureOpen, setAzureOpen] = useState(false);
   const [k8sOpen, setK8sOpen] = useState(false);
   const [importedOpen, setImportedOpen] = useState(false);
-  const [tip, setTip] = useState<TipState | null>(null);
   const [imported, setImported] = useState<ImportedLibrary[]>(getImportedLibraries);
   const [importedImages, setImportedImages] = useState<ImportedImageData[]>(getImportedImages);
   const [customItems, setCustomItems] = useState<CustomLibraryItemData[]>(getCustomLibrary);
@@ -306,28 +254,11 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
     setCustomItems(getCustomLibrary());
   };
 
-  // event-delegated tooltips (same pattern as PropertiesPanel)
-  const showTip = (e: React.MouseEvent) => {
-    const el = (e.target as HTMLElement).closest("[data-tip]");
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    setTip({
-      text: el.getAttribute("data-tip") || "",
-      x: r.left + r.width / 2,
-      y: r.top,
-      bottom: r.bottom,
-    });
-  };
-
   return (
     <aside
       className="library-panel"
       aria-label="Component Library"
-      onMouseOver={showTip}
-      onMouseLeave={() => setTip(null)}
-      onScroll={() => setTip(null)}
     >
-      <TileTooltip tip={tip} />
       <div className="library-header">
         <span className="panel-subtitle">Library</span>
         <div className="library-header-actions">

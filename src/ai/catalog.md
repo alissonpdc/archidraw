@@ -24,18 +24,18 @@ The two lightest columns carry fills, the three darkest columns carry strokes; a
 
 #### Recommended Native UI Presets & Semantic Color Pairings for Architecture Diagrams
 
-In the Properties Panel color picker, the 5 columns above correspond to **Intensity 1..5** (`Lightest` = 1, `Lighter` = 2, `Base` = 3, `Darker` = 4, `Darkest` = 5), and **`textColor: ""`** selects the native **`Auto`** button (inheriting `strokeColor` and automatically adapting to light/dark themes). Every row below uses **100% native UI presets** (`fontSize` in `{16, 20, 28, 36}` + `12`, `strokeWidth` in `{0, 1, 2, 4, 8}`, palette hexes, and `animated: true` only on non-solid strokes):
+In the Properties Panel color picker, the 5 columns above correspond to **Intensity 1..5** (`Lightest` = 1, `Lighter` = 2, `Base` = 3, `Darker` = 4, `Darkest` = 5), and **`textColor: ""`** selects the native **`Auto`** button (inheriting `strokeColor` and automatically adapting to light/dark themes). Every row below uses **100% native UI presets** (`fontSize` in `{14, 20, 28, 36}` + `12`, `strokeWidth` in `{0, 1, 2, 4, 8}`, palette hexes, and `animated: true` only on non-solid strokes):
 
 | Architectural Role | `strokeColor` (Intensity 4/5) | `backgroundColor` (Intensity 1) | `textColor` (`Auto` or Intensity 5) | `strokeWidth` & `borderRadius` | `fontSize` & `width × height` | `strokeStyle` & `animated` |
 |---|---|---|---|---|---|---|
-| Sync API / Core Microservice (`rectangle`) | `"#114c83"` (Blue · 4) | `"#d3e1ed"` (Blue · 1) | `""` (`Auto`) or `"#092a48"` | `strokeWidth: 2, borderRadius: 8` | `fontSize: 16` (`S`), `240 × 90` | `"solid", animated: false` |
-| Async Worker / Event Consumer (`rectangle`) | `"#a35f00"` (Orange · 4) | `"#f1e3d0"` (Orange · 1) | `""` (`Auto`) or `"#523000"` | `strokeWidth: 2, borderRadius: 8` | `fontSize: 16` (`S`), `240 × 90` | `"dashed"` (or `"solid"`), `animated: false` |
-| Sync Request Flow (`arrow`) | `"#114c83"` (Blue · 4) | `"transparent"` | `""` (`Auto`) | `strokeWidth: 2, borderRadius: 0` | `fontSize: 16` (`S`), `label <= 14 chars` | `"solid", animated: false` |
-| Async Event / Stream Flow (`arrow`) | `"#a35f00"` (Orange · 4) | `"transparent"` | `""` (`Auto`) | `strokeWidth: 2, borderRadius: 0` | `fontSize: 16` (`S`), `label <= 14 chars` | `"dashed", animated: true` |
-| Data Store / Replication Flow (`arrow`) | `"#216e2f"` (Green · 4) | `"transparent"` | `""` (`Auto`) | `strokeWidth: 2, borderRadius: 0` | `fontSize: 16` (`S`), `label <= 14 chars` | `"dotted", animated: true` |
-| Security / Auth Flow (`arrow` / `rectangle`) | `"#3d1f99"` (Purple · 4) | `"#dbd5ec"` (Purple · 1) | `""` (`Auto`) or `"#1b0e44"` | `strokeWidth: 1` (or `2`) | `fontSize: 16` (`S`) | `"dashed", animated: false` |
-| Dead-Letter Queue / Error / Alert (`arrow`) | `"#9b1717"` (Red · 4) | `"#edd4d4"` (Red · 1) | `""` (`Auto`) or `"#470b0b"` | `strokeWidth: 2, borderRadius: 0` | `fontSize: 16` (`S`), `label <= 14 chars` | `"dashed", animated: false` |
-| Context Boundary (`context`) | `"#c4c7ca"` (Context sentinel) | `"transparent"` (or Intensity 1) | `"#26292c"` (Grey · 5) | `strokeWidth: 1, borderRadius: 10` | `fontSize: 16` (`S`) | `"solid"` (or `"dashed"`) |
+| Sync API / Core Microservice (`rectangle`) | `"#114c83"` (Blue · 4) | `"#d3e1ed"` (Blue · 1) | `""` (`Auto`) or `"#092a48"` | `strokeWidth: 2, borderRadius: 8` | `fontSize: 14` (`S`), `240 × 90` | `"solid", animated: false` |
+| Async Worker / Event Consumer (`rectangle`) | `"#a35f00"` (Orange · 4) | `"#f1e3d0"` (Orange · 1) | `""` (`Auto`) or `"#523000"` | `strokeWidth: 2, borderRadius: 8` | `fontSize: 14` (`S`), `240 × 90` | `"dashed"` (or `"solid"`), `animated: false` |
+| Sync Request Flow (`arrow`) | `"#114c83"` (Blue · 4) | `"transparent"` | `""` (`Auto`) | `strokeWidth: 2, borderRadius: 0` | `fontSize: 14` (`S`), `label <= 14 chars` | `"solid", animated: false` |
+| Async Event / Stream Flow (`arrow`) | `"#a35f00"` (Orange · 4) | `"transparent"` | `""` (`Auto`) | `strokeWidth: 2, borderRadius: 0` | `fontSize: 14` (`S`), `label <= 14 chars` | `"dashed", animated: true` |
+| Data Store / Replication Flow (`arrow`) | `"#216e2f"` (Green · 4) | `"transparent"` | `""` (`Auto`) | `strokeWidth: 2, borderRadius: 0` | `fontSize: 14` (`S`), `label <= 14 chars` | `"dotted", animated: true` |
+| Security / Auth Flow (`arrow` / `rectangle`) | `"#3d1f99"` (Purple · 4) | `"#dbd5ec"` (Purple · 1) | `""` (`Auto`) or `"#1b0e44"` | `strokeWidth: 1` (or `2`) | `fontSize: 14` (`S`) | `"dashed", animated: false` |
+| Dead-Letter Queue / Error / Alert (`arrow`) | `"#9b1717"` (Red · 4) | `"#edd4d4"` (Red · 1) | `""` (`Auto`) or `"#470b0b"` | `strokeWidth: 2, borderRadius: 0` | `fontSize: 14` (`S`), `label <= 14 chars` | `"dashed", animated: false` |
+| Context Boundary (`context`) | `"#c4c7ca"` (Context sentinel) | `"transparent"` (or Intensity 1) | `"#26292c"` (Grey · 5) | `strokeWidth: 1, borderRadius: 10` | `fontSize: 14` (`S`) | `"solid"` (or `"dashed"`) |
 
 ### 3.7 Component catalog
 
@@ -45,7 +45,7 @@ In the Properties Panel color picker, the 5 columns above correspond to **Intens
 
 - Dimensions: `width: 60, height: 60` (or `64 × 64`)
 - Invisible bounding box (native UI defaults): `strokeWidth: 0, fillOpacity: 0, backgroundColor: "transparent", borderRadius: 20, fill: false`
-- Caption outside icon: `label: "<Service Name>", captionPosition: "bottom", captionGap: 4, fontSize: 12` (or `"fontSize": 16` `S`), `textColor: ""` (`Auto`)
+- Caption outside icon: `label: "<Service Name>", captionPosition: "bottom", captionGap: 4, fontSize: 12` (or `"fontSize": 14` `S`), `textColor: ""` (`Auto`)
 
 The whole catalog, each id with its official bundled icon:
 
