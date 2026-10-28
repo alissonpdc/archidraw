@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: release-main
@@ -82,6 +83,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
 
   release:
     name: GitHub Release
@@ -209,12 +215,41 @@ jobs:
           name: ArchiDraw ${{ steps.version.outputs.new_tag }}
           body: ${{ steps.notes.outputs.notes }}
 
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
       - name: Upload do build artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ steps.version.outputs.new_tag }}
           path: dist/
           retention-days: 30
+
+  deploy:
+    name: Deploy S3 + CloudFront
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: sa-east-1
+      - name: Sync S3 Assets (Cache-Control)
+        run: |
+          aws s3 sync dist/assets/ s3://${{ vars.URL }}-prod/assets/ --delete --region sa-east-1 --cache-control "public, max-age=31536000, immutable"
+          aws s3 sync dist/ s3://${{ vars.URL }}-prod --delete --region sa-east-1 --cache-control "public, max-age=0, must-revalidate"
+      - name: Invalidar CloudFront
+        run: aws cloudfront create-invalidation --distribution-id ${{ vars.AWS_CLOUDFRONT_ID_PROD }} --paths "/*"
 
   docker:
     name: Docker Hub
