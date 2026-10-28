@@ -53,6 +53,7 @@ import {
   tokenizeYaml,
   tokenizeStructured,
 } from "./core/structuredCode";
+import { formatAppVersion, getAppVersion } from "./core/version";
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__editor__ = editor;
@@ -104,6 +105,10 @@ if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
     hashText,
     syncSnapshot: getDocumentSyncSnapshot,
     poll: () => documents.refreshAll(),
+  };
+  (window as unknown as Record<string, unknown>).__version__ = {
+    formatAppVersion,
+    getAppVersion,
   };
 }
 

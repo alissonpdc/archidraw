@@ -6,6 +6,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+ARG VITE_APP_VERSION=v0.0.0
+ENV VITE_APP_VERSION=$VITE_APP_VERSION
+
 COPY . .
 # cliente (dist/ + docs.md) e servidor Node (dist-server/server.js)
 RUN npm run build && npm run build:server

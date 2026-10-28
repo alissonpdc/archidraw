@@ -1926,6 +1926,12 @@ button.status-file {
   color: var(--text-primary);
 }
 
+.status-version {
+  margin-left: var(--space-3);
+  color: var(--text-muted);
+  user-select: none;
+}
+
 .status-stats {
   display: flex;
   align-items: center;
