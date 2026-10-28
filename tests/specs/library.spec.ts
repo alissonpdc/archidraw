@@ -1,8 +1,9 @@
-import { type Page, test, expect, open } from "../fixtures";
+import { cleanDefaults, type Page, test, expect, open } from "../fixtures";
 
 /** opens the library panel; groups start collapsed */
 async function openLibrary(page: Page) {
   await open(page);
+  await cleanDefaults(page);
   await page.keyboard.press("l");
   await expect(page.locator(".library-panel")).toBeVisible();
 }
@@ -195,22 +196,22 @@ test.describe("component library", () => {
     expect(state.editingTextId).toBeNull();
   });
 
-  test("label of a library component uses the Text default font (20px sans)", async ({
+  test("label of a library component uses the Text default font (14px sans)", async ({
     page,
   }) => {
     await openLibraryWithAws(page);
     await page.locator('.library-panel [data-component-id="s3"]').click();
 
-    // a library component is born with the same font default as Text (médio + sans)
+    // a library component is born with the same font default as Text (S + sans)
     const el = await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const e = ed.getSnapshot().doc.elements[0];
       return { fontSize: e.fontSize, fontFamily: e.fontFamily };
     });
-    expect(el.fontSize).toBe(20);
+    expect(el.fontSize).toBe(14);
     expect(el.fontFamily).toBeUndefined();
 
-    // double-click and type: the label renders with that font size (20px)
+    // double-click and type: the label renders with that font size (14px)
     const center = await page.evaluate(() => {
       const ed = (window as any).__editor__;
       const e = ed.getSnapshot().doc.elements[0];
@@ -219,14 +220,14 @@ test.describe("component library", () => {
     await page.mouse.dblclick(center.x, center.y);
     await page.keyboard.type("S3 bucket");
 
-    // while editing, the invisible overlay is set to the caption font (20px)
+    // while editing, the invisible overlay is set to the caption font (14px)
     const overlayFont = await page.evaluate(() => {
       const overlay = document.querySelector(
         ".text-overlay.label-overlay",
       ) as HTMLElement | null;
       return overlay ? parseFloat(overlay.style.fontSize) : null;
     });
-    expect(overlayFont).toBe(20);
+    expect(overlayFont).toBe(14);
 
     await page.keyboard.press("Enter");
 
@@ -291,6 +292,7 @@ test.describe("component library", () => {
 
     await page.reload();
     await open(page);
+    await cleanDefaults(page);
 
     const state = await editorState();
     expect(state.elementCount).toBe(1);
@@ -310,6 +312,7 @@ test.describe("component library", () => {
 
   test("toolbar button toggles the panel", async ({ page }) => {
     await open(page);
+    await cleanDefaults(page);
     await page.getByRole("button", { name: "Component Library" }).click();
     await expect(page.locator(".library-panel")).toBeVisible();
     await page.getByRole("button", { name: "Component Library" }).click();
@@ -463,7 +466,7 @@ test.describe("component library", () => {
       window.getComputedStyle(
         document.querySelector(".library-panel [data-tip]")!,
         "::after",
-      ).display,
+      ).content,
     );
     expect(pseudoDisplay).toBe("none");
   });

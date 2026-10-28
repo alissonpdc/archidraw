@@ -1702,20 +1702,16 @@ button.status-file {
   pointer-events: none;
 }
 
-/* ---- rich tooltips ---- */
+/* ---- tooltips (single global portal tooltip, see GlobalTooltip.tsx) ---- */
 [data-tip] {
   position: relative;
 }
 
-/* the panels use a portal-based fixed tooltip instead (never clipped) */
-.properties-panel [data-tip]::after,
-.library-panel [data-tip]::after {
-  display: none;
-}
-
 .panel-tooltip {
   position: fixed;
-  z-index: 200;
+  z-index: 1000;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 32px));
   transform: translateY(calc(-100% - 8px));
   padding: var(--space-1) var(--space-2);
   background: var(--bg-surface);
@@ -1724,38 +1720,7 @@ button.status-file {
   box-shadow: var(--shadow-md);
   font-size: var(--font-size-xs);
   border-radius: var(--radius-sm);
-  white-space: nowrap;
   pointer-events: none;
-}
-
-[data-tip]::after {
-  content: attr(data-tip);
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
-  font-size: var(--font-size-xs);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--transition-fast);
-  z-index: 100;
-}
-
-[data-tip]:hover::after {
-  opacity: 1;
-  transition-delay: 250ms;
-}
-
-.tip-up[data-tip]::after {
-  top: auto;
-  bottom: calc(100% + 6px);
 }
 
 /* ---- zoom widget ---- */

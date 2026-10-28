@@ -428,3 +428,9 @@ export async function openFileChooserViaShortcut(page: Page, key: string) {
   }, key);
   return chooser;
 }
+
+export async function cleanDefaults(page: Page) {
+  await page.evaluate(() => {
+    (window as any).__editor__.updateElements([], { roughness: 0 });
+  });
+}

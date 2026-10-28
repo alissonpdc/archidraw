@@ -57,7 +57,7 @@ test.describe("context", () => {
     expect(style.strokeColor).toBe("#c4c7ca");
     // custom rounded border (10%) + top-left internal label by default
     expect(style.borderRadius).toBe(10);
-    expect(style.fontSize).toBe(16);
+    expect(style.fontSize).toBe(14);
     expect(style.labelPosition).toBe("top-left");
     expect(style.labelSide).toBe("internal");
   });
@@ -80,7 +80,7 @@ test.describe("context", () => {
 
     // font size S button
     await textTab.click();
-    for (const f of ["S (16px)", "M (20px)", "L (28px)", "XL (36px)"]) {
+    for (const f of ["S (14px)", "M (20px)", "L (28px)", "XL (36px)"]) {
       const b = page.getByRole("button", { name: `Font ${f}` });
       await b.scrollIntoViewIfNeeded();
       await b.click();
