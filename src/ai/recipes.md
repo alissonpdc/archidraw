@@ -91,6 +91,8 @@ height = endY - startY
 Use native UI values to ensure the diagram integrates seamlessly with light/dark themes:
 
 - **`strokeWidth`:** `0`, `1`, `2`, `4`, or `8` (typically `2` for shapes, `1` or `2` for arrows/lines, `1` for contexts, `0` for catalog components).
+- **`backgroundColor` & `fillOpacity` on `component`:** Always set `"backgroundColor": "transparent"` and `"fillOpacity": 0` (and `"strokeWidth": 0`) on `component` elements. Library and catalog components already provide their own vector drawings or icons; setting a background fill draws an unwanted card/tile behind the icon.
+- **`roughness` (Stroke Style / Draft):** Set `"roughness": 1` (`Draft`) on elements (`rectangle`, `ellipse`, `diamond`, `polygon`, `arrow`, `line`, `context`) to match the native hand-drawn sketch style of library components (`sd-*` items use `roughness: 1`), ensuring visual consistency across the entire diagram. Use `"roughness": 0` (`Architect`) only if an explicitly rigid CAD look is required.
 - **`strokeStyle` & `animated`:** `"solid"`, `"dashed"`, `"dotted"`, or `"dashdot"`. Note: set `"animated": true` only on non-solid strokes (`"dashed"`, `"dotted"`, `"dashdot"`); solid strokes must have `"animated": false`.
 - **Colors:** Use hex values from the 15×5 UI palette in `/ai/catalog.md`, or the neutral sentinels (`#3d4248`, `#dfe0e2`, `#c4c7ca`, `transparent`).
 - **`textColor`:** Set `"textColor": ""` (`Auto`) on shapes, components, and arrows so the text color automatically tracks stroke color and adapts to light/dark themes. Set `"textColor": "#26292c"` on `context` boundaries when `strokeColor` is `"#c4c7ca"`.

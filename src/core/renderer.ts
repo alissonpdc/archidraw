@@ -23,7 +23,7 @@ import {
   translatedOrigin,
 } from "./utils";
 import { clipSegmentInLoops } from "./booleanOps";
-import { getLibraryItem } from "./library";
+import { getLibraryItem, isNativeLibraryItem } from "./library";
 import { getComponentImage, getCachedImage } from "./componentAssets";
 import {
   resolveFont,
@@ -890,8 +890,14 @@ function drawElement(
   ctx.lineJoin = "round";
 
   if (el.type === "rectangle" || el.type === "component") {
+    const isNativeComp =
+      el.type === "component" &&
+      Boolean(
+        el.componentId &&
+          (el.componentId.startsWith("sd-") || isNativeLibraryItem(el.componentId)),
+      );
     if (el.fillStyle !== "hachure" && el.fillStyle !== "cross-hachure") {
-      if (el.fillOpacity > 0) {
+      if (el.fillOpacity > 0 && !isNativeComp) {
         ctx.save();
         ctx.globalAlpha *= el.fillOpacity;
         if (!cache.fillPath) {
@@ -902,10 +908,10 @@ function drawElement(
         ctx.fill(cache.fillPath);
         ctx.restore();
       }
-    } else {
+    } else if (!isNativeComp) {
       drawHachureFill(ctx, el, colors, el.fillStyle === "cross-hachure");
     }
-    if (el.strokeWidth > 0) {
+    if (el.strokeWidth > 0 && !isNativeComp) {
       ctx.save();
       ctx.globalAlpha *= el.strokeOpacity;
       if (!cache.strokePath) cache.strokePath = getStrokePath(el) ?? undefined;

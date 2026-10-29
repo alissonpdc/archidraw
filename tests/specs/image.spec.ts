@@ -236,7 +236,7 @@ test.describe("image features", () => {
     // imagens viram componentes: o painel de estilo é o MESMO de um item de lib
     const imageTitles = await panelGroupTitles(page);
 
-    await page.evaluate(() => (window as any).__editor__.insertComponent("ec2"));
+    await page.evaluate(() => (window as any).__editor__.insertComponent("aws-ec2"));
     await expect
       .poll(() =>
         page.evaluate(
@@ -270,7 +270,7 @@ test.describe("image features", () => {
     ]);
 
     // same list as a component from the library (img de lib)
-    await page.evaluate(() => (window as any).__editor__.insertComponent("ec2"));
+    await page.evaluate(() => (window as any).__editor__.insertComponent("aws-ec2"));
     await expect
       .poll(() =>
         page.evaluate(

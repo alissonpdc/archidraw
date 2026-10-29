@@ -193,7 +193,7 @@ Unknown extra fields are tolerated and ignored. A rejected import adds nothing a
             "roughness": 0,
             "borderRadius": 0,
             "angle": 0,
-            "componentId": "ec2",
+            "componentId": "aws-ec2",
             "label": "EC2",
             "fill": false
           },

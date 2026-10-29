@@ -1124,7 +1124,7 @@ test.describe("editor.ts insertComponent and insertElementGroup", () => {
   }) => {
     await open(page);
     await page.evaluate(() => {
-      (window as any).__editor__.insertComponent("ec2");
+      (window as any).__editor__.insertComponent("aws-ec2");
     });
     const s = await editorState();
     expect(s.elementCount).toBe(1);

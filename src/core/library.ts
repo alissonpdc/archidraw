@@ -11,6 +11,8 @@ import {
   isNativeLibraryItem,
 } from "./nativeLibraries";
 
+export { getAllNativeLibraryItems, getNativeLibraryItem, isNativeLibraryItem };
+
 export interface LibraryItem {
   id: string;
   name: string;
@@ -49,13 +51,13 @@ export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number];
 const circle = (cx: number, cy: number, r: number) =>
   `M${cx + r} ${cy} A${r} ${r} 0 1 1 ${cx - r} ${cy} A${r} ${r} 0 1 1 ${cx + r} ${cy}`;
 
-export const LIBRARY: LibraryItem[] = [
+export const LIBRARY_AWS: LibraryItem[] = [
   // ---- Compute -------------------------------------------------------
   {
-    id: "ec2",
+    id: "aws-ec2",
     name: "EC2",
     category: "Compute",
-    keywords: ["instance", "server", "vm", "compute"],
+    keywords: ["aws", "instance", "server", "vm", "compute"],
     icon: [
       "M7 7 H17 V17 H7 Z",
       "M10.5 10.5 H13.5 V13.5 H10.5 Z",
@@ -66,20 +68,20 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "lambda",
+    id: "aws-lambda",
     name: "Lambda",
     category: "Compute",
-    keywords: ["serverless", "faas", "function", "lambda function"],
+    keywords: ["aws", "serverless", "faas", "function", "lambda function"],
     icon: [
       "M14.5 4 C11 5.2 10.2 8 8.6 12.8 L6 20",
       "M10.3 9.3 C13 14 15.5 17.4 19 20",
     ],
   },
   {
-    id: "ecs",
+    id: "aws-ecs",
     name: "ECS",
     category: "Compute",
-    keywords: ["container", "docker", "fargate"],
+    keywords: ["aws", "container", "docker", "fargate"],
     icon: [
       "M5 8 L12 4 L19 8 V16 L12 20 L5 16 Z",
       "M8.8 10.2 H11 V13.8 H8.8 Z",
@@ -87,10 +89,10 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "eks",
+    id: "aws-eks",
     name: "EKS",
     category: "Compute",
-    keywords: ["kubernetes", "k8s", "orchestration", "cluster"],
+    keywords: ["aws", "kubernetes", "k8s", "orchestration", "cluster"],
     icon: [
       "M12 3 L19.8 7.5 V16.5 L12 21 L4.2 16.5 V7.5 Z",
       circle(12, 12, 3.4),
@@ -100,10 +102,10 @@ export const LIBRARY: LibraryItem[] = [
 
   // ---- Network & Delivery -----------------------------------------------------
   {
-    id: "api-gateway",
+    id: "aws-api-gateway",
     name: "API Gateway",
     category: "Network",
-    keywords: ["api", "gateway", "rest", "endpoint"],
+    keywords: ["aws", "api", "gateway", "rest", "endpoint"],
     icon: [
       "M8 5 L3 12 L8 19",
       "M16 5 L21 12 L16 19",
@@ -111,10 +113,10 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "elb",
+    id: "aws-elb",
     name: "Load Balancer",
     category: "Network",
-    keywords: ["elb", "alb", "nlb", "load balancer", "balancer"],
+    keywords: ["aws", "elb", "alb", "nlb", "load balancer", "balancer"],
     icon: [
       circle(6.5, 12, 2.6),
       "M9 10.5 L19 5.5 M9 12 H19 M9 13.5 L19 18.5",
@@ -124,17 +126,17 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "route53",
+    id: "aws-route53",
     name: "Route 53",
     category: "Network",
-    keywords: ["dns", "route", "domain", "route53"],
+    keywords: ["aws", "dns", "route", "domain", "route53"],
     icon: [circle(12, 12, 8), "M4 12 H20", "M12 4 C15 7 15 17 12 20 C9 17 9 7 12 4 Z"],
   },
   {
-    id: "cloudfront",
+    id: "aws-cloudfront",
     name: "CloudFront",
     category: "Network",
-    keywords: ["cdn", "edge", "edge cache"],
+    keywords: ["aws", "cdn", "edge", "edge cache"],
     icon: [
       circle(12, 12, 5.5),
       "M3.5 10 A 9 9 0 0 1 9 3.8 M20.5 14 A 9 9 0 0 1 15 20.2",
@@ -142,10 +144,10 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "vpc",
+    id: "aws-vpc",
     name: "VPC",
     category: "Network",
-    keywords: ["network", "network", "subnet", "subnet", "boundary"],
+    keywords: ["aws", "network", "subnet", "boundary"],
     icon: [
       "M4 8 V4 H8 M16 4 H20 V8 M20 16 V20 H16 M8 20 H4 V16",
       "M8.5 12 H15.5 M12 8.5 V15.5",
@@ -154,10 +156,10 @@ export const LIBRARY: LibraryItem[] = [
 
   // ---- Database ---------------------------------------------------
   {
-    id: "dynamodb",
+    id: "aws-dynamodb",
     name: "DynamoDB",
     category: "Database",
-    keywords: ["nosql", "database", "database", "table"],
+    keywords: ["aws", "nosql", "database", "table"],
     icon: [
       "M5 6 A7 2.8 0 0 0 19 6 A7 2.8 0 0 0 5 6 Z",
       "M5 6 V18 M19 6 V18",
@@ -167,10 +169,10 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "rds",
+    id: "aws-rds",
     name: "RDS",
     category: "Database",
-    keywords: ["sql", "mysql", "postgres", "aurora", "relational database"],
+    keywords: ["aws", "sql", "mysql", "postgres", "aurora", "relational database"],
     icon: [
       "M5 6 A7 2.8 0 0 0 19 6 A7 2.8 0 0 0 5 6 Z",
       "M5 6 V18 M19 6 V18",
@@ -179,10 +181,10 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "elasticache",
+    id: "aws-elasticache",
     name: "ElastiCache",
     category: "Database",
-    keywords: ["redis", "memcached", "cache"],
+    keywords: ["aws", "redis", "memcached", "cache"],
     icon: [
       "M6 6 H18 V18 H6 Z",
       "M13.5 7.5 L9.5 12.5 H12 L10.5 16.5 L14.5 11.5 H12 Z",
@@ -191,10 +193,10 @@ export const LIBRARY: LibraryItem[] = [
 
   // ---- Storage ----------------------------------------------------
   {
-    id: "s3",
+    id: "aws-s3",
     name: "S3",
     category: "Storage",
-    keywords: ["bucket", "storage", "object", "file"],
+    keywords: ["aws", "bucket", "storage", "object", "file"],
     icon: [
       "M5.5 6.5 H18.5 L16.8 18.3 A6.8 3.4 0 0 1 7.2 18.3 Z",
       "M5.5 6.5 A6.5 2.6 0 0 0 18.5 6.5",
@@ -203,10 +205,10 @@ export const LIBRARY: LibraryItem[] = [
 
   // ---- Messaging & Integration -------------------------------------------
   {
-    id: "sqs",
+    id: "aws-sqs",
     name: "SQS",
     category: "Messaging",
-    keywords: ["queue", "queue", "messages", "broker"],
+    keywords: ["aws", "queue", "messages", "broker"],
     icon: [
       "M5 5 H19 V8.5 H5 Z",
       "M5 10.25 H19 V13.75 H5 Z",
@@ -214,17 +216,17 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "sns",
+    id: "aws-sns",
     name: "SNS",
     category: "Messaging",
-    keywords: ["notification", "pub/sub", "topic", "push"],
+    keywords: ["aws", "notification", "pub/sub", "topic", "push"],
     icon: ["M4 12 L20 4 L12.5 20 L11 13.5 Z", "M20 4 L11 13.5"],
   },
   {
-    id: "eventbridge",
+    id: "aws-eventbridge",
     name: "EventBridge",
     category: "Messaging",
-    keywords: ["events", "events", "bus", "routing"],
+    keywords: ["aws", "events", "bus", "routing"],
     icon: [
       circle(12, 12, 2.6),
       "M9.8 9.8 L6 6 M14.2 9.8 L18 6 M9.8 14.2 L6 18 M14.2 14.2 L18 18",
@@ -235,10 +237,10 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "step-functions",
+    id: "aws-step-functions",
     name: "Step Functions",
     category: "Messaging",
-    keywords: ["workflow", "orchestration", "state machine"],
+    keywords: ["aws", "workflow", "orchestration", "state machine"],
     icon: [
       "M6.5 8.5 L10 12 L6.5 15.5 L3 12 Z",
       "M10 12 H14",
@@ -246,10 +248,10 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "kinesis",
+    id: "aws-kinesis",
     name: "Kinesis",
     category: "Messaging",
-    keywords: ["streams", "streaming", "real-time data"],
+    keywords: ["aws", "streams", "streaming", "real-time data"],
     icon: [
       "M4 6 C9 6 9 10 14 10 H20 M4 12 C9 12 9 16 14 16 H20",
       "M4 16 C7 16 8 18 11 18.5",
@@ -258,10 +260,10 @@ export const LIBRARY: LibraryItem[] = [
 
   // ---- Security & Identity ----------------------------------------------
   {
-    id: "cognito",
+    id: "aws-cognito",
     name: "Cognito",
     category: "Security",
-    keywords: ["authentication", "login", "users", "identity"],
+    keywords: ["aws", "authentication", "login", "users", "identity"],
     icon: [
       circle(8.5, 8, 2.6),
       "M4 18.5 C4 15 13 15 13 18.5",
@@ -269,10 +271,10 @@ export const LIBRARY: LibraryItem[] = [
     ],
   },
   {
-    id: "iam",
+    id: "aws-iam",
     name: "IAM",
     category: "Security",
-    keywords: ["permissions", "roles", "policies", "access"],
+    keywords: ["aws", "permissions", "roles", "policies", "access"],
     icon: [
       "M4.5 5 H19.5 V19 H4.5 Z",
       circle(9.5, 10, 1.7),
@@ -283,10 +285,10 @@ export const LIBRARY: LibraryItem[] = [
 
   // ---- Monitoring ------------------------------------------------------
   {
-    id: "cloudwatch",
+    id: "aws-cloudwatch",
     name: "CloudWatch",
     category: "Monitoring",
-    keywords: ["logs", "metrics", "alarms", "monitoring"],
+    keywords: ["aws", "logs", "metrics", "alarms", "monitoring"],
     icon: [
       "M3.5 5.5 H20.5 V18.5 H3.5 Z",
       "M6 12 H8.5 L10.5 8.5 L13.5 15.5 L15.5 12 H18",
@@ -294,6 +296,10 @@ export const LIBRARY: LibraryItem[] = [
   },
 
 ];
+
+export const LIBRARY: LibraryItem[] = LIBRARY_AWS;
+export const AWS_CATEGORIES = LIBRARY_CATEGORIES;
+export type AwsCategory = LibraryCategory;
 
 // ---- Google Cloud Platform -----------------------------------------------
 
@@ -697,11 +703,13 @@ export function unregisterImportedLibraryItems(ids: string[]): void {
 }
 
 export function getLibraryItem(id: string): LibraryItem | undefined {
+  if (!id) return undefined;
   return (
-    LIBRARY.find((i) => i.id === id) ??
+    LIBRARY_AWS.find((i) => i.id === id) ??
     LIBRARY_GCP.find((i) => i.id === id) ??
     LIBRARY_AZURE.find((i) => i.id === id) ??
     LIBRARY_KUBERNETES.find((i) => i.id === id) ??
+    (!id.startsWith("aws-") ? LIBRARY_AWS.find((i) => i.id === `aws-${id}`) : undefined) ??
     getNativeLibraryItem(id) ??
     importedItems.get(id)
   );
@@ -709,11 +717,13 @@ export function getLibraryItem(id: string): LibraryItem | undefined {
 
 /** true for the bundled AWS/GCP/Azure/Kubernetes/Native catalog (never removed at runtime) */
 export function isBuiltinLibraryItem(id: string): boolean {
+  if (!id) return false;
   return (
-    LIBRARY.some((i) => i.id === id) ||
+    LIBRARY_AWS.some((i) => i.id === id) ||
     LIBRARY_GCP.some((i) => i.id === id) ||
     LIBRARY_AZURE.some((i) => i.id === id) ||
     LIBRARY_KUBERNETES.some((i) => i.id === id) ||
+    (!id.startsWith("aws-") && LIBRARY_AWS.some((i) => i.id === `aws-${id}`)) ||
     isNativeLibraryItem(id)
   );
 }
@@ -723,7 +733,7 @@ export function searchLibrary(query: string): LibraryItem[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const pool = [
-    ...LIBRARY,
+    ...LIBRARY_AWS,
     ...LIBRARY_GCP,
     ...LIBRARY_AZURE,
     ...LIBRARY_KUBERNETES,
@@ -732,7 +742,7 @@ export function searchLibrary(query: string): LibraryItem[] {
   ];
   const terms = q.split(/\s+/);
   return pool.filter((item) => {
-    const hay = `${item.name} ${item.category} ${item.keywords.join(" ")}`.toLowerCase();
+    const hay = `${item.name} ${item.id} ${item.category} ${item.keywords.join(" ")}`.toLowerCase();
     return terms.every((t) => hay.includes(t));
   });
 }

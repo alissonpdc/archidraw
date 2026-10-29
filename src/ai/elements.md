@@ -24,14 +24,14 @@ Present on every element. The default column applies to the clipboard normalizer
 | width | number | 100 | signed run for line and arrow |
 | height | number | 100 | signed run for line and arrow |
 | strokeColor | string | `#3d4248` | native UI palette hex (`15×5`) or sentinel (`#3d4248`, `#c4c7ca`, `transparent`); read `/ai/catalog.md` before picking one |
-| backgroundColor | string | `#dfe0e2` | native UI palette hex (`15×5`), `#dfe0e2`, or `transparent` for no fill; read `/ai/catalog.md` |
+| backgroundColor | string | `#dfe0e2` | native UI palette hex (`15×5`), `#dfe0e2`, or `transparent` for no fill (use `'transparent'` on `component` elements so no background card is drawn); read `/ai/catalog.md` |
 | strokeWidth | number | 1 | **Native UI Thickness presets: `1`, `2`, `4`, `8`** (plus `0` on `component` icons so no box outline is drawn). Never use fractional or custom widths like `1.5` or `3`. |
 | opacity | number | 1 | alpha of the whole element, `0` to `1` (UI slider uses `0.05` / `5%` steps). This is the scale everywhere in this document, including native library items; the only place that uses 0 to 100 is the Excalidraw dialect of section 5.2 |
 | strokeOpacity | number | 1 | alpha of the outline (`0` to `1`) |
 | fillOpacity | number | 1 | alpha of the fill (`1` for filled shapes, `0` for unfilled `component`/`context`) |
 | strokeStyle | StrokeStyle | `solid` | **Native UI Stroke Type presets: `"solid"`, `"dashed"`, `"dotted"`, `"dashdot"`**. Note: on `arrow`, `animated: true` is ONLY enabled in the UI when `strokeStyle` is `"dashed"`, `"dotted"`, or `"dashdot"` (`"solid"` must always have `animated: false`). |
 | fillStyle | FillStyle | `solid` | **Native UI Fill Type presets: `"solid"`, `"hachure"`, `"cross-hachure"`** |
-| roughness | integer 0 to 3 | 0 | **Native UI Stroke Style presets: `0` (Architect), `1` (Draft), `2` (Sketchy), `3` (Chaos)** |
+| roughness | integer 0 to 3 | 0 | **Native UI Stroke Style presets: `0` (Architect), `1` (Draft — default for library components), `2` (Sketchy), `3` (Chaos)**. Set `roughness: 1` (`Draft`) on surrounding shapes, contexts and arrows to match the hand-drawn sketch default of library items seamlessly. |
 | borderRadius | number | 0 | **Native UI Roundness presets: `0` (Square), `100` (Rounded), or `1..99` (Custom: `10` on `context`, `20` on `component`, `8`–`25` on `rectangle`)**; only `rectangle`, `component` and `context` round their corners — every other type uses `0` |
 | angle | number | 0 | radians, clockwise, around the box center |
 | groupId | string | none | elements sharing a groupId move, select and resize together |
@@ -100,7 +100,7 @@ Notes on edges:
 - `bendPoints` are intermediate vertices used by `auto` routing. The array is all-or-nothing: every item must be a valid `{x, y}` point or the field is dropped.
 - `lineType: "auto"` with no `bendPoints` routes orthogonally on its own: the path leaves and enters through the `side` recorded in each binding (falling back to the nearest cardinal side) and the `x`/`y`/`width`/`height` box only feeds the unbound fallback. The `side` values are therefore the knob for a clean right-angle connector. `bendPoints`, when present, replace that automatic polyline.
 - File defaults: the loader (section 2.3) fills none of these, and the renderer falls back on every read — a missing `lineType` reads as `straight`, `startArrowhead` as `none`, `endArrowhead` as `arrow`, `labelT` as `0.5`, `animated` as `false`. Omitting them is safe; writing them, as the examples do, is just clearer.
-- `componentId` picks the icon from the section 3.7 catalog (`ec2`, `lambda`, `ecs`, `eks`, `api-gateway`, `elb`, `route53`, `cloudfront`, `vpc`, `dynamodb`, `rds`, `elasticache`, `s3`, `sqs`, `sns` and many more, the GCP/Azure/Kubernetes sets included).
+- `componentId` picks the icon from the section 3.7 catalog (`aws-ec2`, `aws-lambda`, `aws-ecs`, `aws-eks`, `aws-api-gateway`, `aws-elb`, `aws-route53`, `aws-cloudfront`, `aws-vpc`, `aws-dynamodb`, `aws-rds`, `aws-elasticache`, `aws-s3`, `aws-sqs`, `aws-sns` and many more, the GCP/Azure/Kubernetes sets included) or a section 3.7.1 System Design item starting with `sd-` (which auto-expands into native editable elements on paste/import).
 - `src` holds a self-contained raster such as `data:image/png;base64,...` for pasted or imported images.
 - Nothing from the section 5.2 dialect belongs here: `points`, `roundness`, `closed` and the `draw` type exist only on the raster library path, and corner rounding is spelled `borderRadius` in this model. Writing them on a native element does nothing.
 

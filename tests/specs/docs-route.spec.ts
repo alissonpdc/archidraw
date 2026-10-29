@@ -108,8 +108,8 @@ test.describe("docs markdown source", () => {
       "#d3e1ed",
       "#545c63",
       "### 3.7 Component catalog",
-      "`api-gateway`",
-      "`eks`",
+      "`aws-api-gateway`",
+      "`aws-eks`",
       "`k8s-hpa`",
       "official bundled icon",
       "### 3.8 Additional information (`details`)",
@@ -408,7 +408,7 @@ test.describe("docs markdown source", () => {
     expect(state.tabs).toHaveLength(2);
     expect(state.elementCount).toBe(9);
     expect(state.elements.map((e) => e.type)).toEqual(expectedTypes);
-    expect(state.elements.map((e) => e.componentId).filter(Boolean)).toEqual(["ec2"]);
+    expect(state.elements.map((e) => e.componentId).filter(Boolean)).toEqual(["aws-ec2"]);
   });
 
   test("minimal and legacy examples are valid JSON for their schemas", async ({

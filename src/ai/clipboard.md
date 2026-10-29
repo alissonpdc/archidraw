@@ -173,7 +173,7 @@ The envelope with all nine element types:
       "y": 160,
       "width": 48,
       "height": 48,
-      "componentId": "lambda",
+      "componentId": "aws-lambda",
       "label": "Fn",
       "fill": false
     }

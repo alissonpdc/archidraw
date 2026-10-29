@@ -309,7 +309,7 @@ test.describe("clipboard JSON — paste element JSON from an external source", (
       elements: [
         {
           type: "component",
-          componentId: "ec2",
+          componentId: "aws-ec2",
           label: "EC2",
           x: 300,
           y: 40,
@@ -343,7 +343,7 @@ test.describe("clipboard JSON — paste element JSON from an external source", (
     );
     const comp = els.find((el: any) => el.type === "component");
     const ctx = els.find((el: any) => el.type === "context");
-    expect(comp.componentId).toBe("ec2");
+    expect(comp.componentId).toBe("aws-ec2");
     expect(comp.label).toBe("EC2");
     expect(comp.captionPosition).toBe("bottom");
     expect(comp.captionGap).toBe(8);
