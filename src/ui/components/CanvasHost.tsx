@@ -13,6 +13,7 @@ import {
   textElementOffsets,
 } from "../../core/textStyle";
 import { measureText, edgeLabelAnchor } from "../../core/utils";
+import { LogoOutline } from "./icons";
 
 function readThemeColors(): RenderColors & { elementStroke: string } {
   const style = getComputedStyle(document.documentElement);
@@ -464,27 +465,12 @@ export function CanvasHost() {
       />
       {snap.empty && !snap.hasDraft && !isEditingText && !isEditingLabel && (
         <div className="empty-state" aria-hidden="true">
-          <svg
-            className="empty-art"
-            width="120"
-            height="72"
-            viewBox="0 0 120 72"
-            fill="none"
-          >
-            <rect x="4" y="10" width="44" height="28" rx="4" stroke="var(--text-muted)" strokeWidth="1.5" />
-            <text x="26" y="27" textAnchor="middle" fontSize="8" fill="var(--text-muted)">API</text>
-            <rect x="72" y="10" width="44" height="28" rx="4" stroke="var(--text-muted)" strokeWidth="1.5" />
-            <text x="94" y="27" textAnchor="middle" fontSize="8" fill="var(--text-muted)">DB</text>
-            <path d="M48 24 C 60 24, 60 24, 72 24" stroke="var(--accent)" strokeWidth="1.5" />
-            <path d="M68 20 L 72 24 L 68 28" stroke="var(--accent)" strokeWidth="1.5" fill="none" />
-            <rect x="38" y="52" width="44" height="16" rx="3" stroke="var(--text-muted)" strokeWidth="1.5" strokeDasharray="3 3" />
-          </svg>
-          <div className="empty-title">Empty canvas — click and drag to create</div>
-          <div className="empty-keys">
-            <span><kbd>2</kbd> rectangle</span>
-            <span><kbd>6</kbd> arrow</span>
-            <span><kbd>7</kbd> text</span>
-            <span><kbd>?</kbd> shortcuts</span>
+          <div className="empty-brand">
+            <LogoOutline size={115} className="empty-logo" />
+            <div className="empty-brand-text">
+              <span className="empty-brand-name">ArchiDraw</span>
+              <div className="empty-title">software architecture &amp; system design</div>
+            </div>
           </div>
         </div>
       )}

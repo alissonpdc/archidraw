@@ -2048,39 +2048,64 @@ button.status-file {
   transform: translate(-50%, -50%);
   text-align: center;
   color: var(--text-muted);
-  opacity: 0.85;
+  opacity: 0.38;
   pointer-events: none;
   user-select: none;
   animation: empty-in 400ms ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 780px;
+  padding: var(--space-5);
+  box-sizing: border-box;
 }
 
-.empty-state .empty-title {
-  font-size: 15px;
-  margin-top: var(--space-3);
-  margin-bottom: var(--space-2);
-}
-
-.empty-state .empty-art {
-  opacity: 0.9;
-}
-
-.empty-state .empty-keys {
+.empty-brand {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
-  font-size: var(--font-size-xs);
+  gap: var(--space-4);
 }
 
-.empty-state kbd {
-  font-family: inherit;
-  font-size: var(--font-size-xs);
-  padding: 2px 7px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-bottom-width: 2px;
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
+.empty-brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: max-content;
+}
+
+.empty-logo {
+  height: 110px;
+  width: 115px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.empty-brand-name {
+  font-family: "Architects Daughter", cursive, sans-serif;
+  font-size: 74px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  line-height: 0.95;
+  white-space: nowrap;
+}
+
+.empty-state .empty-title {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: justify;
+  text-align-last: justify;
+  white-space: nowrap;
+  font-family: "Caveat", "Architects Daughter", cursive;
+  font-size: 30px;
+  font-weight: 400;
+  color: var(--text-muted);
+  opacity: 0.85;
+  margin-top: 5px;
+  line-height: 1.15;
 }
 
 @keyframes empty-in {
@@ -2088,7 +2113,7 @@ button.status-file {
     opacity: 0;
   }
   to {
-    opacity: 0.85;
+    opacity: 0.38;
   }
 }
 
