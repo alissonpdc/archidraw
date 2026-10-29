@@ -244,6 +244,11 @@ test.describe("ui widgets", () => {
   }) => {
     await open(page);
     await expect(page.locator(".empty-state")).toBeVisible();
+    await expect(page.locator(".empty-state .empty-brand-name")).toHaveText("ArchiDraw");
+    await expect(page.locator(".empty-state .empty-logo")).toBeVisible();
+    await expect(page.locator(".empty-state .empty-title")).toHaveText(
+      "software architecture & system design",
+    );
 
     await page.keyboard.press("2");
     await drag(page, { x: 100, y: 100 }, { x: 220, y: 180 });
