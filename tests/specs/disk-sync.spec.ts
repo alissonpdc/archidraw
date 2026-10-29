@@ -281,6 +281,45 @@ test.describe("workspace file sync", () => {
     expect((await documentSyncSnapshot(page)).bindings).toBe(0);
   });
 
+  test("Open supports .excalidraw files and imports them as a new diagram tab", async ({
+    page,
+  }) => {
+    await drawRect(page);
+    const before = await page.evaluate(() => (window as any).__editor__.getSnapshot());
+
+    const excalidraw = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      elements: [
+        {
+          id: "rect_exc",
+          type: "rectangle",
+          x: 200,
+          y: 150,
+          width: 80,
+          height: 60,
+          strokeColor: "#ff0000",
+          backgroundColor: "#00ff00",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          opacity: 100,
+          isDeleted: false,
+        },
+      ],
+    });
+
+    await writeOpfs(page, "scene.excalidraw", excalidraw);
+    await queueDocumentOpen(page, "scene.excalidraw");
+    expect(await page.evaluate(() => (window as any).__documents__.open())).toBe(true);
+
+    await expect(page.locator(".toast", { hasText: '"scene" imported' })).toBeVisible();
+
+    const after = await page.evaluate(() => (window as any).__editor__.getSnapshot());
+    expect(after.tabs.length).toBe(before.tabs.length + 1);
+    expect(after.doc.elements[0].id).toBe("rect_exc");
+    expect((await documentSyncSnapshot(page)).bindings).toBe(0);
+  });
+
   test("Save As keeps the previous file and binds the workspace to the new one", async ({
     page,
   }) => {
@@ -660,7 +699,7 @@ test.describe("workspace file sync", () => {
     expect(result.saved).toEqual({ name: "picked.archidraw", kind: "file" });
     expect(result.calls[0].options).toMatchObject({ multiple: false });
     expect(result.calls[0].options.types[0].accept).toEqual({
-      "application/json": [".archidraw"],
+      "application/json": [".archidraw", ".excalidraw"],
     });
     expect(result.calls[1].options.suggestedName).toBe("suggested.archidraw");
     expect(result.aborted).toBeNull();

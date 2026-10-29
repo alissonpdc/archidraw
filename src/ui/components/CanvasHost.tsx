@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { editor, useEditorSelector } from "../hooks/useEditor";
+import { toast } from "../toasts";
+import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
 import { type RenderColors, componentIconLayout, textOffsets } from "../../core/renderer";
 import { useGridMode } from "../viewPrefs";
 import type { Point } from "../../core/types";
@@ -417,17 +419,60 @@ export function CanvasHost() {
     <div
       className="canvas-host"
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(COMPONENT_DND_TYPE)) {
+        if (
+          e.dataTransfer.types.includes(COMPONENT_DND_TYPE) ||
+          e.dataTransfer.types.includes("Files")
+        ) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
         }
       }}
       onDrop={(e) => {
-        const id = e.dataTransfer.getData(COMPONENT_DND_TYPE);
-        if (!id) return;
-        e.preventDefault();
-        editor.insertComponent(id, { x: e.clientX, y: e.clientY });
-        pushRecentComponent(id);
+        if (e.dataTransfer.types.includes(COMPONENT_DND_TYPE)) {
+          const id = e.dataTransfer.getData(COMPONENT_DND_TYPE);
+          if (!id) return;
+          e.preventDefault();
+          editor.insertComponent(id, { x: e.clientX, y: e.clientY });
+          pushRecentComponent(id);
+          return;
+        }
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          e.preventDefault();
+          for (let i = 0; i < e.dataTransfer.files.length; i++) {
+            const file = e.dataTransfer.files[i];
+            if (file.type.startsWith("image/")) {
+              editor.insertImage(file);
+              continue;
+            }
+            void file.text().then((text) => {
+              const name = file.name.toLowerCase();
+              if (name.endsWith(".excalidraw") || name.endsWith(".excalidraw.json")) {
+                try {
+                  const doc = parseExcalidrawScene(text);
+                  const baseName = file.name.replace(/(\.excalidraw(\.json)?|\.json)$/i, "");
+                  editor.importDocumentAsNewDiagram(doc, baseName, true);
+                  toast(`"${baseName}" imported`);
+                } catch {
+                  toast("Invalid .excalidraw file — import cancelled");
+                }
+                return;
+              }
+              const baseName = file.name.replace(/(\.archidraw(\.json)?|\.json)$/i, "");
+              const count = editor.importWorkspaceFile(text, baseName);
+              if (count > 0) {
+                toast(`"${baseName}" imported`);
+              } else {
+                try {
+                  const doc = parseExcalidrawScene(text);
+                  editor.importDocumentAsNewDiagram(doc, baseName, true);
+                  toast(`"${baseName}" imported`);
+                } catch {
+                  toast("Invalid file — import cancelled");
+                }
+              }
+            });
+          }
+        }
       }}
     >
       <canvas

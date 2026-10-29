@@ -581,6 +581,91 @@ test.describe("export / import", () => {
       .toEqual({ n: 1, type: "ellipse" });
   });
 
+  test("import Excalidraw scene from .json file also works", async ({ page }) => {
+    const excalidrawFile = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      elements: [
+        {
+          id: "rect_json",
+          type: "rectangle",
+          x: 30,
+          y: 40,
+          width: 50,
+          height: 50,
+          strokeColor: "#000",
+          backgroundColor: "#fff",
+          fillStyle: "solid",
+          strokeWidth: 1,
+          opacity: 100,
+          isDeleted: false,
+        },
+      ],
+    });
+
+    await page.setInputFiles('[data-testid="import-input"]', {
+      name: "diagram.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(excalidrawFile),
+    });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const snap = window.__editor__.getSnapshot();
+          return {
+            n: snap.doc.elements.length,
+            id: snap.doc.elements[0]?.id,
+          };
+        }),
+      )
+      .toEqual({ n: 1, id: "rect_json" });
+  });
+
+  test("drag and drop .excalidraw file onto canvas imports the diagram", async ({ page }) => {
+    const excalidrawFile = JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      elements: [
+        {
+          id: "dropped_rect",
+          type: "rectangle",
+          x: 10,
+          y: 10,
+          width: 90,
+          height: 60,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "transparent",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          opacity: 100,
+          isDeleted: false,
+        },
+      ],
+    });
+
+    await page.evaluate((content) => {
+      const file = new File([content], "dropped.excalidraw", { type: "application/json" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const host = document.querySelector(".canvas-host")!;
+      host.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      host.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt, clientX: 200, clientY: 200 }));
+    }, excalidrawFile);
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const snap = window.__editor__.getSnapshot();
+          return {
+            n: snap.doc.elements.length,
+            id: snap.doc.elements[0]?.id,
+          };
+        }),
+      )
+      .toEqual({ n: 1, id: "dropped_rect" });
+  });
+
   test("invalid JSON import is rejected without crashing", async ({ page }) => {
     await page.setInputFiles('[data-testid="import-input"]', {
       name: "bad.json",
