@@ -5,7 +5,7 @@ export interface FilePicker {
 }
 
 const PICKER_ACCEPT = {
-  "application/json": [".archidraw"],
+  "application/json": [".archidraw", ".excalidraw"],
 };
 
 const PICKER_ID = "archidraw-workspace-document";

@@ -1,6 +1,6 @@
 // Build do servidor Node (bundle SSR) → dist-server/server.js.
-// Separado do build do cliente: empacota só o servidor e a lógica pura de
-// validação, externalizando os builtins de Node. O resultado roda com
+// Separado do build do cliente: empacota o servidor Node (estático + rotas /ai),
+// externalizando os builtins de Node. O resultado roda com
 // `node dist-server/server.js` sem node_modules (zero dependências externas).
 import { defineConfig } from "vite";
 

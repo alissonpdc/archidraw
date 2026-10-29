@@ -126,7 +126,7 @@ export function validateLibrary(data: unknown): ValidationResult {
   if (Array.isArray(data)) {
     items = data;
     basePath = "";
-  } else if (data && typeof data === "object") {
+  } else {
     const found = libItems(data as Raw);
     if (!found) {
       addError(r, "", "raiz sem 'libraryItems' (nem 'library') array — envelope de biblioteca inválido", "5.4");
@@ -134,9 +134,6 @@ export function validateLibrary(data: unknown): ValidationResult {
     }
     items = found.items;
     basePath = found.key;
-  } else {
-    addError(r, "", "raiz deve ser objeto {libraryItems:[...]} ou array de arrays", "5.4");
-    return r;
   }
   if (items.length === 0) {
     addError(r, basePath, "libraryItems vazio — arquivo seria rejeitado (nenhum item resta)", "5.4");
@@ -187,14 +184,12 @@ export function validateLibrary(data: unknown): ValidationResult {
 export function validateClipboard(data: unknown): ValidationResult {
   const r = emptyResult("clipboard");
   let raw: unknown[];
-  if (Array.isArray(data)) raw = data;
-  else if (data && typeof data === "object" && Array.isArray((data as Raw).elements)) {
+  if (Array.isArray(data)) {
+    raw = data;
+  } else if (Array.isArray((data as Raw).elements)) {
     raw = (data as Raw).elements as unknown[];
-  } else if (data && typeof data === "object") {
-    raw = [data]; // elemento solto (4.2)
   } else {
-    addError(r, "", "payload não é array nem objeto com elements[]", "4.2");
-    return r;
+    raw = [data]; // elemento solto (4.2)
   }
   if (raw.length === 0) {
     addError(r, "elements", "elements vazio — nada para colar", "4.3");

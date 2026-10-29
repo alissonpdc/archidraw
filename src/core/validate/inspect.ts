@@ -20,10 +20,10 @@ export interface ElementInspection {
   warnings: ValidationIssue[];
 }
 
-const issue = (path: string, message: string, rule?: string): ValidationIssue => ({
+const issue = (path: string, message: string, rule: string): ValidationIssue => ({
   path,
   message,
-  ...(rule ? { rule } : {}),
+  rule,
 });
 
 // ---- erros fatais (rejeitam o payload inteiro) --------------------------

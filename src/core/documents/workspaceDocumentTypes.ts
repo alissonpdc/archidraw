@@ -3,6 +3,7 @@ import type { FileBindingStore, WorkspaceFileBinding } from "./fileBindingStore"
 import type { FilePicker } from "./filePicker";
 import type { WorkspaceFileIdentity } from "./workspaceFile";
 import type { WorkspaceData } from "../storage";
+import type { Document } from "../types";
 
 export interface DocumentEditorSnapshot {
   activeWorkspaceId: string;
@@ -19,6 +20,7 @@ export interface WorkspaceDocumentEditor {
   ): string | null;
   isWorkspaceEmpty(workspaceId: string): boolean;
   openWorkspaceFile(data: WorkspaceData, name: string): string;
+  importDocumentAsNewDiagram(doc: Document, name: string, fitContent?: boolean): string;
   replaceWorkspaceFromFile(
     workspaceId: string,
     data: WorkspaceData,

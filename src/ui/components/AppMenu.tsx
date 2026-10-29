@@ -177,10 +177,10 @@ export function AppMenu({
     const name = file.name.toLowerCase();
 
     // Try Excalidraw scene file first
-    if (name.endsWith(".excalidraw")) {
+    if (name.endsWith(".excalidraw") || name.endsWith(".excalidraw.json")) {
       try {
         const doc = parseExcalidrawScene(text);
-        const baseName = file.name.replace(/\.excalidraw$/i, "");
+        const baseName = file.name.replace(/(\.excalidraw(\.json)?|\.json)$/i, "");
         editor.importDocumentAsNewDiagram(doc, baseName, true);
         toast(`"${baseName}" imported`);
       } catch {
@@ -205,7 +205,13 @@ export function AppMenu({
     } else if (count > 1) {
       toast(`${count} diagrams imported into "${baseName}"`);
     } else {
-      toast("Invalid file — import cancelled");
+      try {
+        const doc = parseExcalidrawScene(text);
+        editor.importDocumentAsNewDiagram(doc, baseName, true);
+        toast(`"${baseName}" imported`);
+      } catch {
+        toast("Invalid file — import cancelled");
+      }
     }
     close();
   };

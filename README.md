@@ -126,7 +126,7 @@ While Excalidraw is a great general-purpose whiteboard, ArchiDraw is purposefull
 ArchiDraw also supports automated diagram generation and LLM workflows. Any running instance exposes lightweight endpoints for programmatic diagram generation:
 
 - **`GET /ai` (and `/ai/<slug>.md`)**: Full and modular machine-readable Markdown specifications of the document model, component catalog, and coordinate system.
-- **`POST /validate`**: Headless JSON validation API to check generated diagrams with descriptive errors and warnings before rendering.
+- **In-Browser Validation (`window.archidrawValidate`)**: Client-side JSON validation API to check generated diagrams with descriptive errors and warnings matching Ctrl+V and Open file parsing rules before rendering.
 
 For complete schema details and prompt integration examples, see the [Syntax & API Documentation](src/ai/index.md).
 

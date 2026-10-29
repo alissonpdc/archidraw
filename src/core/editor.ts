@@ -79,6 +79,7 @@ import {
   parseLibraryClipboard,
   serializeElementsClipboard,
 } from "./clipboardJson";
+import { validatePayload, type ValidationResult } from "./validate";
 import {
   elementVisualBounds,
   detailsBadgeAnchor,
@@ -2056,6 +2057,10 @@ strokeOpacity?: number;
     if (!library) return 0;
     this.insertElementGroup(library);
     return library.length;
+  }
+
+  validate(payload: unknown): ValidationResult {
+    return validatePayload(payload);
   }
 
   // ---- copy/paste style -----------------------------------------------

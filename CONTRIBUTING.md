@@ -20,7 +20,7 @@ npm run dev
 | `npm run dev` | Dev server (Vite) |
 | `npm run build` | Typecheck + production build of the client (`dist/` + `dist/docs.md`) |
 | `npm run build:server` | Bundle the production Node server → `dist-server/server.js` |
-| `npm run start` | Run the production Node server (static + `/docs` + `/validate`) |
+| `npm run start` | Run the production Node server (static + `/docs`) |
 | `npm run lint` | Linter (oxlint) |
 | `npm run test:e2e` | Playwright tests (real build + production Node server, specs in `tests/specs/`) |
 | `npm run test:e2e:ui` | Interactive Playwright UI |

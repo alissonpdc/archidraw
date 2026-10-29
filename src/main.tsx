@@ -54,6 +54,11 @@ import {
   tokenizeStructured,
 } from "./core/structuredCode";
 import { formatAppVersion, getAppVersion } from "./core/version";
+import { validatePayload } from "./core/validate";
+
+// In-browser payload validator available in all environments (S3/CloudFront static SPA)
+(window as unknown as Record<string, unknown>).archidrawValidate = validatePayload;
+(window as unknown as Record<string, unknown>).__archidrawValidate__ = validatePayload;
 
 if (import.meta.env.MODE === "test" || import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__editor__ = editor;

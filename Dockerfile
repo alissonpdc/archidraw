@@ -14,7 +14,7 @@ COPY . .
 RUN npm run build && npm run build:server
 
 # ---- Serve stage ----
-# Servidor Node único (substitui o nginx): estático + /docs + /validate.
+# Servidor Node: estático + rotas /ai (markdown).
 # O bundle não tem dependências externas → sem node_modules na imagem final.
 FROM node:22-alpine
 

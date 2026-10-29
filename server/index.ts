@@ -1,6 +1,5 @@
 import { createServer } from "node:http";
 import { resolve } from "node:path";
-import { tryHandleValidate } from "../src/core/validate/httpHandler.ts";
 import { serveDocs } from "./docs.ts";
 import { serveStatic } from "./static.ts";
 
@@ -21,7 +20,6 @@ const port = resolvePort();
 const distRoot = resolveDistRoot();
 
 const server = createServer((req, res) => {
-  if (tryHandleValidate(req, res)) return;
   if (serveDocs(req, res, distRoot)) return;
   serveStatic(req, res, distRoot);
 });

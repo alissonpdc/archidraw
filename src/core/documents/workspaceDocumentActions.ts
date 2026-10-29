@@ -1,4 +1,5 @@
 import { parse } from "../storage";
+import { parseExcalidrawScene } from "../excalidrawSceneImport";
 import { isNotFoundError } from "./fileAccess";
 import { workspaceFileName, workspaceNameFromFile } from "./fileNames";
 import { hashText } from "./hashText";
@@ -211,8 +212,17 @@ async function openHandle(
   if (!disk) return false;
   const data = parse(disk.text);
   if (!data) {
-    runtime.notify(`"${handle.name}" is not a valid ArchiDraw file`);
-    return false;
+    try {
+      const doc = parseExcalidrawScene(disk.text);
+      const baseName =
+        handle.name.replace(/(\.excalidraw(\.json)?|\.json)$/i, "") || "Imported";
+      runtime.editor.importDocumentAsNewDiagram(doc, baseName, true);
+      runtime.notify(`"${baseName}" imported`);
+      return true;
+    } catch {
+      runtime.notify(`"${handle.name}" is not a valid ArchiDraw file`);
+      return false;
+    }
   }
   const workspaceId = withSuspended(runtime, () =>
     runtime.editor.openWorkspaceFile(data, workspaceNameFromFile(handle.name)),
