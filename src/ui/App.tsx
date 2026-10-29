@@ -269,7 +269,7 @@ export function App() {
         editor.deleteSelected();
       }
       if (e.key === "Escape") {
-        editor.clearSelection();
+        editor.onEscape();
       }
     };
 

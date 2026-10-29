@@ -181,4 +181,25 @@ test.describe("tools", () => {
     expect(dims2.height).toBeGreaterThan(dims1.height);
     expect(dims2.width).toBeGreaterThanOrEqual(dims1.width);
   });
+
+  test("pressing Escape after drawing an element deselects it and switches to selection", async ({
+    page,
+    editorState,
+  }) => {
+    await selectTool(page, "2");
+    await drag(page, { x: 200, y: 200 }, { x: 350, y: 320 });
+
+    let s = await editorState();
+    expect(s.elementCount).toBe(1);
+    expect(s.selectedIds).toHaveLength(1);
+    expect(s.tool).toBe("rectangle");
+
+    await page.keyboard.press("Escape");
+
+    s = await editorState();
+    expect(s.elementCount).toBe(1);
+    expect(s.selectedIds).toHaveLength(0);
+    expect(s.tool).toBe("selection");
+    await expect(page.locator('.tool-btn[aria-label="Selection"]')).toHaveClass(/active/);
+  });
 });

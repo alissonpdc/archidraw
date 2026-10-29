@@ -332,6 +332,7 @@ test.describe("ui widgets", () => {
     const menuBtn = page.getByTestId("app-menu-button");
     await expect(menuBtn).toHaveAttribute("title", "Menu (M)");
     await expect(menuBtn.locator(".corner-kbd")).toHaveText("M");
+    await expect(menuBtn.locator("> *").first()).toHaveClass(/corner-kbd/);
 
     // Press 'm' to open the menu
     await page.keyboard.press("m");

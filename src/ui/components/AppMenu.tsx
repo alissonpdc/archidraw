@@ -248,10 +248,10 @@ export function AppMenu({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <MenuIcon size={18} />
         <kbd className="corner-kbd" aria-hidden>
           M
         </kbd>
+        <MenuIcon size={18} />
       </button>
       {open && (
         <>
