@@ -587,20 +587,6 @@ export function LogoOutline({ size = 48, className }: { size?: number; className
         fill="currentColor"
         fillOpacity="0.06"
       />
-      <path
-        d="M10 0.5 L31.5 11.5"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeDasharray="2 2"
-        opacity="0.6"
-      />
-      <path
-        d="M17.5 21.5 L35.5 28.5"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeDasharray="2 2"
-        opacity="0.6"
-      />
     </svg>
   );
 }

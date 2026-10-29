@@ -2084,7 +2084,7 @@ button.status-file {
 
 .empty-brand-name {
   font-family: "Architects Daughter", cursive, sans-serif;
-  font-size: 74px;
+  font-size: 86px;
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -2093,13 +2093,13 @@ button.status-file {
 }
 
 .empty-state .empty-title {
-  width: 100%;
+  width: 98%;
   box-sizing: border-box;
   text-align: justify;
   text-align-last: justify;
   white-space: nowrap;
   font-family: "Caveat", "Architects Daughter", cursive;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 400;
   color: var(--text-muted);
   opacity: 0.85;
