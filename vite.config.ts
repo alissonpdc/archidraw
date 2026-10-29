@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import { validateApiPlugin } from "./vite.validate-plugin.ts";
 
 const AI_DOCS_DIR = fileURLToPath(new URL("./src/ai", import.meta.url));
 
@@ -92,7 +91,7 @@ function serveDocsMarkdown(): Plugin {
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), serveDocsMarkdown(), validateApiPlugin()],
+  plugins: [react(), serveDocsMarkdown()],
   build: {
     sourcemap: mode === "test",
   },

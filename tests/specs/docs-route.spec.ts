@@ -1,4 +1,5 @@
 import { test, expect, open, pressPasteText, importFile, type Page } from "../fixtures";
+import { validatePayload } from "../../src/core/validate";
 
 // `/docs` entrega o markdown-fonte cru (sem render de SPA). Estes testes leem
 // esse markdown direto pelo canal HTTP e validam que os exemplos JSON continuam
@@ -159,14 +160,14 @@ test.describe("docs markdown source", () => {
     expect(md, "5.3 layout section present").toContain("5.3 Layout and rendering rules");
   });
 
-  test("documents the POST /validate endpoint contract", async ({ request }) => {
+  test("documents the in-browser validation contract", async ({ request }) => {
     const md = await fetchDocsMarkdown(request);
 
-    // heading e metodo/path
+    // heading e metodo
     expect(md, "7 heading present").toContain(
-      "## 7. Validation endpoint (`POST /validate`)",
+      "## 7. In-Browser Validation (`window.archidrawValidate`)",
     );
-    expect(md, "method documented").toContain("POST /validate");
+    expect(md, "method documented").toContain("window.archidrawValidate");
 
     // campos do veredicto
     for (const field of ["valid", "format", "errors", "warnings", "summary", "rule"]) {
@@ -185,17 +186,11 @@ test.describe("docs markdown source", () => {
       expect(md, `format value ${format} documented`).toContain(format);
     }
 
-    // contrato HTTP: status e limites
-    for (const token of ["400", "405", "413", "8 MB"]) {
-      expect(md, `http token ${token} documented`).toContain(token);
-    }
-
-    // disponibilidade: /validate roda no servidor Node de produção, não é só dev
-    expect(md, "production node server documented").toContain("Node server");
     expect(md, "valid is not a review of the drawing").toContain(
       "it is not a review of the drawing",
     );
     expect(md, "atomic clipboard rule referenced").toContain("atomic");
+    expect(md, "CloudFront and S3 static hosting documented").toContain("CloudFront");
   });
 
   test("the 7.1 response example is text, not a ```json block the parsers would consume", async ({
@@ -219,8 +214,7 @@ test.describe("docs markdown source", () => {
     const libs = jsonBlocks(md).filter((b) => b.includes('"libraryItems"'));
     expect(libs.length).toBeGreaterThanOrEqual(2);
     for (const block of libs) {
-      const res = await request.post("/validate", { data: JSON.parse(block) });
-      const body = await res.json();
+      const body = validatePayload(JSON.parse(block));
       expect(body.format, block).toBe("library");
       expect(body.valid, JSON.stringify(body.errors)).toBe(true);
       expect(

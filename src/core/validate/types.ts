@@ -18,7 +18,7 @@ export interface ValidationIssue {
   path: string;
   message: string;
   /** seção dos /docs que sustenta a regra (ex.: "2.2", "5.4") */
-  rule?: string;
+  rule: string;
 }
 
 export interface ValidationResult {
@@ -43,9 +43,9 @@ export function addError(
   r: ValidationResult,
   path: string,
   message: string,
-  rule?: string,
+  rule: string,
 ): void {
-  r.errors.push({ path, message, ...(rule ? { rule } : {}) });
+  r.errors.push({ path, message, rule });
   r.valid = false;
 }
 
@@ -54,7 +54,7 @@ export function addWarning(
   r: ValidationResult,
   path: string,
   message: string,
-  rule?: string,
+  rule: string,
 ): void {
-  r.warnings.push({ path, message, ...(rule ? { rule } : {}) });
+  r.warnings.push({ path, message, rule });
 }

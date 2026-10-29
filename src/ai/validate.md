@@ -1,19 +1,26 @@
-## 7. Validation endpoint (`POST /validate`)
+## 7. In-Browser Validation (`window.archidrawValidate`)
 
-An HTTP endpoint that answers "is this payload valid, and if not, what breaks it?". It exists so an agent that generated a `.archidraw`, `.archidrawlib` or clipboard payload can get a machine-readable verdict before importing it.
+Client-side JavaScript function that answers "is this payload valid, and if not, what breaks it?". It exists so an agent or automated tool that generated a `.archidraw`, `.archidrawlib` or clipboard payload can obtain a machine-readable verdict directly in the browser runtime before importing or pasting it.
+
+Archidraw is hosted as a pure static SPA (on AWS S3 + CloudFront). There is no remote HTTP `/validate` endpoint; validation executes entirely **in-browser** in memory with zero network latency.
+
+Its validation logic strictly mirrors the parsing and normalization rules of **Ctrl+V (Clipboard Paste)** and **Open file (Ctrl+O / File -> Open)**, guaranteeing 100% syntax coherence with the application's ingestion pipelines:
+
+- **Ctrl+V (Clipboard Paste, Section 4):** Validates clipboard payloads (`archidraw/elements` envelope, bare array of elements, or single element). Ingestion is atomic: any element with an invalid `type` rejects the entire payload (`valid: false`). Missing base fields or wrong-typed optional fields (colors, opacity, strokeWidth, roughness, etc.) are defaulted by the normalizer and reported as `warnings`.
+- **Open file (Workspace File, Section 2):** Validates `.archidraw` workspace files (`schemaVersion: 2`, `activeTabId`, `tabs` array). The envelope is all-or-nothing: missing required envelope fields or malformed camera/tabs reject the file (`valid: false`).
+- **Library Import (Section 5):** Validates `.archidrawlib` reusable libraries (`libraryItems`). Items without native `archidrawElements` trigger rule 5.1 warnings (they import as static raster graphics).
 
 | Property | Value |
 |---|---|
-| Method and path | `POST /validate` |
-| Request body | the payload itself, as raw JSON (`Content-Type: application/json`) |
-| Response | `application/json`: `{valid, format, errors, warnings, summary}` |
-| Availability | every serving mode: the Vite dev server and `vite preview` (middleware), and the production Node server (`server/index.ts`, run as `node dist-server/server.js`). The app is always served by Node — there is no static-file-only deployment |
-
-Status codes: `200` for any parseable payload (even an invalid one, since the verdict is in the body), `400` when the body is not valid JSON, `405` for a non-POST method (`GET` returns the usage object), `413` when the body exceeds 8 MB.
+| Function and identifier | `window.archidrawValidate(payload)` (also aliased as `window.__archidrawValidate__`) |
+| Request payload | raw JSON string (`string`) or parsed JavaScript object (`unknown`) |
+| Response | `{ valid, format, errors, warnings, summary }` |
+| Availability | Global on `window` in all environments (development, preview, and production on S3 + CloudFront) |
+| Latency / Execution | Synchronous in-memory execution (0 ms network, works offline) |
 
 ### 7.1 Response shape
 
-The response is not a payload you would feed back in; it is the verdict. Shown as plain text (not a ```` ```json ```` example) because it is an output shape, not an input the parsers accept:
+The response is not a payload you would feed back into the canvas; it is the verdict. Shown as plain text (not a ```` ```json ```` example) because it is an output shape, not an input the parsers accept:
 
 ```
 {
@@ -22,7 +29,7 @@ The response is not a payload you would feed back in; it is the verdict. Shown a
   "errors": [
     {
       "path": "tabs[0].doc.elements[2].type",
-      "message": "type inválido: \"hexagon\" — esperado um de [rectangle, diamond, ellipse, line, arrow, text, component, context]",
+      "message": "type inválido: \"hexagon\" — esperado um de [rectangle, diamond, ellipse, polygon, line, arrow, text, component, context]",
       "rule": "3.4"
     }
   ],
@@ -66,7 +73,7 @@ A single element is validated with clipboard rules (section 4.3) but reported as
 
 ### 7.3 errors versus warnings
 
-The endpoint separates what the real parsers reject from what they silently repair:
+The in-browser validator separates what the real parsers reject from what they silently repair:
 
 - **workspace (sections 2.1 and 2.2)** — rejects on envelope shape only: `activeTabId` not a string, empty `tabs`, a tab that is not an object or lacks `id`, `name`, `doc` or `camera`, non-numeric camera fields, or an element whose `type` is not one of the nine. Geometry is *not* checked, matching `storage.parse`, so a non-finite `x` is a **warning**, not an error. A `activeTabId` that matches no `tab.id` is also a warning.
 - **workspace-legacy (section 2.3)** — same `doc` and `camera` checks; the legacy `schemaVersion` itself is a warning, because the loader migrates it to tabs.
@@ -76,12 +83,34 @@ The endpoint separates what the real parsers reject from what they silently repa
 
 Across every format, `errors` are exactly the conditions that make the corresponding real parser fail; `warnings` are conditions it accepts.
 
-### 7.4 Example
+### 7.4 Agent Usage Examples
 
-```
-curl -X POST <archidraw-base-url>/validate \
-  -H 'Content-Type: application/json' \
-  --data-binary @my-diagram.archidraw
+#### In Headless Browser / Web Agents (Playwright, Puppeteer, CDP)
+
+```javascript
+// Validate before pasting or importing
+const verdict = await page.evaluate((payload) => {
+  return window.archidrawValidate(payload);
+}, myGeneratedDiagramJson);
+
+if (!verdict.valid) {
+  console.error("Payload rejected:", verdict.errors);
+  // Feed errors back to LLM to self-correct
+}
 ```
 
-Feed each returned `error` back into your generator: `path` locates the offending field inside the payload you sent and `rule` names the section above that explains it.
+#### In In-App Copilots & Chat Interfaces
+
+```javascript
+const verdict = window.archidrawValidate(aiOutput);
+if (!verdict.valid) {
+  const retryPrompt = `Validation errors found: ${JSON.stringify(verdict.errors)}. Please fix them.`;
+} else {
+  // Safe to insert into editor
+  editor.pasteFromText(JSON.stringify(aiOutput));
+}
+```
+
+#### Offline & Script Agents
+
+Because `window.archidrawValidate` strictly matches Ctrl+V (`parseElementsClipboard`) and Open File (`storage.parse`), diagrams written to conform to Section 2 (for Open file) or Section 4 (for Ctrl+V) are guaranteed to validate and import cleanly without needing an external HTTP validation server.

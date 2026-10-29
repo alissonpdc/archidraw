@@ -1,6 +1,6 @@
 # Archidraw File and Clipboard Syntax Reference
 
-Machine-oriented reference for AI agents that create or edit Archidraw drawings programmatically. It documents the three interchange formats: the `.archidraw` file (complete workspace), the clipboard elements payload (copy/paste) and the `.archidrawlib` file (library of reusable elements). Every JSON example on this page is executed by the automated test suite against the real parser, so the examples are guaranteed valid. Section 7 describes `POST /validate`, an endpoint that reports whether a generated payload is valid and, when it is not, exactly what breaks it.
+Machine-oriented reference for AI agents that create or edit Archidraw drawings programmatically. It documents the three interchange formats: the `.archidraw` file (complete workspace), the clipboard elements payload (copy/paste) and the `.archidrawlib` file (library of reusable elements). Every JSON example on this page is executed by the automated test suite against the real parser, so the examples are guaranteed valid. Section 7 describes in-browser validation via `window.archidrawValidate`, which reports whether a generated payload is valid and, when it is not, exactly what breaks it.
 
 ## 0. Modular AI Documentation Map (`/ai` & `/ai/<slug>.md`)
 
@@ -21,7 +21,7 @@ This reference is available both as a single compiled stream at `GET /ai` and as
 ├── /ai/clipboard.md         (Sec 4: Clipboard archidraw/elements syntax & paste normalizer)
 ├── /ai/library.md           (Sec 5: .archidrawlib reusable library format & native vs raster rules)
 ├── /ai/recipes.md           (Sec 6 & 8: Deterministic grid layout, orthogonal routing & checklist)
-└── /ai/validate.md          (Sec 7: POST /validate contract, error/warning rules & CLI usage)
+└── /ai/validate.md          (Sec 7: In-browser validation, Ctrl+V & Open file syntax verification)
 ```
 
 ### 0.2 Task → Files to Read Matrix
@@ -31,7 +31,7 @@ This reference is available both as a single compiled stream at `GET /ai` and as
 | **Generate or edit a `.archidraw` architecture diagram** | `workspace.md` → `elements.md` → `catalog.md` → `recipes.md` | `clipboard.md`, `library.md` |
 | **Generate a clipboard paste payload (`archidraw/elements`)** | `clipboard.md` → `elements.md` → `catalog.md` | `workspace.md`, `library.md` |
 | **Generate a `.archidrawlib` reusable library** | `library.md` → `elements.md` → `catalog.md` | `workspace.md`, `clipboard.md` |
-| **Validate a payload or fix `POST /validate` findings** | `validate.md` + the module mapped to `rule` below | All unrelated format modules |
+| **Validate a payload or fix validation findings** | `validate.md` + the module mapped to `rule` below | All unrelated format modules |
 
 ### 0.3 Validation `rule` → Module Lookup
 

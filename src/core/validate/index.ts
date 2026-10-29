@@ -1,7 +1,8 @@
 // Entrada do validador: detecta o formato de um payload e roteia para o
-// validador certo. `validatePayload` aceita o objeto JÁ parseado (o middleware
-// faz JSON.parse); isso mantém o módulo puro e testável sem I/O.
+// validador certo. Executado no navegador (in-browser) e sem I/O ou deps de Node.
+// Aceita tanto objeto JS quanto string JSON crua.
 import type { PayloadFormat, ValidationResult } from "./types.ts";
+export type { PayloadFormat, ValidationResult };
 import { emptyResult } from "./types.ts";
 import {
   validateClipboard,
@@ -9,12 +10,11 @@ import {
   validateWorkspace,
   validateWorkspaceLegacy,
 } from "./formats.ts";
+import { ELEMENT_TYPES } from "./enums.ts";
 
 type Raw = Record<string, unknown>;
 
-const ELEMENT_TYPES = new Set([
-  "rectangle", "diamond", "ellipse", "line", "arrow", "text", "component", "context",
-]);
+const ELEMENT_TYPES_SET = new Set(ELEMENT_TYPES);
 
 function detectLibraryShape(data: Raw): boolean {
   if (Array.isArray(data.libraryItems) || Array.isArray(data.library)) return true;
@@ -42,7 +42,7 @@ export function detectFormat(data: unknown): PayloadFormat {
     return "clipboard";
   }
   if (d.type === "archidraw/elements" || Array.isArray(d.elements)) return "clipboard";
-  if (typeof d.type === "string" && ELEMENT_TYPES.has(d.type)) return "element";
+  if (typeof d.type === "string" && ELEMENT_TYPES_SET.has(d.type)) return "element";
   return "unknown";
 }
 
@@ -55,18 +55,34 @@ function validateSingleElement(data: Raw): ValidationResult {
 }
 
 export function validatePayload(data: unknown): ValidationResult {
-  const format = detectFormat(data);
+  let parsed = data;
+  if (typeof data === "string") {
+    try {
+      parsed = JSON.parse(data);
+    } catch (e) {
+      const r = emptyResult("unknown");
+      r.valid = false;
+      r.errors.push({
+        path: "",
+        message: `JSON inválido: ${(e as Error).message}`,
+        rule: "1",
+      });
+      return r;
+    }
+  }
+
+  const format = detectFormat(parsed);
   switch (format) {
     case "workspace":
-      return validateWorkspace(data as Raw);
+      return validateWorkspace(parsed as Raw);
     case "workspace-legacy":
-      return validateWorkspaceLegacy(data as Raw);
+      return validateWorkspaceLegacy(parsed as Raw);
     case "library":
-      return validateLibrary(data);
+      return validateLibrary(parsed);
     case "clipboard":
-      return validateClipboard(data);
+      return validateClipboard(parsed);
     case "element":
-      return validateSingleElement(data as Raw);
+      return validateSingleElement(parsed as Raw);
     default: {
       const r = emptyResult("unknown");
       r.valid = false;
@@ -82,3 +98,5 @@ export function validatePayload(data: unknown): ValidationResult {
     }
   }
 }
+
+export const archidrawValidate = validatePayload;
