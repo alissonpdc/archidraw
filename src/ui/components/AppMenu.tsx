@@ -87,10 +87,15 @@ function MenuItem({
     <button
       className={`menu-item ${active ? "active" : ""} ${className ?? ""}`}
       onClick={onClick}
+      aria-label={label}
     >
       <span className="menu-item-icon">{icon}</span>
       <span className="menu-item-label">{label}</span>
-      {shortcut && <span className="menu-item-shortcut">{shortcut}</span>}
+      {shortcut && (
+        <span className="menu-item-shortcut" aria-hidden="true">
+          {shortcut}
+        </span>
+      )}
       {active && (
         <span className="menu-item-check">
           <CheckIcon size={12} />
@@ -211,6 +216,20 @@ export function AppMenu({
   };
 
   useEffect(() => {
+    const onToggleMenu = () => {
+      setOpen((v) => {
+        if (v) {
+          setThemeSubmenuOpen(false);
+          setGridSubmenuOpen(false);
+        }
+        return !v;
+      });
+    };
+    window.addEventListener("archidraw:toggle-menu", onToggleMenu);
+    return () => window.removeEventListener("archidraw:toggle-menu", onToggleMenu);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
@@ -224,12 +243,15 @@ export function AppMenu({
       <button
         data-testid="app-menu-button"
         className={`tool-btn menu-btn ${open ? "active" : ""}`}
-        title="Menu"
+        title="Menu (M)"
         aria-label="Main menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
         <MenuIcon size={18} />
+        <kbd className="corner-kbd" aria-hidden>
+          M
+        </kbd>
       </button>
       {open && (
         <>
@@ -376,6 +398,7 @@ export function AppMenu({
               <MenuItem
                 label="Shortcuts"
                 icon={<KeyboardIcon size={14} />}
+                shortcut="?"
                 onClick={() => {
                   window.dispatchEvent(new Event("archidraw:shortcuts"));
                   close();

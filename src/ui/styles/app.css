@@ -106,7 +106,8 @@ button {
   background: var(--bg-surface-hover);
 }
 
-.corner-toggle.open .corner-kbd {
+.corner-toggle.open .corner-kbd,
+.menu-btn.active .corner-kbd {
   background: var(--on-accent);
   border-color: var(--on-accent);
   color: var(--accent);
@@ -556,9 +557,12 @@ button.status-file {
 /* specificity acima de .tool-btn (background transparent + border:none) para o
    hamburger manter o aspecto de widget: fundo surface, borda e sombra */
 .tool-btn.menu-btn {
-  width: 36px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: auto;
   height: 34px;
-  padding: 0;
+  padding: 0 var(--space-2);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);

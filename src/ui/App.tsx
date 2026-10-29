@@ -249,6 +249,11 @@ export function App() {
         toggleWorkspacesPanel();
         return;
       }
+      if (e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        window.dispatchEvent(new Event("archidraw:toggle-menu"));
+        return;
+      }
       if (e.key.toLowerCase() === "i") {
         e.preventDefault();
         imageInputRef.current?.click();
