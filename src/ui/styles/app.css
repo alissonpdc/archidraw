@@ -511,8 +511,24 @@ button {
 
 /* ---- status bar file state ---- */
 .status-file {
-  margin-right: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: default;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.status-file:hover {
+  color: var(--text-primary);
+}
+
+.status-file-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -528,19 +544,44 @@ button.status-file {
   pointer-events: auto;
 }
 
-.status-file[data-status="modified"] {
-  color: var(--accent);
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background-color: var(--text-muted);
+  pointer-events: auto;
 }
 
-.status-file[data-status="conflict"],
-.status-file[data-status="missing"],
-.status-file[data-status="invalid"],
-.status-file[data-status="error"] {
-  color: #e03131;
+.status-dot[data-status="saved"] {
+  background-color: var(--status-saved);
 }
 
-.status-file[data-status="permission"] {
-  color: #b26b00;
+.status-dot[data-status="modified"] {
+  background-color: var(--status-unsaved);
+}
+
+.status-dot[data-status="saving"] {
+  background-color: #f59f00;
+  animation: status-pulse 1s ease-in-out infinite alternate;
+}
+
+.status-dot[data-status="conflict"],
+.status-dot[data-status="missing"],
+.status-dot[data-status="invalid"],
+.status-dot[data-status="error"],
+.status-dot[data-status="permission"] {
+  background-color: var(--status-unsaved);
+}
+
+@keyframes status-pulse {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ---- top right cluster ---- */
@@ -1878,6 +1919,7 @@ button.status-file {
   left: var(--space-4);
   display: flex;
   align-items: center;
+  gap: var(--space-3);
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   pointer-events: none;
@@ -1899,7 +1941,6 @@ button.status-file {
 }
 
 .status-version {
-  margin-left: var(--space-3);
   color: var(--text-muted);
   user-select: none;
 }
