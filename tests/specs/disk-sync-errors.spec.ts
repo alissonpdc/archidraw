@@ -402,18 +402,26 @@ test.describe("workspace file sync errors", () => {
     expect((await documentSyncSnapshot(page)).views[0]?.status).toBe("saved");
   });
 
-  test("dirty local changes are written when the disk base is unchanged", async ({
+  test("dirty local changes stay modified until saved", async ({
     page,
   }) => {
     await drawRect(page);
     await saveActiveToFile(page, WORKSPACE_FILE);
-    await freezeDiskAutosave(page);
 
     await drawRect(page, { x: 320, y: 100 }, { x: 420, y: 180 });
     await page.waitForTimeout(600);
 
     await openWithDocuments(page);
 
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-status",
+      "modified",
+    );
+    expect(
+      (await readWorkspaceJson(page, WORKSPACE_FILE)).data.tabs[0].doc.elements,
+    ).toHaveLength(1);
+
+    await page.keyboard.press("Control+s");
     await expect
       .poll(async () => (await readWorkspaceJson(page, WORKSPACE_FILE)).data.tabs[0].doc.elements.length)
       .toBe(2);

@@ -528,6 +528,10 @@ button.status-file {
   pointer-events: auto;
 }
 
+.status-file[data-status="modified"] {
+  color: var(--accent);
+}
+
 .status-file[data-status="conflict"],
 .status-file[data-status="missing"],
 .status-file[data-status="invalid"],

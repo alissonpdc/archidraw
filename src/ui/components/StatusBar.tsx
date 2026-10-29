@@ -11,6 +11,7 @@ import { getAppVersion } from "../../core/version";
 const STATUS_TEXT: Record<FileSyncStatus, string> = {
   saved: "saved",
   saving: "saving…",
+  modified: "modified",
   conflict: "conflict — choose a version",
   missing: "file missing",
   permission: "reconnect to save",

@@ -251,11 +251,19 @@ export function WorkspacePanel({ open }: { open: boolean }) {
 
   const requestDeleteWorkspace = (ws: WorkspaceInfo) => {
     const view = fileViewFor(ws.id);
+    let message: string;
+    if (view) {
+      if (view.status === "modified") {
+        message = `Close "${ws.name}"? You have unsaved changes that will be lost. The file ${view.fileName} will stay on disk.`;
+      } else {
+        message = `Close "${ws.name}"? The file ${view.fileName} will stay on disk.`;
+      }
+    } else {
+      message = `Close "${ws.name}"? It is not saved to a file and unsaved work will be lost.`;
+    }
     setConfirm({
       label: "Close workspace",
-      message: view
-        ? `Close "${ws.name}"? The file ${view.fileName} will stay on disk.`
-        : `Close "${ws.name}"? It is not saved to a file and its ${ws.canvases.length} canvas(es) will be lost.`,
+      message,
       onConfirm: () => {
         void documents.close(ws.id);
       },
@@ -265,7 +273,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
   const requestDeleteCanvas = (wsId: string, canvas: TabInfo) =>
     setConfirm({
       label: "Close canvas",
-      message: `Close "${canvas.name}"? Elements on this canvas will be lost.`,
+      message: `Close "${canvas.name}"? Unsaved work on this canvas will be lost.`,
       onConfirm: () => editor.closeCanvasOf(wsId, canvas.id),
     });
 

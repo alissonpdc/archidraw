@@ -1,6 +1,7 @@
 export type FileSyncStatus =
   | "saving"
   | "saved"
+  | "modified"
   | "conflict"
   | "missing"
   | "permission"
