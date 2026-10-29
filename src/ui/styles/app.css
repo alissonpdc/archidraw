@@ -127,7 +127,6 @@ button {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   transform: translate3d(-104%, -50%, 0);
-  will-change: transform;
   contain: layout style;
   visibility: hidden;
   transition:

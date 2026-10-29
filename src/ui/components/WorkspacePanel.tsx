@@ -21,9 +21,9 @@ interface CanvasTagProps {
 
 function PanelIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
       <rect x="1.5" y="1.5" width="13" height="13" rx="1.5" />
-      <line x1="6" y1="2.5" x2="6" y2="13.5" />
+      <line x1="6" y1="2" x2="6" y2="14" />
     </svg>
   );
 }
@@ -32,14 +32,16 @@ function CaretIcon({ open }: CanvasTagProps) {
   return (
     <svg
       className={open ? "tree-caret-open" : undefined}
-      width="11"
-      height="11"
-      viewBox="0 0 16 16"
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.2"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     >
-      <path d="M5 3l6 5-6 5" />
+      <path d="M4.5 2.5l3.5 3.5-3.5 3.5" />
     </svg>
   );
 }
@@ -345,7 +347,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
             title="New workspace"
             onClick={() => editor.newWorkspace()}
           >
-            <PlusIcon size={14} />
+            <PlusIcon size={12} />
           </button>
         </div>
         <div className="wp-scroll">
@@ -390,7 +392,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                   <CaretIcon open={expanded.has(ws.id)} />
                 </button>
                 <span className="tree-icon work" aria-hidden>
-                  <LayersIcon size={14} />
+                  <LayersIcon size={12} />
                 </span>
                 {editing?.id === ws.id ? (
                   renameField(editing.initial)
@@ -446,7 +448,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                     requestDeleteWorkspace(ws);
                   }}
                 >
-                  <CloseIcon size={11} />
+                  <CloseIcon size={12} />
                 </button>
               </div>
               {expanded.has(ws.id) && (
@@ -510,7 +512,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                                   void saveCanvas(ws.id, c);
                                 }}
                               >
-                                <SaveIcon size={11} />
+                                <SaveIcon size={12} />
                               </button>
                             ) : (
                               <button
@@ -523,7 +525,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                                   downloadCanvas(ws.id, c);
                                 }}
                               >
-                                <DownloadIcon size={11} />
+                                <DownloadIcon size={12} />
                               </button>
                             )}
                             <button
@@ -536,7 +538,7 @@ export function WorkspacePanel({ open }: { open: boolean }) {
                                 requestDeleteCanvas(ws.id, c);
                               }}
                             >
-                              <CloseIcon size={11} />
+                              <CloseIcon size={12} />
                             </button>
                           </>
                         )}
