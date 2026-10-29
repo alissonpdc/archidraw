@@ -263,7 +263,6 @@ jobs:
           aws s3 sync dist/assets/ s3://${{ vars.URL }}-prod/assets/ --delete --region sa-east-1 --cache-control "public, max-age=31536000, immutable"
           aws s3 sync dist/ s3://${{ vars.URL }}-prod --delete --region sa-east-1 --cache-control "public, max-age=0, must-revalidate"
           aws s3 cp dist/ai/full.md s3://${{ vars.URL }}-prod/ai --content-type "text/markdown; charset=utf-8" --cache-control "public, max-age=0, must-revalidate"
-          aws s3api put-object --bucket "${{ vars.URL }}-prod" --key "ai/" --body fileb://dist/ai/full.md --content-type "text/markdown; charset=utf-8" --cache-control "public, max-age=0, must-revalidate"
       - name: Invalidar CloudFront
         run: aws cloudfront create-invalidation --distribution-id ${{ vars.AWS_CLOUDFRONT_ID_PROD }} --paths "/*"
 
