@@ -1,4 +1,4 @@
-import type { Element } from "./types";
+import type { Element, TextAlign, TextVAlign } from "./types";
 import type { RenderColors } from "./renderer";
 import { themeColor } from "./color";
 
@@ -100,3 +100,32 @@ export function textBlockTop(el: Element, blockH: number): number {
   if (vAlign === "bottom") return el.y + el.height - padY - blockH;
   return el.y + Math.max(0, (el.height - blockH) / 2);
 }
+
+/**
+ * Adjusts a text element's bounding box when its measured dimensions change,
+ * preserving its anchor point according to `textAlign` and `textVAlign`.
+ */
+export function anchorTextBounds(
+  orig: { x: number; y: number; width: number; height: number },
+  newWidth: number,
+  newHeight: number,
+  textAlign: TextAlign = "left",
+  textVAlign?: TextVAlign,
+): { x: number; y: number; width: number; height: number } {
+  let x = orig.x;
+  if (textAlign === "center") {
+    x = orig.x + (orig.width - newWidth) / 2;
+  } else if (textAlign === "right") {
+    x = orig.x + (orig.width - newWidth);
+  }
+
+  let y = orig.y;
+  if (textVAlign === "middle") {
+    y = orig.y + (orig.height - newHeight) / 2;
+  } else if (textVAlign === "bottom") {
+    y = orig.y + (orig.height - newHeight);
+  }
+
+  return { x, y, width: newWidth, height: newHeight };
+}
+

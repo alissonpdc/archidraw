@@ -229,4 +229,75 @@ test.describe("native system design libraries", () => {
     expect(state.elementCount).toBe(4);
     expect(state.selectedIds.length).toBe(4);
   });
+
+  test("altering text font size on a native library component preserves horizontal centering", async ({
+    page,
+  }) => {
+    await openLibrary(page);
+
+    const header = page.locator(".library-section-header", {
+      hasText: "Clients & Devices",
+    });
+    await header.click();
+
+    const userTile = page.locator('.library-panel [data-tip="User"]');
+    await expect(userTile).toBeVisible();
+    await userTile.click();
+
+    const getSnapshotElements = () =>
+      page.evaluate(() => {
+        const ed = (window as any).__editor__;
+        return ed.getSnapshot().doc.elements;
+      });
+
+    let elements = await getSnapshotElements();
+    const textEl = elements.find((el: any) => el.type === "text");
+    expect(textEl).toBeDefined();
+    expect(textEl.textAlign).toBe("center");
+    const initialCenterX = textEl.x + textEl.width / 2;
+
+    const shapes = elements.filter((el: any) => el.type !== "text");
+    const shapesCenterX =
+      (Math.min(...shapes.map((s: any) => s.x)) +
+        Math.max(...shapes.map((s: any) => s.x + s.width))) /
+      2;
+    expect(Math.abs(initialCenterX - shapesCenterX)).toBeLessThan(1);
+
+    const textTab = page.locator(".panel-tab", { hasText: "Text" });
+    await textTab.click();
+
+    const fontMBtn = page.getByRole("button", { name: "Font M (20px)" });
+    await expect(fontMBtn).toBeVisible();
+    await fontMBtn.click();
+
+    elements = await getSnapshotElements();
+    const updatedTextEl = elements.find((el: any) => el.type === "text");
+    expect(updatedTextEl.fontSize).toBe(20);
+    const updatedCenterX = updatedTextEl.x + updatedTextEl.width / 2;
+    expect(Math.abs(updatedCenterX - initialCenterX)).toBeLessThan(1);
+
+    const fontXLBtn = page.getByRole("button", { name: "Font XL (36px)" });
+    await fontXLBtn.click();
+
+    elements = await getSnapshotElements();
+    const xlTextEl = elements.find((el: any) => el.type === "text");
+    expect(xlTextEl.fontSize).toBe(36);
+    const xlCenterX = xlTextEl.x + xlTextEl.width / 2;
+    expect(Math.abs(xlCenterX - initialCenterX)).toBeLessThan(1);
+
+    // Also verify that updating text content preserves horizontal centering
+    await page.evaluate(() => {
+      const ed = (window as any).__editor__;
+      const text = ed.getSnapshot().doc.elements.find((el: any) => el.type === "text");
+      if (text) {
+        ed.updateText(text.id, "Customer Service");
+      }
+    });
+
+    elements = await getSnapshotElements();
+    const editedTextEl = elements.find((el: any) => el.type === "text");
+    expect(editedTextEl.text).toBe("Customer Service");
+    const editedCenterX = editedTextEl.x + editedTextEl.width / 2;
+    expect(Math.abs(editedCenterX - initialCenterX)).toBeLessThan(1);
+  });
 });

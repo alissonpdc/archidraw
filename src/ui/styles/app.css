@@ -106,7 +106,8 @@ button {
   background: var(--bg-surface-hover);
 }
 
-.corner-toggle.open .corner-kbd {
+.corner-toggle.open .corner-kbd,
+.menu-btn.active .corner-kbd {
   background: var(--on-accent);
   border-color: var(--on-accent);
   color: var(--accent);
@@ -127,7 +128,6 @@ button {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   transform: translate3d(-104%, -50%, 0);
-  will-change: transform;
   contain: layout style;
   visibility: hidden;
   transition:
@@ -557,9 +557,12 @@ button.status-file {
 /* specificity acima de .tool-btn (background transparent + border:none) para o
    hamburger manter o aspecto de widget: fundo surface, borda e sombra */
 .tool-btn.menu-btn {
-  width: 36px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: auto;
   height: 34px;
-  padding: 0;
+  padding: 0 var(--space-2);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
@@ -2085,7 +2088,7 @@ button.status-file {
 
 .empty-brand-name {
   font-family: "Architects Daughter", cursive, sans-serif;
-  font-size: 74px;
+  font-size: 86px;
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -2094,13 +2097,13 @@ button.status-file {
 }
 
 .empty-state .empty-title {
-  width: 100%;
+  width: 98%;
   box-sizing: border-box;
   text-align: justify;
   text-align-last: justify;
   white-space: nowrap;
   font-family: "Caveat", "Architects Daughter", cursive;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 400;
   color: var(--text-muted);
   opacity: 0.85;

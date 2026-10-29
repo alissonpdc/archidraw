@@ -35,4 +35,33 @@ test.describe("global tooltip lifecycle", () => {
     await page.mouse.up();
     await expect(page.locator(".panel-tooltip")).toHaveCount(0);
   });
+
+  test("displays concise title over verbose aria-label on menu and workspace toggles", async ({
+    page,
+  }) => {
+    await open(page);
+    const menuBtn = page.getByTestId("app-menu-button");
+    await menuBtn.hover();
+    await expect(page.locator(".panel-tooltip")).toHaveText("Menu (M)");
+
+    await page.mouse.move(600, 400);
+    await expect(page.locator(".panel-tooltip")).toHaveCount(0);
+
+    const wsToggle = page.getByTestId("panel-toggle");
+    await wsToggle.hover();
+    await expect(page.locator(".panel-tooltip")).toHaveText("Workspaces (W)");
+  });
+
+  test("zoom widget displays concise reset and focus tooltips without redundant level tip", async ({
+    page,
+  }) => {
+    await open(page);
+    const resetBtn = page.getByRole("button", { name: "Reset zoom" });
+    await resetBtn.hover();
+    await expect(page.locator(".panel-tooltip")).toHaveText("Reset zoom");
+
+    const zoomLevel = page.locator(".zoom-level");
+    await zoomLevel.hover();
+    await expect(page.locator(".panel-tooltip")).toHaveCount(0);
+  });
 });

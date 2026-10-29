@@ -566,6 +566,15 @@ export function PropertiesPanel() {
                   key={s}
                   className={`size-btn line-style-btn ${allStyle(s) ? "active" : ""}`}
                   aria-label={`Line ${s}`}
+                  data-tip={
+                    s === "solid"
+                      ? "Solid line"
+                      : s === "dashed"
+                        ? "Dashed line"
+                        : s === "dotted"
+                          ? "Dotted line"
+                          : "Dash-dot line"
+                  }
                   onClick={() => apply({ strokeStyle: s })}
                 >
                   <svg width="20" height="10" viewBox="0 0 20 10">
@@ -656,6 +665,7 @@ export function PropertiesPanel() {
                 key={w}
                 className={`size-btn ${allStroke(w) ? "active" : ""}`}
                 aria-label={`Thickness ${w}`}
+                data-tip={`${w}px`}
                 onClick={() => apply({ strokeWidth: w })}
               >
                 <span className="thickness-preview" style={{ height: w + 1 }} />
@@ -808,8 +818,8 @@ export function PropertiesPanel() {
                 aria-label="Animate arrow"
                 data-tip={
                   animationDisabled
-                    ? "Animation needs a dashed, dotted or dash-dot stroke"
-                    : "Flowing dashes along the arrow"
+                    ? "Requires dashed stroke"
+                    : "Animate arrow"
                 }
                 disabled={animationDisabled}
                 onClick={() => apply({ animated: !allAnimated })}
@@ -932,6 +942,7 @@ export function PropertiesPanel() {
                 key={f.value}
                 className={`size-btn text-btn ${allFont(f.value) ? "active" : ""}`}
                 aria-label={`Font ${f.label} (${f.value}px)`}
+                data-tip={`${f.label} (${f.value}px)`}
                 onClick={() => apply({ fontSize: f.value })}
               >
                 {f.label}

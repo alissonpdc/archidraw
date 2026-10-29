@@ -8,7 +8,7 @@ export function ZoomWidget() {
     <div className="zoom-widget">
       <button
         className="zoom-btn tip-up"
-        data-tip="Reset zoom (100%)"
+        data-tip="Reset zoom"
         aria-label="Reset zoom"
         onClick={() => editor.resetZoom()}
       >
@@ -23,7 +23,7 @@ export function ZoomWidget() {
       >
         <MinusIcon size={14} />
       </button>
-      <span className="zoom-level tip-up" data-tip={`${pct}%`}>
+      <span className="zoom-level tip-up">
         {pct}%
       </span>
       <button
@@ -52,7 +52,7 @@ export function FocusWidget() {
     <div className="focus-widget">
       <button
         className="zoom-btn tip-up"
-        data-tip="Focus (hide UI)"
+        data-tip="Focus"
         aria-label="Focus"
         onClick={() => editor.toggleFocusMode()}
       >

@@ -61,6 +61,7 @@ export function ColorBox({
         type="button"
         className={`current-color${isOpen ? " active" : ""}`}
         aria-label={`${label} current`}
+        data-tip={`${label} color`}
         aria-expanded={isOpen}
         onClick={onToggle}
       >

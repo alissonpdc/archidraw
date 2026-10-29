@@ -64,7 +64,7 @@ import {
 } from "./utils";
 import { CONTEXT_STROKE, CONTEXT_STROKE_DARK, DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { correlateIntensity } from "./color";
-import { fontFamilyOf } from "./textStyle";
+import { fontFamilyOf, anchorTextBounds } from "./textStyle";
 import {
   combineSelected,
   polygonsToElements,
@@ -1292,6 +1292,11 @@ borderRadius: 20,
     this.emit();
   }
 
+  onEscape() {
+    this.tool = "selection";
+    this.clearSelection();
+  }
+
   /**
    * Re-applies a selection captured before another UI surface stole it (the
    * workspaces panel clears the selection while open). Ids that no longer
@@ -1898,8 +1903,17 @@ strokeOpacity?: number;
         if (next.type === "text" && (patch.fontSize !== undefined || patch.fontFamily !== undefined || patch.bold !== undefined || patch.italic !== undefined || patch.lineSpacing !== undefined || patch.roughness !== undefined)) {
           const te = next as TextElement;
           const { width, height } = measureText(te.text || " ", te.fontSize, fontFamilyOf(te), te.bold, te.italic, te.lineSpacing);
-          te.width = Math.max(width, 8);
-          te.height = height;
+          const bounds = anchorTextBounds(
+            el,
+            Math.max(width, 8),
+            height,
+            te.textAlign,
+            te.textVAlign,
+          );
+          te.x = bounds.x;
+          te.y = bounds.y;
+          te.width = bounds.width;
+          te.height = bounds.height;
         }
         return next;
       }),
@@ -1924,7 +1938,14 @@ strokeOpacity?: number;
       elements: this.doc.elements.map((el) => {
         if (!(el.id === id && el.type === "text")) return el;
         const { width, height } = measureText(text || " ", el.fontSize, fontFamilyOf(el), el.bold, el.italic, el.lineSpacing);
-        return { ...el, text, width: Math.max(width, 8), height };
+        const bounds = anchorTextBounds(
+          el,
+          Math.max(width, 8),
+          height,
+          el.textAlign,
+          el.textVAlign,
+        );
+        return { ...el, text, ...bounds };
       }),
     };
     this.emit();

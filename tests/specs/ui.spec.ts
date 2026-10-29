@@ -324,6 +324,32 @@ test.describe("ui widgets", () => {
     await expect(page.locator(".shortcuts-modal")).toHaveCount(0);
   });
 
+  test("main menu button shows M shortcut, toggles with M, and shows ? on Shortcuts item", async ({
+    page,
+  }) => {
+    await open(page);
+
+    const menuBtn = page.getByTestId("app-menu-button");
+    await expect(menuBtn).toHaveAttribute("title", "Menu (M)");
+    await expect(menuBtn.locator(".corner-kbd")).toHaveText("M");
+    await expect(menuBtn.locator("> *").first()).toHaveClass(/corner-kbd/);
+
+    // Press 'm' to open the menu
+    await page.keyboard.press("m");
+    const dropdown = page.locator(".menu-dropdown");
+    await expect(dropdown).toBeVisible();
+
+    // Check that Shortcuts menu item displays ? shortcut visually
+    const shortcutsItem = page.locator(".menu-item", {
+      has: page.locator(".menu-item-label", { hasText: /^Shortcuts$/ }),
+    });
+    await expect(shortcutsItem.locator(".menu-item-shortcut")).toHaveText("?");
+
+    // Press 'm' again to close the menu
+    await page.keyboard.press("m");
+    await expect(dropdown).toHaveCount(0);
+  });
+
   test("properties panel offers stroke width and stroke opacity for shapes", async ({
     page,
   }) => {
