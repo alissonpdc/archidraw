@@ -185,6 +185,13 @@ export function markSaved(
   updateView(runtime, binding.workspaceId, binding.fileName, "saved");
 }
 
+export function markModified(
+  runtime: DocumentRuntime,
+  binding: WorkspaceFileBinding,
+): void {
+  updateView(runtime, binding.workspaceId, binding.fileName, "modified");
+}
+
 export function updateView(
   runtime: DocumentRuntime,
   workspaceId: string,

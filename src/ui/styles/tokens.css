@@ -11,6 +11,8 @@
   --accent: #0f766e;
   --accent-strong: #0b5d57;
   --on-accent: #ffffff;
+  --status-saved: #2f9e44;
+  --status-unsaved: #e03131;
 
   /* code token colors (json/yaml preview in the details card) */
   --code-key: #c2185b;
@@ -72,6 +74,8 @@
     --accent: #2aa79b;
     --accent-strong: #3fc4b6;
     --on-accent: #04211e;
+    --status-saved: #40c057;
+    --status-unsaved: #ff6b6b;
     --code-key: #f9a8d4;
     --code-string: #86efac;
     --code-number: #93c5fd;
@@ -95,6 +99,8 @@
   --accent: #2aa79b;
   --accent-strong: #3fc4b6;
   --on-accent: #04211e;
+  --status-saved: #40c057;
+  --status-unsaved: #ff6b6b;
   --code-key: #f9a8d4;
   --code-string: #86efac;
   --code-number: #93c5fd;

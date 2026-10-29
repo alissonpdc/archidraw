@@ -266,7 +266,7 @@ test.describe("ui widgets", () => {
     await expect(page.locator(".toast")).toHaveText(/"Workspace 1" saved/);
   });
 
-  test("status bar shows shortcuts link and version to its right", async ({ page }) => {
+  test("status bar shows version, shortcuts link, and file in order", async ({ page }) => {
     await open(page);
 
     const bar = await page.locator(".status-bar").textContent();
@@ -279,9 +279,12 @@ test.describe("ui widgets", () => {
 
     const shortcutsBox = await page.locator(".status-bar .status-link").boundingBox();
     const versionBox = await versionLocator.boundingBox();
-    expect(shortcutsBox).not.toBeNull();
+    const fileBox = await page.locator('[data-testid="status-file"]').boundingBox();
     expect(versionBox).not.toBeNull();
-    expect((versionBox?.x ?? 0)).toBeGreaterThan((shortcutsBox?.x ?? 0));
+    expect(shortcutsBox).not.toBeNull();
+    expect(fileBox).not.toBeNull();
+    expect((shortcutsBox?.x ?? 0)).toBeGreaterThan((versionBox?.x ?? 0));
+    expect((fileBox?.x ?? 0)).toBeGreaterThan((shortcutsBox?.x ?? 0));
 
     // Test version formatting helper branches
     const formatResults = await page.evaluate(() => {

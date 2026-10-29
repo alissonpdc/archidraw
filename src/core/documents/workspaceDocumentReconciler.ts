@@ -10,7 +10,6 @@ import {
   removeFileView,
 } from "./syncState";
 import {
-  cancelScheduledWrite,
   commitWrite,
   isWorkspaceKnown,
   loadBindings,
@@ -75,18 +74,37 @@ export async function refreshAllDocuments(runtime: DocumentRuntime): Promise<voi
 function onEditorChange(runtime: DocumentRuntime): void {
   if (!runtime.booted || runtime.suspended > 0) return;
   const workspaceId = runtime.editor.getSnapshot().activeWorkspaceId;
-  if (!workspaceId || !runtime.bindings.has(workspaceId)) return;
-  if (getSyncConflict(workspaceId)) return;
-  scheduleWrite(runtime, workspaceId);
+  if (!workspaceId) return;
+  const binding = runtime.bindings.get(workspaceId);
+  if (!binding || getSyncConflict(workspaceId)) return;
+  void updateModifiedStatus(runtime, workspaceId, binding);
 }
 
-function scheduleWrite(runtime: DocumentRuntime, workspaceId: string): void {
-  cancelScheduledWrite(runtime, workspaceId);
-  const timer = setTimeout(() => {
-    runtime.writeTimers.delete(workspaceId);
-    void flush(runtime, workspaceId);
-  }, runtime.writeDelayMs);
-  runtime.writeTimers.set(workspaceId, timer);
+async function updateModifiedStatus(
+  runtime: DocumentRuntime,
+  workspaceId: string,
+  binding: WorkspaceFileBinding,
+): Promise<void> {
+  const local = await localDocument(runtime, workspaceId, binding);
+  if (!local) return;
+  const current = getFileView(workspaceId);
+  if (
+    current?.status === "saving" ||
+    current?.status === "conflict" ||
+    current?.status === "permission" ||
+    current?.status === "missing" ||
+    current?.status === "invalid" ||
+    current?.status === "error"
+  ) {
+    return;
+  }
+  if (local.hash === binding.lastSyncedHash) {
+    if (current?.status === "modified") {
+      markSaved(runtime, binding);
+    }
+  } else if (current?.status !== "modified") {
+    updateView(runtime, workspaceId, binding.fileName, "modified");
+  }
 }
 
 export async function flush(
@@ -242,9 +260,7 @@ async function reconcileDisk(
       markSaved(runtime, binding);
       return;
     }
-    if (!runtime.writeTimers.has(workspaceId)) {
-      await flush(runtime, workspaceId);
-    }
+    updateView(runtime, workspaceId, binding.fileName, "modified");
     return;
   }
   if (

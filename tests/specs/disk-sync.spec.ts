@@ -31,7 +31,7 @@ test.describe("workspace file sync", () => {
     await installDocumentPicker(page);
   });
 
-  test("Ctrl+S saves the workspace to disk and autosaves later edits", async ({
+  test("Ctrl+S saves the workspace to disk and marks later edits modified until saved", async ({
     page,
   }) => {
     await drawRect(page);
@@ -55,13 +55,64 @@ test.describe("workspace file sync", () => {
       "data-status",
       "saved",
     );
+    await expect(page.locator('[data-testid="status-file"]')).toHaveText(
+      "plan.archidraw",
+    );
+    await expect(page.locator('[data-testid="status-dot"]')).toHaveAttribute(
+      "data-status",
+      "saved",
+    );
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-tip",
+      "saved",
+    );
+    await page.locator('[data-testid="status-file"]').hover();
+    await expect(page.locator(".panel-tooltip")).toHaveText("saved");
+    await page.mouse.move(600, 400);
+    await expect(page.locator(".panel-tooltip")).toHaveCount(0);
     await expect(page.locator('[data-testid="ws-file-plan"]')).toHaveCount(0);
 
-    // a later edit reaches the file through the 800ms autosave
+    // a later edit does NOT autosave to the file; it shows modified in the bottom-left
     await drawRect(page, { x: 320, y: 100 }, { x: 420, y: 180 });
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-status",
+      "modified",
+    );
+    await expect(page.locator('[data-testid="status-file"]')).toHaveText(
+      "plan.archidraw",
+    );
+    await expect(page.locator('[data-testid="status-dot"]')).toHaveAttribute(
+      "data-status",
+      "modified",
+    );
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-tip",
+      "not saved",
+    );
+    await page.locator('[data-testid="status-dot"]').hover();
+    await expect(page.locator(".panel-tooltip")).toHaveText("not saved");
+    await page.mouse.move(600, 400);
+    await expect(page.locator(".panel-tooltip")).toHaveCount(0);
+    expect(
+      (await readWorkspaceJson(page, WORKSPACE_FILE)).data.tabs[0].doc.elements,
+    ).toHaveLength(1);
+
+    // saving occurs only upon Ctrl+S
+    await page.keyboard.press("Control+s");
     await expect
       .poll(async () => (await readWorkspaceJson(page, WORKSPACE_FILE)).data.tabs[0].doc.elements.length)
       .toBe(2);
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-status",
+      "saved",
+    );
+    await expect(page.locator('[data-testid="status-file"]')).toHaveText(
+      "plan.archidraw",
+    );
+    await expect(page.locator('[data-testid="status-dot"]')).toHaveAttribute(
+      "data-status",
+      "saved",
+    );
   });
 
   test("drawing continuously while autosave flushes never triggers a conflict modal", async ({
@@ -338,6 +389,7 @@ test.describe("workspace file sync", () => {
     ).toBe("copy");
 
     await drawRect(page, { x: 320, y: 100 }, { x: 420, y: 180 });
+    await page.keyboard.press("Control+s");
     await expect
       .poll(async () => (await readWorkspaceJson(page, "copy.archidraw")).data.tabs[0].doc.elements.length)
       .toBe(2);
@@ -565,7 +617,7 @@ test.describe("workspace file sync", () => {
     await pollDocuments(page);
     const statusFile = page.locator('[data-testid="status-file"]');
     await expect(statusFile).toHaveAttribute("data-status", "permission");
-    await expect(statusFile).toContainText("reconnect to save");
+    await expect(statusFile).toHaveAttribute("data-tip", "reconnect to save");
 
     await statusFile.click();
     await expect(page.locator(".toast", { hasText: "permission was not granted" })).toBeVisible();
@@ -758,5 +810,93 @@ test.describe("workspace file sync", () => {
 
     await expect.poll(() => elementCount(second), { timeout: 10_000 }).toBe(2);
     await second.close();
+  });
+
+  test("closing a workspace with unsaved changes alerts about losing unsaved work", async ({
+    page,
+  }) => {
+    await drawRect(page);
+    await saveActiveToFile(page, WORKSPACE_FILE);
+
+    // make an edit without saving
+    await drawRect(page, { x: 320, y: 100 }, { x: 420, y: 180 });
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-status",
+      "modified",
+    );
+
+    await page.click('[data-testid="panel-toggle"]');
+    await page.click('[data-testid="ws-delete"]');
+
+    const dialog = page.locator('[data-testid="ws-confirm"]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('[data-testid="ws-confirm-title"]')).toHaveText('Close "plan"?');
+    await expect(dialog.locator(".tab-confirm-warning")).toHaveText("You have unsaved changes that will be lost.");
+    await expect(dialog.locator(".tab-confirm-details")).toContainText("will stay on disk");
+    await expect(dialog.locator('[data-testid="ws-confirm-save"]')).toBeVisible();
+
+    // cancel dismisses the alert without closing
+    await page.click('[data-testid="ws-confirm-cancel"]');
+    await expect(dialog).toHaveCount(0);
+    expect((await documentSyncSnapshot(page)).bindings).toBe(1);
+
+    // Save & close saves the modified document and closes the workspace
+    await page.click('[data-testid="ws-delete"]');
+    await page.click('[data-testid="ws-confirm-save"]');
+    await expect(dialog).toHaveCount(0);
+    await expect
+      .poll(async () => (await documentSyncSnapshot(page)).bindings)
+      .toBe(0);
+    expect(
+      (await readWorkspaceJson(page, WORKSPACE_FILE)).data.tabs[0].doc.elements,
+    ).toHaveLength(2);
+  });
+
+  test("closing a canvas alerts about losing unsaved work and offers save & close", async ({ page }) => {
+    await page.click('[data-testid="panel-toggle"]');
+    await page.click('[data-testid="ws-add-canvas"]');
+
+    const canvasRow = page.locator('[data-testid="ws-canvas-Diagram 2"]');
+    await canvasRow.locator('[data-testid="ws-canvas-close"]').click();
+
+    const dialog = page.locator('[data-testid="ws-confirm"]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('[data-testid="ws-confirm-title"]')).toHaveText('Close "Diagram 2"?');
+    await expect(dialog.locator(".tab-confirm-warning")).toHaveText("Unsaved work on this canvas will be lost.");
+    await expect(dialog.locator('[data-testid="ws-confirm-save"]')).toBeVisible();
+
+    await page.click('[data-testid="ws-confirm-cancel"]');
+    await expect(dialog).toHaveCount(0);
+
+    // Save & close saves the canvas to disk and closes it
+    await queueDocumentSave(page, "diagram2.archidraw");
+    await canvasRow.locator('[data-testid="ws-canvas-close"]').click();
+    await page.click('[data-testid="ws-confirm-save"]');
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(() => readOpfs(page, "diagram2.archidraw")).not.toBeNull();
+    await expect(canvasRow).toHaveCount(0);
+  });
+
+  test("undoing edits back to the saved state reverts status to saved", async ({ page }) => {
+    await drawRect(page);
+    await saveActiveToFile(page, WORKSPACE_FILE);
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-status",
+      "saved",
+    );
+
+    // edit turns status to modified
+    await drawRect(page, { x: 320, y: 100 }, { x: 420, y: 180 });
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-status",
+      "modified",
+    );
+
+    // undo reverts to saved
+    await page.keyboard.press("Control+z");
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-status",
+      "saved",
+    );
   });
 });
