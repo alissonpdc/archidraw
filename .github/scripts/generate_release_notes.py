@@ -89,6 +89,8 @@ def main():
     api_key = open("/tmp/api_key.txt").read().strip()
     primary = open("/tmp/model.txt").read().strip()
     commits = open("/tmp/commits.txt").read().strip()
+    if not commits:
+        commits = "- Maintenance and internal updates"
     diff = open("/tmp/diff.txt").read().strip()
 
     prompt = PROMPT_FILE.read_text()
