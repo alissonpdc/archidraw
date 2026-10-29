@@ -13,12 +13,19 @@ interface Tip {
 }
 
 function resolveText(el: HTMLElement): string {
+  if (el.closest(".menu-dropdown, .context-menu") && !el.hasAttribute("data-tip")) {
+    return "";
+  }
   const own =
     el.getAttribute("data-tip") ||
-    el.getAttribute("aria-label") ||
     el.getAttribute("title") ||
-    (el.textContent ?? "").trim();
-  return own.replace(/\s+/g, " ").trim();
+    el.getAttribute("aria-label");
+  if (!own) return "";
+  const trimmed = own.replace(/\s+/g, " ").trim();
+  if (el.textContent && el.textContent.trim() === trimmed) {
+    return "";
+  }
+  return trimmed;
 }
 
 export function GlobalTooltip() {

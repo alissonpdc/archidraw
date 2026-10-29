@@ -74,7 +74,8 @@ export function WorkspacePanelToggle({ open, onToggle }: { open: boolean; onTogg
       className={open ? "corner-toggle open" : "corner-toggle"}
       data-testid="panel-toggle"
       aria-label="Toggle workspaces panel"
-      title="Toggle workspaces panel (W)"
+      title="Workspaces (W)"
+      data-tip="Workspaces (W)"
       onClick={onToggle}
     >
       <PanelIcon />
