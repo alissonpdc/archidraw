@@ -1,4 +1,4 @@
-import { useState, useEffect, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { editor } from "../hooks/useEditor";
 import { documents } from "../documents";
 import { parseExcalidrawScene } from "../../core/excalidrawSceneImport";
@@ -133,6 +133,9 @@ function MenuSubmenu({
 }
 
 export function AppMenu({
+  open,
+  onToggle,
+  onClose,
   onExportImage,
   onOpen,
   onSave,
@@ -140,6 +143,9 @@ export function AppMenu({
   onDownloadCopy,
   fileInputRef,
 }: {
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
   onExportImage: () => void;
   onOpen: () => void;
   onSave: () => void;
@@ -147,13 +153,20 @@ export function AppMenu({
   onDownloadCopy: () => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
 }) {
-  const [open, setOpen] = useState(false);
   const [themePref, setThemePref] = useState<ThemePref>(() => loadThemePref());
   const [skinPref, setSkinPref] = useState<SkinPref>(() => loadSkinPref());
   const gridMode = useSyncExternalStore(subscribeGrid, getGridMode);
   const bgColor = useSyncExternalStore(subscribeBgColor, getBgColor);
   const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
   const [gridSubmenuOpen, setGridSubmenuOpen] = useState(false);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) {
+      setThemeSubmenuOpen(false);
+      setGridSubmenuOpen(false);
+    }
+  }
 
   useEffect(() => {
     const onThemeChange = () => setThemePref(loadThemePref());
@@ -170,11 +183,11 @@ export function AppMenu({
           window.matchMedia("(prefers-color-scheme: dark)").matches)));
   const bgPalette = resolvedIsDark ? BG_PALETTE_DARK : BG_PALETTE_LIGHT;
 
-  const close = () => {
-    setOpen(false);
+  const close = useCallback(() => {
+    onClose();
     setThemeSubmenuOpen(false);
     setGridSubmenuOpen(false);
-  };
+  }, [onClose]);
 
   const onImportFile = async (file: File | undefined) => {
     if (!file) return;
@@ -216,27 +229,13 @@ export function AppMenu({
   };
 
   useEffect(() => {
-    const onToggleMenu = () => {
-      setOpen((v) => {
-        if (v) {
-          setThemeSubmenuOpen(false);
-          setGridSubmenuOpen(false);
-        }
-        return !v;
-      });
-    };
-    window.addEventListener("archidraw:toggle-menu", onToggleMenu);
-    return () => window.removeEventListener("archidraw:toggle-menu", onToggleMenu);
-  }, []);
-
-  useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, close]);
 
   return (
     <div className="app-menu">
@@ -246,7 +245,7 @@ export function AppMenu({
         title="Menu (M)"
         aria-label="Main menu"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={onToggle}
       >
         <kbd className="corner-kbd" aria-hidden>
           M

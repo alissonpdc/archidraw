@@ -319,6 +319,37 @@ test.describe("component library", () => {
     await expect(page.locator(".library-panel")).toHaveCount(0);
   });
 
+  test("library panel (L) and main menu (M) mutually close each other", async ({ page }) => {
+    await open(page);
+    await cleanDefaults(page);
+
+    // Open library via toolbar button
+    await page.getByRole("button", { name: "Component Library" }).click();
+    await expect(page.locator(".library-panel")).toBeVisible();
+    await expect(page.locator(".menu-dropdown")).toHaveCount(0);
+
+    // Opening menu via button click closes library
+    await page.getByTestId("app-menu-button").click();
+    await expect(page.locator(".menu-dropdown")).toBeVisible();
+    await expect(page.locator(".library-panel")).toHaveCount(0);
+
+    // Opening library via L shortcut closes menu
+    await page.keyboard.press("l");
+    await expect(page.locator(".library-panel")).toBeVisible();
+    await expect(page.locator(".menu-dropdown")).toHaveCount(0);
+
+    // Clicking canvas blurs library search, then pressing M closes library and opens menu
+    await page.locator(".canvas-host").click({ position: { x: 400, y: 300 } });
+    await page.keyboard.press("m");
+    await expect(page.locator(".menu-dropdown")).toBeVisible();
+    await expect(page.locator(".library-panel")).toHaveCount(0);
+
+    // Closing menu via M leaves both closed
+    await page.keyboard.press("m");
+    await expect(page.locator(".menu-dropdown")).toHaveCount(0);
+    await expect(page.locator(".library-panel")).toHaveCount(0);
+  });
+
   test("AWS services use official icons", async ({
     page,
     editorState,

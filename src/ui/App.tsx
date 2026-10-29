@@ -46,6 +46,7 @@ const NUDGE_STEP_BIG_PX = 10;
 
 export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [exportImageOpen, setExportImageOpen] = useState(false);
@@ -55,6 +56,26 @@ export function App() {
   const selectionBeforePanelRef = useRef<string[] | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const toggleMenu = useCallback(() => {
+    setMenuOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setLibraryOpen(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleLibrary = useCallback(() => {
+    setLibraryOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setMenuOpen(false);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     workspacesOpenRef.current = workspacesOpen;
@@ -241,7 +262,7 @@ export function App() {
       }
       if (e.key.toLowerCase() === "l") {
         e.preventDefault();
-        setLibraryOpen((v) => !v);
+        toggleLibrary();
         return;
       }
       if (e.key.toLowerCase() === "w") {
@@ -251,7 +272,7 @@ export function App() {
       }
       if (e.key.toLowerCase() === "m") {
         e.preventDefault();
-        window.dispatchEvent(new Event("archidraw:toggle-menu"));
+        toggleMenu();
         return;
       }
       if (e.key.toLowerCase() === "i") {
@@ -284,7 +305,7 @@ export function App() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [toggleWorkspacesPanel, openDocument, saveDocument, saveDocumentAs]);
+  }, [toggleWorkspacesPanel, toggleLibrary, toggleMenu, openDocument, saveDocument, saveDocumentAs]);
 
   useEffect(() => {
     const internalClipboardHas = () => {
@@ -343,6 +364,9 @@ export function App() {
           />
           <div className="top-right">
             <AppMenu
+              open={menuOpen}
+              onToggle={toggleMenu}
+              onClose={() => setMenuOpen(false)}
               onExportImage={() => setExportImageOpen(true)}
               onOpen={openDocument}
               onSave={saveDocument}
@@ -353,7 +377,7 @@ export function App() {
           </div>
           <Toolbar
             libraryOpen={libraryOpen}
-            onToggleLibrary={() => setLibraryOpen((v) => !v)}
+            onToggleLibrary={toggleLibrary}
             imageInputRef={imageInputRef}
           />
           <input
