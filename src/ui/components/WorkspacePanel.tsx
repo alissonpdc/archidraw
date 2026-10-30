@@ -251,30 +251,58 @@ export function WorkspacePanel({ open }: { open: boolean }) {
 
   const requestDeleteWorkspace = (ws: WorkspaceInfo) => {
     const view = fileViewFor(ws.id);
-    let message: string;
+    const title = `Close "${ws.name}"?`;
+    let message: string | undefined;
+    let details: string | undefined;
+    let onSaveAndClose: (() => Promise<void>) | undefined;
+
     if (view) {
       if (view.status === "modified") {
-        message = `Close "${ws.name}"? You have unsaved changes that will be lost. The file ${view.fileName} will stay on disk.`;
+        message = "You have unsaved changes that will be lost.";
+        details = `The file ${view.fileName} will stay on disk.`;
+        onSaveAndClose = async () => {
+          const saved = await documents.save(ws.id);
+          if (saved) {
+            void documents.close(ws.id);
+          }
+        };
       } else {
-        message = `Close "${ws.name}"? The file ${view.fileName} will stay on disk.`;
+        details = `The file ${view.fileName} will stay on disk.`;
       }
     } else {
-      message = `Close "${ws.name}"? It is not saved to a file and unsaved work will be lost.`;
+      message = "It is not saved to a file and unsaved work will be lost.";
+      onSaveAndClose = async () => {
+        const saved = await documents.save(ws.id);
+        if (saved) {
+          void documents.close(ws.id);
+        }
+      };
     }
+
     setConfirm({
       label: "Close workspace",
+      title,
       message,
+      details,
       onConfirm: () => {
         void documents.close(ws.id);
       },
+      onSaveAndClose,
     });
   };
 
   const requestDeleteCanvas = (wsId: string, canvas: TabInfo) =>
     setConfirm({
       label: "Close canvas",
-      message: `Close "${canvas.name}"? Unsaved work on this canvas will be lost.`,
+      title: `Close "${canvas.name}"?`,
+      message: "Unsaved work on this canvas will be lost.",
       onConfirm: () => editor.closeCanvasOf(wsId, canvas.id),
+      onSaveAndClose: async () => {
+        const saved = await saveCanvas(wsId, canvas);
+        if (saved) {
+          editor.closeCanvasOf(wsId, canvas.id);
+        }
+      },
     });
 
   const addCanvas = (wsId: string) => {
@@ -289,18 +317,20 @@ export function WorkspacePanel({ open }: { open: boolean }) {
     }
   };
 
-  const saveCanvas = async (wsId: string, canvas: TabInfo) => {
+  const saveCanvas = async (wsId: string, canvas: TabInfo): Promise<boolean> => {
     const json = editor.serializeCanvasOf(wsId, canvas.id);
-    if (!json) return;
+    if (!json) return false;
     try {
       const handle = await filePicker.saveArchidraw(archidrawFilename(canvas.name));
-      if (!handle) return;
+      if (!handle) return false;
       const writable = await handle.createWritable();
       await writable.write(json);
       await writable.close();
       toast(`"${canvas.name}" saved`);
+      return true;
     } catch {
       toast(`Could not save "${canvas.name}"`);
+      return false;
     }
   };
 

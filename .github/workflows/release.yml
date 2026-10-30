@@ -1,8 +1,7 @@
 name: Release
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
 
@@ -73,7 +72,6 @@ jobs:
 
   version:
     name: Definir versão
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
       new_tag: ${{ steps.version.outputs.new_tag }}
@@ -129,7 +127,6 @@ jobs:
   release:
     name: GitHub Release
     needs: [build, version]
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -198,7 +195,7 @@ jobs:
           else
             RANGE="$LAST_TAG..HEAD"
           fi
-          git log --no-merges --pretty=format:"- %s" "$RANGE" | grep -v "release:" > /tmp/commits.txt
+          git log --no-merges --pretty=format:"- %s" "$RANGE" | grep -v "release:" > /tmp/commits.txt || true
           git diff --stat "$RANGE" 2>/dev/null > /tmp/diff.txt || echo "N/A" > /tmp/diff.txt
           echo "$PRIMARY_MODEL" > /tmp/model.txt
           echo "${{ secrets.OPENROUTER_API_KEY }}" > /tmp/api_key.txt
@@ -228,6 +225,7 @@ jobs:
           tag_name: ${{ needs.version.outputs.new_tag }}
           name: ArchiDraw ${{ needs.version.outputs.new_tag }}
           body: ${{ steps.notes.outputs.notes }}
+          target_commitish: ${{ github.sha }}
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -238,7 +236,7 @@ jobs:
       - name: Upload do build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ steps.version.outputs.new_tag }}
+          name: release-${{ needs.version.outputs.new_tag }}
           path: dist/
           retention-days: 30
 

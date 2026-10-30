@@ -64,4 +64,14 @@ test.describe("global tooltip lifecycle", () => {
     await zoomLevel.hover();
     await expect(page.locator(".panel-tooltip")).toHaveCount(0);
   });
+
+  test("status file displays save status tooltip on hover", async ({ page }) => {
+    await open(page);
+    const statusFile = page.locator('[data-testid="status-file"]');
+    await statusFile.hover();
+    await expect(page.locator(".panel-tooltip")).toHaveText("local storage");
+
+    await page.mouse.move(600, 400);
+    await expect(page.locator(".panel-tooltip")).toHaveCount(0);
+  });
 });
