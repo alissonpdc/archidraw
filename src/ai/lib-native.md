@@ -1,40 +1,40 @@
 # System Design Native Components (`lib-native.md`)
 
-Este documento ensina como utilizar componentes nativos de System Design em diagramas Archidraw e como descompactar seus elementos vetoriais diretamente a partir dos arquivos `.archidrawlib`.
+This document explains how to use ArchiDraw's native System Design components in diagrams and how to unpack their vector elements straight from the `.archidrawlib` files.
 
 > [!IMPORTANT]
-> **Distinção Crítica: Ícones SVG vs Blocos de System Design (`sd-*`)**
-> - **Ícones SVG (`aws-*`, `k8s-*`, `gcp-*`, `azure-*`)**: São ícones atômicos. O uso de `type: "component"` é o **formato oficial e permanente** tanto em arquivos `.archidraw` quanto na área de transferência (consulte [`/ai/lib-svg.md`](file:///root/GitHub/archidraw/src/ai/lib-svg.md)). Eles **não** devem ser descompactados.
-> - **Blocos de System Design (prefixo `sd-*`)**: Já estão prontos e desenhados! **NUNCA tente recriar ou desenhar essas formas manualmente.** Em arquivos `.archidraw` (workspace), os componentes nativos (`sd-*`) **devem ser obtidos via `GET /ai/lib/<slug>.archidrawlib`**, copiando diretamente o array pronto `item.archidrawElements` e apenas aplicando o deslocamento para a coordenada `(x, y)` de destino. Não utilize `type: "component"` para itens `sd-*` em arquivos de workspace (o validador `window.archidrawValidate` emitirá um aviso).
+> **Critical Distinction: SVG Icons vs System Design Blocks (`sd-*`)**
+> - **SVG icons (`aws-*`, `k8s-*`, `gcp-*`, `azure-*`)**: these are atomic icons. Using `type: "component"` is the **official, permanent format** both in `.archidraw` files and in the clipboard (see [`/ai/lib-svg.md`](/ai/lib-svg.md)). They must **not** be unpacked.
+> - **System Design blocks (prefix `sd-*`)**: already finished and drawn! **NEVER try to recreate or draw these shapes manually.** In `.archidraw` (workspace) files, native components (`sd-*`) **must be fetched via `GET /ai/lib/<slug>.archidrawlib`**, copying the ready-made `item.archidrawElements` array directly and only applying the offset to the target `(x, y)` coordinate. Do not use `type: "component"` for `sd-*` items in workspace files (the `window.archidrawValidate` validator will emit a warning).
 
 ---
 
-## 1. Como Obter e Desempacotar Itens no Arquivo `.archidraw` (Passo a Passo)
+## 1. How to Fetch and Unpack Items into a `.archidraw` File (Step by Step)
 
-**ATENÇÃO: Não invente nem tente desenhar as formas vetoriais.** Todos os 68 blocos de arquitetura já estão finalizados e empacotados nas 8 bibliotecas oficiais. O agente deve apenas fazer o download da biblioteca e copiar os elementos:
+**WARNING: Do not invent or attempt to draw the vector shapes.** All 68 architecture blocks are already finished and packaged in the 8 official libraries. The agent only needs to download the library and copy the elements:
 
-### Algoritmo de Extração e Inserção
+### Extraction and Insertion Algorithm
 
-1. **Identificar o Item e a Biblioteca**: Consulte a tabela da Seção 2 para localizar o `componentId` desejado e o respectivo `<slug>.archidrawlib` (ex: `sd-data-storage-relational-db` está em `data-storage.archidrawlib`).
-2. **Consultar o Arquivo da Biblioteca**: Faça uma requisição HTTP `GET /ai/lib/<slug>.archidrawlib`.
-3. **Localizar o Item**: No JSON retornado, busque em `libraryItems` o item cujo `id` seja igual ao `componentId` (`item.id === "sd-data-storage-relational-db"`).
-4. **Extrair `archidrawElements`**: Copie o array de elementos do template contido em `item.archidrawElements`.
-5. **Calcular o Deslocamento de Posição (`dx, dy`)**:
-   - Calcule a origem do template: `minX = Math.min(...elements.map(e => e.x))`, `minY = Math.min(...elements.map(e => e.y))`.
-   - Determine o deslocamento para a coordenada de destino `(targetX, targetY)` desejada no diagrama:
+1. **Identify the Item and the Library**: See the Section 2 table to locate the desired `componentId` and its `<slug>.archidrawlib` file (e.g. `sd-data-storage-relational-db` lives in `data-storage.archidrawlib`).
+2. **Fetch the Library File**: Issue an HTTP `GET /ai/lib/<slug>.archidrawlib` request.
+3. **Locate the Item**: In the returned JSON, look up `libraryItems` for the item whose `id` equals the `componentId` (`item.id === "sd-data-storage-relational-db"`).
+4. **Extract `archidrawElements`**: Copy the template element array held in `item.archidrawElements`.
+5. **Compute the Position Offset (`dx, dy`)**:
+   - Compute the template origin: `minX = Math.min(...elements.map(e => e.x))`, `minY = Math.min(...elements.map(e => e.y))`.
+   - Determine the offset to the desired target coordinate `(targetX, targetY)` in the diagram:
      `dx = targetX - minX`, `dy = targetY - minY`.
-6. **Gerar Grupo e IDs Únicos**:
-   - Crie um identificador de grupo compartilhado: `const groupId = "grp_" + Math.random().toString(36).slice(2, 9);`.
-   - Atribua novos IDs únicos para cada forma (`el_<base36>_<counter>`) e defina `groupId: groupId` em todos eles.
-7. **Aplicar Deslocamento**: Para cada elemento, atualize `x = el.x + dx` e `y = el.y + dy`.
-8. **Atualizar Rótulo Customizado (se aplicável)**: Se você deseja um nome personalizado (ex: `"Users DB"` em vez do nome padrão `"Relational DB"`), localize o elemento do tipo `text` cujo `text` coincida com `item.name` e altere para o seu rótulo.
-9. **Inserir no Workspace**: Adicione o conjunto de elementos descompactados diretamente no array `tabs[0].doc.elements` do arquivo `.archidraw`.
+6. **Generate Group and Unique IDs**:
+   - Create a shared group identifier: `const groupId = "grp_" + Math.random().toString(36).slice(2, 9);`.
+   - Assign fresh unique ids to every shape (`el_<base36>_<counter>`) and set `groupId: groupId` on all of them.
+7. **Apply the Offset**: For each element, update `x = el.x + dx` and `y = el.y + dy`.
+8. **Update the Custom Label (optional)**: If you want a custom name (e.g. `"Users DB"` instead of the default `"Relational DB"`), find the `text` element whose `text` matches `item.name` and change it to your label.
+9. **Insert into the Workspace**: Add the unpacked element set directly to the `tabs[0].doc.elements` array of the `.archidraw` file.
 
 ---
 
-### Exemplo Comparativo: Incorreto vs Correto no `.archidraw`
+### Comparative Example: Wrong vs Right in the `.archidraw`
 
-#### ❌ INCORRETO no `.archidraw` (Gera aviso no validador):
+#### ❌ WRONG in the `.archidraw` (triggers a validator warning):
 
 ```json
 {
@@ -46,7 +46,7 @@ Este documento ensina como utilizar componentes nativos de System Design em diag
 }
 ```
 
-#### ✅ CORRETO no `.archidraw` (Elementos vetoriais descompactados e agrupados):
+#### ✅ RIGHT in the `.archidraw` (vector elements unpacked and grouped):
 
 ```json
 [
@@ -96,9 +96,9 @@ Este documento ensina como utilizar componentes nativos de System Design em diag
 
 ---
 
-## 2. Catálogo de Componentes Nativos & Arquivos `.archidrawlib`
+## 2. Native Component Catalog & `.archidrawlib` Files
 
-Abaixo estão todos os itens disponíveis organizados por categoria. Para obter os vetores exatos de qualquer item, acesse:
+Below are all available items organized by category. To get the exact vectors of any item, fetch:
 
 ```http
 GET /ai/lib/<slug>.archidrawlib
@@ -106,7 +106,7 @@ GET /ai/lib/<slug>.archidrawlib
 
 ### Clients & Devices (`clients-devices.archidrawlib`)
 
-| componentId | Descrição visual | <slug>.archidrawlib |
+| componentId | Visual description | <slug>.archidrawlib |
 |---|---|---|
 | `sd-clients-devices-user` | A green person silhouette with an ellipse head and curved torso with caption "User" | `clients-devices.archidrawlib` |
 | `sd-clients-devices-users` | A group of three people silhouettes (two grey in background, one blue in front) with caption "Users" | `clients-devices.archidrawlib` |
@@ -122,7 +122,7 @@ GET /ai/lib/<slug>.archidrawlib
 
 ### Infrastructure & Network (`infra-network.archidrawlib`)
 
-| componentId | Descrição visual | <slug>.archidrawlib |
+| componentId | Visual description | <slug>.archidrawlib |
 |---|---|---|
 | `sd-infra-network-internet` | A blue cloud shape labeled "www" with caption "Internet" | `infra-network.archidrawlib` |
 | `sd-infra-network-dns` | A blue network globe sphere labeled "DNS" with an orbital line with caption "DNS" | `infra-network.archidrawlib` |
@@ -137,7 +137,7 @@ GET /ai/lib/<slug>.archidrawlib
 
 ### Compute & Services (`compute-services.archidrawlib`)
 
-| componentId | Descrição visual | <slug>.archidrawlib |
+| componentId | Visual description | <slug>.archidrawlib |
 |---|---|---|
 | `sd-compute-services-application-server` | A server box with two ventilation slots, status LED, and caption "Application Server" | `compute-services.archidrawlib` |
 | `sd-compute-services-microservice` | A modular hex-tile service node labeled "API" with caption "Microservice" | `compute-services.archidrawlib` |
@@ -151,7 +151,7 @@ GET /ai/lib/<slug>.archidrawlib
 
 ### Data & Storage (`data-storage.archidrawlib`)
 
-| componentId | Descrição visual | <slug>.archidrawlib |
+| componentId | Visual description | <slug>.archidrawlib |
 |---|---|---|
 | `sd-data-storage-relational-db` | A blue cylinder with label "SQL" with caption "Relational DB" | `data-storage.archidrawlib` |
 | `sd-data-storage-database-cluster` | A primary database cylinder labeled "Writer" replicating via arrow to a replica cylinder labeled "Reader" with caption "Database Cluster" | `data-storage.archidrawlib` |
@@ -170,7 +170,7 @@ GET /ai/lib/<slug>.archidrawlib
 
 ### Messaging & Events (`messaging-events.archidrawlib`)
 
-| componentId | Descrição visual | <slug>.archidrawlib |
+| componentId | Visual description | <slug>.archidrawlib |
 |---|---|---|
 | `sd-messaging-events-message-queue` | A horizontal pipe queue containing three partitioned message packets with an entry arrow with caption "Message Queue" | `messaging-events.archidrawlib` |
 | `sd-messaging-events-pub-sub-topic` | A central broadcast block labeled "Topic" emitting divergent fanned-out arrows with caption "Pub-Sub Topic" | `messaging-events.archidrawlib` |
@@ -182,7 +182,7 @@ GET /ai/lib/<slug>.archidrawlib
 
 ### Security & Identity (`security-identity.archidrawlib`)
 
-| componentId | Descrição visual | <slug>.archidrawlib |
+| componentId | Visual description | <slug>.archidrawlib |
 |---|---|---|
 | `sd-security-identity-identity-provider` | A directory console frame displaying a user profile silhouette with caption "Identity Provider" | `security-identity.archidrawlib` |
 | `sd-security-identity-auth` | A security shield overlaid with a circular keyhole badge with caption "Auth" | `security-identity.archidrawlib` |
@@ -196,7 +196,7 @@ GET /ai/lib/<slug>.archidrawlib
 
 ### Observability & Operations (`observability-ops.archidrawlib`)
 
-| componentId | Descrição visual | <slug>.archidrawlib |
+| componentId | Visual description | <slug>.archidrawlib |
 |---|---|---|
 | `sd-observability-ops-monitoring` | A dashboard monitor display with telemetry gauge dials and status bars with caption "Monitoring" | `observability-ops.archidrawlib` |
 | `sd-observability-ops-logs` | A log stream sheet with sequential text lines and a highlighted red error line with caption "Logs" | `observability-ops.archidrawlib` |
@@ -206,7 +206,7 @@ GET /ai/lib/<slug>.archidrawlib
 
 ### Platform & Integrations (`platform-integrations.archidrawlib`)
 
-| componentId | Descrição visual | <slug>.archidrawlib |
+| componentId | Visual description | <slug>.archidrawlib |
 |---|---|---|
 | `sd-platform-integrations-git-repository` | A version control Git commit tree with branching lines, commit nodes, and a merge point with caption "Git Repository" | `platform-integrations.archidrawlib` |
 | `sd-platform-integrations-ci-cd-pipeline` | Three sequential chevron stages labeled "build", "test", "deploy" with caption "CI-CD Pipeline" | `platform-integrations.archidrawlib` |
@@ -219,9 +219,9 @@ GET /ai/lib/<slug>.archidrawlib
 
 ---
 
-## 3. Atalho de Conveniência para Área de Transferência (Ctrl+V Interativo)
+## 3. Convenience Shortcut for the Clipboard (Interactive Ctrl+V)
 
-Para conveniência de usuários humanos colando trechos rápidos de JSON diretamente na tela aberta do navegador, o mecanismo de paste (Ctrl+V) aceita um nó sintético do tipo:
+For the convenience of human users pasting quick JSON snippets directly onto the open browser page, the paste mechanism (Ctrl+V) accepts a synthetic node of the type:
 
 ```json
 {
@@ -233,4 +233,4 @@ Para conveniência de usuários humanos colando trechos rápidos de JSON diretam
 }
 ```
 
-Ao colar via Ctrl+V no canvas interativo, a aplicação desempacota o item em tempo de execução. **Lembre-se:** Esse atalho existe apenas para colagem interativa na UI; ao gerar ou salvar arquivos `.archidraw` programaticamente, execute o algoritmo da Seção 1 para que o arquivo persista os elementos vetoriais reais.
+Pasting via Ctrl+V on the interactive canvas unpacks the item at runtime. **Remember:** this shortcut exists only for interactive UI pasting; when generating or saving `.archidraw` files programmatically, run the Section 1 algorithm so the file persists the real vector elements.

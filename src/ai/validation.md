@@ -31,14 +31,14 @@ The response is not a payload you would feed back into the canvas; it is the ver
   "errors": [
     {
       "path": "tabs[0].doc.elements[2].type",
-      "message": "type inválido: \"hexagon\" — esperado um de [rectangle, diamond, ellipse, polygon, line, arrow, text, component, context]",
+      "message": "invalid type: \"hexagon\" — expected one of [rectangle, diamond, ellipse, polygon, line, arrow, text, component, context]",
       "rule": "3.4"
     }
   ],
   "warnings": [
     {
       "path": "tabs[0].doc.elements[2].strokeColor",
-      "message": "campo base ausente strokeColor — em .archidraw escreva explicitamente; no paste vira default",
+      "message": "missing base field strokeColor — write it explicitly in .archidraw; on paste it falls back to the default",
       "rule": "3.2"
     }
   ],
