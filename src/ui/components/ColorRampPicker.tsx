@@ -15,7 +15,7 @@ function inkClass(hex: string): string {
   return l < 60 ? "ink-dark" : "ink-light";
 }
 
-export type PickerKind = "stroke" | "fill" | "text";
+export type PickerKind = "stroke" | "fill" | "text" | "textBg";
 
 function chipDisplay(
   current: string,

@@ -38,6 +38,11 @@ Lines and arrows convey direction and relationships. Poor routing creates visual
 - **Connector Labels**:
   - Keep arrow labels short and concise (ideally <= 14 characters) so they do not overlap source or target nodes.
   - Position labels along the connection using `labelPosition: 0.5` (centered) and `labelSide: "left"` or `"right"` to prevent collision with line strokes.
+  - Use the native UI presets on every labeled edge: `fontSize: 14` (`S`) and `textColor: ""` (`Auto`).
+  - Never put `details` on `arrow` or `line`: the "i" badge renders below the label inside routing corridors and collides with lanes, borders and arrowheads. Attach `details` to node elements instead.
+- **Edge Label Plate Clearance**: at `fontSize: 14`, an edge label's opaque plate is `label.length * 10 + 16` px wide. Every horizontal labeled arrow needs at least `180 px` of clear gap between the source right edge and the target left edge, and never squeeze 3 nodes into the same horizontal row inside a 2-column context.
+- **Smart `labelT`**: `labelT` positions the label along the polyline (default `0.5`). Use `0.62` on vertical arrows climbing below a `component` caption (keep >= 160 px vertical step). Never set `labelT >= 0.65` on a Z-bend whose final entry leg is shorter than `140 px` — place the label on the first open leg (`0.25`–`0.35`) instead.
+- **Animation Requires Non-Solid Stroke**: only set `animated: true` on arrows whose `strokeStyle` is `"dashed"`, `"dotted"` or `"dashdot"`; solid arrows must keep `animated: false`.
 - **Binding to Anchor Points**: Always bind arrows to shapes using `startBinding` and `endBinding` with `focus: 0` (or edge center points) and a clean `gap: 8` or `gap: 12`.
 
 ## 5. Visual Hierarchy & Typography Scale
@@ -52,7 +57,7 @@ Use standard UI font sizes to maintain visual balance across the canvas:
 | **Large (L)** | `fontSize: 28` | Main diagram title |
 | **Extra Large (XL)**| `fontSize: 36` | Major banner headings |
 
-Always set `"textColor": ""` (`Auto`) on shapes and text elements so that text dynamically inherits contrast against the active theme (light/dark canvas).
+Set `"textColor": ""` (`Auto`) on shapes, components and arrows so text dynamically inherits contrast against the active theme (light/dark canvas). Standalone `text` elements default to `#3d4248` (`Grey · 5` in light mode, `Grey · 1` in dark mode).
 
 ## 6. Color Harmony & Contrast
 

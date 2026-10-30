@@ -455,6 +455,11 @@ export function buildSvgString(doc: Document): string | null {
         elParts.push(arrowHeadSvg(el, a, tip, stroke, el.strokeColor, opacity, headSeed + 3, startType));
       }
     } else if (el.type === "text") {
+      const fill = el.backgroundColor === "transparent" ? "none" : el.backgroundColor;
+      if (fill !== "none" && el.fillOpacity > 0 && el.width > 0 && el.height > 0) {
+        const fillAlpha = el.fillOpacity < 1 ? ` opacity="${el.fillOpacity}"` : "";
+        elParts.push(`<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" fill="${fill}"${fillAlpha}/>`);
+      }
       const lines = el.text.split("\n");
       const lh = lineHeight(el);
       const blockH = textBlockHeight(el.fontSize, lines.length, lh);

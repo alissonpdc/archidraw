@@ -64,12 +64,12 @@ Present on every element. The default column applies to the clipboard normalizer
 | angle | number | 0 | radians, clockwise, around the box center |
 | groupId | string | none | elements sharing a groupId move, select and resize together |
 | locked | boolean | false | disables direct manipulation |
-| details | string | none | free-form Markdown shown as an "i" badge and rendered on demand |
-| fontFamily | string | app default | Sans (`'"Segoe UI", system-ui, sans-serif'`), Sketch (`'"Architects Daughter", cursive'`), or Monospace (`'Consolas, "SF Mono", monospace'`) |
+| details | string | none | free-form Markdown shown as an "i" badge and rendered on demand — see section 3.8 |
+| fontFamily | string | app default | **Omit `fontFamily`** (the app picks its native **Sans** or **Sketch** font from `roughness`), or use one of the **3 exact native UI Family strings**: Sans (`'"Segoe UI", system-ui, sans-serif'`), Sketch (`'"Architects Daughter", cursive'`), Monospace (`'Consolas, "SF Mono", monospace'`). Never invent font names like `"Inter"` or `"Arial"`. |
 | bold | boolean | false | bold font weight |
 | italic | boolean | false | italic font style |
 | underline | boolean | false | underline text decoration |
-| textColor | string | `""` (Auto) | `""` activates native UI Auto button (inheriting `strokeColor`) |
+| textColor | string | `""` (Auto) / `#3d4248` | `""` activates the native UI `Auto` button on shapes, components and arrows (inherits `strokeColor`, adapts to light/dark themes). Standalone `text` elements default to `#3d4248` (`Grey · 5` light, `Grey · 1` dark); set an explicit dark colour (`#26292c`) when `strokeColor` is the light `#c4c7ca` sentinel |
 | lineSpacing | number | 1.25 | line height multiplier for multi-line text |
 | fontSize | number | 20 for labels, 14 for context, 12 for component | UI presets: `12`, `14` (`S`), `20` (`M`), `28` (`L`), `36` (`XL`) |
 | textAlign | TextAlign | `center` for labels, `left` for text | horizontal text alignment: `left`, `center`, `right` |
@@ -91,17 +91,20 @@ Present on every element. The default column applies to the clipboard normalizer
 | Element type | Extra fields |
 |---|---|
 | rectangle, diamond, ellipse | `label` (string) — drawn inside the box |
-| polygon | `rings` (required, array of rings of `{x, y}` points), `label` (string) |
-| line, arrow | `lineType` (`straight`, `curved`, `auto`), `startArrowhead`, `endArrowhead` (`none`, `circle`, `arrow`, `triangle`), `label` (string), `labelT` (0..1), `labelSide` (`left`, `right`), `labelPosition` (0..1), `startBinding`, `endBinding`, `controlPoint`, `bendPoints`, `animated` (boolean) |
-| text | `text` (required string), `autoSize` (boolean) |
-| component | `componentId` (official SVG icon or `sd-*` native item), `label` (string outside box), `captionPosition`, `captionGap`, `src` (raster data URI) |
-| context | `childIds` (array of child element ids), `label` (string at border/corner), `labelPosition` (`top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center`, `bottom-right`), `labelSide` (`internal`, `external`) |
+| polygon | `rings` (required; `rings[0]` is the outer ring, every following ring is a hole; open rings of `{x, y}` points with at least 3 each), `label` (string) |
+| line | `label`, `labelT` (0..1), `labelSide` (`left`, `right`), `labelPosition` (0..1), `lineType` (`straight`, `curved`, `auto`), `controlPoint`, `bendPoints`, `startBinding`, `endBinding` |
+| arrow | all line fields plus `startArrowhead`/`endArrowhead` (`none`, `circle`, `arrow`, `triangle`; defaults `none`/`arrow`) and `animated` (boolean, default false) |
+| text | `text` (required string), `fontSize` (number, defaults to 20), optional `backgroundColor` and `fillOpacity` (background plate) |
+| component | `componentId` (official SVG icon or `sd-*` native item), `label` (string outside box), `captionPosition`, `captionGap`, `src` (raster data URI), `fill` (boolean; true stretches the raster to the whole box) |
 
 - **An edge never fills its interior**: Lines and arrows only paint strokes; `backgroundColor` and `fillOpacity` are ignored for connectors.
 - **Inner labels**: For shapes, `label` sits inside the box. The box never wraps unless constrained.
 - **Edge labels**: For arrows, `label` floats along the path. It sits on the side named by `labelSide` (`left` or `right`), at proportion `labelPosition` (or `labelT`).
 - **Context containers**: A context the app itself creates is `strokeColor: "#c4c7ca"`, `backgroundColor: "transparent"`, `strokeWidth: 1`, `borderRadius: 10`, `fontSize: 14`, `labelPosition: "top-left"` and `labelSide: "internal"`. An opaque plate of the canvas background is maintained. Open never recomputes membership: `childIds` is read as written, edges included.
 - **Dialect distinction**: Nothing from the section 5.2 dialect belongs here: properties like `points`, `roundness`, `closed` belong to legacy Excalidraw imports, not native Archidraw elements.
+
+- **Text color and plate**: a `text` element draws glyphs with `textColor` (empty or omitted falls back to `strokeColor`; the app writes `#3d4248` on standalone text) and supports an optional background rectangle via `backgroundColor` + `fillOpacity`, drawn when `fillOpacity > 0` and `backgroundColor !== "transparent"`, both on the canvas and in the SVG export.
+- **Boolean polygons**: hand-written polygons come from the Layers panel Merge actions (`union`, `subtract`, `intersect`, `crop`); the operation is destructive (operands are removed, the result takes the topmost operand's z-position and stroke/fill style), each connected solid becomes its own `polygon`, and `x`/`y`/`width`/`height` must equal the ring bounding box — a polygon with an empty outer ring is rejected on paste.
 
 ### 3.5 Enumerations
 
@@ -167,13 +170,43 @@ Example with `details`:
 
 ### 3.9 Which fields take effect
 
-- `fillOpacity: 0` makes any shape background transparent; shapes with `fillStyle: "solid"` always fill solid with `backgroundColor`.
-- `fontFamily`: omit or leave empty to use default sans font.
-- `lineType: "auto"` with no `bendPoints` routes orthogonally on its own: the path leaves and enters through the `side` recorded in each binding.
+Every field in section 3.3 is accepted on every element — the parser never rejects a known field — but the renderer only reads it on the types below. Write a field the type ignores and nothing happens (it is still stored and re-exported).
+
+| Field group | Read by | Not read by |
+|---|---|---|
+| geometry `x`/`y`/`width`/`height` | all nine types (signed run on `line`/`arrow`) | — |
+| `opacity`, `angle`, `groupId`, `locked`, `details` | all nine types | — |
+| `strokeColor`, `strokeWidth`, `strokeStyle`, `strokeOpacity`, `roughness` | every type except `text`, which paints glyphs instead of a stroke: it uses a glyph colour from `textColor`/`strokeColor` and ignores `strokeStyle`, `strokeWidth` and `strokeOpacity`. `roughness` does not sketch the glyphs, but it still selects the default font family when `fontFamily` is missing | `text` |
+| `backgroundColor`, `fillOpacity` | `rectangle`, `diamond`, `ellipse`, `polygon`, `component`, `context`, `text` | `line`, `arrow` |
+| `fillStyle` | `rectangle`, `diamond`, `ellipse`, `polygon`, `component` | `line`, `arrow`, `context`, `text` |
+| `borderRadius` | `rectangle`, `component`, `context` | `diamond`, `ellipse`, `polygon`, `line`, `arrow`, `text` |
+| `fontFamily`, `bold`, `italic`, `underline`, `fontSize`, `textColor`, `lineSpacing` | `text` elements and every kind of label; a `context` caption accepts all of them except `underline` | — |
+| `textAlign`, `textVAlign` | `text` elements, shape labels and edge labels | `component` and `context` captions, whose position comes from `captionPosition` / `labelPosition` |
+| `textOffset*` | shape labels and `context` captions (base inset 8); `text` elements (base inset 0); **not** edge labels, which move with `labelT` and the alignment only | `line`, `arrow`, `component` |
+| `captionPosition`, `captionGap`, `captionOffset*` | `component` only | every other type |
+| `label` | `rectangle`, `diamond`, `ellipse`, `polygon`, `line`, `arrow`, `component`, `context` | `text` (use `text`) |
+
+Two fill interactions are easy to get wrong:
+
+- **Hachure over a transparent fill.** With `fillStyle: "hachure"` or `"cross-hachure"` and `backgroundColor: "transparent"`, the hachure lines are drawn in `strokeColor` — a transparent background means "no solid block", not "no hatch", so the shape still reads as filled.
+- **Contexts always fill solid.** A `context` paints its interior as a flat block and ignores `fillStyle`: `hachure` on a context is silently a solid fill. Set `backgroundColor`/`fillOpacity` to control it.
+
+`angle` is stored on every type and honoured by the canvas and the SVG export, but the UI rotate grip only appears for `rectangle`, `diamond`, `ellipse`, `polygon`, `text`, `component` and `context` — a `line` or `arrow` only rotates when the JSON sets `angle` itself.
+
+Edge routing details:
+
+- `lineType: "auto"` with no `bendPoints` routes orthogonally on its own: the path leaves and enters through the `side` recorded in each binding (falling back to the nearest cardinal side). `bendPoints`, when present, replace that automatic polyline, and the array is all-or-nothing: every item must be a valid `{x, y}` point or the field is dropped.
 - When an edge has no explicit `controlPoint`, a curved connector forms an arc whose control point sits above the midpoint by 30% of the horizontal span.
+
+Fallback defaults: optional fields gracefully fall back to native defaults when omitted.
+
+- `fontFamily`: omit or leave empty to use default sans font.
 - `textOffsetGlobal` default: 0 for text elements, 8 for shape and context labels.
 - Inset offsets affect only the side named by the alignment (e.g. left inset for left-aligned text).
-- Omitting them is safe: optional fields gracefully fall back to native defaults.
-- For complete component catalogs:
-  - Official cloud and Kubernetes SVG icons: see `/ai/lib-svg.md`.
-  - Native System Design editable items: see `/ai/lib-native.md`.
+
+Omitting them is safe: the renderer falls back on every read, so a partial element still draws with native presets.
+
+For complete component catalogs:
+
+- Official cloud and Kubernetes SVG icons: see `/ai/lib-svg.md`.
+- Native System Design editable items: see `/ai/lib-native.md`.
