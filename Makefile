@@ -1,3 +1,4 @@
+SHELL = /bin/bash
 .PHONY: build container run-container test run install lint gate coverage quality help
 
 build: node_modules

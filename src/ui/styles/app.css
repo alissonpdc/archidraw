@@ -464,7 +464,7 @@ button {
 }
 
 .tab-confirm {
-  width: min(340px, calc(100vw - 48px));
+  width: min(380px, calc(100vw - 48px));
   padding: var(--space-4);
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -472,23 +472,62 @@ button {
   box-shadow: var(--shadow-md);
 }
 
-.tab-confirm-text {
+.tab-confirm-title {
+  margin: 0 0 var(--space-3) 0;
   font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.tab-confirm-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tab-confirm-text {
+  margin: 0;
+  font-size: var(--font-size-sm);
   color: var(--text-primary);
   line-height: 1.5;
+}
+
+.tab-confirm-warning {
+  color: var(--status-unsaved, #e03131);
+}
+
+.tab-confirm-details {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
 }
 
 .tab-confirm-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-4);
+  flex-wrap: wrap;
 }
 
 .tab-confirm-btn {
   padding: var(--space-1) var(--space-3);
   font-weight: 600;
   color: var(--text-muted);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.tab-confirm-btn.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.tab-confirm-btn.primary:hover {
+  background: var(--accent-strong);
 }
 
 .tab-confirm-btn.danger {
@@ -511,8 +550,24 @@ button {
 
 /* ---- status bar file state ---- */
 .status-file {
-  margin-right: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: default;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.status-file:hover {
+  color: var(--text-primary);
+}
+
+.status-file-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -528,15 +583,44 @@ button.status-file {
   pointer-events: auto;
 }
 
-.status-file[data-status="conflict"],
-.status-file[data-status="missing"],
-.status-file[data-status="invalid"],
-.status-file[data-status="error"] {
-  color: #e03131;
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background-color: var(--text-muted);
+  pointer-events: auto;
 }
 
-.status-file[data-status="permission"] {
-  color: #b26b00;
+.status-dot[data-status="saved"] {
+  background-color: var(--status-saved);
+}
+
+.status-dot[data-status="modified"] {
+  background-color: var(--status-unsaved);
+}
+
+.status-dot[data-status="saving"] {
+  background-color: #f59f00;
+  animation: status-pulse 1s ease-in-out infinite alternate;
+}
+
+.status-dot[data-status="conflict"],
+.status-dot[data-status="missing"],
+.status-dot[data-status="invalid"],
+.status-dot[data-status="error"],
+.status-dot[data-status="permission"] {
+  background-color: var(--status-unsaved);
+}
+
+@keyframes status-pulse {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ---- top right cluster ---- */
@@ -1874,6 +1958,7 @@ button.status-file {
   left: var(--space-4);
   display: flex;
   align-items: center;
+  gap: var(--space-3);
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   pointer-events: none;
@@ -1895,7 +1980,6 @@ button.status-file {
 }
 
 .status-version {
-  margin-left: var(--space-3);
   color: var(--text-muted);
   user-select: none;
 }

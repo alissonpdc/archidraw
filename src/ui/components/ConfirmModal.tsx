@@ -3,17 +3,13 @@ import { createPortal } from "react-dom";
 
 export interface ConfirmRequest {
   label: string;
-  message: string;
+  title?: string;
+  message?: string;
+  details?: string;
   onConfirm: () => void;
+  onSaveAndClose?: () => void | Promise<void>;
 }
 
-/**
- * destructive-action confirmation using the shared `.tab-confirm*` styling.
- * Cancel/Escape/backdrop dismiss; Escape is intercepted with capture so it
- * wins over the panel's shortcut handlers.
- *
- * Usage: <ConfirmModal confirm={req} onCancel={...} />
- */
 export function ConfirmModal({
   confirm,
   onCancel,
@@ -44,16 +40,48 @@ export function ConfirmModal({
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="tab-confirm-text">{confirm.message}</p>
+        {confirm.title && (
+          <h3 className="tab-confirm-title" data-testid="ws-confirm-title">
+            {confirm.title}
+          </h3>
+        )}
+        <div className="tab-confirm-body">
+          {confirm.message && (
+            <p className="tab-confirm-text tab-confirm-warning">
+              {confirm.message}
+            </p>
+          )}
+          {confirm.details && (
+            <p className="tab-confirm-text tab-confirm-details">
+              {confirm.details}
+            </p>
+          )}
+        </div>
         <div className="tab-confirm-actions">
           <button
+            type="button"
             className="menu-item tab-confirm-btn"
             data-testid="ws-confirm-cancel"
             onClick={onCancel}
           >
             Cancel
           </button>
+          {confirm.onSaveAndClose && (
+            <button
+              type="button"
+              className="menu-item tab-confirm-btn primary"
+              data-testid="ws-confirm-save"
+              onClick={async () => {
+                const action = confirm.onSaveAndClose;
+                onCancel();
+                if (action) await action();
+              }}
+            >
+              Save & close
+            </button>
+          )}
           <button
+            type="button"
             className="menu-item tab-confirm-btn danger"
             data-testid="ws-confirm-btn"
             onClick={() => {
