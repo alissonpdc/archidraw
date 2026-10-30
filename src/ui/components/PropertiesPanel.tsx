@@ -462,8 +462,38 @@ export function PropertiesPanel() {
     selected.every((el) => ((el as any).labelSide ?? "external") === v);
 
   const textColorValue = (() => {
-    const first = selected[0].textColor ?? "";
-    return selected.every((el) => (el.textColor ?? "") === first)
+    const first =
+      selected[0].textColor ??
+      (selected[0].type === "text" ? selected[0].strokeColor : "");
+    return selected.every(
+      (el) =>
+        (el.textColor ??
+          (el.type === "text" ? el.strokeColor : "")) === first,
+    )
+      ? first
+      : null;
+  })();
+
+  const textColorDisplay = (() => {
+    if (textColorValue === null) return "\u0000";
+    if (textColorValue === "") return "";
+    return resolvePanelColor(textColorValue);
+  })();
+
+  const textBgDisplayColor = (() => {
+    const textEls = selected.filter((el) => el.type === "text");
+    if (textEls.length === 0) return resolvePanelColor(selected[0].backgroundColor);
+    const first = textEls[0].backgroundColor;
+    return textEls.every((el) => el.backgroundColor === first)
+      ? resolvePanelColor(first)
+      : "\u0000";
+  })();
+
+  const textFillOpacityValue = (() => {
+    const textEls = selected.filter((el) => el.type === "text");
+    if (textEls.length === 0) return fillOpacityValue;
+    const first = Math.round((textEls[0].fillOpacity ?? 1) * 100);
+    return textEls.every((el) => Math.round((el.fillOpacity ?? 1) * 100) === first)
       ? first
       : null;
   })();
@@ -508,12 +538,33 @@ export function PropertiesPanel() {
           ? {
               label: "Text color",
               kind: "text" as const,
-              current: textColorValue ?? "\u0000",
-              onPick: (textColor: string) => apply({ textColor }),
+              current: textColorDisplay,
+              onPick: (textColor: string) => {
+                const patch: { textColor: string; strokeColor?: string } = { textColor };
+                if (selected.every((el) => el.type === "text")) {
+                  patch.strokeColor = textColor || DEFAULT_STROKE;
+                }
+                apply(patch);
+              },
               allowAuto: true,
               autoColor: resolvePanelColor(selected[0].strokeColor),
             }
-          : null;
+          : openPicker === "textBg" && hasText
+            ? {
+                label: "Background",
+                kind: "textBg" as const,
+                current: textBgDisplayColor,
+                onPick: (backgroundColor: string) => {
+                  const patch: { backgroundColor: string; fillOpacity?: number } = { backgroundColor };
+                  if (selected.some((el) => el.type === "text" && el.fillOpacity === 0)) {
+                    patch.fillOpacity = 1;
+                  }
+                  apply(patch);
+                },
+                opacity: textFillOpacityValue,
+                onOpacity: (v: number) => apply({ fillOpacity: v / 100 }),
+              }
+            : null;
 
   return (
     <div className="properties-panel-container" ref={containerRef}>
@@ -924,7 +975,7 @@ export function PropertiesPanel() {
       <div ref={textRef} className={`panel-tab-content${effectiveTab === "text" ? "" : " hidden"}`}>
         <Group title="Color">
             <ColorBox
-              current={textColorValue ?? "\u0000"}
+              current={textColorDisplay}
               label="Text color"
               kind="text"
               allowAuto
@@ -935,6 +986,20 @@ export function PropertiesPanel() {
               }
             />
           </Group>
+
+          {hasText && (
+            <Group title="Background">
+              <ColorBox
+                current={textBgDisplayColor}
+                label="Background"
+                kind="textBg"
+                isOpen={openPicker === "textBg"}
+                onToggle={() =>
+                  setOpenPicker((curr) => (curr === "textBg" ? null : "textBg"))
+                }
+              />
+            </Group>
+          )}
 
           <Group title="Size">
             {FONT_SIZES.map((f) => (

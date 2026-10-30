@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 .PHONY: build container run-container test run install lint gate coverage quality help
 
 build: node_modules
@@ -11,7 +12,7 @@ run-container:
 	docker run --rm -p 5000:5000 alissonpdc/archidraw:latest
 
 test: node_modules
-	E2E_PORT=$$((RANDOM % 20000 + 30000)) E2E_COVERAGE=1 npm run test:e2e
+	E2E_PORT=$${E2E_PORT:-$$((RANDOM % 20000 + 30000))} E2E_COVERAGE=1 npm run test:e2e
 
 coverage: test
 	@node scripts/coverage-gate.mjs
