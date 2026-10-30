@@ -24,7 +24,7 @@ The two lightest columns carry fills, the three darkest columns carry strokes; a
 
 #### Recommended Native UI Presets & Semantic Color Pairings for Architecture Diagrams
 
-In the Properties Panel color picker, the 5 columns above correspond to **Intensity 1..5** (`Lightest` = 1, `Lighter` = 2, `Base` = 3, `Darker` = 4, `Darkest` = 5), and **`textColor: ""`** selects the native **`Auto`** button (inheriting `strokeColor` and automatically adapting to light/dark themes). Every row below uses **100% native UI presets** (`fontSize` in `{14, 20, 28, 36}` + `12`, `strokeWidth` in `{0, 1, 2, 4, 8}`, palette hexes, and `animated: true` only on non-solid strokes):
+In the Properties Panel color picker, the 5 columns above correspond to **Intensity 1..5** (`Lightest` = 1, `Lighter` = 2, `Base` = 3, `Darker` = 4, `Darkest` = 5), and **`textColor: ""`** selects the native **`Auto`** button (inheriting `strokeColor` and automatically adapting to light/dark themes; default on shapes, components, and arrows, while standalone `text` elements default to `#3d4248` / `Grey · 5`). Every row below uses **100% native UI presets** (`fontSize` in `{14, 20, 28, 36}` + `12`, `strokeWidth` in `{0, 1, 2, 4, 8}`, palette hexes, and `animated: true` only on non-solid strokes):
 
 | Architectural Role | `strokeColor` (Intensity 4/5) | `backgroundColor` (Intensity 1) | `textColor` (`Auto` or Intensity 5) | `strokeWidth` & `borderRadius` | `fontSize` & `width × height` | `strokeStyle` & `animated` |
 |---|---|---|---|---|---|---|

@@ -41,7 +41,7 @@ Present on every element. The default column applies to the clipboard normalizer
 | bold | boolean | false | |
 | italic | boolean | false | |
 | underline | boolean | false | |
-| textColor | string | `""` (Auto — inherits `strokeColor`) | **Prefer `""` (empty string) to activate the native UI `Auto` button**, which inherits `strokeColor` and adapts to light/dark themes automatically. Only set an explicit palette colour when `strokeColor` is a light sentinel like `#c4c7ca` on `context` (use `"#26292c"` or `"#3d4248"`). |
+| textColor | string | `""` (Auto) / `#3d4248` | **Prefer `""` (empty string) to activate the native UI `Auto` button** on shapes, components, and arrows, which inherits `strokeColor` and adapts to light/dark themes automatically. For standalone `text` elements, the default is `#3d4248` (`Grey · 5` in light mode, `Grey · 1` in dark mode). Only set an explicit palette colour when `strokeColor` is a light sentinel like `#c4c7ca` on `context` (use `"#26292c"` or `"#3d4248"`). |
 | lineSpacing | number | 1.25 | line height multiplier for multi-line text |
 | fontSize | number | 20 for labels and text, 14 for context labels, 12 for component labels | **Use ONLY the native UI Size presets: `14` (`S`), `20` (`M`), `28` (`L`), `36` (`XL`)** (plus `12` default on `component`). Never use custom sizes like `11`, `13`, `14`, `18`, or `22` — instead, use `14` (`S`) or `20` (`M`) and size the box (`width`, `height`) and corridors to fit! |
 | textAlign | TextAlign | `center` for labels, `left` for text elements | |
@@ -83,7 +83,7 @@ Every visual control in ArchiDraw's Properties Panel compares exact preset value
 | polygon | `rings` (required, array of rings of `{x, y}` points), `label` (string) — drawn inside the box. `rings[0]` is the outer ring; every following ring is a hole. Coordinates are local to the element: `(0, 0)` is the top-left corner `x, y`, so moving the element only rewrites `x`/`y`. Rings are open — do not repeat the first point at the end — and need at least 3 points each |
 | line | `label`, `labelT`, `lineType`, `controlPoint`, `bendPoints`, `startBinding`, `endBinding` |
 | arrow | all line fields plus `animated` (boolean, default false), `startArrowhead` (default `none`), `endArrowhead` (default `arrow`) |
-| text | `text` (string, defaults to empty), `fontSize` (number, defaults to 20) |
+| text | `text` (string, defaults to empty), `fontSize` (number, defaults to 20), plus optional `backgroundColor` and `fillOpacity` |
 | component | `componentId` (string, defaults to empty), `label` (caption drawn outside the box, on the `captionPosition` side), `src` (data URL of a raster), `fill` (boolean, default false; true stretches the raster to the whole box). The catalog id picks a bundled icon — see section 3.7 in `/ai/catalog.md` |
 | context | `label`, `labelPosition` (default `top-left`), `labelSide` (`internal` when created in the app, `external` when missing), `childIds` (array of element id strings) |
 
@@ -107,6 +107,11 @@ Notes on edges:
 Notes on polygons (boolean results): the app writes them from the Layers panel → Merge actions (`union`, `subtract`, `intersect`, `crop`). The operation is destructive — the operands are removed and the result takes their place at the topmost operand's z-position, carrying its stroke and fill style. Each connected solid becomes its own `polygon` element, so joining two disjoint shapes yields two polygons, and a subtraction that leaves two pieces also yields two. `crop` and `subtract` read the topmost selected shape as cutter/mask (`crop` keeps only what falls inside it, `subtract` removes it). A `polygon` is itself a valid operand for a later operation, so results can be combined again. When writing one by hand, keep `x`/`y`/`width`/`height` equal to the ring bounding box; a ring set with an empty outer ring is invalid and the element is rejected on paste.
 
 Note on contexts: `childIds` is read as written — Open never recomputes membership nor prunes the array; a dead id is ignored, not rejected. Fill it with the app's own rule: an element of any type — edges included — belongs to a context when its rotated bounds fall entirely inside the context's bounds, which is what the app records whenever an element is created, pasted or duplicated inside a context (contexts are never members of other contexts). A context the app itself creates is `strokeColor: "#c4c7ca"`, `backgroundColor: "transparent"`, `strokeWidth: 1`, `borderRadius: 10`, `fontSize: 14`, `labelPosition: "top-left"` and `labelSide: "internal"`; copy those values when the drawing needs a plain boundary, and remember that a fill is a real fill — take one from the section 3.2 palette if you want the region tinted. A context's caption is drawn in `textColor`, which falls back to `strokeColor`, so the `#c4c7ca` boundary an app-made context carries gives a deliberately faint region name: set `textColor` (a palette colour) or a darker `strokeColor` when the name has to be read.
+
+Notes on text:
+
+- A `text` element draws glyphs with `textColor` (default `#3d4248`, which resolves to `Grey · 5` in light mode and `Grey · 1` in dark mode, or inherits `strokeColor` when `textColor` is `""` or omitted).
+- A `text` element supports an optional background plate with `backgroundColor` (default `#dfe0e2`, resolving to `Grey · 1` in light mode and `Grey · 5` in dark mode) and `fillOpacity` (default `0`). When `fillOpacity > 0` and `backgroundColor !== "transparent"`, the background rectangle is drawn behind the text both on the canvas and in SVG export.
 
 ### 3.4 Enumerations
 
@@ -234,7 +239,8 @@ Every field in section 3.2 is accepted on every element — the parser never rej
 | geometry `x`/`y`/`width`/`height` | all nine types (signed run on `line`/`arrow`) | — |
 | `opacity`, `angle`, `groupId`, `locked`, `details` | all nine types | — |
 | `strokeColor`, `strokeWidth`, `strokeStyle`, `strokeOpacity`, `roughness` | every type except `text`, which paints glyphs instead of a stroke: it uses a glyph colour from `textColor`/`strokeColor` and ignores `strokeStyle`, `strokeWidth` and `strokeOpacity`. `roughness` does not sketch the glyphs, but it still selects the default font family when `fontFamily` is missing | `text` |
-| `backgroundColor`, `fillStyle`, `fillOpacity` | `rectangle`, `diamond`, `ellipse`, `polygon`, `component`, `context` | `line`, `arrow`, `text` |
+| `backgroundColor`, `fillOpacity` | `rectangle`, `diamond`, `ellipse`, `polygon`, `component`, `context`, `text` | `line`, `arrow` |
+| `fillStyle` | `rectangle`, `diamond`, `ellipse`, `polygon`, `component` | `line`, `arrow`, `context`, `text` |
 | `borderRadius` | `rectangle`, `component`, `context` | `diamond`, `ellipse`, `polygon`, `line`, `arrow`, `text` |
 | `fontFamily`, `bold`, `italic`, `underline`, `fontSize`, `textColor`, `lineSpacing` | `text` elements and every kind of label; a `context` caption accepts all of them except `underline` | — |
 | `textAlign`, `textVAlign` | `text` elements, shape labels and edge labels | `component` and `context` captions, whose position comes from `captionPosition` / `labelPosition` |

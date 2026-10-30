@@ -1045,6 +1045,14 @@ function drawElement(
   } else if (el.type === "text") {
     ctx.save();
     ctx.globalAlpha *= el.opacity;
+    const fill = resolveFill(el, colors);
+    if (fill !== "transparent" && el.fillOpacity > 0 && el.width > 0 && el.height > 0) {
+      ctx.save();
+      ctx.globalAlpha *= el.fillOpacity;
+      ctx.fillStyle = fill;
+      ctx.fillRect(el.x, el.y, el.width, el.height);
+      ctx.restore();
+    }
     ctx.fillStyle = resolveTextColor(el, colors);
     ctx.font = resolveFont(el);
     ctx.textBaseline = "top";
