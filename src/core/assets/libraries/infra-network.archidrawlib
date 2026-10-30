@@ -3,6 +3,7 @@
   "version": 2,
   "libraryItems": [
     {
+      "id": "sd-infra-network-internet",
       "name": "Internet",
       "archidrawElements": [
         {
@@ -319,6 +320,7 @@
       ]
     },
     {
+      "id": "sd-infra-network-dns",
       "name": "DNS",
       "archidrawElements": [
         {
@@ -415,6 +417,7 @@
       ]
     },
     {
+      "id": "sd-infra-network-cdn",
       "name": "CDN",
       "archidrawElements": [
         {
@@ -631,6 +634,7 @@
       ]
     },
     {
+      "id": "sd-infra-network-load-balancer",
       "name": "Load Balancer",
       "archidrawElements": [
         {
@@ -786,6 +790,7 @@
       ]
     },
     {
+      "id": "sd-infra-network-api-gateway",
       "name": "API Gateway",
       "archidrawElements": [
         {
@@ -1077,6 +1082,7 @@
       ]
     },
     {
+      "id": "sd-infra-network-reverse-proxy",
       "name": "Reverse Proxy",
       "archidrawElements": [
         {
@@ -1221,6 +1227,7 @@
       ]
     },
     {
+      "id": "sd-infra-network-nat-gateway",
       "name": "NAT Gateway",
       "archidrawElements": [
         {
@@ -1365,6 +1372,7 @@
       ]
     },
     {
+      "id": "sd-infra-network-vpn-tunnel",
       "name": "VPN Tunnel",
       "archidrawElements": [
         {
@@ -1496,6 +1504,7 @@
       ]
     },
     {
+      "id": "sd-infra-network-websocket-gateway",
       "name": "WebSocket Gateway",
       "archidrawElements": [
         {

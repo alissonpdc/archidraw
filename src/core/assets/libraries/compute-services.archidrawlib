@@ -3,6 +3,7 @@
   "version": 2,
   "libraryItems": [
     {
+      "id": "sd-compute-services-server",
       "name": "Server",
       "archidrawElements": [
         {
@@ -174,6 +175,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-virtual-machine",
       "name": "Virtual Machine",
       "archidrawElements": [
         {
@@ -290,6 +292,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-container",
       "name": "Container",
       "archidrawElements": [
         {
@@ -441,6 +444,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-microservice",
       "name": "Microservice",
       "archidrawElements": [
         {
@@ -621,6 +625,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-serverless-function",
       "name": "Serverless Function",
       "archidrawElements": [
         {
@@ -697,6 +702,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-api",
       "name": "API",
       "archidrawElements": [
         {
@@ -781,6 +787,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-worker-pool",
       "name": "Worker Pool",
       "archidrawElements": [
         {
@@ -968,6 +975,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-scheduler",
       "name": "Scheduler",
       "archidrawElements": [
         {
@@ -1125,6 +1133,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-batch-job",
       "name": "Batch Job",
       "archidrawElements": [
         {
@@ -1276,6 +1285,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-service-mesh",
       "name": "Service Mesh",
       "archidrawElements": [
         {
@@ -1395,6 +1405,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-rate-limiter",
       "name": "Rate Limiter",
       "archidrawElements": [
         {
@@ -1547,6 +1558,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-circuit-breaker",
       "name": "Circuit Breaker",
       "archidrawElements": [
         {
@@ -1678,6 +1690,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-distributed-lock",
       "name": "Distributed Lock",
       "archidrawElements": [
         {
@@ -1829,6 +1842,7 @@
       ]
     },
     {
+      "id": "sd-compute-services-service-registry",
       "name": "Service Registry",
       "archidrawElements": [
         {

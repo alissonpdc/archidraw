@@ -1,3 +1,5 @@
+# In-Browser Validation (`validation.md`)
+
 ## 7. In-Browser Validation (`window.archidrawValidate`)
 
 Client-side JavaScript function that answers "is this payload valid, and if not, what breaks it?". It exists so an agent or automated tool that generated a `.archidraw`, `.archidrawlib` or clipboard payload can obtain a machine-readable verdict directly in the browser runtime before importing or pasting it.
@@ -54,7 +56,7 @@ The response is not a payload you would feed back into the canvas; it is the ver
 
 `valid` is derived only from `errors`. A payload can be `valid: true` and still carry warnings.
 
-`valid: true` means the parser accepts the payload — it is not a review of the drawing. Geometry and looks are never checked (section 5.4): a rectangle at the wrong coordinates, a label sitting on top of the shape it belongs to, a line ending nowhere or a figure that does not resemble its concept all validate cleanly. For that, render the result and look at it; the warnings are the only automatic signal of a field that was defaulted or dropped.
+`valid: true` means the parser accepts the payload — it is not a review of the drawing. Geometry and looks are never checked: a rectangle at the wrong coordinates, a label sitting on top of the shape it belongs to, a line ending nowhere or a figure that does not resemble its concept all validate cleanly. For that, render the result and look at it; the warnings are the only automatic signal of a field that was defaulted or dropped.
 
 ### 7.2 Format detection
 
@@ -69,48 +71,29 @@ Detection mirrors the disjointness of section 1 and runs in this order; the firs
 7. an object whose `type` is one of the nine element types → `element`
 8. anything else → `unknown`, which is always `valid: false`
 
-A single element is validated with clipboard rules (section 4.3) but reported as `element`.
+A single element is validated with clipboard rules but reported as `element`.
 
 ### 7.3 errors versus warnings
 
 The in-browser validator separates what the real parsers reject from what they silently repair:
 
-- **workspace (sections 2.1 and 2.2)** — rejects on envelope shape only: `activeTabId` not a string, empty `tabs`, a tab that is not an object or lacks `id`, `name`, `doc` or `camera`, non-numeric camera fields, or an element whose `type` is not one of the nine. Geometry is *not* checked, matching `storage.parse`, so a non-finite `x` is a **warning**, not an error. A `activeTabId` that matches no `tab.id` is also a warning.
-- **workspace-legacy (section 2.3)** — same `doc` and `camera` checks; the legacy `schemaVersion` itself is a warning, because the loader migrates it to tabs.
-- **library (section 5.4)** — rejects only when the root carries neither `libraryItems` nor `library`, when that array is empty, or when no item leaves any surviving element. An item without `archidrawElements` is a **warning**: the parser accepts it, but the tile becomes a static image and the line-style toggle does nothing to it, so a generated library is almost always wrong in that shape. A single element with a bad `type`, or a `line`/`arrow`/`draw` with fewer than two `points`, is dropped from its item and reported as a **warning**: it never rejects the file. `opacity` outside the scale of its flavour (0 to 100 for Excalidraw-dialect elements, 0 to 1 for native ones) and non-finite geometry are warnings too. Native elements are validated with the section 3 rules, the ones used for a workspace document. That 5.1 warning is also the whole story of a foreign `.excalidrawlib`: it imports and renders, but nothing in it is editable.
-- **clipboard (section 4.3)** — atomic: one item with a bad `type` produces an `error` and `valid: false`. Wrong-typed optional fields, non-finite geometry and missing base fields only warn, because the normalizer defaults them.
+- **workspace** — rejects on envelope shape only: `activeTabId` not a string, empty `tabs`, a tab that is not an object or lacks `id`, `name`, `doc` or `camera`, non-numeric camera fields, or an element whose `type` is not one of the nine. Warnings are emitted for missing base fields, non-finite geometry, or when an element has `type: "component"` with an `sd-*` componentId (rule `lib-native`: in `.archidraw` files, unpack `archidrawElements` from `/ai/lib/<slug>.archidrawlib` directly into `doc.elements`).
+- **workspace-legacy** — same `doc` and `camera` checks; the legacy `schemaVersion` itself is a warning, because the loader migrates it to tabs. Emits the same `sd-*` component warning if unexpanded items are present.
+- **library** — rejects only when the root carries neither `libraryItems` nor `library`, when that array is empty, or when no item leaves any surviving element.
+- **clipboard** — atomic: one item with a bad `type` produces an `error` and `valid: false`.
 - **element** — the same rules as a one-item clipboard payload.
 
 Across every format, `errors` are exactly the conditions that make the corresponding real parser fail; `warnings` are conditions it accepts.
 
 ### 7.4 Agent Usage Examples
 
-#### In Headless Browser / Web Agents (Playwright, Puppeteer, CDP)
-
 ```javascript
-// Validate before pasting or importing
+// Validate in-browser before pasting or importing
 const verdict = await page.evaluate((payload) => {
   return window.archidrawValidate(payload);
 }, myGeneratedDiagramJson);
 
 if (!verdict.valid) {
   console.error("Payload rejected:", verdict.errors);
-  // Feed errors back to LLM to self-correct
 }
 ```
-
-#### In In-App Copilots & Chat Interfaces
-
-```javascript
-const verdict = window.archidrawValidate(aiOutput);
-if (!verdict.valid) {
-  const retryPrompt = `Validation errors found: ${JSON.stringify(verdict.errors)}. Please fix them.`;
-} else {
-  // Safe to insert into editor
-  editor.pasteFromText(JSON.stringify(aiOutput));
-}
-```
-
-#### Offline & Script Agents
-
-Because `window.archidrawValidate` strictly matches Ctrl+V (`parseElementsClipboard`) and Open File (`storage.parse`), diagrams written to conform to Section 2 (for Open file) or Section 4 (for Ctrl+V) are guaranteed to validate and import cleanly without needing an external HTTP validation server.

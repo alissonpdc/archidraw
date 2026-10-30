@@ -3,6 +3,7 @@
   "version": 2,
   "libraryItems": [
     {
+      "id": "sd-observability-ops-monitoring",
       "name": "Monitoring",
       "archidrawElements": [
         {
@@ -334,6 +335,7 @@
       ]
     },
     {
+      "id": "sd-observability-ops-logs",
       "name": "Logs",
       "archidrawElements": [
         {
@@ -485,6 +487,7 @@
       ]
     },
     {
+      "id": "sd-observability-ops-metrics",
       "name": "Metrics",
       "archidrawElements": [
         {
@@ -656,6 +659,7 @@
       ]
     },
     {
+      "id": "sd-observability-ops-distributed-tracing",
       "name": "Distributed Tracing",
       "archidrawElements": [
         {
@@ -807,6 +811,7 @@
       ]
     },
     {
+      "id": "sd-observability-ops-alerting",
       "name": "Alerting",
       "archidrawElements": [
         {

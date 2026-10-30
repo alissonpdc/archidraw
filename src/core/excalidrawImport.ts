@@ -16,6 +16,7 @@ import { escapeXml } from "./utils";
 export interface ExcalidrawLibParseResult {
   /** um item por library item do arquivo */
   items: {
+    id?: string;
     name: string;
     svg: string;
     /** largura/altura do SVG (para preservar proporção na inserção) */
@@ -117,6 +118,15 @@ function dashArray(style: string | undefined): string | null {
   if (style === "dashed") return "8 5";
   if (style === "dotted") return "0.5 5";
   return null;
+}
+
+/** identificador único do item (ex.: "sd-data-storage-relational-db") */
+function itemIdOf(wrapper: unknown): string | undefined {
+  if (wrapper && typeof wrapper === "object" && typeof (wrapper as { id?: unknown }).id === "string") {
+    const id = (wrapper as { id: string }).id.trim();
+    if (id) return id;
+  }
+  return undefined;
 }
 
 /** nome de exibição do item */
@@ -394,7 +404,7 @@ export function parseExcalidrawLib(jsonText: string): ExcalidrawLibParseResult {
     const rendered = storedSvg
       ? { svg: storedSvg, aspect: 1 }
       : (nativeThumbnail(nativeElements) ?? itemToSvg(entry.elements.map(normalizeElement)));
-    return { name: itemName(entry.wrapper, i), ...rendered, nativeElements };
+    return { id: itemIdOf(entry.wrapper), name: itemName(entry.wrapper, i), ...rendered, nativeElements };
   });
   if (items.length === 0) {
     throw new ExcalidrawLibParseError("No items found in .excalidrawlib file");
