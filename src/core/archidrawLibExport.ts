@@ -11,6 +11,7 @@ import { getCustomLibrary } from "./customLibrary";
 import { downloadBlob } from "./exporter";
 
 interface ExcalidrawLibItem {
+  id?: string;
   name: string;
   elements: ExcalidrawElement[];
   archidrawElements?: Element[];
@@ -119,6 +120,7 @@ export function exportCustomLibraryAsJson(): string | null {
         .map(elementToExcalidraw)
         .filter((e): e is ExcalidrawElement => e !== null);
       return {
+        id: it.id || undefined,
         name: it.name,
         elements,
         archidrawElements: it.elements,

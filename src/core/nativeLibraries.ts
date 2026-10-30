@@ -69,7 +69,7 @@ function buildNativeLibrary(displayName: string, fileName: string): NativeLibrar
   const parsed = parseExcalidrawLib(content);
 
   const items: LibraryItem[] = parsed.items.map((it) => {
-    const itemId = `sd-${libSlug}-${slugify(it.name)}`;
+    const itemId = it.id || `sd-${libSlug}-${slugify(it.name)}`;
     registerCustomAsset(itemId, it.svg);
     return {
       id: itemId,

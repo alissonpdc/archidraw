@@ -3,6 +3,7 @@
   "version": 2,
   "libraryItems": [
     {
+      "id": "sd-messaging-events-message-queue",
       "name": "Message Queue",
       "archidrawElements": [
         {
@@ -279,6 +280,7 @@
       ]
     },
     {
+      "id": "sd-messaging-events-pub-sub-topic",
       "name": "Pub-Sub Topic",
       "archidrawElements": [
         {
@@ -418,6 +420,7 @@
       ]
     },
     {
+      "id": "sd-messaging-events-event",
       "name": "Event",
       "archidrawElements": [
         {
@@ -515,6 +518,7 @@
       ]
     },
     {
+      "id": "sd-messaging-events-stream-processor",
       "name": "Stream Processor",
       "archidrawElements": [
         {
@@ -659,6 +663,7 @@
       ]
     },
     {
+      "id": "sd-messaging-events-dead-letter-queue",
       "name": "Dead Letter Queue",
       "archidrawElements": [
         {
@@ -784,6 +789,7 @@
       ]
     },
     {
+      "id": "sd-messaging-events-webhook-dispatcher",
       "name": "Webhook Dispatcher",
       "archidrawElements": [
         {
@@ -884,6 +890,7 @@
       ]
     },
     {
+      "id": "sd-messaging-events-data-pipeline",
       "name": "Data Pipeline",
       "archidrawElements": [
         {

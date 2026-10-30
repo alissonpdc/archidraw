@@ -39,7 +39,24 @@ function validateDoc(doc: unknown, path: string, r: ValidationResult): void {
     return;
   }
   r.summary.elements = (r.summary.elements ?? 0) + d.elements.length;
-  d.elements.forEach((el, i) => absorb(r, el, `${path}.elements[${i}]`));
+  d.elements.forEach((el, i) => {
+    const elPath = `${path}.elements[${i}]`;
+    absorb(r, el, elPath);
+    if (
+      typeof el === "object" &&
+      el !== null &&
+      (el as Raw).type === "component" &&
+      typeof (el as Raw).componentId === "string" &&
+      ((el as Raw).componentId as string).startsWith("sd-")
+    ) {
+      addWarning(
+        r,
+        `${elPath}.componentId`,
+        `elemento '${(el as Raw).componentId}' como component em workspace — descompacte os archidrawElements nativos da biblioteca em /ai/lib/<slug>.archidrawlib (consulte /ai/lib-native.md)`,
+        "lib-native",
+      );
+    }
+  });
 }
 
 export function validateWorkspace(data: Raw): ValidationResult {

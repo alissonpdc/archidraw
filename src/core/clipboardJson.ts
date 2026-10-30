@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import { DEFAULT_BG, DEFAULT_STROKE } from "./types";
 import { clamp, newId } from "./utils";
+import { expandNativeComponents } from "./nativeComponentExpansion";
 
 export const CLIPBOARD_ELEMENTS_KIND = "archidraw/elements";
 const CLIPBOARD_SCHEMA_VERSION = 1;
@@ -262,7 +263,7 @@ export function parseElementsClipboard(text: string): Element[] | null {
     if (!el) return null;
     elements.push(el);
   }
-  return elements;
+  return expandNativeComponents(elements);
 }
 
 export function parseLibraryClipboard(text: string): Element[] | null {

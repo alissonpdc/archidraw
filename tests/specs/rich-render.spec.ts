@@ -57,7 +57,7 @@ function richScene() {
     { ...base("c2", "component", 100, 260, 64, 64), componentId: "ec2", src: EMBEDDED_SVG, fill: true, label: "Below", captionPosition: "bottom", captionOffsetBottom: 4 },
     { ...base("c3", "component", 180, 260, 64, 64), componentId: "ec3", src: EMBEDDED_SVG, fill: true, label: "Left", captionPosition: "left", captionOffsetLeft: 3 },
     { ...base("c4", "component", 260, 260, 64, 64), componentId: "ec4", src: EMBEDDED_SVG, fill: true, label: "Right", captionPosition: "right", captionOffsetRight: 3 },
-    { ...base("c5", "component", 340, 260, 64, 64), componentId: "s3" },
+    { ...base("c5", "component", 340, 260, 64, 64), componentId: "aws-s3" },
     // --- edges ------------------------------------------------------------
     { ...base("l1", "line", 20, 360, 100, 0) },
     { ...base("l2", "line", 140, 360, 100, 60), lineType: "curved", controlPoint: { x: 190, y: 390 } },

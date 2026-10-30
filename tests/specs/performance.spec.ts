@@ -245,7 +245,7 @@ test.describe("canvas performance", () => {
         {
           id: "comp-underlined",
           type: "component",
-          componentId: "lambda",
+          componentId: "aws-lambda",
           x: 200,
           y: 200,
           width: 80,

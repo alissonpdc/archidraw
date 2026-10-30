@@ -567,6 +567,51 @@ test.describe("In-browser validation (window.archidrawValidate)", () => {
     expect(body.valid).toBe(true);
   });
 
+  test("warns when workspace file contains unexpanded sd- component", async ({ page }) => {
+    await open(page);
+    const body = await callValidate(page, {
+      schemaVersion: 2,
+      activeTabId: "tab_1",
+      tabs: [
+        {
+          id: "tab_1",
+          name: "Diagram",
+          doc: {
+            schemaVersion: 1,
+            elements: [
+              {
+                id: "c1",
+                type: "component",
+                componentId: "sd-data-storage-relational-db",
+                x: 100,
+                y: 100,
+                width: 60,
+                height: 60,
+              },
+              {
+                id: "c2",
+                type: "component",
+                componentId: "aws-ec2",
+                x: 200,
+                y: 100,
+                width: 60,
+                height: 60,
+              },
+            ],
+          },
+          camera: { scrollX: 0, scrollY: 0, zoom: 1 },
+        },
+      ],
+    });
+    expect(body.valid).toBe(true);
+    expect(body.format).toBe("workspace");
+    const sdWarning = body.warnings.find((w) => w.rule === "lib-native" && w.path.includes("elements[0]"));
+    expect(sdWarning).toBeTruthy();
+    expect(sdWarning?.message).toContain("descompacte os archidrawElements");
+    const awsWarning = body.warnings.find((w) => w.path.includes("elements[1].componentId"));
+    expect(awsWarning).toBeUndefined();
+  });
+
   test("HTTP POST /validate is not exposed as a server endpoint", async ({ request }) => {
     const res = await request.post("/validate", {
       data: { hello: "world" },

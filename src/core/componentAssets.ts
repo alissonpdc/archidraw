@@ -31,7 +31,13 @@ const azureModules = import.meta.glob("./assets/azure/*.svg", {
 const dataUris = new Map<string, string>();
 for (const [path, svg] of Object.entries(modules)) {
   const m = path.match(/\/([^/]+)\.svg$/);
-  if (m) dataUris.set(m[1], `data:image/svg+xml;base64,${btoa(svg)}`);
+  if (m) {
+    const uri = `data:image/svg+xml;base64,${btoa(svg)}`;
+    dataUris.set(m[1], uri);
+    if (m[1].startsWith("aws-")) {
+      dataUris.set(m[1].slice(4), uri);
+    }
+  }
 }
 for (const [path, svg] of Object.entries(kubernetesModules)) {
   const m = path.match(/\/([^/]+)\.svg$/);

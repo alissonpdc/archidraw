@@ -2,6 +2,7 @@ import type { Editor } from "./editor";
 import type { ArrowBinding, ArrowElement, Camera, Document, Element, LineElement } from "./types";
 import { addImportedImage } from "./importedImages";
 import { writeWorkspaceData } from "./workspaceRegistry";
+import { expandNativeComponents } from "./nativeComponentExpansion";
 
 const STORAGE_KEY = "archidraw:workspace";
 export const SCHEMA_VERSION = 2;
@@ -122,7 +123,9 @@ function migrateLegacyImage(raw: Element): Element | null {
 /** fills style defaults on elements saved before strokeStyle/roughness/borderRadius existed */
 function normalizeDoc(doc: Document): Document {
   let changed = false;
-  const elements = doc.elements
+  const expanded = expandNativeComponents(doc.elements);
+  if (expanded !== doc.elements) changed = true;
+  const elements = expanded
     .map(migrateLegacyImage)
     .filter((el): el is Element => el !== null)
     .map((el) => {

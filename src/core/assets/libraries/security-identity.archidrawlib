@@ -3,6 +3,7 @@
   "version": 2,
   "libraryItems": [
     {
+      "id": "sd-security-identity-identity-provider",
       "name": "Identity Provider",
       "archidrawElements": [
         {
@@ -154,6 +155,7 @@
       ]
     },
     {
+      "id": "sd-security-identity-auth",
       "name": "Auth",
       "archidrawElements": [
         {
@@ -313,6 +315,7 @@
       ]
     },
     {
+      "id": "sd-security-identity-access-token-jwt",
       "name": "Access Token (JWT)",
       "archidrawElements": [
         {
@@ -439,6 +442,7 @@
       ]
     },
     {
+      "id": "sd-security-identity-secrets-vault",
       "name": "Secrets Vault",
       "archidrawElements": [
         {
@@ -610,6 +614,7 @@
       ]
     },
     {
+      "id": "sd-security-identity-key-management",
       "name": "Key Management",
       "archidrawElements": [
         {
@@ -741,6 +746,7 @@
       ]
     },
     {
+      "id": "sd-security-identity-tls-certificate",
       "name": "TLS Certificate",
       "archidrawElements": [
         {
@@ -936,6 +942,7 @@
       ]
     },
     {
+      "id": "sd-security-identity-firewall",
       "name": "Firewall",
       "archidrawElements": [
         {
@@ -1247,6 +1254,7 @@
       ]
     },
     {
+      "id": "sd-security-identity-waf",
       "name": "WAF",
       "archidrawElements": [
         {
@@ -1331,6 +1339,7 @@
       ]
     },
     {
+      "id": "sd-security-identity-ddos-protection",
       "name": "DDoS Protection",
       "archidrawElements": [
         {

@@ -23,7 +23,7 @@ test.describe("component library", () => {
     await expect(header).toHaveText(/AWS/);
     await expect(header).toHaveAttribute("aria-expanded", "false");
     await expect(
-      page.locator('.library-panel [data-component-id="ec2"]'),
+      page.locator('.library-panel [data-component-id="aws-ec2"]'),
     ).toHaveCount(0);
   });
 
@@ -34,7 +34,7 @@ test.describe("component library", () => {
     await openLibraryWithAws(page);
     const panel = page.locator(".library-panel");
 
-    const sqs = panel.locator('[data-component-id="sqs"]');
+    const sqs = panel.locator('[data-component-id="aws-sqs"]');
     await expect(sqs).toBeVisible();
     await sqs.click();
 
@@ -42,7 +42,7 @@ test.describe("component library", () => {
     expect(state.elementCount).toBe(1);
     expect(state.selectedIds.length).toBe(1);
     expect(state.elements[0].type).toBe("component");
-    expect(state.elements[0].componentId).toBe("sqs");
+    expect(state.elements[0].componentId).toBe("aws-sqs");
 
     // no outline by default: just icon + name
     const strokeWidth = await page.evaluate(() => {
@@ -73,7 +73,7 @@ test.describe("component library", () => {
     const search = page.locator(".library-search");
     await search.fill("queue");
     const grid = page.locator(".library-body");
-    await expect(grid.locator('[data-component-id="sqs"]')).toBeVisible();
+    await expect(grid.locator('[data-component-id="aws-sqs"]')).toBeVisible();
     await expect(
       grid.locator('[data-component-id="azure-service-bus"]'),
     ).toBeVisible();
@@ -93,7 +93,7 @@ test.describe("component library", () => {
 
     const state = await editorState();
     expect(state.elementCount).toBe(1);
-    expect(state.elements[0].componentId).toBe("lambda");
+    expect(state.elements[0].componentId).toBe("aws-lambda");
   });
 
   test("inserted component is born selected without label", async ({
@@ -102,7 +102,7 @@ test.describe("component library", () => {
   }) => {
     await openLibraryWithAws(page);
     await page
-      .locator('.library-panel [data-component-id="api-gateway"]')
+      .locator('.library-panel [data-component-id="aws-api-gateway"]')
       .click();
 
     const state = await editorState();
@@ -115,7 +115,7 @@ test.describe("component library", () => {
     editorState,
   }) => {
     await openLibraryWithAws(page);
-    await page.locator('.library-panel [data-component-id="s3"]').click();
+    await page.locator('.library-panel [data-component-id="aws-s3"]').click();
 
     // center of the element in screen coords
     const center = await page.evaluate(() => {
@@ -200,7 +200,7 @@ test.describe("component library", () => {
     page,
   }) => {
     await openLibraryWithAws(page);
-    await page.locator('.library-panel [data-component-id="s3"]').click();
+    await page.locator('.library-panel [data-component-id="aws-s3"]').click();
 
     // a library component is born with the same font default as Text (S + sans)
     const el = await page.evaluate(() => {
@@ -242,7 +242,7 @@ test.describe("component library", () => {
     page,
   }) => {
     await openLibraryWithAws(page);
-    await page.locator('.library-panel [data-component-id="s3"]').click();
+    await page.locator('.library-panel [data-component-id="aws-s3"]').click();
 
     // add a label
     const center = await page.evaluate(() => {
@@ -286,7 +286,7 @@ test.describe("component library", () => {
 
   test("component persists after reload", async ({ page, editorState }) => {
     await openLibraryWithAws(page);
-    await page.locator('.library-panel [data-component-id="rds"]').click();
+    await page.locator('.library-panel [data-component-id="aws-rds"]').click();
     // wait for debounced autosave
     await page.waitForTimeout(700);
 
@@ -296,7 +296,7 @@ test.describe("component library", () => {
 
     const state = await editorState();
     expect(state.elementCount).toBe(1);
-    expect(state.elements[0].componentId).toBe("rds");
+    expect(state.elements[0].componentId).toBe("aws-rds");
   });
 
   test("closes with Esc and close button", async ({ page }) => {
@@ -357,7 +357,7 @@ test.describe("component library", () => {
     await openLibraryWithAws(page);
 
     // EC2 has official embedded asset
-    const ec2 = page.locator('.library-panel [data-component-id="ec2"]');
+    const ec2 = page.locator('.library-panel [data-component-id="aws-ec2"]');
     await expect(ec2.locator("img.library-card-img")).toBeVisible();
 
     // service name comes as tooltip, no text in tile
@@ -366,7 +366,7 @@ test.describe("component library", () => {
 
     await ec2.click();
     const state = await editorState();
-    expect(state.elements[0].componentId).toBe("ec2");
+    expect(state.elements[0].componentId).toBe("aws-ec2");
   });
 
   test("AWS group expands and collapses", async ({ page }) => {
@@ -374,7 +374,7 @@ test.describe("component library", () => {
 
     const header = page.locator(".library-section-header", { hasText: "AWS" });
     await expect(header).toHaveAttribute("aria-expanded", "false");
-    const tile = page.locator('.library-panel [data-component-id="ec2"]');
+    const tile = page.locator('.library-panel [data-component-id="aws-ec2"]');
     await expect(tile).toHaveCount(0);
 
     await header.click();
@@ -443,8 +443,8 @@ test.describe("component library", () => {
     await openLibraryWithAws(page);
 
     // insert two components to populate recents
-    await page.locator('.library-panel [data-component-id="s3"]').click();
-    await page.locator('.library-panel [data-component-id="rds"]').click();
+    await page.locator('.library-panel [data-component-id="aws-s3"]').click();
+    await page.locator('.library-panel [data-component-id="aws-rds"]').click();
 
     const recents = page.locator('[data-testid="library-recents"]');
     await expect(recents).toBeVisible();
@@ -458,7 +458,7 @@ test.describe("component library", () => {
     // RDS was most recent → first recents tile
     await expect(recents.locator(".library-tile").first()).toHaveAttribute(
       "data-component-id",
-      "rds",
+      "aws-rds",
     );
   });
 
@@ -487,7 +487,7 @@ test.describe("component library", () => {
     await expect(tooltip).toHaveCount(0);
 
     await page.locator(".library-section-header", { hasText: "AWS" }).click();
-    const ec2 = page.locator('.library-panel [data-component-id="ec2"]');
+    const ec2 = page.locator('.library-panel [data-component-id="aws-ec2"]');
     await expect(ec2).not.toHaveAttribute("title");
     await ec2.hover();
     await expect(tooltip).toBeVisible();

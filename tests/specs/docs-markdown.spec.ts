@@ -2,13 +2,14 @@ import { test, expect } from "../fixtures";
 
 const SLUGS = [
   "index",
+  "recomendations",
   "workspace",
   "elements",
-  "catalog",
   "clipboard",
   "library",
-  "recipes",
-  "validate",
+  "lib-svg",
+  "lib-native",
+  "validation",
 ];
 
 test.describe("ai raw markdown routes (/ai and /ai/<slug>.md)", () => {

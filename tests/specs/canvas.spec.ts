@@ -61,7 +61,7 @@ test.describe("resize handles", () => {
     page,
   }) => {
     await open(page);
-    await page.evaluate(() => window.__editor__.insertComponent("sqs"));
+    await page.evaluate(() => window.__editor__.insertComponent("aws-sqs"));
 
     const before = await page.evaluate(() => {
       const s = window.__editor__.getSnapshot();

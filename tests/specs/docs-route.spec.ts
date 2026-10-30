@@ -108,8 +108,8 @@ test.describe("docs markdown source", () => {
       "#d3e1ed",
       "#545c63",
       "### 3.7 Component catalog",
-      "`api-gateway`",
-      "`eks`",
+      "`aws-api-gateway`",
+      "`aws-eks`",
       "`k8s-hpa`",
       "official bundled icon",
       "### 3.8 Additional information (`details`)",
@@ -408,7 +408,7 @@ test.describe("docs markdown source", () => {
     expect(state.tabs).toHaveLength(2);
     expect(state.elementCount).toBe(9);
     expect(state.elements.map((e) => e.type)).toEqual(expectedTypes);
-    expect(state.elements.map((e) => e.componentId).filter(Boolean)).toEqual(["ec2"]);
+    expect(state.elements.map((e) => e.componentId).filter(Boolean)).toEqual(["aws-ec2"]);
   });
 
   test("minimal and legacy examples are valid JSON for their schemas", async ({
@@ -432,5 +432,43 @@ test.describe("docs markdown source", () => {
     const legacyDoc = JSON.parse(legacy!);
     expect(legacyDoc.schemaVersion).toBe(1);
     expect(legacyDoc.doc.elements).toHaveLength(0);
+  });
+
+  test("serves all native libraries via /ai/lib/<slug>.archidrawlib with valid item ids", async ({
+    request,
+  }) => {
+    const slugs = [
+      "clients-devices",
+      "infra-network",
+      "compute-services",
+      "data-storage",
+      "messaging-events",
+      "security-identity",
+      "observability-ops",
+      "platform-integrations",
+    ];
+
+    for (const slug of slugs) {
+      const res = await request.get(`/ai/lib/${slug}.archidrawlib`);
+      expect(res.status(), `status of /ai/lib/${slug}.archidrawlib`).toBe(200);
+      expect(res.headers()["content-type"]).toContain("application/json");
+
+      const data = await res.json();
+      expect(data.type).toBe("archidrawlib");
+      expect(data.version).toBe(2);
+      expect(Array.isArray(data.libraryItems)).toBe(true);
+      expect(data.libraryItems.length).toBeGreaterThan(0);
+
+      for (const item of data.libraryItems) {
+        expect(typeof item.id).toBe("string");
+        expect(item.id.startsWith("sd-")).toBe(true);
+        expect(typeof item.name).toBe("string");
+        expect(Array.isArray(item.archidrawElements)).toBe(true);
+        expect(item.archidrawElements.length).toBeGreaterThan(0);
+      }
+    }
+
+    const notFound = await request.get("/ai/lib/non-existent.archidrawlib");
+    expect(notFound.status()).toBe(404);
   });
 });

@@ -228,7 +228,7 @@ test.describe("context", () => {
     // component inserted from the library
     await page.evaluate(() => {
       const ed = (window as any).__editor__;
-      ed.insertComponent("api-gateway", { x: 500, y: 300 });
+      ed.insertComponent("aws-api-gateway", { x: 500, y: 300 });
     });
     await page.waitForTimeout(200);
 

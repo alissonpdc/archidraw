@@ -3,6 +3,7 @@
   "version": 2,
   "libraryItems": [
     {
+      "id": "sd-platform-integrations-git-repository",
       "name": "Git Repository",
       "archidrawElements": [
         {
@@ -214,6 +215,7 @@
       ]
     },
     {
+      "id": "sd-platform-integrations-ci-cd-pipeline",
       "name": "CI-CD Pipeline",
       "archidrawElements": [
         {
@@ -467,6 +469,7 @@
       ]
     },
     {
+      "id": "sd-platform-integrations-container-registry",
       "name": "Container Registry",
       "archidrawElements": [
         {
@@ -698,6 +701,7 @@
       ]
     },
     {
+      "id": "sd-platform-integrations-ai-model",
       "name": "AI Model",
       "archidrawElements": [
         {
@@ -861,6 +865,7 @@
       ]
     },
     {
+      "id": "sd-platform-integrations-ai-agent",
       "name": "AI Agent",
       "archidrawElements": [
         {
@@ -1052,6 +1057,7 @@
       ]
     },
     {
+      "id": "sd-platform-integrations-external-system",
       "name": "External System",
       "archidrawElements": [
         {
@@ -1130,6 +1136,7 @@
       ]
     },
     {
+      "id": "sd-platform-integrations-email-service",
       "name": "Email Service",
       "archidrawElements": [
         {
@@ -1221,6 +1228,7 @@
       ]
     },
     {
+      "id": "sd-platform-integrations-payment-gateway",
       "name": "Payment Gateway",
       "archidrawElements": [
         {

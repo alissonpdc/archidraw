@@ -3,6 +3,7 @@
   "version": 2,
   "libraryItems": [
     {
+      "id": "sd-data-storage-relational-db",
       "name": "Relational DB",
       "archidrawElements": [
         {
@@ -159,6 +160,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-database-cluster",
       "name": "Database Cluster",
       "archidrawElements": [
         {
@@ -461,6 +463,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-document-db",
       "name": "Document DB",
       "archidrawElements": [
         {
@@ -577,6 +580,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-key-value-store",
       "name": "Key-Value Store",
       "archidrawElements": [
         {
@@ -738,6 +742,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-in-memory-cache",
       "name": "In-Memory Cache",
       "archidrawElements": [
         {
@@ -957,6 +962,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-object-storage",
       "name": "Object Storage",
       "archidrawElements": [
         {
@@ -1197,6 +1203,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-blob-storage",
       "name": "Blob Storage",
       "archidrawElements": [
         {
@@ -1320,6 +1327,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-file-storage",
       "name": "File Storage",
       "archidrawElements": [
         {
@@ -1444,6 +1452,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-data-lake",
       "name": "Data Lake",
       "archidrawElements": [
         {
@@ -2055,6 +2064,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-data-warehouse",
       "name": "Data Warehouse",
       "archidrawElements": [
         {
@@ -2178,6 +2188,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-graph-db",
       "name": "Graph DB",
       "archidrawElements": [
         {
@@ -2573,6 +2584,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-time-series-db",
       "name": "Time-Series DB",
       "archidrawElements": [
         {
@@ -2895,6 +2907,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-vector-database",
       "name": "Vector Database",
       "archidrawElements": [
         {
@@ -3339,6 +3352,7 @@
       ]
     },
     {
+      "id": "sd-data-storage-search-engine",
       "name": "Search Engine",
       "archidrawElements": [
         {
