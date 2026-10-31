@@ -23,7 +23,11 @@ import {
   workspaceName,
   writeHandle,
 } from "./workspaceDocumentCore";
-import { flush, reconcileWorkspaceBinding } from "./workspaceDocumentReconciler";
+import {
+  flush,
+  reconcileWorkspaceBinding,
+  settleInFlightWrite,
+} from "./workspaceDocumentReconciler";
 import type {
   DocumentRuntime,
   NewFileOptions,
@@ -151,11 +155,10 @@ export async function closeDocument(
   }
   cancelScheduledWrite(runtime, workspaceId);
   if (runtime.bindings.has(workspaceId)) {
-    await flush(runtime, workspaceId);
-    if (getSyncConflict(workspaceId)) {
-      runtime.notify("Resolve the file conflict before closing");
-      return false;
-    }
+    // a close without saving must not start a write; settling only waits for
+    // an in-flight write so commitWrite cannot re-persist the binding after
+    // detachBinding
+    await settleInFlightWrite(runtime, workspaceId);
     await detachBinding(runtime, workspaceId);
   }
   withSuspended(runtime, () => runtime.editor.closeWorkspace(workspaceId));

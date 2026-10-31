@@ -852,6 +852,35 @@ test.describe("workspace file sync", () => {
     ).toHaveLength(2);
   });
 
+  test("closing a workspace without saving keeps the file as last saved", async ({
+    page,
+  }) => {
+    await drawRect(page);
+    await saveActiveToFile(page, WORKSPACE_FILE);
+
+    // make an edit without saving
+    await drawRect(page, { x: 320, y: 100 }, { x: 420, y: 180 });
+    await expect(page.locator('[data-testid="status-file"]')).toHaveAttribute(
+      "data-status",
+      "modified",
+    );
+
+    await page.click('[data-testid="panel-toggle"]');
+    await page.click('[data-testid="ws-delete"]');
+    const dialog = page.locator('[data-testid="ws-confirm"]');
+    await expect(dialog).toBeVisible();
+
+    // "Close workspace" discards the local changes; the file must stay untouched
+    await page.click('[data-testid="ws-confirm-btn"]');
+    await expect(dialog).toHaveCount(0);
+    await expect
+      .poll(async () => (await documentSyncSnapshot(page)).bindings)
+      .toBe(0);
+    expect(
+      (await readWorkspaceJson(page, WORKSPACE_FILE)).data.tabs[0].doc.elements,
+    ).toHaveLength(1);
+  });
+
   test("closing a canvas alerts about losing unsaved work and offers save & close", async ({ page }) => {
     await page.click('[data-testid="panel-toggle"]');
     await page.click('[data-testid="ws-add-canvas"]');
