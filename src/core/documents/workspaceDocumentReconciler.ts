@@ -107,6 +107,15 @@ async function updateModifiedStatus(
   }
 }
 
+/** waits for an in-flight write to finish without starting a new one */
+export async function settleInFlightWrite(
+  runtime: DocumentRuntime,
+  workspaceId: string,
+): Promise<void> {
+  const existing = runtime.inFlightWrites.get(workspaceId);
+  if (existing) await existing;
+}
+
 export async function flush(
   runtime: DocumentRuntime,
   workspaceId: string,
